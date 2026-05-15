@@ -1,0 +1,27 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /manifestazioni/{manifestationId} {
+      allow read, write: if true;
+      match /{document=**} {
+        allow read, write: if true;
+      }
+    }
+    match /impostazioni/{docId} {
+      allow read, write: if true;
+    }
+    match /eventi/{docId} {
+      allow read, write: if true;
+    }
+    match /missioni/{docId} {
+      allow read, write: if true;
+    }
+    match /mezzi/{docId} {
+      allow read, write: if true;
+    }
+    match /pazienti/{docId} {
+      allow read, write: if true;
+    }
+  }
+}

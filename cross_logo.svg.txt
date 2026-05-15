@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" fill="none">
+
+  <!-- Monitor screen body -->
+  <rect x="40" y="60" width="420" height="280" rx="28" ry="28"
+        stroke="#E00000" stroke-width="28" fill="none"/>
+
+  <!-- Monitor stand neck -->
+  <rect x="215" y="340" width="70" height="60" rx="6"
+        fill="#E00000"/>
+
+  <!-- Monitor base -->
+  <rect x="140" y="395" width="220" height="32" rx="14"
+        fill="#E00000"/>
+
+  <!-- Medical cross inside screen -->
+  <!-- Horizontal bar -->
+  <rect x="130" y="155" width="240" height="90" rx="8" fill="#E00000"/>
+  <!-- Vertical bar -->
+  <rect x="205" y="80" width="90" height="240" rx="8" fill="#E00000"/>
+
+</svg>

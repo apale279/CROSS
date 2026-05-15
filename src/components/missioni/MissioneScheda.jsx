@@ -1,0 +1,302 @@
+import { useCallback, useMemo } from 'react';
+import { DEFAULT_IMPOSTAZIONI } from '../../constants';
+import { useManifestazioneId } from '../../context/ManifestazioneContext';
+import { findEvento } from '../../lib/eventoLinks';
+import { toDatetimeLocalValue, fromDatetimeLocalValue } from '../../lib/datetimeLocal';
+import { buildStatoChangeFields, patchStoricoStatoAt } from '../../lib/missionStoricoStati';
+import {
+  normalizeTratteMissione,
+  nuovaTrattaMissione,
+  tratteMissioneToFirestore,
+} from '../../lib/missionTratte';
+import { patchMissione } from '../../services/missioniService';
+import { useElapsedSince } from '../../hooks/useElapsedSince';
+import { statoMissioneBadgeClass, formatTimestamp } from '../../utils/formatters';
+import { nextStatoMissione } from '../../utils/missionStati';
+import {
+  FormField,
+  btnPrimary,
+  btnSecondary,
+  btnDanger,
+  inputClass,
+  selectClass,
+} from '../ui/FormField';
+import { MissioneEccezioniPanel } from './MissioneEccezioniPanel';
+
+export function MissioneScheda({ missione, eventi, mezzi, allMissioni, existingEventi, onOpenEvento }) {
+  const manifestationId = useManifestazioneId();
+  const stati = DEFAULT_IMPOSTAZIONI.statiMissione;
+  const elapsed = useElapsedSince(missione.statoDa ?? missione.apertura);
+  const storico = missione.storicoStati ?? {};
+
+  const evento = useMemo(
+    () => findEvento(eventi, missione.eventoIdUnivoco || missione.eventoCorrelato),
+    [eventi, missione],
+  );
+  const mezzo = useMemo(
+    () => mezzi.find((m) => (m.sigla ?? m._docId) === missione.mezzo),
+    [mezzi, missione.mezzo],
+  );
+
+  const tratte = useMemo(
+    () => normalizeTratteMissione(missione.tratteMissione),
+    [missione.tratteMissione],
+  );
+
+  const persistTratte = useCallback(
+    async (next) => {
+      const sorted = [...next].sort((a, b) => a.quando.getTime() - b.quando.getTime());
+      await patchMissione(
+        manifestationId,
+        missione._docId,
+        { tratteMissione: tratteMissioneToFirestore(sorted) },
+        missione.mezzo,
+      );
+    },
+    [manifestationId, missione._docId, missione.mezzo],
+  );
+
+  const aggiungiTratta = async () => {
+    await persistTratte([...tratte, nuovaTrattaMissione()]);
+  };
+
+  const onTrattaQuandoBlur = async (id, localValue) => {
+    const date = fromDatetimeLocalValue(localValue);
+    if (!date) return;
+    const cur = tratte.find((t) => t.id === id);
+    if (!cur) return;
+    if (date.getTime() === cur.quando.getTime()) return;
+    await persistTratte(tratte.map((t) => (t.id === id ? { ...t, quando: date } : t)));
+  };
+
+  const onTrattaDescrizioneBlur = async (id, value) => {
+    const cur = tratte.find((t) => t.id === id);
+    if (!cur || value === cur.descrizione) return;
+    await persistTratte(tratte.map((t) => (t.id === id ? { ...t, descrizione: value } : t)));
+  };
+
+  const rimuoviTratta = async (id) => {
+    if (tratte.length === 0) return;
+    if (!window.confirm('Rimuovere questa tratta dalla missione?')) return;
+    await persistTratte(tratte.filter((t) => t.id !== id));
+  };
+
+  const applyStato = async (nuovo) => {
+    if (nuovo === missione.stato) return;
+    await patchMissione(
+      manifestationId,
+      missione._docId,
+      buildStatoChangeFields(missione, nuovo),
+      missione.mezzo,
+    );
+  };
+
+  const avanzaStato = async () => {
+    const nuovo = nextStatoMissione(missione.stato ?? 'ALLERTARE', stati);
+    await applyStato(nuovo);
+  };
+
+  const onStoricoBlur = async (statoKey, localValue) => {
+    const date = fromDatetimeLocalValue(localValue);
+    const prev = toDatetimeLocalValue(storico[statoKey]);
+    if (localValue === prev) return;
+    await patchMissione(
+      manifestationId,
+      missione._docId,
+      patchStoricoStatoAt(missione, statoKey, date),
+      missione.mezzo,
+    );
+  };
+
+  return (
+    <div className="space-y-4 text-sm">
+      <div className="flex flex-wrap items-center gap-3 border-b border-slate-200 pb-3">
+        <span className="font-mono text-xl font-bold text-slate-900">{missione.idMissione}</span>
+        <span
+          className={`rounded border px-2 py-0.5 text-xs font-bold uppercase ${statoMissioneBadgeClass(missione.stato)}`}
+        >
+          {missione.stato}
+        </span>
+        <span className="font-mono text-xs text-slate-500">{elapsed}</span>
+      </div>
+
+      <dl className="grid gap-2">
+        <Row label="Evento" value={missione.eventoCorrelato} mono />
+        <Row label="Mezzo" value={missione.mezzo} mono />
+        <Row label="Apertura" value={formatTimestamp(missione.apertura)} />
+        <Row label="Aperta" value={missione.aperta !== false ? 'Sì' : 'No'} />
+        <Row label="Equipaggio" value={missione.equipaggio || '—'} />
+      </dl>
+
+      <FormField label="Note missione">
+        <textarea
+          key={missione._docId}
+          className={inputClass}
+          rows={3}
+          defaultValue={missione.noteMissione ?? ''}
+          onBlur={async (e) => {
+            const v = e.target.value;
+            if (v === (missione.noteMissione ?? '')) return;
+            await patchMissione(
+              manifestationId,
+              missione._docId,
+              { noteMissione: v },
+              missione.mezzo,
+            );
+          }}
+        />
+      </FormField>
+
+      <MissioneEccezioniPanel
+        manifestationId={manifestationId}
+        missione={missione}
+        eventi={eventi}
+        mezzi={mezzi}
+        allMissioni={allMissioni ?? []}
+        existingEventi={existingEventi ?? eventi ?? []}
+      />
+
+      <section className="rounded border border-slate-200 bg-slate-50 p-3">
+        <p className="mb-3 text-xs font-bold uppercase text-slate-600">Cronologia stati</p>
+        <ul className="space-y-2">
+          {stati.map((stato) => {
+            const isCurrent = missione.stato === stato;
+            return (
+              <li
+                key={stato}
+                className={`grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center ${
+                  isCurrent ? 'rounded border border-sky-200 bg-sky-50/80 p-2' : ''
+                }`}
+              >
+                <span
+                  className={`text-xs font-bold uppercase ${
+                    isCurrent ? 'text-sky-800' : 'text-slate-600'
+                  }`}
+                >
+                  {stato}
+                </span>
+                <input
+                  type="datetime-local"
+                  className={`${inputClass} font-mono text-xs`}
+                  value={toDatetimeLocalValue(
+                    storico[stato] ??
+                      (stato === missione.stato
+                        ? missione.statoDa ?? missione.apertura
+                        : null),
+                  )}
+                  onBlur={(e) => onStoricoBlur(stato, e.target.value)}
+                  title="Modifica data/ora; al cambio stato viene impostata automaticamente"
+                />
+              </li>
+            );
+          })}
+        </ul>
+      </section>
+
+      <section className="rounded border border-slate-200 bg-slate-50 p-3">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <p className="text-xs font-bold uppercase text-slate-600">Tratte / tappe</p>
+          <button type="button" className={btnSecondary} onClick={() => void aggiungiTratta()}>
+            Aggiungi tratta
+          </button>
+        </div>
+        <p className="mb-3 text-[11px] text-slate-500">
+          Registra passaggi operativi con orario e descrizione (es. rientro in sede per rifornimento,
+          sosta, cambio equipaggio). Non sostituiscono gli stati missione.
+        </p>
+        {tratte.length === 0 ? (
+          <p className="text-sm text-slate-500">Nessuna tratta registrata.</p>
+        ) : (
+          <ul className="space-y-3">
+            {tratte.map((t) => (
+              <li
+                key={t.id}
+                className="rounded-lg border border-slate-200 bg-white p-3 shadow-sm"
+              >
+                <div className="grid gap-2 sm:grid-cols-[minmax(0,auto)_1fr_auto] sm:items-start">
+                  <FormField label="Data e ora" className="sm:min-w-[200px]">
+                    <input
+                      type="datetime-local"
+                      className={`${inputClass} font-mono text-xs`}
+                      defaultValue={toDatetimeLocalValue(t.quando)}
+                      key={`${t.id}-${t.quando.getTime()}`}
+                      onBlur={(e) => void onTrattaQuandoBlur(t.id, e.target.value)}
+                    />
+                  </FormField>
+                  <FormField label="Descrizione">
+                    <input
+                      type="text"
+                      className={inputClass}
+                      defaultValue={t.descrizione}
+                      placeholder="Es. Mezzo rientra in sede per rifornirsi"
+                      onBlur={(e) => void onTrattaDescrizioneBlur(t.id, e.target.value)}
+                    />
+                  </FormField>
+                  <div className="flex items-end sm:justify-end">
+                    <button
+                      type="button"
+                      className={`${btnDanger} whitespace-nowrap`}
+                      onClick={() => void rimuoviTratta(t.id)}
+                    >
+                      Rimuovi
+                    </button>
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      {evento && (
+        <section className="rounded border border-slate-200 bg-slate-50 p-3">
+          <p className="mb-2 text-xs font-bold uppercase text-slate-600">Evento collegato</p>
+          <p className="text-slate-800">{evento.indirizzo || '—'}</p>
+          <p className="text-slate-600">
+            {evento.tipoEvento}
+            {evento.dettaglioEvento ? ` — ${evento.dettaglioEvento}` : ''}
+          </p>
+          <button type="button" className={`${btnSecondary} mt-2`} onClick={() => onOpenEvento?.(evento)}>
+            Apri scheda evento
+          </button>
+        </section>
+      )}
+
+      {mezzo && (
+        <section className="rounded border border-slate-200 bg-slate-50 p-3">
+          <p className="text-xs font-bold uppercase text-slate-600">Mezzo</p>
+          <p className="font-mono font-semibold">{mezzo.sigla ?? mezzo._docId}</p>
+          <p>
+            {mezzo.tipo} · {mezzo.statoMezzo ?? 'Disponibile'}
+          </p>
+        </section>
+      )}
+
+      <div className="flex flex-wrap gap-2 border-t border-slate-200 pt-3">
+        <select
+          className={selectClass}
+          value={missione.stato ?? 'ALLERTARE'}
+          onChange={(e) => applyStato(e.target.value)}
+        >
+          {stati.map((s) => (
+            <option key={s} value={s}>
+              {s}
+            </option>
+          ))}
+        </select>
+        <button type="button" className={btnPrimary} onClick={avanzaStato}>
+          Stato successivo
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function Row({ label, value, mono }) {
+  return (
+    <div className="grid grid-cols-3 gap-2">
+      <dt className="text-slate-500">{label}</dt>
+      <dd className={`col-span-2 text-slate-900 ${mono ? 'font-mono' : ''}`}>{value}</dd>
+    </div>
+  );
+}
