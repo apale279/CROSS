@@ -80,6 +80,20 @@ export function loadGoogleMaps() {
 
 export const DEFAULT_MAP_CENTER = { lat: 41.9028, lng: 12.4964 };
 
+/** Centro mappa dashboard da documento impostazioni normalizzato (`mappaDashboardDefault`). */
+export function dashboardMapDefaultFromImpostazioni(impostazioni) {
+  const d = impostazioni?.mappaDashboardDefault;
+  if (!d || typeof d !== 'object') return null;
+  const lat = typeof d.lat === 'number' ? d.lat : Number(d.lat);
+  const lng = typeof d.lng === 'number' ? d.lng : Number(d.lng);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  const zoomRaw = typeof d.zoom === 'number' ? d.zoom : Number(d.zoom);
+  const zoom = Number.isFinite(zoomRaw)
+    ? Math.min(20, Math.max(2, Math.round(zoomRaw)))
+    : 14;
+  return { center: { lat, lng }, zoom };
+}
+
 export function parseCoordinate(coordinate) {
   if (!coordinate) return null;
   const lat =

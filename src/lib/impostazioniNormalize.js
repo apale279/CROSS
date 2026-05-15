@@ -19,7 +19,27 @@ export function normalizeImpostazioni(data) {
     dettagliPerTipo = {};
   }
 
-  return { ...merged, dettagliPerTipoEvento: dettagliPerTipo };
+  let mappaDashboardDefault = merged.mappaDashboardDefault;
+  if (mappaDashboardDefault != null && typeof mappaDashboardDefault === 'object') {
+    const lat = Number(mappaDashboardDefault.lat);
+    const lng = Number(mappaDashboardDefault.lng);
+    const zoom = Number(mappaDashboardDefault.zoom);
+    if (Number.isFinite(lat) && Number.isFinite(lng)) {
+      mappaDashboardDefault = {
+        luogo:
+          typeof mappaDashboardDefault.luogo === 'string' ? mappaDashboardDefault.luogo : '',
+        lat,
+        lng,
+        zoom: Number.isFinite(zoom) ? Math.min(20, Math.max(2, Math.round(zoom))) : 14,
+      };
+    } else {
+      mappaDashboardDefault = null;
+    }
+  } else {
+    mappaDashboardDefault = null;
+  }
+
+  return { ...merged, dettagliPerTipoEvento: dettagliPerTipo, mappaDashboardDefault };
 }
 
 export function dettagliPerTipoEvento(impostazioni, tipoEvento) {

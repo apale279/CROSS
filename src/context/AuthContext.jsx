@@ -17,7 +17,7 @@ import { doc, getDoc } from 'firebase/firestore';
 import { auth, db } from '../firebaseConfig';
 import { COLLECTIONS } from '../lib/firestorePaths';
 import { useTenantContext } from './TenantContext';
-import { authEmailFromNomeUtente } from '../lib/authIdentity';
+import { authEmailFromNomeUtente, normalizeNomeUtente } from '../lib/authIdentity';
 import { logUserActivity } from '../services/activityLogService';
 import { createUserProfile } from '../services/userProfileService';
 
@@ -91,16 +91,17 @@ export function AuthProvider({ children }) {
     async ({ nome, nomeUtente, password }) => {
       if (!tenantId) throw new Error('Manifestazione non disponibile.');
       const email = authEmailFromNomeUtente(nomeUtente, tenantId);
+      const nomeUtenteNorm = normalizeNomeUtente(nomeUtente);
       const cred = await createUserWithEmailAndPassword(auth, email, password);
       const nomeTrim = nome?.trim() ?? '';
       await updateProfile(cred.user, { displayName: nomeTrim });
       await createUserProfile(tenantId, cred.user.uid, {
         nome: nomeTrim,
-        nomeUtente: nomeUtente.trim(),
+        nomeUtente: nomeUtenteNorm,
       });
       await logUserActivity(tenantId, {
         uid: cred.user.uid,
-        nomeUtente: nomeUtente.trim(),
+        nomeUtente: nomeUtenteNorm,
         nome: nomeTrim,
         type: 'REGISTER',
         detail: null,
@@ -117,10 +118,11 @@ export function AuthProvider({ children }) {
     async ({ nomeUtente, password }) => {
       if (!tenantId) throw new Error('Manifestazione non disponibile.');
       const email = authEmailFromNomeUtente(nomeUtente, tenantId);
+      const nomeUtenteNorm = normalizeNomeUtente(nomeUtente);
       const cred = await signInWithEmailAndPassword(auth, email, password);
       await logUserActivity(tenantId, {
         uid: cred.user.uid,
-        nomeUtente: nomeUtente.trim(),
+        nomeUtente: nomeUtenteNorm,
         nome: cred.user.displayName ?? null,
         type: 'LOGIN',
         detail: null,

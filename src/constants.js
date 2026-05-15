@@ -37,6 +37,11 @@ export const DEFAULT_IMPOSTAZIONI = {
     /** Missione interrotta (dirottamento, flag-down, ecc.): non conta come chiusura “normale” dell’evento. */
     'ANNULLATA',
   ],
+  /**
+   * Centro iniziale mappa dashboard quando nessun evento ha coordinate.
+   * `{ luogo, lat, lng, zoom? }` oppure null = default geografico Roma.
+   */
+  mappaDashboardDefault: null,
 };
 
 export const ESITI_PAZIENTE = [

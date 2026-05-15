@@ -1,7 +1,12 @@
 import { useEffect, useMemo } from 'react';
 import { GoogleMap, Marker, useGoogleMap } from '@react-google-maps/api';
 import { useGoogleMapsReady } from '../../context/GoogleMapsContext';
-import { DEFAULT_MAP_CENTER, parseCoordinate } from '../../lib/googleMaps';
+import { useImpostazioni } from '../../hooks/useImpostazioni';
+import {
+  DEFAULT_MAP_CENTER,
+  dashboardMapDefaultFromImpostazioni,
+  parseCoordinate,
+} from '../../lib/googleMaps';
 import { coloreHex } from '../../utils/formatters';
 
 const mapOptions = {
@@ -51,9 +56,10 @@ export function OpsMap({ eventi, mezzi, onSelect }) {
     });
 
     if (eventOnly.length === 0) {
+      const custom = dashboardMapDefaultFromImpostazioni(impostazioni);
       return {
-        center: DEFAULT_MAP_CENTER,
-        zoom: 12,
+        center: custom?.center ?? DEFAULT_MAP_CENTER,
+        zoom: custom?.zoom ?? 12,
         markers: list,
         eventPositions: [],
       };
@@ -76,7 +82,7 @@ export function OpsMap({ eventi, mezzi, onSelect }) {
       markers: list,
       eventPositions: eventOnly,
     };
-  }, [eventi, mezzi]);
+  }, [eventi, mezzi, impostazioni]);
 
   if (loadError) {
     return (

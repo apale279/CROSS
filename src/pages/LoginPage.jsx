@@ -3,6 +3,7 @@ import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTenantContext } from '../context/TenantContext';
 import { TenantConfigMissing } from '../components/routing/TenantConfigMissing';
+import { validateNomeUtente } from '../lib/authIdentity';
 
 function mapAuthError(code) {
   switch (code) {
@@ -77,6 +78,12 @@ export default function LoginPage() {
       }
     } else if (password.length < 6) {
       setError('La password deve essere di almeno 6 caratteri.');
+      return;
+    }
+
+    const nomeUtenteErr = validateNomeUtente(nomeUtente);
+    if (nomeUtenteErr) {
+      setError(nomeUtenteErr);
       return;
     }
 
@@ -159,8 +166,14 @@ export default function LoginPage() {
               value={nomeUtente}
               onChange={(ev) => setNomeUtente(ev.target.value)}
               className="w-full rounded-lg border border-slate-300 px-3 py-2 font-mono text-sm outline-none ring-sky-500 focus:ring-2"
-              placeholder="es. mario.rossi"
+              placeholder="mario.rossi"
             />
+            <p className="mt-1 text-xs leading-snug text-slate-600">
+              Formato consigliato:{' '}
+              <span className="font-mono text-slate-800">nome.cognome</span>. Nessuno spazio; solo lettere,
+              numeri, <span className="font-mono">.</span>, <span className="font-mono">_</span>,{' '}
+              <span className="font-mono">-</span>.
+            </p>
           </div>
           <div>
             <label htmlFor="login-pass" className="mb-1 block text-xs font-bold uppercase text-slate-600">

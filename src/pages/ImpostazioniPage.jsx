@@ -4,6 +4,7 @@ import { ListEditorField } from '../components/impostazioni/ListEditorField';
 import { ImpostazioniEventiPanel } from '../components/impostazioni/ImpostazioniEventiPanel';
 import { PartecipantiRegistryEditor } from '../components/impostazioni/PartecipantiRegistryEditor';
 import { WipeOpsDangerZone } from '../components/impostazioni/WipeOpsDangerZone';
+import { MappaDashboardCentroEditor } from '../components/impostazioni/MappaDashboardCentroEditor';
 
 const ALTRE_LISTE = {
   tipiMezzo: 'Tipo mezzo',
@@ -41,6 +42,7 @@ export default function ImpostazioniPage() {
             <ListEditorField key={key} fieldKey={key} label={label} />
           ))}
           <StazionamentiEditor />
+          <MappaDashboardCentroEditor />
           <PartecipantiRegistryEditor />
           <WipeOpsDangerZone />
         </div>
