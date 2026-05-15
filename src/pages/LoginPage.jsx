@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { Navigate, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTenantContext } from '../context/TenantContext';
 import { TenantConfigMissing } from '../components/routing/TenantConfigMissing';
@@ -30,7 +30,6 @@ function mapAuthError(code) {
 
 export default function LoginPage() {
   const navigate = useNavigate();
-  const location = useLocation();
   const { tenantId, loading: tenantLoading } = useTenantContext();
   const { user, register, login } = useAuth();
 
@@ -41,8 +40,6 @@ export default function LoginPage() {
   const [password2, setPassword2] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
-
-  const from = location.state?.from && location.state.from !== '/login' ? location.state.from : '/';
 
   if (tenantLoading) {
     return (
@@ -57,7 +54,7 @@ export default function LoginPage() {
   }
 
   if (user) {
-    return <Navigate to={from} replace />;
+    return <Navigate to="/" replace />;
   }
 
   const onSubmit = async (e) => {
@@ -94,7 +91,7 @@ export default function LoginPage() {
       } else {
         await login({ nomeUtente, password });
       }
-      navigate(from, { replace: true });
+      navigate('/', { replace: true });
     } catch (err) {
       const msg = mapAuthError(err?.code) ?? err?.message ?? 'Operazione non riuscita.';
       setError(msg);

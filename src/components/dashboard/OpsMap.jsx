@@ -38,6 +38,7 @@ function FitEventBounds({ eventPositions }) {
 
 export function OpsMap({ eventi, mezzi, onSelect }) {
   const { isLoaded, loadError } = useGoogleMapsReady();
+  const { impostazioni } = useImpostazioni();
 
   const { center, zoom, markers, eventPositions } = useMemo(() => {
     const list = [];
