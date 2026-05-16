@@ -4,21 +4,21 @@ import { PanelAlertIcon } from '../ui/PanelAlertIcon';
 import { ColoreIndicator } from '../ui/ColoreIndicator';
 import { coloreRowBgSoft, statoMissioneBadgeClass } from '../../utils/formatters';
 
+/** Stessi font/padding del pannello «Stato mezzi» in DashboardPage. */
 const thClass =
-  'sticky top-0 z-10 border-b border-slate-300 bg-slate-100/95 px-1.5 py-0.5 text-left text-[10px] font-bold uppercase leading-none text-slate-600 backdrop-blur';
-const tdClass =
-  'border-t border-slate-200/80 px-1.5 py-px text-xs leading-tight text-slate-900 align-middle';
+  'sticky top-0 z-10 bg-slate-100/95 px-3 py-2 text-left text-xs font-bold uppercase text-slate-600 backdrop-blur';
+const tdClass = 'border-t border-slate-200/80 px-3 py-2 text-sm text-slate-900';
 
 function MissioneStatoCell({ mis, onAdvance }) {
   const elapsed = useElapsedSince(mis.statoDa ?? mis.apertura);
   return (
     <td className={`${tdClass} text-right`}>
       <div className="flex items-center justify-end gap-1 whitespace-nowrap">
-        <span className="font-mono text-[9px] tabular-nums text-slate-500">{elapsed}</span>
+        <span className="font-mono text-[10px] tabular-nums text-slate-500">{elapsed}</span>
         <button
           type="button"
           onClick={(e) => onAdvance(e, mis)}
-          className={`cursor-pointer rounded border px-1 py-px text-[10px] font-bold uppercase leading-none hover:opacity-80 ${statoMissioneBadgeClass(mis.stato)}`}
+          className={`cursor-pointer rounded border px-2 py-0.5 text-xs font-bold uppercase hover:opacity-80 ${statoMissioneBadgeClass(mis.stato)}`}
           title="Clic per stato successivo"
         >
           {mis.stato}
@@ -34,7 +34,7 @@ function EventoCells({ ev, rowSpan, orfano, pazientiCount, multiMission, onOpenE
     if (ev) onOpenEvento(ev);
   };
   const evBorder = multiMission ? 'border-r border-r-violet-200/60' : 'border-r-2 border-slate-200';
-  const evTd = `cursor-pointer hover:brightness-95 ${tdClass} ${evBorder} align-top !py-0.5`;
+  const evTd = `cursor-pointer hover:brightness-95 ${tdClass} ${evBorder} align-top`;
 
   return (
     <>
@@ -45,7 +45,7 @@ function EventoCells({ ev, rowSpan, orfano, pazientiCount, multiMission, onOpenE
               <PanelAlertIcon
                 variant="amber"
                 title="Evento senza copertura (nessuna missione attiva)"
-                className="[&_svg]:h-3 [&_svg]:w-3"
+                className="[&_svg]:h-4 [&_svg]:w-4"
               />
             )}
             <span>{ev.idEvento}</span>
@@ -68,11 +68,11 @@ function EventoCells({ ev, rowSpan, orfano, pazientiCount, multiMission, onOpenE
       <td rowSpan={rowSpan} className={`${evTd} text-center`} onClick={open}>
         {ev ? (
           <span
-            className="inline-flex items-center gap-0.5 rounded bg-slate-100 px-0.5 py-px text-slate-800"
+            className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-1.5 py-0.5 text-slate-800"
             title={`${pazientiCount} pazienti`}
           >
-            <User className="h-3 w-3 shrink-0 text-slate-600" aria-hidden />
-            <span className="font-mono text-[10px] font-bold tabular-nums">{pazientiCount}</span>
+            <User className="h-3.5 w-3.5 shrink-0 text-slate-600" aria-hidden />
+            <span className="font-mono text-xs font-bold tabular-nums">{pazientiCount}</span>
           </span>
         ) : (
           '—'
@@ -83,7 +83,7 @@ function EventoCells({ ev, rowSpan, orfano, pazientiCount, multiMission, onOpenE
         className={`${evTd} border-r-2 border-slate-300 text-center ${multiMission ? 'border-r-violet-200/70' : ''}`}
         onClick={open}
       >
-        {ev ? <ColoreIndicator colore={ev.colore} size="sm" /> : '—'}
+        {ev ? <ColoreIndicator colore={ev.colore} size="lg" /> : '—'}
       </td>
     </>
   );
@@ -98,7 +98,7 @@ export function EventiMissioniTable({
   onAdvanceStato,
 }) {
   return (
-    <table className="w-full border-collapse text-xs leading-tight">
+    <table className="w-full border-collapse">
       <thead>
         <tr>
           <th className={thClass}>ID</th>
@@ -144,7 +144,7 @@ export function EventiMissioniTable({
                   />
                   <td
                     colSpan={3}
-                    className={`${tdClass} border-l-2 border-slate-300 bg-slate-50/50 text-center text-[10px] italic text-slate-500`}
+                    className={`${tdClass} border-l-2 border-slate-300 bg-slate-50/50 text-center text-sm italic text-slate-500`}
                   >
                     Nessuna missione aperta
                   </td>
@@ -174,12 +174,12 @@ export function EventiMissioniTable({
                     />
                   )}
                   <td className={`${tdClass} border-l-2 border-slate-300 font-mono font-bold`}>
-                    <span className="inline-flex items-center gap-0.5">
+                    <span className="inline-flex items-center gap-1.5">
                       {daAllertare && (
                         <PanelAlertIcon
                           variant="red"
                           title="Missione da allertare"
-                          className="[&_svg]:h-3 [&_svg]:w-3"
+                          className="[&_svg]:h-4 [&_svg]:w-4"
                         />
                       )}
                       {mis.idMissione}
