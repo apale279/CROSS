@@ -1,7 +1,8 @@
 import { coloreHex } from '../../utils/formatters';
 
 export function ColoreIndicator({ colore, size = 'md' }) {
-  const dim = size === 'lg' ? 'h-6 w-6' : 'h-5 w-5';
+  const dim =
+    size === 'lg' ? 'h-6 w-6' : size === 'sm' ? 'h-3.5 w-3.5 border' : 'h-5 w-5';
   return (
     <span
       className={`inline-block shrink-0 rounded-sm border-2 border-slate-700 shadow ${dim}`}

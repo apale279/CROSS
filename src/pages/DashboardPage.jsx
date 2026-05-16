@@ -1,27 +1,19 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { DEFAULT_IMPOSTAZIONI } from '../constants';
-import { User } from 'lucide-react';
 import { COLLECTIONS } from '../lib/firestorePaths';
 import { useManifestazioneCollection } from '../hooks/useManifestazioneCollection';
 import { useEventoScheda } from '../context/EventoSchedaContext';
 import { useManifestazioneId } from '../context/ManifestazioneContext';
-import { useElapsedSince } from '../hooks/useElapsedSince';
 import { buildStatoChangeFields } from '../lib/missionStoricoStati';
 import { patchMissione } from '../services/missioniService';
 import { OpsMap } from '../components/dashboard/OpsMap';
+import { EventiMissioniTable } from '../components/dashboard/EventiMissioniTable';
 import { FloatingPanel } from '../components/dashboard/FloatingPanel';
 import { MezzoDetail } from '../components/dashboard/EntityDetails';
 import { MissioneScheda } from '../components/missioni/MissioneScheda';
 import { Modal } from '../components/ui/Modal';
-import { PanelAlertIcon } from '../components/ui/PanelAlertIcon';
-import { ColoreIndicator } from '../components/ui/ColoreIndicator';
+import { mezzoRowClass } from '../utils/formatters';
 import {
-  coloreRowBgSoft,
-  mezzoRowClass,
-  statoMissioneBadgeClass,
-} from '../utils/formatters';
-import {
-  findEvento,
   missioniPerEvento,
   pazientiPerEvento,
   eventoSenzaCoperturaMissione,
@@ -37,23 +29,6 @@ const thClass =
   'sticky top-0 z-10 bg-slate-100/95 px-3 py-2 text-left text-xs font-bold uppercase text-slate-600 backdrop-blur';
 const tdClass = 'border-t border-slate-200/80 px-3 py-2 text-sm text-slate-900';
 
-function MissioneStatoCell({ mis, stati, onAdvance }) {
-  const elapsed = useElapsedSince(mis.statoDa ?? mis.apertura);
-  return (
-    <td className={`${tdClass} text-right`}>
-      <button
-        type="button"
-        onClick={(e) => onAdvance(e, mis)}
-        className={`inline-block cursor-pointer rounded border px-2 py-0.5 text-xs font-bold uppercase hover:opacity-80 ${statoMissioneBadgeClass(mis.stato)}`}
-        title="Clic per stato successivo"
-      >
-        {mis.stato}
-      </button>
-      <p className="mt-0.5 font-mono text-[10px] text-slate-500">{elapsed}</p>
-    </td>
-  );
-}
-
 export default function DashboardPage() {
   const manifestationId = useManifestazioneId();
   const { data: eventi, loading: loadingE } = useManifestazioneCollection(COLLECTIONS.eventi);
@@ -63,7 +38,7 @@ export default function DashboardPage() {
   const { openEventoScheda } = useEventoScheda();
   const [modal, setModal] = useState(null);
   const [layout, setLayout] = useState(() => loadDashboardLayout(manifestationId));
-  const [zOrder, setZOrder] = useState(['eventi', 'missioni', 'mezzi', 'mappa']);
+  const [zOrder, setZOrder] = useState(['operativo', 'mezzi', 'mappa']);
 
   useEffect(() => {
     setLayout(loadDashboardLayout(manifestationId));
@@ -100,60 +75,47 @@ export default function DashboardPage() {
   }, [eventiAperti, pazienti]);
   const missioniAperte = useMemo(() => missioni.filter((m) => m.aperta !== false), [missioni]);
 
-  /** Stesso idMissione → cella ID missione unificata; ID evento e indirizzo su ogni riga missione. */
-  const missioniAperteGrouped = useMemo(() => {
-    const used = new Set();
-    const groups = [];
-    for (const ev of eventiAperti) {
-      const rows = missioniPerEvento(missioniAperte, ev).slice().sort((a, b) => {
-        const cmpM = String(a.idMissione ?? '').localeCompare(String(b.idMissione ?? ''), 'it', {
-          sensitivity: 'base',
-        });
-        if (cmpM !== 0) return cmpM;
-        const mz = String(a.mezzo ?? '').localeCompare(String(b.mezzo ?? ''), 'it', {
-          sensitivity: 'base',
-        });
-        if (mz !== 0) return mz;
-        const tb = b.apertura?.toMillis?.() ?? 0;
-        const ta = a.apertura?.toMillis?.() ?? 0;
-        return tb - ta;
+  const sortMissioni = (list) =>
+    list.slice().sort((a, b) => {
+      const cmpM = String(a.idMissione ?? '').localeCompare(String(b.idMissione ?? ''), 'it', {
+        sensitivity: 'base',
       });
-      if (!rows.length) continue;
-      rows.forEach((r) => used.add(r._docId));
-
-      const subgroups = [];
-      for (const r of rows) {
-        const key = String(r.idMissione ?? r._docId);
-        const last = subgroups[subgroups.length - 1];
-        if (!last || last.key !== key) subgroups.push({ key, rows: [] });
-        subgroups[subgroups.length - 1].rows.push(r);
-      }
-
-      groups.push({
-        ev,
-        subgroups: subgroups.map((s) => s.rows),
-        rows,
-        multi: rows.length > 1,
+      if (cmpM !== 0) return cmpM;
+      const mz = String(a.mezzo ?? '').localeCompare(String(b.mezzo ?? ''), 'it', {
+        sensitivity: 'base',
       });
-    }
-    const orphans = missioniAperte
-      .filter((m) => !used.has(m._docId))
-      .sort((a, b) => (b.apertura?.toMillis?.() ?? 0) - (a.apertura?.toMillis?.() ?? 0));
-    if (orphans.length) {
-      groups.push({
-        ev: null,
-        subgroups: orphans.map((m) => [m]),
-        rows: orphans,
-        multi: orphans.length > 1,
-      });
-    }
-    groups.sort((a, b) => {
-      const ta = a.rows[0]?.apertura?.toMillis?.() ?? 0;
-      const tb = b.rows[0]?.apertura?.toMillis?.() ?? 0;
-      return tb - ta;
+      if (mz !== 0) return mz;
+      return (b.apertura?.toMillis?.() ?? 0) - (a.apertura?.toMillis?.() ?? 0);
     });
-    return groups;
-  }, [eventiAperti, missioniAperte]);
+
+  /** Blocchi evento + missioni: evento a sinistra (rowSpan), missioni a destra. */
+  const operativoBlocks = useMemo(() => {
+    const usedMissionIds = new Set();
+    const blocks = [];
+
+    for (const ev of eventiAperti) {
+      const missions = sortMissioni(missioniPerEvento(missioniAperte, ev));
+      missions.forEach((m) => usedMissionIds.add(m._docId));
+      blocks.push({
+        key: `ev-${ev._docId}`,
+        ev,
+        missions,
+        orfano: ev.stato !== false && eventoSenzaCoperturaMissione(missioni, ev),
+      });
+    }
+
+    const orphans = sortMissioni(missioniAperte.filter((m) => !usedMissionIds.has(m._docId)));
+    if (orphans.length) {
+      blocks.push({ key: 'orphan-missions', ev: null, missions: orphans, orfano: false });
+    }
+
+    const blockTime = (b) => {
+      if (b.missions.length) return b.missions[0]?.apertura?.toMillis?.() ?? 0;
+      return b.ev?.apertura?.toMillis?.() ?? 0;
+    };
+    blocks.sort((a, b) => blockTime(b) - blockTime(a));
+    return blocks;
+  }, [eventiAperti, missioniAperte, missioni]);
 
   const mezziSorted = useMemo(
     () =>
@@ -181,151 +143,20 @@ export default function DashboardPage() {
   return (
     <div className="relative h-full w-full overflow-hidden bg-slate-200">
       <FloatingPanel
-        title="Eventi aperti"
-        layout={layout.eventi}
-        zIndex={zIndexFor('eventi')}
-        onFocus={() => focusPanel('eventi')}
-        onLayoutChange={(patch) => updatePanel('eventi', patch)}
+        title="Eventi e missioni"
+        layout={layout.operativo ?? DEFAULT_DASHBOARD_LAYOUT.operativo}
+        zIndex={zIndexFor('operativo')}
+        onFocus={() => focusPanel('operativo')}
+        onLayoutChange={(patch) => updatePanel('operativo', patch)}
       >
-        <table className="w-full border-collapse">
-          <thead>
-            <tr>
-              <th className={thClass}>ID</th>
-              <th className={thClass}>Tipo</th>
-              <th className={thClass}>Indirizzo</th>
-              <th className={`${thClass} w-14 text-center whitespace-nowrap`}>Pz</th>
-              <th className={`${thClass} w-12 text-center`}>Col.</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading && (
-              <tr>
-                <td colSpan={5} className={tdClass} />
-              </tr>
-            )}
-            {!loading &&
-              eventiAperti.map((ev) => {
-                const orfano =
-                  ev.stato !== false &&
-                  eventoSenzaCoperturaMissione(missioni, ev);
-                return (
-                  <tr
-                    key={ev._docId}
-                    onClick={() => openEventoScheda(ev)}
-                    className={`cursor-pointer hover:brightness-95 ${
-                      orfano ? 'bg-amber-50 ring-1 ring-inset ring-amber-300' : ''
-                    }`}
-                  >
-                    <td className={`${tdClass} font-mono font-bold`}>
-                      <div className="flex items-center gap-1.5">
-                        {orfano && (
-                          <PanelAlertIcon
-                            variant="amber"
-                            title="Evento senza copertura (nessuna missione attiva)"
-                          />
-                        )}
-                        <span>{ev.idEvento}</span>
-                      </div>
-                    </td>
-                    <td className={tdClass}>{ev.tipoEvento}</td>
-                    <td className={`${tdClass} max-w-[180px] truncate`} title={ev.indirizzo}>
-                      {ev.indirizzo || '—'}
-                    </td>
-                    <td className={`${tdClass} text-center`}>
-                      <span
-                        className="inline-flex items-center justify-center gap-1 rounded-md bg-slate-100 px-1.5 py-0.5 text-slate-800"
-                        title={`${pazientiCountByEvento.get(ev._docId) ?? 0} pazienti`}
-                      >
-                        <User className="h-3.5 w-3.5 shrink-0 text-slate-600" aria-hidden />
-                        <span className="font-mono text-xs font-bold tabular-nums">
-                          {pazientiCountByEvento.get(ev._docId) ?? 0}
-                        </span>
-                      </span>
-                    </td>
-                    <td className={`${tdClass} text-center`}>
-                      <ColoreIndicator colore={ev.colore} size="lg" />
-                    </td>
-                  </tr>
-                );
-              })}
-          </tbody>
-        </table>
-      </FloatingPanel>
-
-      <FloatingPanel
-        title="Missioni aperte"
-        layout={layout.missioni}
-        zIndex={zIndexFor('missioni')}
-        onFocus={() => focusPanel('missioni')}
-        onLayoutChange={(patch) => updatePanel('missioni', patch)}
-      >
-        <table className="w-full border-collapse">
-          <thead>
-            <tr>
-              <th className={thClass}>ID missione</th>
-              <th className={thClass}>ID evento</th>
-              <th className={thClass}>Mezzo</th>
-              <th className={thClass}>Indirizzo evento</th>
-              <th className={`${thClass} text-right`}>Stato</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading && (
-              <tr>
-                <td colSpan={5} className={tdClass} />
-              </tr>
-            )}
-            {!loading &&
-              missioniAperteGrouped.flatMap((group) =>
-                group.subgroups.flatMap((sub) => {
-                  const nMission = sub.length;
-                  return sub.map((mis, riMission) => {
-                    const ev =
-                      group.ev ?? findEvento(eventi, mis.eventoIdUnivoco || mis.eventoCorrelato);
-                    const colore = mis.codiceColore ?? ev?.colore ?? 'Bianco';
-                    const daAllertare = mis.stato === 'ALLERTARE';
-                    const blockClass = group.multi
-                      ? 'border-l-[3px] border-l-violet-500/80 pl-0.5 shadow-[inset_3px_0_0_0_rgba(124,58,237,0.35)]'
-                      : '';
-                    return (
-                      <tr
-                        key={mis._docId}
-                        onClick={() => setModal({ type: 'missione', data: mis })}
-                        className={`cursor-pointer hover:brightness-95 ${coloreRowBgSoft(colore)} ${
-                          daAllertare ? 'ring-1 ring-inset ring-red-400' : ''
-                        } ${blockClass}`}
-                      >
-                        {riMission === 0 && (
-                          <td
-                            className={`${tdClass} align-top font-mono font-bold ${nMission > 1 ? 'border-r border-r-violet-200/70' : ''}`}
-                            rowSpan={nMission}
-                          >
-                            <div className="flex items-center gap-1.5">
-                              {sub.some((x) => x.stato === 'ALLERTARE') && (
-                                <PanelAlertIcon variant="red" title="Missione da allertare" />
-                              )}
-                              <span>{mis.idMissione}</span>
-                            </div>
-                          </td>
-                        )}
-                        <td className={`${tdClass} font-mono`}>
-                          {mis.eventoCorrelato ?? ev?.idEvento ?? '—'}
-                        </td>
-                        <td className={`${tdClass} font-mono`}>{mis.mezzo}</td>
-                        <td
-                          className={`${tdClass} max-w-[160px] truncate`}
-                          title={ev?.indirizzo}
-                        >
-                          {ev?.indirizzo || '—'}
-                        </td>
-                        <MissioneStatoCell mis={mis} stati={stati} onAdvance={avanzaStatoMissione} />
-                      </tr>
-                    );
-                  });
-                }),
-              )}
-          </tbody>
-        </table>
+        <EventiMissioniTable
+          loading={loading}
+          blocks={operativoBlocks}
+          pazientiCountByEvento={pazientiCountByEvento}
+          onOpenEvento={openEventoScheda}
+          onOpenMissione={(mis) => setModal({ type: 'missione', data: mis })}
+          onAdvanceStato={avanzaStatoMissione}
+        />
       </FloatingPanel>
 
       <FloatingPanel
