@@ -34,7 +34,7 @@ function EventoCells({ ev, rowSpan, orfano, pazientiCount, multiMission, onOpenE
     if (ev) onOpenEvento(ev);
   };
   const evBorder = multiMission ? 'border-r border-r-violet-200/60' : 'border-r-2 border-slate-200';
-  const evTd = `cursor-pointer hover:brightness-95 ${tdClass} ${evBorder} align-top`;
+  const evTd = `cursor-pointer hover:brightness-95 ${tdClass} ${evBorder} align-middle`;
 
   return (
     <>
@@ -54,16 +54,16 @@ function EventoCells({ ev, rowSpan, orfano, pazientiCount, multiMission, onOpenE
           <span className="text-slate-400">—</span>
         )}
       </td>
-      <td rowSpan={rowSpan} className={evTd} onClick={open}>
-        <span className="line-clamp-2 max-w-[100px]">{ev?.tipoEvento ?? '—'}</span>
+      <td rowSpan={rowSpan} className={`${evTd} whitespace-nowrap`} onClick={open}>
+        <span title={ev?.tipoEvento}>{ev?.tipoEvento ?? '—'}</span>
       </td>
       <td
         rowSpan={rowSpan}
-        className={`${evTd} max-w-[120px]`}
+        className={`${evTd} max-w-0 whitespace-nowrap`}
         title={ev?.indirizzo}
         onClick={open}
       >
-        <span className="line-clamp-2">{ev?.indirizzo || '—'}</span>
+        <span className="block truncate">{ev?.indirizzo || '—'}</span>
       </td>
       <td rowSpan={rowSpan} className={`${evTd} text-center`} onClick={open}>
         {ev ? (
@@ -98,16 +98,28 @@ export function EventiMissioniTable({
   onAdvanceStato,
 }) {
   return (
-    <table className="w-full border-collapse">
+    <table className="w-full table-fixed border-collapse">
+      <colgroup>
+        <col className="w-[4%]" />
+        <col className="w-[12%]" />
+        <col />
+        <col className="w-[4%]" />
+        <col className="w-[4%]" />
+        <col className="w-[8%]" />
+        <col className="w-[12%]" />
+        <col className="w-[18%]" />
+      </colgroup>
       <thead>
         <tr>
           <th className={thClass}>ID</th>
-          <th className={thClass}>Tipo</th>
-          <th className={`${thClass} max-w-[120px]`}>Indirizzo</th>
-          <th className={`${thClass} w-10 text-center`}>Pz</th>
-          <th className={`${thClass} w-8 border-r-2 border-slate-300 text-center`}>Col</th>
-          <th className={`${thClass} border-l-2 border-slate-300 bg-slate-50/90`}>Missione</th>
-          <th className={`${thClass} bg-slate-50/90`}>Mezzo</th>
+          <th className={`${thClass} whitespace-nowrap`}>Tipo</th>
+          <th className={thClass}>Indirizzo</th>
+          <th className={`${thClass} text-center`}>Pz</th>
+          <th className={`${thClass} border-r-2 border-slate-300 text-center`}>Col</th>
+          <th className={`${thClass} border-l-2 border-slate-300 bg-slate-50/90 whitespace-nowrap`}>
+            Missione
+          </th>
+          <th className={`${thClass} bg-slate-50/90 whitespace-nowrap`}>Mezzo</th>
           <th className={`${thClass} bg-slate-50/90 text-right`}>Stato</th>
         </tr>
       </thead>
@@ -173,7 +185,9 @@ export function EventiMissioniTable({
                       onOpenEvento={onOpenEvento}
                     />
                   )}
-                  <td className={`${tdClass} border-l-2 border-slate-300 font-mono font-bold`}>
+                  <td
+                    className={`${tdClass} border-l-2 border-slate-300 font-mono font-bold whitespace-nowrap`}
+                  >
                     <span className="inline-flex items-center gap-1.5">
                       {daAllertare && (
                         <PanelAlertIcon
@@ -185,7 +199,7 @@ export function EventiMissioniTable({
                       {mis.idMissione}
                     </span>
                   </td>
-                  <td className={`${tdClass} font-mono`}>{mis.mezzo}</td>
+                  <td className={`${tdClass} font-mono whitespace-nowrap`}>{mis.mezzo}</td>
                   <MissioneStatoCell mis={mis} onAdvance={onAdvanceStato} />
                 </tr>
               );
