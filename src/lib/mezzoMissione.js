@@ -17,3 +17,11 @@ export function mezziConMissioneAttiva(missioni) {
   }
   return set;
 }
+
+export function mezzoIsOnMissioneAttiva(mezzo, mezziConMissione) {
+  const sigla = String(mezzo?.sigla ?? mezzo?._docId ?? '').trim();
+  if (!sigla) return false;
+  if (mezziConMissione.has(sigla)) return true;
+  const docId = String(mezzo?._docId ?? '').trim();
+  return Boolean(docId && mezziConMissione.has(docId));
+}

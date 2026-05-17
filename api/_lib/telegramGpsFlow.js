@@ -1,5 +1,9 @@
 import { answerCallbackQuery, escapeHtml, sendMessage } from './telegramApi.js';
 import { updateMezzoPosizioneReale } from './mezzoPosizioneReale.js';
+import {
+  mezzoRichiedeGpsTelegram,
+  MSG_GPS_NON_RICHIESTO_PIANTINA,
+} from './mezzoTacticalBoard.js';
 import { buildEquipaggioReplyKeyboard } from './telegramKeyboard.js';
 import {
   getTelegramUser,
@@ -30,6 +34,17 @@ export function buildGpsConsentKeyboard() {
 
 export async function promptGpsConsentIfNeeded(chatId, tenantId) {
   const user = await getTelegramUser(tenantId, chatId);
+  const mezzo = user?.mezzo?.trim();
+  if (!mezzo) return;
+
+  if (!(await mezzoRichiedeGpsTelegram(tenantId, mezzo))) {
+    await setTelegramUserGpsConsent(tenantId, chatId, false);
+    await sendMessage(chatId, MSG_GPS_NON_RICHIESTO_PIANTINA, {
+      reply_markup: buildEquipaggioReplyKeyboard(),
+    });
+    return;
+  }
+
   // Già attivo: non ripetere. Se "no" o mai chiesto → mostra di nuovo (es. dopo /start + nuovo mezzo).
   if (user?.gpsStatoConsenso === true) {
     return;
@@ -78,7 +93,9 @@ export async function handleGpsConsentCallback(callbackQuery, tenantId) {
 /** Dopo avanzamento stato: chiedi posizione se l\'equipaggio ha dato consenso. */
 export async function promptGpsAfterStatoAdvance(chatId, tenantId) {
   const user = await getTelegramUser(tenantId, chatId);
-  if (user?.gpsStatoConsenso !== true || !user?.mezzo?.trim()) return;
+  const mezzo = user?.mezzo?.trim();
+  if (user?.gpsStatoConsenso !== true || !mezzo) return;
+  if (!(await mezzoRichiedeGpsTelegram(tenantId, mezzo))) return;
 
   await setTelegramUserAwaitingGpsAfterStato(tenantId, chatId, true);
   await sendMessage(
@@ -139,8 +156,16 @@ export async function handleLocationMessage(chatId, tenantId, message) {
 
 export async function handleGpsCommand(chatId, tenantId) {
   const user = await getTelegramUser(tenantId, chatId);
-  if (!user?.mezzo?.trim()) {
+  const mezzo = user?.mezzo?.trim();
+  if (!mezzo) {
     await sendMessage(chatId, 'Prima invia <b>/start</b> e scegli il mezzo.');
+    return;
+  }
+
+  if (!(await mezzoRichiedeGpsTelegram(tenantId, mezzo))) {
+    await sendMessage(chatId, MSG_GPS_NON_RICHIESTO_PIANTINA, {
+      reply_markup: buildEquipaggioReplyKeyboard(),
+    });
     return;
   }
 
@@ -178,8 +203,17 @@ export async function handleGpsSendNowCallback(callbackQuery, tenantId) {
   if (!chatId) return false;
 
   const user = await getTelegramUser(tenantId, chatId);
-  if (!user?.mezzo?.trim()) {
+  const mezzo = user?.mezzo?.trim();
+  if (!mezzo) {
     await answerCallbackQuery(callbackQuery.id, 'Scegli prima il mezzo');
+    return true;
+  }
+
+  if (!(await mezzoRichiedeGpsTelegram(tenantId, mezzo))) {
+    await answerCallbackQuery(callbackQuery.id, 'GPS non richiesto (piantina tattica)');
+    await sendMessage(chatId, MSG_GPS_NON_RICHIESTO_PIANTINA, {
+      reply_markup: buildEquipaggioReplyKeyboard(),
+    });
     return true;
   }
 

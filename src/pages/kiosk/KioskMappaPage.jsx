@@ -7,7 +7,7 @@ import { useKioskScheda } from '../../context/KioskSchedaContext';
 export default function KioskMappaPage() {
   const readOnly = useReadOnlyMode();
   const { openEvento, openMezzo } = useKioskScheda();
-  const { eventiAperti, mezzi } = useOperativoDashboardData();
+  const { eventiAperti, mezzi, missioni } = useOperativoDashboardData();
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -16,6 +16,7 @@ export default function KioskMappaPage() {
         <OpsMap
           eventi={eventiAperti}
           mezzi={mezzi}
+          missioni={missioni}
           readOnly={readOnly}
           onSelect={(payload) => {
             if (payload.type === 'evento') openEvento(payload.data);

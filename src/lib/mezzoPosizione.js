@@ -5,9 +5,23 @@ export function mezzoPosizioneRealeCoordinate(mezzo) {
   return parseCoordinate(mezzo?.posizioneReale?.coordinate);
 }
 
-/** Per mappa operativa: posizione reale, altrimenti stazionamento. */
-export function mezzoMapCoordinate(mezzo) {
-  return mezzoPosizioneRealeCoordinate(mezzo) ?? parseCoordinate(mezzo?.stazionamento?.coordinate);
+/**
+ * Coordinate per mappa operativa.
+ * - In missione attiva: posizione reale GPS (Telegram), altrimenti stazionamento.
+ * - Senza missione: solo stazionamento.
+ */
+export function mezzoMapCoordinate(mezzo, onMission = false) {
+  const stazionamento = parseCoordinate(mezzo?.stazionamento?.coordinate);
+  const posizioneReale = mezzoPosizioneRealeCoordinate(mezzo);
+  if (onMission) {
+    return posizioneReale ?? stazionamento ?? null;
+  }
+  return stazionamento ?? null;
+}
+
+/** Marker mappa usa GPS reale (solo se in missione e coordinate presenti). */
+export function mezzoMapUsesPosizioneReale(mezzo, onMission) {
+  return onMission && Boolean(mezzoPosizioneRealeCoordinate(mezzo));
 }
 
 function formatTimestamp(ts) {

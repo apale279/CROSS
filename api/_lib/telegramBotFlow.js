@@ -14,6 +14,7 @@ import {
 import { ensureAuthenticatedOrPrompt, promptForPassword } from './telegramAuth.js';
 import { verifyBotPassword } from './telegramPassword.js';
 import { buildEquipaggioReplyKeyboard } from './telegramKeyboard.js';
+import { mezzoRichiedeGpsTelegram } from './mezzoTacticalBoard.js';
 import { promptGpsConsentIfNeeded } from './telegramGpsFlow.js';
 
 export { ensureAuthenticatedOrPrompt, promptForPassword };
@@ -162,14 +163,16 @@ export async function handleMezzoCallback(callbackQuery, tenantId) {
   });
 
   await answerCallbackQuery(callbackQuery.id, `Registrato su ${mezzo}`);
-  await sendMessage(
-    chatId,
-    `Perfetto! Riceverai le missioni per <b>${mezzo}</b> qui.\n\n` +
-      `• <b>/stato</b> — aggiorna stato missione\n` +
-      `• <b>🚨 SOS / EMERGENZA</b> — allarme immediato alla centrale\n` +
-      `• <b>/gps</b> — gestione posizione GPS`,
-    { reply_markup: buildEquipaggioReplyKeyboard() },
-  );
+  const richiedeGps = await mezzoRichiedeGpsTelegram(tenantId, mezzo);
+  const righe = [
+    `Perfetto! Riceverai le missioni per <b>${mezzo}</b> qui.\n`,
+    `• <b>/stato</b> — aggiorna stato missione`,
+    `• <b>🚨 SOS / EMERGENZA</b> — allarme immediato alla centrale`,
+  ];
+  if (richiedeGps) {
+    righe.push(`• <b>/gps</b> — gestione posizione GPS`);
+  }
+  await sendMessage(chatId, righe.join('\n'), { reply_markup: buildEquipaggioReplyKeyboard() });
 
   await promptGpsConsentIfNeeded(chatId, tenantId);
 }

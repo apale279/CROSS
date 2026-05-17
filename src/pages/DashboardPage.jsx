@@ -264,6 +264,7 @@ export default function DashboardPage() {
         <OpsMap
           eventi={eventiAperti}
           mezzi={mezzi}
+          missioni={missioni}
           onSelect={(payload) => {
             if (payload.type === 'evento') openEventoScheda(payload.data);
             if (payload.type === 'mezzo') setModal({ type: 'mezzo', data: payload.data });

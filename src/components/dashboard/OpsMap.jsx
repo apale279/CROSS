@@ -10,7 +10,8 @@ import {
 } from '../../lib/googleMaps';
 import { coloreHex } from '../../utils/formatters';
 import { getEmojiMarkerIcon } from '../../lib/mapMarkers';
-import { mezzoMapCoordinate, mezzoPosizioneRealeCoordinate } from '../../lib/mezzoPosizione';
+import { mezzoMapCoordinate, mezzoMapUsesPosizioneReale } from '../../lib/mezzoPosizione';
+import { mezziConMissioneAttiva, mezzoIsOnMissioneAttiva } from '../../lib/mezzoMissione';
 import { emojiForTipoMezzo, normalizeTipiMezzo } from '../../lib/tipiMezzo';
 import {
   OPS_MAP_VIEW_STANDARD,
@@ -73,7 +74,7 @@ function FitEventBounds({ eventPositions }) {
 const viewToggleBtn =
   'flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-semibold transition-colors';
 
-export function OpsMap({ eventi, mezzi, onSelect, readOnly = false }) {
+export function OpsMap({ eventi, mezzi, missioni = [], onSelect, readOnly = false }) {
   const { isLoaded, loadError } = useGoogleMapsReady();
   const { impostazioni } = useImpostazioni();
   const [viewMode, setViewMode] = useState(readOpsMapViewMode);
@@ -91,6 +92,7 @@ export function OpsMap({ eventi, mezzi, onSelect, readOnly = false }) {
     () => normalizeTipiMezzo(impostazioni.tipiMezzo),
     [impostazioni.tipiMezzo],
   );
+  const mezziInMissione = useMemo(() => mezziConMissioneAttiva(missioni), [missioni]);
 
   const { center, zoom, markers, eventPositions } = useMemo(() => {
     const list = [];
@@ -104,13 +106,16 @@ export function OpsMap({ eventi, mezzi, onSelect, readOnly = false }) {
       }
     });
     mezzi.forEach((m) => {
-      const pos = mezzoMapCoordinate(m);
+      const onMission = mezzoIsOnMissioneAttiva(m, mezziInMissione);
+      const pos = mezzoMapCoordinate(m, onMission);
       if (pos) {
         list.push({
           pos,
           type: 'mezzo',
           data: m,
           emoji: emojiForTipoMezzo(m.tipo, tipiMezzo),
+          onMission,
+          usesGps: mezzoMapUsesPosizioneReale(m, onMission),
         });
       }
     });
@@ -142,7 +147,7 @@ export function OpsMap({ eventi, mezzi, onSelect, readOnly = false }) {
       markers: list,
       eventPositions: eventOnly,
     };
-  }, [eventi, mezzi, impostazioni, tipiMezzo]);
+  }, [eventi, mezzi, mezziInMissione, impostazioni, tipiMezzo]);
 
   if (loadError) {
     return (
@@ -205,9 +210,11 @@ export function OpsMap({ eventi, mezzi, onSelect, readOnly = false }) {
           m.type === 'evento' ? `e-${m.data._docId}` : `z-${m.data.sigla ?? m.data._docId}`;
         const label = m.type === 'evento' ? m.data.idEvento : (m.data.sigla ?? m.data._docId);
         const title =
-          m.type === 'mezzo' && mezzoPosizioneRealeCoordinate(m.data)
+          m.type === 'mezzo' && m.usesGps
             ? `${label} · pos. GPS`
-            : label;
+            : m.type === 'mezzo' && m.onMission
+              ? `${label} · in missione`
+              : label;
         return (
           <Marker
             key={key}
