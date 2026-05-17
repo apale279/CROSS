@@ -22,12 +22,14 @@ import {
   selectClass,
 } from '../ui/FormField';
 import { EventoDettaglioForm } from './EventoDettaglioForm';
+import { EventoPiantinaUpload } from './EventoPiantinaUpload';
 
 const emptyValues = () => ({
   tipoEvento: DEFAULT_IMPOSTAZIONI.tipiEvento[0],
   dettaglioEvento: '',
   colore: 'Bianco',
   indirizzo: '',
+  luogo_fisico: '',
   coordinate: null,
   noteEvento: '',
 });
@@ -71,6 +73,7 @@ export function EventoScheda({
       dettaglioEvento: evento.dettaglioEvento ?? '',
       colore: evento.colore ?? 'Bianco',
       indirizzo: evento.indirizzo ?? '',
+      luogo_fisico: evento.luogo_fisico ?? '',
       coordinate: evento.coordinate ?? null,
       noteEvento: evento.noteEvento ?? '',
     });
@@ -204,6 +207,7 @@ export function EventoScheda({
         { id: 'dettaglio', label: 'Dettaglio' },
         { id: 'missioni', label: `Missioni (${missioniEvento.length})` },
         { id: 'pazienti', label: `Pazienti (${pazientiEvento.length})` },
+        { id: 'impostazioni', label: 'Impostazioni evento' },
       ];
 
   return (
@@ -281,6 +285,12 @@ export function EventoScheda({
               </button>
             </div>
           )}
+        </div>
+      )}
+
+      {!isCreate && tab === 'impostazioni' && (
+        <div className="space-y-4">
+          <EventoPiantinaUpload evento={evento} />
         </div>
       )}
 

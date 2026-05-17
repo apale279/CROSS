@@ -1,22 +1,32 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useManifestazioneId } from '../../context/ManifestazioneContext';
 import { MEZZO_STATO_DISPONIBILE } from '../../lib/mezzoStati';
 import { parseCoordinate } from '../../lib/googleMaps';
+import { formatPercentPosition, mezzoOnTacticalBoard } from '../../lib/tacticalBoard';
+import { deleteField } from 'firebase/firestore';
 import { deleteMezzo, patchMezzo } from '../../services/mezziService';
 import { confirmDelete } from '../../utils/confirmDelete';
-import { btnDanger, btnSecondary } from '../ui/FormField';
+import { btnDanger, btnSecondary, inputClass } from '../ui/FormField';
 import { MezzoStatoSelect } from './MezzoStatoSelect';
 
 /** Scheda mezzo (modale dashboard): dettaglio + modifica stato disponibilità. */
 export function MezzoScheda({ mezzo, onDeleted }) {
   const manifestationId = useManifestazioneId();
   const [savingStato, setSavingStato] = useState(false);
+  const [savingDettaglio, setSavingDettaglio] = useState(false);
+  const [dettaglioDraft, setDettaglioDraft] = useState(mezzo?.dettaglio_stazionamento ?? '');
+
+  useEffect(() => {
+    setDettaglioDraft(mezzo?.dettaglio_stazionamento ?? '');
+  }, [mezzo?.dettaglio_stazionamento, mezzo?.sigla, mezzo?._docId]);
 
   if (!mezzo) return null;
 
   const sigla = mezzo.sigla ?? mezzo._docId;
   const coord = parseCoordinate(mezzo.stazionamento?.coordinate);
+  const onBoard = mezzoOnTacticalBoard(mezzo);
+  const posLabel = formatPercentPosition(mezzo.coordinate_stazionamento);
   const stato = mezzo.statoMezzo ?? MEZZO_STATO_DISPONIBILE;
 
   const handleStatoChange = async (e) => {
@@ -33,6 +43,25 @@ export function MezzoScheda({ mezzo, onDeleted }) {
     }
   };
 
+  const saveDettaglio = async () => {
+    const next = dettaglioDraft.trim();
+    if (next === (mezzo.dettaglio_stazionamento ?? '').trim()) return;
+    setSavingDettaglio(true);
+    try {
+      await patchMezzo(manifestationId, sigla, { dettaglio_stazionamento: next });
+    } catch (err) {
+      console.error(err);
+      alert('Errore salvataggio: ' + err.message);
+    } finally {
+      setSavingDettaglio(false);
+    }
+  };
+
+  const clearTacticalPosition = async () => {
+    if (!window.confirm('Rimuovere il mezzo dalla piantina tattica?')) return;
+    await patchMezzo(manifestationId, sigla, { coordinate_stazionamento: deleteField() });
+  };
+
   return (
     <dl className="space-y-3 text-sm">
       <Row label="Sigla" value={sigla} mono />
@@ -45,11 +74,43 @@ export function MezzoScheda({ mezzo, onDeleted }) {
       </Row>
       <Row label="Operativo" value={mezzo.operativo !== false ? 'Sì' : 'No'} />
       {mezzo.operativo === false && <Row label="Note" value={mezzo.noteOperativo || '—'} />}
-      <Row label="Stazionamento" value={mezzo.stazionamento?.indirizzo || '—'} />
-      <Row
-        label="Coordinate"
-        value={coord ? `${coord.lat.toFixed(5)}, ${coord.lng.toFixed(5)}` : '—'}
-      />
+
+      {onBoard ? (
+        <>
+          <Row label="Posizione tattica" value={posLabel ?? '—'} mono />
+          <Row label="Dettaglio stazionamento">
+            <input
+              type="text"
+              className={inputClass}
+              value={dettaglioDraft}
+              onChange={(e) => setDettaglioDraft(e.target.value)}
+              onBlur={saveDettaglio}
+              placeholder='es. "Cancello 3", "Sotto maxischermo"'
+              disabled={savingDettaglio}
+            />
+            {savingDettaglio && (
+              <span className="mt-1 block text-xs text-slate-500">Salvataggio…</span>
+            )}
+          </Row>
+          <div>
+            <button type="button" className={btnSecondary} onClick={clearTacticalPosition}>
+              Rimuovi dalla piantina
+            </button>
+          </div>
+        </>
+      ) : (
+        <>
+          {mezzo.stazionamento?.luogo_fisico && (
+            <Row label="Luogo fisico" value={mezzo.stazionamento.luogo_fisico} />
+          )}
+          <Row label="Stazionamento" value={mezzo.stazionamento?.indirizzo || '—'} />
+          <Row
+            label="Coordinate"
+            value={coord ? `${coord.lat.toFixed(5)}, ${coord.lng.toFixed(5)}` : '—'}
+          />
+        </>
+      )}
+
       <EquipaggioList equipaggio={mezzo.equipaggio} />
       <div className="flex flex-wrap gap-2 pt-2">
         <Link to="/mezzi" className={`${btnSecondary} inline-block text-center`}>

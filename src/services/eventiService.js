@@ -25,6 +25,8 @@ function buildEventoPayload(manifestationId, idEvento, idUnivoco, payload) {
     apertura: serverTimestamp(),
     stato: true,
     indirizzo: payload.indirizzo ?? '',
+    luogo_fisico: payload.luogo_fisico ?? '',
+    piantina_url: payload.piantina_url ?? null,
     tipoEvento: payload.tipoEvento ?? '',
     dettaglioEvento: payload.dettaglioEvento ?? '',
     colore: payload.colore ?? 'Bianco',

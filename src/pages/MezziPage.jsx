@@ -6,6 +6,7 @@ import { useManifestazioneId } from '../context/ManifestazioneContext';
 import { COLLECTIONS } from '../lib/firestorePaths';
 import { useManifestazioneCollection } from '../hooks/useManifestazioneCollection';
 import { AddressPicker } from '../components/maps/AddressPicker';
+import { LuogoFisicoField } from '../components/maps/LuogoFisicoField';
 import { StazionamentoImport } from '../components/mezzi/StazionamentoImport';
 import { EquipaggioForm } from '../components/mezzi/EquipaggioForm';
 import {
@@ -29,7 +30,7 @@ import {
 const emptyForm = (tipiMezzo) => ({
   sigla: '',
   tipo: tipiMezzo[0] ?? '',
-  stazionamento: { indirizzo: '', coordinate: null },
+  stazionamento: { indirizzo: '', luogo_fisico: '', coordinate: null },
   stazionamentoPredefinito: false,
   targa: '',
   radio: '',
@@ -139,13 +140,22 @@ export default function MezziPage() {
                 stazionamenti={stazionamentiPreset}
                 onImport={(stazionamento) => setForm((f) => ({ ...f, stazionamento }))}
               />
+              <LuogoFisicoField
+                value={form.stazionamento.luogo_fisico}
+                onChange={(luogo_fisico) =>
+                  setForm((f) => ({
+                    ...f,
+                    stazionamento: { ...f.stazionamento, luogo_fisico },
+                  }))
+                }
+              />
               <AddressPicker
                 indirizzo={form.stazionamento.indirizzo}
                 coordinate={form.stazionamento.coordinate}
                 onCommit={({ indirizzo, coordinate }) =>
                   setForm((f) => ({
                     ...f,
-                    stazionamento: { indirizzo, coordinate },
+                    stazionamento: { ...f.stazionamento, indirizzo, coordinate },
                   }))
                 }
               />

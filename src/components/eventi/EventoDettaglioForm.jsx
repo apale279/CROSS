@@ -2,6 +2,7 @@ import { DEFAULT_IMPOSTAZIONI } from '../../constants';
 import { dettagliPerTipoEvento } from '../../lib/impostazioniNormalize';
 import { useImpostazioni } from '../../hooks/useImpostazioni';
 import { AddressPicker } from '../maps/AddressPicker';
+import { LuogoFisicoField } from '../maps/LuogoFisicoField';
 import { ColoreIndicator } from '../ui/ColoreIndicator';
 import { FormField, inputClass, selectClass } from '../ui/FormField';
 
@@ -100,6 +101,11 @@ export function EventoDettaglioForm({ values, onPatch, onCommitLocation, readOnl
           })}
         </div>
       </div>
+
+      <LuogoFisicoField
+        value={values.luogo_fisico}
+        onChange={(luogo_fisico) => onPatch({ luogo_fisico })}
+      />
 
       <AddressPicker
         indirizzo={values.indirizzo}

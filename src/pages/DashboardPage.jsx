@@ -10,6 +10,7 @@ import { TelegramBotToggle } from '../components/telegram/TelegramBotToggle';
 import { buildStatoChangeFields } from '../lib/missionStoricoStati';
 import { patchMissione } from '../services/missioniService';
 import { OpsMap } from '../components/dashboard/OpsMap';
+import { MappaTatticaDashboard } from '../components/dashboard/MappaTatticaDashboard';
 import { EventiMissioniTable } from '../components/dashboard/EventiMissioniTable';
 import { FloatingPanel } from '../components/dashboard/FloatingPanel';
 import { FullscreenPanel } from '../components/dashboard/FullscreenPanel';
@@ -46,6 +47,7 @@ export default function DashboardPage() {
   const [layout, setLayout] = useState(() => loadDashboardLayout(manifestationId));
   const [zOrder, setZOrder] = useState(['operativo', 'mezzi', 'mappa']);
   const [operativoFullscreen, setOperativoFullscreen] = useState(false);
+  const [dashboardView, setDashboardView] = useState('operativo');
 
   useEffect(() => {
     setLayout(loadDashboardLayout(manifestationId));
@@ -169,10 +171,41 @@ export default function DashboardPage() {
   const operativoSubtitle = `${operativoStats.eventCount} eventi · ${operativoStats.missionCount} missioni`;
 
   return (
-    <div className="relative h-full w-full overflow-hidden bg-slate-200">
-      <div className="absolute left-2 top-2 z-[25]">
+    <div className="relative flex h-full w-full flex-col overflow-hidden bg-slate-200">
+      <header className="z-[30] flex shrink-0 flex-wrap items-center gap-2 border-b border-slate-300 bg-white px-3 py-2 shadow-sm">
+        <nav className="flex gap-1 rounded-lg bg-slate-100 p-0.5">
+          <button
+            type="button"
+            onClick={() => setDashboardView('operativo')}
+            className={`rounded-md px-3 py-1.5 text-sm font-semibold ${
+              dashboardView === 'operativo'
+                ? 'bg-white text-sky-800 shadow'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            Operativo
+          </button>
+          <button
+            type="button"
+            onClick={() => setDashboardView('tattica')}
+            className={`rounded-md px-3 py-1.5 text-sm font-semibold ${
+              dashboardView === 'tattica'
+                ? 'bg-white text-sky-800 shadow'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            Mappa tattica
+          </button>
+        </nav>
         <TelegramBotToggle />
-      </div>
+      </header>
+
+      {dashboardView === 'tattica' ? (
+        <div className="min-h-0 flex-1">
+          <MappaTatticaDashboard eventi={eventi} mezzi={mezzi} />
+        </div>
+      ) : (
+        <div className="relative min-h-0 flex-1 overflow-hidden">
       <FloatingPanel
         title="Eventi e missioni"
         layout={layout.operativo ?? DEFAULT_DASHBOARD_LAYOUT.operativo}
@@ -320,6 +353,8 @@ export default function DashboardPage() {
             }}
           />
         </Modal>
+      )}
+        </div>
       )}
     </div>
   );

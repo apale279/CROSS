@@ -264,7 +264,7 @@ export function AddressPicker({ indirizzo, coordinate, onCommit, mapAreaHint }) 
 
   return (
     <div className="space-y-3 rounded-lg border border-slate-200 bg-slate-50/80 p-3">
-      <FormField label="Indirizzo">
+      <FormField label="Indirizzo (opzionale)">
         <div className="flex gap-1.5">
           <div className="relative min-w-0 flex-1">
           <input

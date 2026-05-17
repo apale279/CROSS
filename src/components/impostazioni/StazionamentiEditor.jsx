@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { X } from 'lucide-react';
 import { useImpostazioniField } from '../../hooks/useImpostazioniField';
 import { AddressPicker } from '../maps/AddressPicker';
+import { LuogoFisicoField } from '../maps/LuogoFisicoField';
 import { Modal } from '../ui/Modal';
 import { FormField, btnPrimary, btnSecondary, inputClass } from '../ui/FormField';
 import { SaveFeedback } from './SaveFeedback';
@@ -11,6 +12,7 @@ function newStazionamento() {
     id: crypto.randomUUID(),
     nome: '',
     indirizzo: '',
+    luogo_fisico: '',
     coordinate: null,
   };
 }
@@ -140,6 +142,12 @@ export function StazionamentiEditor() {
                 placeholder="es. PMA Centro"
               />
             </FormField>
+            <LuogoFisicoField
+              value={modal.draft.luogo_fisico}
+              onChange={(luogo_fisico) =>
+                setModal((m) => ({ ...m, draft: { ...m.draft, luogo_fisico } }))
+              }
+            />
             <AddressPicker
               indirizzo={modal.draft.indirizzo}
               coordinate={modal.draft.coordinate}
