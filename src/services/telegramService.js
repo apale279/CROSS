@@ -102,6 +102,22 @@ export async function fetchTelegramLoggedUsers(manifestationId) {
   return data;
 }
 
+export async function clearAllMezziPosizioneReale(manifestationId) {
+  const headers = await authHeaders();
+  const res = await fetch(apiUrl('/api/clear-mezzi-gps'), {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(tenantApiBody(manifestationId, {})),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(
+      (data.error ?? `Pulizia GPS fallita (${res.status})`) + apiUnavailableHint(res.status),
+    );
+  }
+  return data.cleared ?? 0;
+}
+
 export async function broadcastNotaToTelegram({ titolo, testo, manifestationId }) {
   const headers = await authHeaders();
   const res = await fetch(apiUrl('/api/telegram-broadcast-nota'), {

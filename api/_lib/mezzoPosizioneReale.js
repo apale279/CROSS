@@ -33,17 +33,18 @@ export async function updateMezzoPosizioneReale(tenantId, siglaRaw, lat, lng, me
     throw new Error(`Mezzo ${s} non trovato`);
   }
 
-  const payload = {
-    posizioneReale: {
-      coordinate: { lat, lng },
-      aggiornatoIl: FieldValue.serverTimestamp(),
-      fonte: meta.fonte ?? 'telegram',
-    },
+  const existing = snap.data()?.posizioneReale ?? {};
+  const posizioneReale = {
+    coordinate: { lat, lng },
+    aggiornatoIl: FieldValue.serverTimestamp(),
+    fonte: meta.fonte ?? 'telegram',
   };
   if (meta.precisione != null && Number.isFinite(meta.precisione)) {
-    payload.posizioneReale.precisione = meta.precisione;
+    posizioneReale.precisione = meta.precisione;
+  } else if (existing.precisione != null && Number.isFinite(Number(existing.precisione))) {
+    posizioneReale.precisione = existing.precisione;
   }
 
-  await ref.set(payload, { merge: true });
-  return payload.posizioneReale;
+  await ref.set({ posizioneReale }, { merge: true });
+  return posizioneReale;
 }

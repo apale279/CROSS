@@ -18,6 +18,7 @@ import {
 import { confirmDelete } from '../utils/confirmDelete';
 import { MezzoStatoSelect } from '../components/mezzi/MezzoStatoSelect';
 import { MEZZO_STATO_DISPONIBILE } from '../lib/mezzoStati';
+import { mergeStazionamento } from '../lib/mezzoStazionamento';
 import { normalizeTipiMezzo } from '../lib/tipiMezzo';
 import {
   FormField,
@@ -90,6 +91,9 @@ export default function MezziPage() {
 
   const patch = (sigla, fields) => patchMezzo(manifestazioneId, sigla, fields);
 
+  const patchStazionamento = (sigla, mezzo, partial) =>
+    patch(sigla, { stazionamento: mergeStazionamento(mezzo?.stazionamento, partial) });
+
   return (
     <div className="mx-auto max-w-6xl pb-8">
       <header className="mb-4 flex items-center justify-between">
@@ -157,7 +161,12 @@ export default function MezziPage() {
               <p className="text-sm font-medium text-slate-700">Stazionamento</p>
               <StazionamentoImport
                 stazionamenti={stazionamentiPreset}
-                onImport={(stazionamento) => setForm((f) => ({ ...f, stazionamento }))}
+                onImport={(partial) =>
+                  setForm((f) => ({
+                    ...f,
+                    stazionamento: mergeStazionamento(f.stazionamento, partial),
+                  }))
+                }
               />
               <LuogoFisicoField
                 value={form.stazionamento.luogo_fisico}
@@ -282,13 +291,19 @@ export default function MezziPage() {
                       <p className="text-sm font-medium text-slate-700">Stazionamento</p>
                       <StazionamentoImport
                         stazionamenti={stazionamentiPreset}
-                        onImport={(stazionamento) => patch(sigla, { stazionamento })}
+                        onImport={(partial) => patchStazionamento(sigla, m, partial)}
+                      />
+                      <LuogoFisicoField
+                        value={m.stazionamento?.luogo_fisico ?? ''}
+                        onChange={(luogo_fisico) =>
+                          patchStazionamento(sigla, m, { luogo_fisico })
+                        }
                       />
                       <AddressPicker
                         indirizzo={m.stazionamento?.indirizzo ?? ''}
                         coordinate={m.stazionamento?.coordinate}
                         onCommit={({ indirizzo, coordinate }) =>
-                          patch(sigla, { stazionamento: { indirizzo, coordinate } })
+                          patchStazionamento(sigla, m, { indirizzo, coordinate })
                         }
                       />
                     </div>

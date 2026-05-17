@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useImpostazioni } from '../../hooks/useImpostazioni';
 import { useManifestazioneId } from '../../context/ManifestazioneContext';
 import { saveImpostazioniField } from '../../services/impostazioniService';
+import { clearAllMezziPosizioneReale } from '../../services/telegramService';
 
 export function TelegramGpsTrackingToggle() {
   const manifestationId = useManifestazioneId();
@@ -11,9 +12,25 @@ export function TelegramGpsTrackingToggle() {
   const enabled = impostazioni?.telegramGpsTrackingEnabled !== false;
 
   const toggle = async () => {
+    const turningOff = enabled;
+    if (
+      turningOff &&
+      !window.confirm(
+        'Disattivare il tracking GPS?\n\nLe posizioni reali già salvate sui mezzi verranno rimosse; in mappa resterà lo stazionamento.',
+      )
+    ) {
+      return;
+    }
+
     setSaving(true);
     try {
       await saveImpostazioniField(manifestationId, 'telegramGpsTrackingEnabled', !enabled);
+      if (turningOff) {
+        const cleared = await clearAllMezziPosizioneReale(manifestationId);
+        if (cleared > 0) {
+          alert(`Tracking GPS disattivato. Rimosse ${cleared} posizioni GPS dai mezzi.`);
+        }
+      }
     } catch (err) {
       console.error(err);
       alert('Errore salvataggio tracking GPS: ' + err.message);
