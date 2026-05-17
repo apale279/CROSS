@@ -42,6 +42,10 @@ export const DEFAULT_IMPOSTAZIONI = {
    * `{ luogo, lat, lng, zoom? }` oppure null = default geografico Roma.
    */
   mappaDashboardDefault: null,
+  /** Se true, webhook e invio missioni Telegram sono consentiti. */
+  telegramBotEnabled: false,
+  /** Incrementato a ogni cambio password bot; i client Telegram devono allinearsi. */
+  telegramPasswordEpoch: 0,
 };
 
 export const ESITI_PAZIENTE = [

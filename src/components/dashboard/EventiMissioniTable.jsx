@@ -1,13 +1,15 @@
 import { User } from 'lucide-react';
+import { MissioneTelegramSendButton } from '../telegram/MissioneTelegramSendButton';
 import { useElapsedSince } from '../../hooks/useElapsedSince';
 import { PanelAlertIcon } from '../ui/PanelAlertIcon';
 import { ColoreIndicator } from '../ui/ColoreIndicator';
 import { coloreRowBgSoft, statoMissioneBadgeClass } from '../../utils/formatters';
 
-/** Stessi font/padding del pannello «Stato mezzi» in DashboardPage. */
+/** Font come «Stato mezzi»; padding ridotto per righe compatte. */
 const thClass =
-  'sticky top-0 z-10 bg-slate-100/95 px-3 py-2 text-left text-xs font-bold uppercase text-slate-600 backdrop-blur';
-const tdClass = 'border-t border-slate-200/80 px-3 py-2 text-sm text-slate-900';
+  'sticky top-0 z-10 bg-slate-100/95 px-2 py-1 text-left text-xs font-bold uppercase leading-tight text-slate-600 backdrop-blur';
+const tdClass =
+  'border-t border-slate-200/80 px-2 py-0.5 text-sm leading-tight text-slate-900';
 
 function MissioneStatoCell({ mis, onAdvance }) {
   const elapsed = useElapsedSince(mis.statoDa ?? mis.apertura);
@@ -34,7 +36,7 @@ function EventoCells({ ev, rowSpan, orfano, pazientiCount, multiMission, onOpenE
     if (ev) onOpenEvento(ev);
   };
   const evBorder = multiMission ? 'border-r border-r-violet-200/60' : 'border-r-2 border-slate-200';
-  const evTd = `cursor-pointer hover:brightness-95 ${tdClass} ${evBorder} align-middle`;
+  const evTd = `cursor-pointer hover:brightness-95 ${tdClass} ${evBorder} align-top`;
 
   return (
     <>
@@ -83,7 +85,7 @@ function EventoCells({ ev, rowSpan, orfano, pazientiCount, multiMission, onOpenE
         className={`${evTd} border-r-2 border-slate-300 text-center ${multiMission ? 'border-r-violet-200/70' : ''}`}
         onClick={open}
       >
-        {ev ? <ColoreIndicator colore={ev.colore} size="lg" /> : '—'}
+        {ev ? <ColoreIndicator colore={ev.colore} size="md" /> : '—'}
       </td>
     </>
   );
@@ -93,6 +95,8 @@ export function EventiMissioniTable({
   loading,
   blocks,
   pazientiCountByEvento,
+  eventi = [],
+  telegramEnabled = false,
   onOpenEvento,
   onOpenMissione,
   onAdvanceStato,
@@ -100,14 +104,15 @@ export function EventiMissioniTable({
   return (
     <table className="w-full table-fixed border-collapse">
       <colgroup>
-        <col className="w-[4%]" />
-        <col className="w-[12%]" />
+        <col className="w-[3.5%]" />
+        <col className="w-[14%]" />
         <col />
-        <col className="w-[4%]" />
-        <col className="w-[4%]" />
-        <col className="w-[8%]" />
-        <col className="w-[12%]" />
-        <col className="w-[18%]" />
+        <col className="w-[3.5%]" />
+        <col className="w-[3.5%]" />
+        <col className="w-[7%]" />
+        <col className="w-[11%]" />
+        <col className="w-[13%]" />
+        <col className="w-[7%]" />
       </colgroup>
       <thead>
         <tr>
@@ -121,12 +126,13 @@ export function EventiMissioniTable({
           </th>
           <th className={`${thClass} bg-slate-50/90 whitespace-nowrap`}>Mezzo</th>
           <th className={`${thClass} bg-slate-50/90 text-right`}>Stato</th>
+          <th className={`${thClass} bg-slate-50/90 text-center`}>TG</th>
         </tr>
       </thead>
       <tbody>
         {loading && (
           <tr>
-            <td colSpan={8} className={tdClass} />
+            <td colSpan={9} className={tdClass} />
           </tr>
         )}
         {!loading &&
@@ -155,7 +161,7 @@ export function EventiMissioniTable({
                     onOpenEvento={onOpenEvento}
                   />
                   <td
-                    colSpan={3}
+                    colSpan={4}
                     className={`${tdClass} border-l-2 border-slate-300 bg-slate-50/50 text-center text-sm italic text-slate-500`}
                   >
                     Nessuna missione aperta
@@ -201,6 +207,14 @@ export function EventiMissioniTable({
                   </td>
                   <td className={`${tdClass} font-mono whitespace-nowrap`}>{mis.mezzo}</td>
                   <MissioneStatoCell mis={mis} onAdvance={onAdvanceStato} />
+                  <td className={`${tdClass} border-l border-slate-200/80 text-center`}>
+                    <MissioneTelegramSendButton
+                      missione={mis}
+                      evento={ev}
+                      eventi={eventi}
+                      telegramEnabled={telegramEnabled}
+                    />
+                  </td>
                 </tr>
               );
             });

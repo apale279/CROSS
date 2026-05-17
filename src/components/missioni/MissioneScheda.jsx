@@ -22,9 +22,13 @@ import {
   selectClass,
 } from '../ui/FormField';
 import { MissioneEccezioniPanel } from './MissioneEccezioniPanel';
+import { useImpostazioni } from '../../hooks/useImpostazioni';
+import { MissioneTelegramSendButton } from '../telegram/MissioneTelegramSendButton';
 
 export function MissioneScheda({ missione, eventi, mezzi, allMissioni, existingEventi, onOpenEvento }) {
   const manifestationId = useManifestazioneId();
+  const { impostazioni } = useImpostazioni();
+  const telegramEnabled = impostazioni?.telegramBotEnabled === true;
   const stati = DEFAULT_IMPOSTAZIONI.statiMissione;
   const elapsed = useElapsedSince(missione.statoDa ?? missione.apertura);
   const storico = missione.storicoStati ?? {};
@@ -287,6 +291,13 @@ export function MissioneScheda({ missione, eventi, mezzi, allMissioni, existingE
         <button type="button" className={btnPrimary} onClick={avanzaStato}>
           Stato successivo
         </button>
+        <MissioneTelegramSendButton
+          missione={missione}
+          evento={evento}
+          eventi={eventi}
+          telegramEnabled={telegramEnabled}
+          className="px-3 py-2 text-xs"
+        />
       </div>
     </div>
   );

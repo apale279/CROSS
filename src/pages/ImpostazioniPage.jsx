@@ -5,6 +5,7 @@ import { ImpostazioniEventiPanel } from '../components/impostazioni/Impostazioni
 import { PartecipantiRegistryEditor } from '../components/impostazioni/PartecipantiRegistryEditor';
 import { WipeOpsDangerZone } from '../components/impostazioni/WipeOpsDangerZone';
 import { MappaDashboardCentroEditor } from '../components/impostazioni/MappaDashboardCentroEditor';
+import { TelegramBotPasswordEditor } from '../components/impostazioni/TelegramBotPasswordEditor';
 
 const ALTRE_LISTE = {
   tipiMezzo: 'Tipo mezzo',
@@ -32,9 +33,14 @@ export default function ImpostazioniPage() {
         <button type="button" className={tabClass(tab === 'altro')} onClick={() => setTab('altro')}>
           Mezzi e strutture
         </button>
+        <button type="button" className={tabClass(tab === 'telegram')} onClick={() => setTab('telegram')}>
+          Telegram
+        </button>
       </nav>
 
       {tab === 'eventi' && <ImpostazioniEventiPanel />}
+
+      {tab === 'telegram' && <TelegramBotPasswordEditor />}
 
       {tab === 'altro' && (
         <div className="grid gap-4">

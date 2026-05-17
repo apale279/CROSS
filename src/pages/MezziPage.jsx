@@ -15,6 +15,8 @@ import {
   patchMezzo,
 } from '../services/mezziService';
 import { confirmDelete } from '../utils/confirmDelete';
+import { MezzoStatoSelect } from '../components/mezzi/MezzoStatoSelect';
+import { MEZZO_STATO_DISPONIBILE } from '../lib/mezzoStati';
 import {
   FormField,
   btnDanger,
@@ -189,15 +191,11 @@ export default function MezziPage() {
                 <div className="flex flex-wrap items-center gap-3 border-b border-slate-100 px-4 py-3">
                   <span className="font-mono text-lg font-bold text-sky-700">{sigla}</span>
                   <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs">{m.tipo}</span>
-                  <span
-                    className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                      m.statoMezzo === 'Disponibile'
-                        ? 'bg-emerald-100 text-emerald-800'
-                        : 'bg-amber-100 text-amber-800'
-                    }`}
-                  >
-                    {m.statoMezzo ?? 'Disponibile'}
-                  </span>
+                  <MezzoStatoSelect
+                    className="!w-auto min-w-[10rem] py-1 text-xs"
+                    value={m.statoMezzo ?? MEZZO_STATO_DISPONIBILE}
+                    onChange={(e) => patch(sigla, { statoMezzo: e.target.value })}
+                  />
                   <span className="text-sm text-slate-500">
                     {m.targa && `Targa ${m.targa}`}
                     {m.radio && ` · Radio ${m.radio}`}
@@ -248,16 +246,6 @@ export default function MezziPage() {
                               {t}
                             </option>
                           ))}
-                        </select>
-                      </FormField>
-                      <FormField label="Stato mezzo">
-                        <select
-                          className={selectClass}
-                          value={m.statoMezzo ?? 'Disponibile'}
-                          onChange={(e) => patch(sigla, { statoMezzo: e.target.value })}
-                        >
-                          <option value="Disponibile">Disponibile</option>
-                          <option value="Non disponibile">Non disponibile</option>
                         </select>
                       </FormField>
                     </div>

@@ -6,6 +6,7 @@ const MIN_H = 160;
 export function FloatingPanel({
   title,
   alert,
+  headerActions,
   layout,
   zIndex,
   onLayoutChange,
@@ -95,7 +96,10 @@ export function FloatingPanel({
         }`}
       >
         <h2 className="text-sm font-bold uppercase tracking-wide text-slate-900">{title}</h2>
-        {alert}
+        <div className="flex items-center gap-1">
+          {headerActions}
+          {alert}
+        </div>
       </header>
       <div className="min-h-0 flex-1 overflow-auto">{children}</div>
       <div

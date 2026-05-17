@@ -8,6 +8,7 @@ export const COLLECTIONS = {
   mezzi: 'mezzi',
   pazienti: 'pazienti',
   impostazioni: 'impostazioni',
+  telegram_users: 'telegram_users',
 };
 
 export const manifestazioniCollection = () => [COLLECTIONS.manifestazioni];
@@ -43,6 +44,12 @@ export const impostazioniPath = (tenantId = TENANT_ID) => [
   resolveTenantId(tenantId),
   'settings',
   'impostazioni',
+];
+
+export const telegramUsersPath = (tenantId = TENANT_ID) => [
+  'manifestazioni',
+  resolveTenantId(tenantId),
+  'telegram_users',
 ];
 
 /** Segmenti della sotto-collezione valutazioni: `collection(db, …pazientiPath, pid, valutazioniSoccorso)`. */

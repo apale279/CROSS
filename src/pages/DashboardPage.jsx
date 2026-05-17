@@ -1,15 +1,19 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Maximize2 } from 'lucide-react';
 import { DEFAULT_IMPOSTAZIONI } from '../constants';
 import { COLLECTIONS } from '../lib/firestorePaths';
 import { useManifestazioneCollection } from '../hooks/useManifestazioneCollection';
 import { useEventoScheda } from '../context/EventoSchedaContext';
 import { useManifestazioneId } from '../context/ManifestazioneContext';
+import { useImpostazioni } from '../hooks/useImpostazioni';
+import { TelegramBotToggle } from '../components/telegram/TelegramBotToggle';
 import { buildStatoChangeFields } from '../lib/missionStoricoStati';
 import { patchMissione } from '../services/missioniService';
 import { OpsMap } from '../components/dashboard/OpsMap';
 import { EventiMissioniTable } from '../components/dashboard/EventiMissioniTable';
 import { FloatingPanel } from '../components/dashboard/FloatingPanel';
-import { MezzoDetail } from '../components/dashboard/EntityDetails';
+import { FullscreenPanel } from '../components/dashboard/FullscreenPanel';
+import { MezzoScheda } from '../components/mezzi/MezzoScheda';
 import { MissioneScheda } from '../components/missioni/MissioneScheda';
 import { Modal } from '../components/ui/Modal';
 import { mezzoRowClass } from '../utils/formatters';
@@ -31,6 +35,8 @@ const tdClass = 'border-t border-slate-200/80 px-3 py-2 text-sm text-slate-900';
 
 export default function DashboardPage() {
   const manifestationId = useManifestazioneId();
+  const { impostazioni } = useImpostazioni();
+  const telegramEnabled = impostazioni?.telegramBotEnabled === true;
   const { data: eventi, loading: loadingE } = useManifestazioneCollection(COLLECTIONS.eventi);
   const { data: missioni, loading: loadingM } = useManifestazioneCollection(COLLECTIONS.missioni);
   const { data: mezzi, loading: loadingZ } = useManifestazioneCollection(COLLECTIONS.mezzi);
@@ -39,6 +45,7 @@ export default function DashboardPage() {
   const [modal, setModal] = useState(null);
   const [layout, setLayout] = useState(() => loadDashboardLayout(manifestationId));
   const [zOrder, setZOrder] = useState(['operativo', 'mezzi', 'mappa']);
+  const [operativoFullscreen, setOperativoFullscreen] = useState(false);
 
   useEffect(() => {
     setLayout(loadDashboardLayout(manifestationId));
@@ -117,6 +124,12 @@ export default function DashboardPage() {
     return blocks;
   }, [eventiAperti, missioniAperte, missioni]);
 
+  const operativoStats = useMemo(() => {
+    const eventCount = operativoBlocks.filter((b) => b.ev).length;
+    const missionCount = operativoBlocks.reduce((s, b) => s + b.missions.length, 0);
+    return { eventCount, missionCount };
+  }, [operativoBlocks]);
+
   const mezziSorted = useMemo(
     () =>
       [...mezzi].sort((a, b) =>
@@ -140,24 +153,56 @@ export default function DashboardPage() {
     );
   };
 
+  const operativoTable = (
+    <EventiMissioniTable
+      loading={loading}
+      blocks={operativoBlocks}
+      pazientiCountByEvento={pazientiCountByEvento}
+      eventi={eventiAperti}
+      telegramEnabled={telegramEnabled}
+      onOpenEvento={openEventoScheda}
+      onOpenMissione={(mis) => setModal({ type: 'missione', data: mis })}
+      onAdvanceStato={avanzaStatoMissione}
+    />
+  );
+
+  const operativoSubtitle = `${operativoStats.eventCount} eventi · ${operativoStats.missionCount} missioni`;
+
   return (
     <div className="relative h-full w-full overflow-hidden bg-slate-200">
+      <div className="absolute left-2 top-2 z-[25]">
+        <TelegramBotToggle />
+      </div>
       <FloatingPanel
         title="Eventi e missioni"
         layout={layout.operativo ?? DEFAULT_DASHBOARD_LAYOUT.operativo}
         zIndex={zIndexFor('operativo')}
         onFocus={() => focusPanel('operativo')}
         onLayoutChange={(patch) => updatePanel('operativo', patch)}
+        headerActions={
+          <button
+            type="button"
+            onClick={() => setOperativoFullscreen(true)}
+            className="rounded p-1 text-slate-600 hover:bg-slate-200 hover:text-slate-900"
+            title="Apri a tutto schermo (scorri l’elenco completo)"
+            aria-label="Apri eventi e missioni a tutto schermo"
+          >
+            <Maximize2 className="h-4 w-4" aria-hidden />
+          </button>
+        }
       >
-        <EventiMissioniTable
-          loading={loading}
-          blocks={operativoBlocks}
-          pazientiCountByEvento={pazientiCountByEvento}
-          onOpenEvento={openEventoScheda}
-          onOpenMissione={(mis) => setModal({ type: 'missione', data: mis })}
-          onAdvanceStato={avanzaStatoMissione}
-        />
+        {operativoTable}
       </FloatingPanel>
+
+      {operativoFullscreen && (
+        <FullscreenPanel
+          title="Eventi e missioni"
+          subtitle={operativoSubtitle}
+          onClose={() => setOperativoFullscreen(false)}
+        >
+          {operativoTable}
+        </FullscreenPanel>
+      )}
 
       <FloatingPanel
         title="Stato mezzi"
@@ -240,10 +285,19 @@ export default function DashboardPage() {
 
       {modal?.type === 'mezzo' && (
         <Modal
-          title={`Mezzo ${modal.data.sigla ?? modal.data._docId}`}
+          title={`Scheda mezzo ${modal.data.sigla ?? modal.data._docId}`}
           onClose={() => setModal(null)}
         >
-          <MezzoDetail mezzo={modal.data} onDeleted={() => setModal(null)} />
+          <MezzoScheda
+            mezzo={
+              mezzi.find(
+                (m) =>
+                  (m.sigla ?? m._docId) ===
+                  (modal.data.sigla ?? modal.data._docId),
+              ) ?? modal.data
+            }
+            onDeleted={() => setModal(null)}
+          />
         </Modal>
       )}
 

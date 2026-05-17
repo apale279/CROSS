@@ -1,0 +1,68 @@
+import { getTelegramTenantId, getWebhookSecret } from './_lib/env.js';
+import {
+  handleCambiaPassword,
+  handleMezzoCallback,
+  handlePasswordText,
+  handleStart,
+} from './_lib/telegramBotFlow.js';
+import { isTelegramBotEnabled } from './_lib/telegramFirestore.js';
+
+export default async function handler(req, res) {
+  if (req.method !== 'POST') {
+    res.setHeader('Allow', 'POST');
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  const secret = getWebhookSecret();
+  if (secret) {
+    const header = req.headers['x-telegram-bot-api-secret-token'];
+    if (header !== secret) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+  }
+
+  try {
+    const tenantId = getTelegramTenantId();
+    const update = req.body ?? {};
+    const enabled = await isTelegramBotEnabled(tenantId);
+
+    if (update.callback_query) {
+      await handleMezzoCallback(update.callback_query, tenantId);
+      return res.status(200).json({ ok: true });
+    }
+
+    const msg = update.message;
+    if (!msg) {
+      return res.status(200).json({ ok: true, ignored: true });
+    }
+
+    const chatId = msg.chat.id;
+    const text = msg.text?.trim() ?? '';
+
+    const isStart = /^\/start(\s|$|@)/i.test(text);
+    const isCambiaPassword = /^\/cambiapassword(\s|$|@)/i.test(text) || /^CAMBIA\s+PASSWORD$/i.test(text);
+
+    if (isStart) {
+      await handleStart(chatId, tenantId, enabled);
+      return res.status(200).json({ ok: true });
+    }
+
+    if (isCambiaPassword) {
+      if (!enabled) {
+        return res.status(200).json({ ok: true });
+      }
+      await handleCambiaPassword(chatId, tenantId);
+      return res.status(200).json({ ok: true });
+    }
+
+    if (text && !text.startsWith('/')) {
+      await handlePasswordText(chatId, tenantId, text, msg.from);
+      return res.status(200).json({ ok: true });
+    }
+
+    return res.status(200).json({ ok: true, ignored: true });
+  } catch (err) {
+    console.error('[telegram-webhook]', err);
+    return res.status(200).json({ ok: false, error: err.message ?? 'Internal error' });
+  }
+}

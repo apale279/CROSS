@@ -1,14 +1,10 @@
 import { Link } from 'react-router-dom';
-import { useManifestazioneId } from '../../context/ManifestazioneContext';
 import { coloreBadgeClass, formatTimestamp } from '../../utils/formatters';
 import { parseCoordinate } from '../../lib/googleMaps';
-import { btnDanger, btnSecondary } from '../ui/FormField';
-import { deleteMezzo } from '../../services/mezziService';
-import { confirmDelete } from '../../utils/confirmDelete';
+import { btnSecondary } from '../ui/FormField';
 
 export function EventoDetail({ evento }) {
   if (!evento) return null;
-  const manifestazioneId = useManifestazioneId();
   const coord = parseCoordinate(evento.coordinate);
 
   return (
@@ -58,46 +54,7 @@ export function EventoDetail({ evento }) {
   );
 }
 
-export function MezzoDetail({ mezzo, onDeleted }) {
-  if (!mezzo) return null;
-  const manifestazioneId = useManifestazioneId();
-  const sigla = mezzo.sigla ?? mezzo._docId;
-  const coord = parseCoordinate(mezzo.stazionamento?.coordinate);
-
-  return (
-    <dl className="space-y-3 text-sm">
-      <Row label="Sigla" value={sigla} mono />
-      <Row label="Tipo" value={mezzo.tipo} />
-      <Row label="Targa" value={mezzo.targa || '—'} />
-      <Row label="Radio" value={mezzo.radio || '—'} />
-      <Row label="Stato" value={mezzo.statoMezzo ?? 'Disponibile'} />
-      <Row label="Operativo" value={mezzo.operativo !== false ? 'Sì' : 'No'} />
-      {mezzo.operativo === false && <Row label="Note" value={mezzo.noteOperativo || '—'} />}
-      <Row label="Stazionamento" value={mezzo.stazionamento?.indirizzo || '—'} />
-      <Row
-        label="Coordinate"
-        value={coord ? `${coord.lat.toFixed(5)}, ${coord.lng.toFixed(5)}` : '—'}
-      />
-      <EquipaggioList equipaggio={mezzo.equipaggio} />
-      <div className="flex flex-wrap gap-2 pt-2">
-        <Link to="/mezzi" className={`${btnSecondary} inline-block text-center`}>
-          Mezzi
-        </Link>
-        <button
-          type="button"
-          className={btnDanger}
-          onClick={async () => {
-            if (!confirmDelete(`mezzo ${sigla}`)) return;
-            await deleteMezzo(manifestazioneId, sigla);
-            onDeleted?.();
-          }}
-        >
-          Elimina mezzo
-        </button>
-      </div>
-    </dl>
-  );
-}
+export { MezzoScheda as MezzoDetail } from '../mezzi/MezzoScheda';
 
 export function MissioneDetail({ missione, evento, mezzo }) {
   if (!missione) return null;
@@ -146,30 +103,6 @@ function Row({ label, value, mono, children }) {
       <dd className={`col-span-2 text-slate-900 ${mono ? 'font-mono' : ''}`}>
         {children ?? value}
       </dd>
-    </div>
-  );
-}
-
-function EquipaggioList({ equipaggio }) {
-  if (!equipaggio) return null;
-  const roles = [
-    ['Autista', equipaggio.autista],
-    ['Medico/CE', equipaggio.medico],
-    ['Soccorritore 1', equipaggio.soccorritore1],
-    ['Soccorritore 2', equipaggio.soccorritore2],
-  ];
-  return (
-    <div>
-      <p className="mb-1 font-medium text-slate-500">Equipaggio</p>
-      <ul className="space-y-1 text-slate-800">
-        {roles.map(([label, p]) => (
-          <li key={label}>
-            <span className="text-slate-500">{label}:</span>{' '}
-            {[p?.nome, p?.cognome].filter(Boolean).join(' ') || '—'}
-            {p?.telefono ? ` (${p.telefono})` : ''}
-          </li>
-        ))}
-      </ul>
     </div>
   );
 }

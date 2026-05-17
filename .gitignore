@@ -3,3 +3,6 @@ dist
 .DS_Store
 *.local
 ~$*
+.vercel
+*firebase-adminsdk*.json
+.firebase-sa.tmp.json
