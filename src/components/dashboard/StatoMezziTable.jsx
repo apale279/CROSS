@@ -1,4 +1,8 @@
+import { useMemo } from 'react';
+import { DEFAULT_IMPOSTAZIONI } from '../../constants';
+import { useImpostazioni } from '../../hooks/useImpostazioni';
 import { mezzoStazionamentoLabel } from '../../lib/mezzoDisplay';
+import { emojiForTipoMezzo, normalizeTipiMezzo } from '../../lib/tipiMezzo';
 import { mezzoRowClass } from '../../utils/formatters';
 
 const thClass =
@@ -6,6 +10,12 @@ const thClass =
 const tdClass = 'border-t border-slate-200/80 px-3 py-2 text-sm text-slate-900';
 
 export function StatoMezziTable({ loading, mezzi, readOnly = false, onOpenMezzo }) {
+  const { impostazioni } = useImpostazioni();
+  const tipiMezzo = useMemo(
+    () => normalizeTipiMezzo(impostazioni.tipiMezzo ?? DEFAULT_IMPOSTAZIONI.tipiMezzo),
+    [impostazioni.tipiMezzo],
+  );
+
   return (
     <table className="w-full border-collapse">
       <thead>
@@ -38,7 +48,18 @@ export function StatoMezziTable({ loading, mezzi, readOnly = false, onOpenMezzo 
                 <td className={`${tdClass} max-w-[12rem] text-xs text-slate-700`}>
                   {stazionamento || '—'}
                 </td>
-                <td className={tdClass}>{m.tipo}</td>
+                <td className={tdClass}>
+                  {m.tipo ? (
+                    <span className="inline-flex items-center gap-1.5">
+                      <span className="text-base leading-none" aria-hidden>
+                        {emojiForTipoMezzo(m.tipo, tipiMezzo)}
+                      </span>
+                      <span>{m.tipo}</span>
+                    </span>
+                  ) : (
+                    '—'
+                  )}
+                </td>
                 <td className={tdClass}>
                   <span
                     className={`font-semibold ${
