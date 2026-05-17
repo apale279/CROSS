@@ -44,6 +44,25 @@ export async function sendMissionToTelegram(mezzoId, missione, evento = null) {
   return { ok: true, sent, total: data.total };
 }
 
+/** Dopo cambio stato dalla centrale: nuovo messaggio Telegram con pulsante corretto. */
+export function notifyTelegramStatoFromCentrale(missionDocId) {
+  const id = (missionDocId ?? '').trim();
+  if (!id) return;
+
+  void (async () => {
+    try {
+      const headers = await authHeaders();
+      await fetch('/api/telegram-notify-stato', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ missionDocId: id }),
+      });
+    } catch (err) {
+      console.warn('[telegram notify stato]', err);
+    }
+  })();
+}
+
 export async function setTelegramBotPassword(password, { notifyUsers = true } = {}) {
   const headers = await authHeaders();
   const res = await fetch('/api/telegram-set-password', {

@@ -19,6 +19,7 @@ import { tryAutoCloseEventoForMissione } from './eventoAutoCloseService';
 import { DEFAULT_IMPOSTAZIONI } from '../constants';
 import { MISSIONE_ECCEZIONE_MOTIVO, MEZZO_STATO_AVARIA_SINISTRO } from '../lib/missionEccezioni';
 import { syncPazientiArrivatoH } from './pazientiService';
+import { notifyTelegramStatoFromCentrale } from './telegramService';
 
 function formatEquipaggio(equipaggio) {
   if (!equipaggio) return '';
@@ -138,5 +139,8 @@ export async function patchMissione(manifestationId, docId, fields, mezzoSigla) 
   }
   if (fields.stato != null || fields.aperta != null) {
     await tryAutoCloseEventoForMissione(manifestationId, docId);
+  }
+  if (fields.stato != null) {
+    notifyTelegramStatoFromCentrale(docId);
   }
 }
