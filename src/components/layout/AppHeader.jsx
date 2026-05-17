@@ -6,6 +6,7 @@ import { useManifestazione } from '../../hooks/useManifestazione';
 import { useEventoScheda } from '../../context/EventoSchedaContext';
 import { useFirestoreSync } from '../../context/FirestoreSyncContext';
 import { resetDashboardLayout } from '../../lib/dashboardLayout';
+import { AppLogo } from '../brand/AppLogo';
 
 const navClass = ({ isActive }) =>
   `rounded border px-3 py-2 text-sm font-bold uppercase tracking-wide ${
@@ -51,8 +52,8 @@ export function AppHeader() {
 
   return (
     <header className="flex shrink-0 flex-wrap items-center gap-2 border-b border-slate-300 bg-white px-4 py-2">
-      <Link to="/" className="text-xl font-black tracking-tight text-sky-700">
-        CROSS
+      <Link to="/" className="flex items-center gap-2">
+        <AppLogo className="h-9 w-auto" />
       </Link>
       <div className="flex items-center gap-2">
         {manifestazione?.nome && (

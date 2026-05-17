@@ -17,7 +17,7 @@ import { FullscreenPanel } from '../components/dashboard/FullscreenPanel';
 import { MezzoScheda } from '../components/mezzi/MezzoScheda';
 import { MissioneScheda } from '../components/missioni/MissioneScheda';
 import { Modal } from '../components/ui/Modal';
-import { DiarioImportantSidebar } from '../components/diario/DiarioImportantSidebar';
+import { DiarioImportantTicker } from '../components/diario/DiarioImportantTicker';
 import { DiarioNotaModal } from '../components/diario/DiarioNotaModal';
 import { useDiarioNotaActions } from '../hooks/useDiarioNotaActions';
 import { mezzoRowClass } from '../utils/formatters';
@@ -203,32 +203,39 @@ export default function DashboardPage() {
 
   return (
     <div className="relative flex h-full w-full flex-col overflow-hidden bg-slate-200">
-      <header className="z-[30] flex shrink-0 flex-wrap items-center gap-2 border-b border-slate-300 bg-white px-3 py-2 shadow-sm">
-        <nav className="flex gap-1 rounded-lg bg-slate-100 p-0.5">
-          <button
-            type="button"
-            onClick={() => setDashboardView('operativo')}
-            className={`rounded-md px-3 py-1.5 text-sm font-semibold ${
-              dashboardView === 'operativo'
-                ? 'bg-white text-sky-800 shadow'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            Operativo
-          </button>
-          <button
-            type="button"
-            onClick={() => setDashboardView('tattica')}
-            className={`rounded-md px-3 py-1.5 text-sm font-semibold ${
-              dashboardView === 'tattica'
-                ? 'bg-white text-sky-800 shadow'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            Mappa tattica
-          </button>
-        </nav>
-        <TelegramBotToggle />
+      <header className="z-[30] flex shrink-0 flex-col border-b border-slate-300 bg-white shadow-sm">
+        <div className="flex flex-wrap items-center gap-2 px-3 py-2">
+          <nav className="flex gap-1 rounded-lg bg-slate-100 p-0.5">
+            <button
+              type="button"
+              onClick={() => setDashboardView('operativo')}
+              className={`rounded-md px-3 py-1.5 text-sm font-semibold ${
+                dashboardView === 'operativo'
+                  ? 'bg-white text-sky-800 shadow'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              Operativo
+            </button>
+            <button
+              type="button"
+              onClick={() => setDashboardView('tattica')}
+              className={`rounded-md px-3 py-1.5 text-sm font-semibold ${
+                dashboardView === 'tattica'
+                  ? 'bg-white text-sky-800 shadow'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              Mappa tattica
+            </button>
+          </nav>
+          <TelegramBotToggle />
+        </div>
+        <DiarioImportantTicker
+          note={noteDiario}
+          loading={loadingDiario}
+          onOpenNota={(nota) => setDiarioModal({ mode: 'view', nota })}
+        />
       </header>
 
       {dashboardView === 'tattica' ? (
@@ -236,13 +243,7 @@ export default function DashboardPage() {
           <MappaTatticaDashboard eventi={eventi} missioni={missioni} mezzi={mezzi} />
         </div>
       ) : (
-        <div className="relative flex min-h-0 flex-1 overflow-hidden">
-          <DiarioImportantSidebar
-            note={noteDiario}
-            loading={loadingDiario}
-            onOpenNota={(nota) => setDiarioModal({ mode: 'view', nota })}
-          />
-          <div className="relative min-h-0 flex-1 overflow-hidden">
+        <div className="relative min-h-0 flex-1 overflow-hidden">
       <FloatingPanel
         title="Eventi e missioni"
         layout={layout.operativo ?? DEFAULT_DASHBOARD_LAYOUT.operativo}
@@ -410,7 +411,6 @@ export default function DashboardPage() {
           }}
         />
       )}
-          </div>
         </div>
       )}
     </div>

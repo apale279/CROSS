@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { useTenantContext } from '../context/TenantContext';
 import { TenantConfigMissing } from '../components/routing/TenantConfigMissing';
 import { validateNomeUtente } from '../lib/authIdentity';
+import { AppLogo } from '../components/brand/AppLogo';
 
 function mapAuthError(code) {
   switch (code) {
@@ -103,8 +104,10 @@ export default function LoginPage() {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-b from-slate-100 to-slate-200 px-4 py-10">
       <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8 shadow-lg">
-        <h1 className="text-center text-2xl font-black tracking-tight text-sky-700">CROSS</h1>
-        <p className="mt-1 text-center text-sm text-slate-600">Accesso operativo</p>
+        <div className="flex flex-col items-center gap-2">
+          <AppLogo className="h-16 w-auto" />
+          <p className="text-sm text-slate-600">Accesso operativo</p>
+        </div>
 
         <div className="mt-6 flex rounded-lg border border-slate-200 p-0.5 text-sm font-bold">
           <button

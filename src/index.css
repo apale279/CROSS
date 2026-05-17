@@ -112,3 +112,31 @@ body {
 .cross-evento-marker--selected {
   box-shadow: 0 0 0 3px #7c3aed;
 }
+
+/* Diario — ticker note importanti (dashboard) */
+@keyframes diario-ticker-scroll {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.diario-ticker-track {
+  animation: diario-ticker-scroll 40s linear infinite;
+}
+
+.diario-ticker-track:hover {
+  animation-play-state: paused;
+}
+
+.diario-ticker-mask {
+  mask-image: linear-gradient(
+    90deg,
+    transparent,
+    #000 4%,
+    #000 96%,
+    transparent
+  );
+}
