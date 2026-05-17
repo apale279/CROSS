@@ -58,7 +58,10 @@ export async function sendMissionToTelegram(
   }
   const sent = data.sent ?? 0;
   if (sent === 0) {
-    return { ok: false, error: 'Nessun destinatario Telegram per questo mezzo' };
+    return {
+      ok: false,
+      error: data.error ?? 'Nessun destinatario Telegram per questo mezzo',
+    };
   }
   return { ok: true, sent, total: data.total };
 }

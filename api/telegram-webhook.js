@@ -17,7 +17,16 @@ import { handleSosCommand, isSosTelegramText } from './_lib/telegramSosFlow.js';
 export default async function handler(req, res) {
   if (req.method === 'GET') {
     const tenant = resolveTenantFromRequest(req) || null;
-    return res.status(200).json({ ok: true, service: 'telegram-webhook', tenant });
+    const secretConfigured = Boolean(getWebhookSecret());
+    return res.status(200).json({
+      ok: true,
+      service: 'telegram-webhook',
+      tenant,
+      webhookSecretRequired: secretConfigured,
+      hint: secretConfigured
+        ? 'Telegram deve inviare header x-telegram-bot-api-secret-token (register-telegram-webhook.mjs).'
+        : undefined,
+    });
   }
 
   if (req.method !== 'POST') {
@@ -29,7 +38,13 @@ export default async function handler(req, res) {
   if (secret) {
     const header = req.headers['x-telegram-bot-api-secret-token'];
     if (header !== secret) {
-      return res.status(401).json({ error: 'Unauthorized' });
+      console.error(
+        '[telegram-webhook] 401: secret webhook mancante o non valido. Riesegui scripts/register-telegram-webhook.mjs con lo stesso TELEGRAM_WEBHOOK_SECRET di Vercel.',
+      );
+      return res.status(401).json({
+        error: 'Unauthorized',
+        hint: 'Webhook secret non valido. Riregistra il webhook con scripts/register-telegram-webhook.mjs.',
+      });
     }
   }
 

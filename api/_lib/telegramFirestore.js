@@ -1,4 +1,5 @@
 import { FieldValue, getAdminDb } from './firebaseAdmin.js';
+import { resolveMezzoSiglaForTelegram } from './mezzoResolve.js';
 import { hashBotPassword, parseTelegramPasswordSettings } from './telegramPassword.js';
 
 /** `manifestazioni/{tenantId}/telegram_users/{chatId}` */
@@ -170,17 +171,13 @@ export async function invalidateAllTelegramAuth(tenantId) {
   return snap.size;
 }
 
-export async function findChatIdsByMezzo(tenantId, mezzo, { authenticatedOnly = false } = {}) {
-  const snap = await telegramUsersCollection(tenantId).where('mezzo', '==', mezzo).get();
+function chatIdsFromUserSnap(snap, { authenticatedOnly, settings }) {
   if (!authenticatedOnly) {
     return snap.docs.map((d) => d.data().chatId).filter((id) => id != null);
   }
-
-  const settings = await getTelegramAuthSettings(tenantId);
   if (!settings.required) {
     return snap.docs.map((d) => d.data().chatId).filter((id) => id != null);
   }
-
   return snap.docs
     .filter((d) => {
       const data = d.data();
@@ -192,4 +189,27 @@ export async function findChatIdsByMezzo(tenantId, mezzo, { authenticatedOnly = 
     })
     .map((d) => d.data().chatId)
     .filter((id) => id != null);
+}
+
+export async function findChatIdsByMezzo(tenantId, mezzo, { authenticatedOnly = false } = {}) {
+  const raw = String(mezzo ?? '').trim();
+  if (!raw) return [];
+
+  const settings = authenticatedOnly ? await getTelegramAuthSettings(tenantId) : null;
+  const resolved = await resolveMezzoSiglaForTelegram(tenantId, raw);
+
+  const trySigle = [...new Set([resolved, raw].filter(Boolean))];
+  const ids = new Set();
+
+  for (const sigla of trySigle) {
+    const snap = await telegramUsersCollection(tenantId).where('mezzo', '==', sigla).get();
+    for (const id of chatIdsFromUserSnap(snap, {
+      authenticatedOnly,
+      settings: settings ?? { required: false },
+    })) {
+      ids.add(id);
+    }
+  }
+
+  return [...ids];
 }

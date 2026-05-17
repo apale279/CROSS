@@ -1,6 +1,7 @@
 import { getAdminAuth } from './_lib/firebaseAdmin.js';
 import { requireTenant } from './_lib/resolveTenant.js';
 import { sendMessage } from './_lib/telegramApi.js';
+import { resolveMezzoSiglaForTelegram } from './_lib/mezzoResolve.js';
 import {
   findChatIdsByMezzo,
   isTelegramBotEnabled,
@@ -31,12 +32,14 @@ export default async function handler(req, res) {
 
     const body = req.body ?? {};
     const tenantId = requireTenant(req, body);
-    const mezzo = (body.mezzo ?? body.mezzo_id ?? '').trim();
+    const mezzoRaw = (body.mezzo ?? body.mezzo_id ?? '').trim();
     const missione = body.missione ?? body.missione_data ?? body.missioneData;
 
-    if (!mezzo) {
+    if (!mezzoRaw) {
       return res.status(400).json({ error: 'Campo mezzo obbligatorio' });
     }
+
+    const mezzo = await resolveMezzoSiglaForTelegram(tenantId, mezzoRaw);
     if (!missione || typeof missione !== 'object') {
       return res.status(400).json({ error: 'Campo missione obbligatorio' });
     }
@@ -50,9 +53,15 @@ export default async function handler(req, res) {
 
     const chatIds = await findChatIdsByMezzo(tenantId, mezzo, { authenticatedOnly: true });
     if (!chatIds.length) {
+      const hint =
+        mezzo !== mezzoRaw
+          ? ` (missione: ${mezzoRaw} → mezzo attuale: ${mezzo})`
+          : '';
       return res.status(404).json({
-        error: `Nessun equipaggio registrato su Telegram per il mezzo ${mezzo}. Chiedi: /cambiapassword (se serve), poi /start e scelta mezzo.`,
+        error: `Nessun equipaggio registrato su Telegram per il mezzo ${mezzo}${hint}. Chiedi: /cambiapassword (se serve), poi /start e scelta mezzo.`,
         sent: 0,
+        mezzoResolved: mezzo,
+        mezzoRequested: mezzoRaw,
       });
     }
 
@@ -87,10 +96,21 @@ export default async function handler(req, res) {
       }
     }
 
+    if (sent === 0) {
+      return res.status(502).json({
+        error: 'Impossibile inviare su Telegram (errore API). Riprova.',
+        sent: 0,
+        total: chatIds.length,
+        errors,
+        mezzoResolved: mezzo,
+      });
+    }
+
     return res.status(200).json({
       ok: true,
       sent,
       total: chatIds.length,
+      mezzoResolved: mezzo !== mezzoRaw ? mezzo : undefined,
       errors: errors.length ? errors : undefined,
     });
   } catch (err) {

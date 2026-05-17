@@ -29,5 +29,17 @@ const res = await fetch(`https://api.telegram.org/bot${token}/setWebhook`, {
   body: JSON.stringify(body),
 });
 const data = await res.json();
-console.log(JSON.stringify(data, null, 2));
+console.log('setWebhook:', JSON.stringify(data, null, 2));
+
+if (data.ok) {
+  const infoRes = await fetch(`https://api.telegram.org/bot${token}/getWebhookInfo`);
+  const info = await infoRes.json();
+  console.log('getWebhookInfo:', JSON.stringify(info, null, 2));
+  if (secret) {
+    console.log(
+      '\nWebhook registrato CON secret_token. Assicurati che TELEGRAM_WEBHOOK_SECRET su Vercel sia identico.',
+    );
+  }
+}
+
 process.exit(data.ok ? 0 : 1);

@@ -37,6 +37,7 @@ export function MissioneTelegramSendButton({
   const [sendStatus, setSendStatus] = useState(() =>
     readStoredStatus(manifestationId, missionDocId),
   );
+  const [lastError, setLastError] = useState('');
   const inFlightRef = useRef(false);
 
   useEffect(() => {
@@ -52,6 +53,7 @@ export function MissioneTelegramSendButton({
     if (!telegramEnabled || inFlightRef.current) return;
     inFlightRef.current = true;
     setSendStatus(null);
+    setLastError('');
     storeStatus(manifestationId, missionDocId, null);
 
     void (async () => {
@@ -64,14 +66,17 @@ export function MissioneTelegramSendButton({
         );
         if (result.ok) {
           setSendStatus('ok');
+          setLastError('');
           storeStatus(manifestationId, missionDocId, 'ok');
         } else {
           setSendStatus('err');
+          setLastError(result.error ?? 'Invio fallito');
           storeStatus(manifestationId, missionDocId, 'err');
         }
       } catch (err) {
         console.error(err);
         setSendStatus('err');
+        setLastError(err?.message ?? 'Invio fallito');
         storeStatus(manifestationId, missionDocId, 'err');
       } finally {
         inFlightRef.current = false;
@@ -101,7 +106,7 @@ export function MissioneTelegramSendButton({
         <X
           className="h-4 w-4 shrink-0 text-red-600"
           aria-label="Invio Telegram fallito"
-          title="Invio fallito — clic per riprovare"
+          title={lastError ?? 'Invio fallito — clic per riprovare'}
         />
       )}
       <button
@@ -109,9 +114,9 @@ export function MissioneTelegramSendButton({
         onClick={handleClick}
         disabled={disabled}
         title={
-          telegramEnabled
-            ? 'Invia su Telegram (in background)'
-            : 'Bot Telegram disattivato'
+          !telegramEnabled
+            ? 'Bot Telegram disattivato'
+            : lastError || 'Invia su Telegram (in background)'
         }
         aria-label="Invia su Telegram"
         className="inline-flex items-center gap-1 rounded border border-sky-300 bg-sky-50 px-1.5 py-0.5 text-[10px] font-bold uppercase text-sky-800 hover:bg-sky-100 disabled:cursor-not-allowed disabled:opacity-50"
