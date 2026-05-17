@@ -9,6 +9,7 @@ import { getStatiMissione } from './_lib/missionAdmin.js';
 import { formatMissionTelegramHtml } from './_lib/telegramMissionMessage.js';
 import { buildStatoAdvanceKeyboard } from './_lib/telegramMissionStato.js';
 import { isStatoMissioneTerminale, nextStatoMissione } from './_lib/missionStati.js';
+import { appendMissionTelegramMessage } from './_lib/telegramMissionMessages.js';
 
 async function verifyFirebaseUser(req) {
   const authHeader = req.headers.authorization;
@@ -71,7 +72,15 @@ export default async function handler(req, res) {
 
     for (const chatId of chatIds) {
       try {
-        await sendMessage(chatId, text, replyMarkup ? { reply_markup: replyMarkup } : {});
+        const apiRes = await sendMessage(
+          chatId,
+          text,
+          replyMarkup ? { reply_markup: replyMarkup } : {},
+        );
+        const messageId = apiRes?.result?.message_id;
+        if (missionDocId && messageId != null) {
+          await appendMissionTelegramMessage(tenantId, missionDocId, chatId, messageId);
+        }
         sent += 1;
       } catch (e) {
         errors.push({ chatId, message: e.message });

@@ -12,6 +12,7 @@ const COLLECTION_KEYS = {
   [COLLECTIONS.missioni]: 'missioni',
   [COLLECTIONS.mezzi]: 'mezzi',
   [COLLECTIONS.pazienti]: 'pazienti',
+  [COLLECTIONS.note_diario]: 'noteDiario',
 };
 
 function subscribeNested(pathFn, manifestationId, onData, reportSync, reportError) {
@@ -42,18 +43,26 @@ export function ManifestazioneDataProvider({ children }) {
   const [missioni, setMissioni] = useState([]);
   const [mezzi, setMezzi] = useState([]);
   const [pazienti, setPazienti] = useState([]);
+  const [noteDiario, setNoteDiario] = useState([]);
   const [loading, setLoading] = useState({
     eventi: true,
     missioni: true,
     mezzi: true,
     pazienti: true,
+    noteDiario: true,
   });
   const [error, setError] = useState(null);
 
   useEffect(() => {
     if (!tenantId) return undefined;
 
-    setLoading({ eventi: true, missioni: true, mezzi: true, pazienti: true });
+    setLoading({
+      eventi: true,
+      missioni: true,
+      mezzi: true,
+      pazienti: true,
+      noteDiario: true,
+    });
     setError(null);
 
     const markLoaded = (key) => {
@@ -113,6 +122,19 @@ export function ManifestazioneDataProvider({ children }) {
           markLoaded('pazienti');
         },
       ),
+      subscribeNested(
+        PATH_BY_KEY.note_diario,
+        tenantId,
+        (rows) => {
+          setNoteDiario(rows);
+          markLoaded('noteDiario');
+        },
+        reportSync,
+        (err) => {
+          setError(err.message);
+          markLoaded('noteDiario');
+        },
+      ),
     ];
 
     return () => {
@@ -126,10 +148,11 @@ export function ManifestazioneDataProvider({ children }) {
       missioni,
       mezzi,
       pazienti,
+      noteDiario,
       loading,
       error,
     }),
-    [eventi, missioni, mezzi, pazienti, loading, error],
+    [eventi, missioni, mezzi, pazienti, noteDiario, loading, error],
   );
 
   return (
@@ -148,12 +171,13 @@ export function useManifestazioneData() {
 }
 
 export function useManifestazioneCollection(collectionName) {
-  const { eventi, missioni, mezzi, pazienti, loading, error } = useManifestazioneData();
+  const { eventi, missioni, mezzi, pazienti, noteDiario, loading, error } =
+    useManifestazioneData();
   const key = COLLECTION_KEYS[collectionName];
   if (!key) {
     throw new Error(`Collezione non supportata: ${collectionName}`);
   }
-  const dataMap = { eventi, missioni, mezzi, pazienti };
+  const dataMap = { eventi, missioni, mezzi, pazienti, noteDiario };
   return {
     data: dataMap[key],
     loading: loading[key],

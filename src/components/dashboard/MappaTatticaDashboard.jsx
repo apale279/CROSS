@@ -2,7 +2,6 @@ import { useCallback, useMemo, useState } from 'react';
 import { useImpostazioni } from '../../hooks/useImpostazioni';
 import { useEventoScheda } from '../../context/EventoSchedaContext';
 import { useManifestazioneId } from '../../context/ManifestazioneContext';
-import { missioniPerEvento } from '../../lib/eventoLinks';
 import { mezziConMissioneAttiva, isMissioneAttiva } from '../../lib/mezzoMissione';
 import { buildStatoChangeFields } from '../../lib/missionStoricoStati';
 import { patchMissione } from '../../services/missioniService';
@@ -38,20 +37,15 @@ export function MappaTatticaDashboard({ eventi, missioni, mezzi }) {
     mezzi.find((x) => (x.sigla ?? x._docId) === (m.sigla ?? m._docId)) ?? m;
 
   const handleMissioneStato = useCallback(
-    async (ev, nuovoStato) => {
-      const attive = missioniPerEvento(missioni, ev).filter(isMissioneAttiva);
-      if (!attive.length) return;
+    async (_ev, missione, nuovoStato) => {
+      if (!missione?._docId || !isMissioneAttiva(missione)) return;
       setStatoSaving(true);
       try {
-        await Promise.all(
-          attive.map((mis) =>
-            patchMissione(
-              manifestationId,
-              mis._docId,
-              buildStatoChangeFields(mis, nuovoStato),
-              mis.mezzo,
-            ),
-          ),
+        await patchMissione(
+          manifestationId,
+          missione._docId,
+          buildStatoChangeFields(missione, nuovoStato),
+          missione.mezzo,
         );
       } catch (err) {
         alert('Errore: ' + err.message);
@@ -59,7 +53,7 @@ export function MappaTatticaDashboard({ eventi, missioni, mezzi }) {
         setStatoSaving(false);
       }
     },
-    [manifestationId, missioni],
+    [manifestationId],
   );
 
   if (!loadingImpostazioni && !piantinaUrl) {

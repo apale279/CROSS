@@ -9,6 +9,7 @@ export const COLLECTIONS = {
   pazienti: 'pazienti',
   impostazioni: 'impostazioni',
   telegram_users: 'telegram_users',
+  note_diario: 'note_diario',
 };
 
 export const manifestazioniCollection = () => [COLLECTIONS.manifestazioni];
@@ -65,9 +66,16 @@ export const registryPartecipantiPathSegments = (tenantId = TENANT_ID) => [
   'registryPartecipanti',
 ];
 
+export const noteDiarioPath = (tenantId = TENANT_ID) => [
+  'manifestazioni',
+  resolveTenantId(tenantId),
+  'note_diario',
+];
+
 export const PATH_BY_KEY = {
   eventi: eventiPath,
   missioni: missioniPath,
   mezzi: mezziPath,
   pazienti: pazientiPath,
+  note_diario: noteDiarioPath,
 };

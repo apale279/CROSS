@@ -17,6 +17,9 @@ import { FullscreenPanel } from '../components/dashboard/FullscreenPanel';
 import { MezzoScheda } from '../components/mezzi/MezzoScheda';
 import { MissioneScheda } from '../components/missioni/MissioneScheda';
 import { Modal } from '../components/ui/Modal';
+import { DiarioImportantSidebar } from '../components/diario/DiarioImportantSidebar';
+import { DiarioNotaModal } from '../components/diario/DiarioNotaModal';
+import { useDiarioNotaActions } from '../hooks/useDiarioNotaActions';
 import { mezzoRowClass } from '../utils/formatters';
 import {
   missioniPerEvento,
@@ -42,8 +45,23 @@ export default function DashboardPage() {
   const { data: missioni, loading: loadingM } = useManifestazioneCollection(COLLECTIONS.missioni);
   const { data: mezzi, loading: loadingZ } = useManifestazioneCollection(COLLECTIONS.mezzi);
   const { data: pazienti, loading: loadingP } = useManifestazioneCollection(COLLECTIONS.pazienti);
+  const { data: noteDiario, loading: loadingDiario } = useManifestazioneCollection(
+    COLLECTIONS.note_diario,
+  );
   const { openEventoScheda } = useEventoScheda();
   const [modal, setModal] = useState(null);
+  const [diarioModal, setDiarioModal] = useState(null);
+  const {
+    saving: savingDiario,
+    updateNota: updateNotaDiario,
+    toggleChiusa: toggleChiusaDiario,
+    toggleImportante: toggleImportanteDiario,
+    removeNota: removeNotaDiario,
+  } = useDiarioNotaActions({
+    onAfterDelete: (docId) => {
+      setDiarioModal((m) => (m?.nota?._docId === docId ? null : m));
+    },
+  });
   const [layout, setLayout] = useState(() => loadDashboardLayout(manifestationId));
   const [zOrder, setZOrder] = useState(['operativo', 'mezzi', 'mappa']);
   const [operativoFullscreen, setOperativoFullscreen] = useState(false);
@@ -170,6 +188,19 @@ export default function DashboardPage() {
 
   const operativoSubtitle = `${operativoStats.eventCount} eventi · ${operativoStats.missionCount} missioni`;
 
+  const diarioModalNota = useMemo(() => {
+    if (!diarioModal?.nota?._docId) return diarioModal?.nota ?? null;
+    return noteDiario.find((n) => n._docId === diarioModal.nota._docId) ?? diarioModal.nota;
+  }, [diarioModal, noteDiario]);
+
+  const handleDiarioSave = async (payload) => {
+    if (!diarioModalNota?._docId) return;
+    await updateNotaDiario(diarioModalNota._docId, payload);
+    setDiarioModal((m) =>
+      m?.nota ? { ...m, nota: { ...m.nota, ...payload } } : m,
+    );
+  };
+
   return (
     <div className="relative flex h-full w-full flex-col overflow-hidden bg-slate-200">
       <header className="z-[30] flex shrink-0 flex-wrap items-center gap-2 border-b border-slate-300 bg-white px-3 py-2 shadow-sm">
@@ -205,7 +236,13 @@ export default function DashboardPage() {
           <MappaTatticaDashboard eventi={eventi} missioni={missioni} mezzi={mezzi} />
         </div>
       ) : (
-        <div className="relative min-h-0 flex-1 overflow-hidden">
+        <div className="relative flex min-h-0 flex-1 overflow-hidden">
+          <DiarioImportantSidebar
+            note={noteDiario}
+            loading={loadingDiario}
+            onOpenNota={(nota) => setDiarioModal({ mode: 'view', nota })}
+          />
+          <div className="relative min-h-0 flex-1 overflow-hidden">
       <FloatingPanel
         title="Eventi e missioni"
         layout={layout.operativo ?? DEFAULT_DASHBOARD_LAYOUT.operativo}
@@ -354,6 +391,26 @@ export default function DashboardPage() {
           />
         </Modal>
       )}
+
+      {diarioModal && diarioModalNota && (
+        <DiarioNotaModal
+          nota={diarioModalNota}
+          mode={diarioModal.mode}
+          saving={savingDiario}
+          onClose={() => setDiarioModal(null)}
+          onSave={handleDiarioSave}
+          onDelete={async () => {
+            await removeNotaDiario(diarioModalNota._docId);
+          }}
+          onToggleChiusa={async (aperta) => {
+            await toggleChiusaDiario(diarioModalNota, aperta);
+          }}
+          onToggleImportante={async (importante) => {
+            await toggleImportanteDiario(diarioModalNota, importante);
+          }}
+        />
+      )}
+          </div>
         </div>
       )}
     </div>

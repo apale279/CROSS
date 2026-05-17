@@ -20,6 +20,8 @@ import { useTenantContext } from './TenantContext';
 import { authEmailFromNomeUtente, normalizeNomeUtente } from '../lib/authIdentity';
 import { logUserActivity } from '../services/activityLogService';
 import { createUserProfile } from '../services/userProfileService';
+import { ensureUserSessionToken } from '../services/deviceSessionService';
+import { writeStoredUserSessionToken } from '../lib/deviceSession';
 
 const AuthContext = createContext(null);
 
@@ -99,6 +101,9 @@ export function AuthProvider({ children }) {
         nome: nomeTrim,
         nomeUtente: nomeUtenteNorm,
       });
+      const sessionToken = await ensureUserSessionToken(tenantId, cred.user.uid);
+      writeStoredUserSessionToken(tenantId, cred.user.uid, sessionToken);
+
       await logUserActivity(tenantId, {
         uid: cred.user.uid,
         nomeUtente: nomeUtenteNorm,
@@ -120,6 +125,9 @@ export function AuthProvider({ children }) {
       const email = authEmailFromNomeUtente(nomeUtente, tenantId);
       const nomeUtenteNorm = normalizeNomeUtente(nomeUtente);
       const cred = await signInWithEmailAndPassword(auth, email, password);
+      const sessionToken = await ensureUserSessionToken(tenantId, cred.user.uid);
+      writeStoredUserSessionToken(tenantId, cred.user.uid, sessionToken);
+
       await logUserActivity(tenantId, {
         uid: cred.user.uid,
         nomeUtente: nomeUtenteNorm,
@@ -152,6 +160,9 @@ export function AuthProvider({ children }) {
       } catch (e) {
         console.warn('Registro logout non salvato:', e);
       }
+    }
+    if (tenantId && user?.uid) {
+      writeStoredUserSessionToken(tenantId, user.uid, null);
     }
     await signOut(auth);
   }, [tenantId, user, profile]);

@@ -2,17 +2,13 @@ import { STATI_MISSIONE_NUMERATI } from '../../lib/tacticalStatiMissione';
 
 /** Pulsantini 0…n per cambio stato missione dalla sidebar tattica. */
 export function EventoStatoRapidoButtons({ missione, onStato, disabled }) {
-  if (!missione) {
-    return (
-      <p className="mt-1.5 text-[9px] italic text-slate-400">Nessuna missione attiva</p>
-    );
-  }
+  if (!missione) return null;
 
   const currentIdx = STATI_MISSIONE_NUMERATI.indexOf(missione.stato ?? '');
 
   return (
     <div
-      className="mt-1.5 flex flex-wrap gap-0.5"
+      className="mt-1 flex flex-wrap gap-0.5"
       onClick={(e) => e.stopPropagation()}
       onMouseDown={(e) => e.stopPropagation()}
     >

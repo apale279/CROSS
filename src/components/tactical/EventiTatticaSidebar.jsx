@@ -10,12 +10,12 @@ import { EventoStatoRapidoButtons } from './EventoStatoRapidoButtons';
 
 export const EVENTO_DRAG_MIME = 'text/x-cross-evento';
 
-function missionePrincipaleAttiva(missioni, ev) {
-  const attive = missioniPerEvento(missioni, ev).filter(isMissioneAttiva);
-  if (!attive.length) return null;
-  return [...attive].sort((a, b) =>
-    String(a.idMissione ?? '').localeCompare(String(b.idMissione ?? ''), 'it'),
-  )[0];
+function missioniAttivePerEvento(missioni, ev) {
+  return missioniPerEvento(missioni, ev)
+    .filter(isMissioneAttiva)
+    .sort((a, b) =>
+      String(a.idMissione ?? '').localeCompare(String(b.idMissione ?? ''), 'it'),
+    );
 }
 
 export function EventiTatticaSidebar({
@@ -78,7 +78,7 @@ export function EventiTatticaSidebar({
         {eventiConLuogo.map((ev) => {
           const selected = selectedEventoDocId === ev._docId;
           const onBoard = eventoOnTacticalBoard(ev);
-          const missione = missionePrincipaleAttiva(missioni, ev);
+          const missioniAttive = missioniAttivePerEvento(missioni, ev);
 
           return (
             <li key={ev._docId} className="mb-1.5">
@@ -131,18 +131,30 @@ export function EventiTatticaSidebar({
                       {ev.tipoEvento}
                       {ev.dettaglioEvento ? ` — ${ev.dettaglioEvento}` : ''}
                     </span>
-                    {missione && (
-                      <span className="mt-0.5 block font-mono text-[10px] text-violet-700">
-                        {missione.idMissione} · {missione.mezzo}
-                      </span>
-                    )}
                   </button>
                 </div>
-                <EventoStatoRapidoButtons
-                  missione={missione}
-                  disabled={statoSaving}
-                  onStato={(stato) => onMissioneStato?.(ev, stato)}
-                />
+                <div className="mt-2 space-y-2 border-t border-slate-100 pt-2">
+                  {missioniAttive.length === 0 ? (
+                    <p className="text-[9px] italic text-slate-400">Nessuna missione attiva</p>
+                  ) : (
+                    missioniAttive.map((mis) => (
+                      <div
+                        key={mis._docId}
+                        className="rounded border border-violet-100 bg-violet-50/40 px-1.5 py-1"
+                      >
+                        <p className="font-mono text-[10px] font-semibold text-violet-800">
+                          {mis.idMissione} · {mis.mezzo}
+                          <span className="ml-1 font-normal text-violet-600">({mis.stato})</span>
+                        </p>
+                        <EventoStatoRapidoButtons
+                          missione={mis}
+                          disabled={statoSaving}
+                          onStato={(stato) => onMissioneStato?.(ev, mis, stato)}
+                        />
+                      </div>
+                    ))
+                  )}
+                </div>
               </div>
             </li>
           );

@@ -6,6 +6,7 @@ import {
 import { getMissioneById, getStatiMissione } from './missionAdmin.js';
 import { isStatoMissioneTerminale, nextStatoMissione } from './missionStati.js';
 import { buildStatoAdvanceKeyboard } from './telegramMissionStato.js';
+import { appendMissionTelegramMessage } from './telegramMissionMessages.js';
 
 /**
  * Avvisa l'equipaggio su Telegram dopo un cambio stato dalla centrale CROSS.
@@ -57,7 +58,11 @@ export async function notifyMissionStatoToTelegram(tenantId, missionDocId) {
 
   for (const chatId of chatIds) {
     try {
-      await sendMessage(chatId, text, replyMarkup ? { reply_markup: replyMarkup } : {});
+      const apiRes = await sendMessage(chatId, text, replyMarkup ? { reply_markup: replyMarkup } : {});
+      const messageId = apiRes?.result?.message_id;
+      if (messageId != null) {
+        await appendMissionTelegramMessage(tenantId, missionDocId, chatId, messageId);
+      }
       sent += 1;
     } catch (e) {
       errors.push({ chatId, message: e.message });

@@ -88,6 +88,9 @@ export function AppHeader() {
         <NavLink to="/" end className={navClass}>
           Dashboard
         </NavLink>
+        <NavLink to="/diario" className={navClass}>
+          Diario
+        </NavLink>
         <NavLink to="/eventi" className={navClass}>
           Eventi
         </NavLink>

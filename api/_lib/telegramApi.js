@@ -27,6 +27,13 @@ export function sendMessage(chatId, text, extra = {}) {
   });
 }
 
+export function deleteMessage(chatId, messageId) {
+  return telegramApi('deleteMessage', {
+    chat_id: chatId,
+    message_id: messageId,
+  });
+}
+
 export function answerCallbackQuery(callbackQueryId, text) {
   return telegramApi('answerCallbackQuery', {
     callback_query_id: callbackQueryId,

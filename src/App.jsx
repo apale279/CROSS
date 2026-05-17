@@ -9,6 +9,7 @@ import MezziPage from './pages/MezziPage';
 import MissioniPage from './pages/MissioniPage';
 import ImpostazioniPage from './pages/ImpostazioniPage';
 import PazientiPage from './pages/PazientiPage';
+import DiarioPage from './pages/DiarioPage';
 import LoginPage from './pages/LoginPage';
 
 export default function App() {
@@ -23,6 +24,7 @@ export default function App() {
         <Route element={<AppDataShell />}>
           <Route element={<DashboardLayout />}>
             <Route index element={<DashboardPage />} />
+            <Route path="diario" element={<DiarioPage />} />
             <Route path="eventi" element={<EventiPage />} />
             <Route path="mezzi" element={<MezziPage />} />
             <Route path="missioni" element={<MissioniPage />} />
