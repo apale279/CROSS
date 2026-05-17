@@ -1,392 +1,478 @@
-# Guida CROSS — Applicazione e Bot Telegram
+# Guida operativa CROSS
 
-CROSS è il sistema di gestione operativa per soccorso sanitario in manifestazioni ed eventi. La centrale lavora da browser; l’equipaggio sul campo può ricevere missioni e aggiornare gli stati tramite **Bot Telegram**.
+**Versione documento:** maggio 2026  
+**Prodotto:** CROSS — gestione operativa soccorso sanitario in manifestazioni ed eventi
+
+CROSS è la centrale operativa web per coordinare eventi, missioni, mezzi e pazienti. L’equipaggio sul campo usa il **bot Telegram** per ricevere missioni, aggiornare gli stati e, se abilitato, inviare la **posizione GPS**.
 
 ---
 
 ## Indice
 
-1. [Accesso all’applicazione](#1-accesso-allapplicazione)
-2. [Interfaccia comune](#2-interfaccia-comune)
-3. [Dashboard](#3-dashboard)
-4. [Eventi](#4-eventi)
-5. [Missioni](#5-missioni)
-6. [Pazienti](#6-pazienti)
-7. [Mezzi](#7-mezzi)
-8. [Diario](#8-diario)
-9. [Impostazioni](#9-impostazioni)
-10. [Bot Telegram — guida completa](#10-bot-telegram--guida-completa)
-11. [Chiusura evento e operazioni critiche](#11-chiusura-evento-e-operazioni-critiche)
-12. [Glossario stati missione](#12-glossario-stati-missione)
+1. [Panoramica e requisiti](#1-panoramica-e-requisiti)
+2. [Accesso all’applicazione](#2-accesso-allapplicazione)
+3. [Interfaccia comune](#3-interfaccia-comune)
+4. [Dashboard](#4-dashboard)
+5. [Eventi](#5-eventi)
+6. [Missioni](#6-missioni)
+7. [Pazienti](#7-pazienti)
+8. [Mezzi](#8-mezzi)
+9. [Diario](#9-diario)
+10. [Impostazioni](#10-impostazioni)
+11. [Mappe e posizioni (stazionamento vs GPS)](#11-mappe-e-posizioni-stazionamento-vs-gps)
+12. [Monitor esterni (Kiosk)](#12-monitor-esterni-kiosk)
+13. [Bot Telegram](#13-bot-telegram)
+14. [Sicurezza, sessioni e logout](#14-sicurezza-sessioni-e-logout)
+15. [Operazioni critiche di fine evento](#15-operazioni-critiche-di-fine-evento)
+16. [Glossario stati missione](#16-glossario-stati-missione)
+17. [Ruoli consigliati](#17-ruoli-consigliati)
 
 ---
 
-## 1. Accesso all’applicazione
+## 1. Panoramica e requisiti
 
-### Login e registrazione
+| Componente | Descrizione |
+|------------|-------------|
+| **App web** | Browser moderno (Chrome, Edge, Firefox). Connessione Internet per sincronizzazione Firestore. |
+| **Account** | Creati dall’amministratore in Firebase Authentication (email + password). |
+| **Bot Telegram** | Opzionale ma consigliato per equipaggi; va attivato dalla Dashboard e configurato su server (webhook). |
+| **Manifestazione** | Ogni ambiente (tenant) ha dati isolati: eventi, mezzi, impostazioni, utenti Telegram. |
 
-- All’avvio compare la schermata **Accesso operativo** con il logo CROSS.
-- **Accedi**: nome utente e password (minimo 6 caratteri).
-- **Nuovo utente**: nome visualizzato, nome utente univoco per la manifestazione, password e conferma.
-
-Ogni accesso e le navigazioni principali vengono registrate in Firestore (`activityLog`).
-
-### Sessione
-
-- La sessione resta attiva sul dispositivo fino al **Logout** (menu in alto a destra).
-- In caso di **logout globale Telegram** o revoca sessione da amministrazione, gli operatori web restano connessi; solo il bot viene resettato (vedi [§10.5](#105-chiusura-evento-e-pulizia-telegram)).
+**Pagine principali:** Dashboard · Diario · Eventi · Missioni · Pazienti · Mezzi · Impostazioni.
 
 ---
 
-## 2. Interfaccia comune
+## 2. Accesso all’applicazione
+
+### Login
+
+1. Aprire l’URL dell’installazione CROSS (es. ambiente di produzione Vercel).
+2. Schermata **Accesso operativo** con logo CROSS.
+3. Inserire **email** e **password** (minimo 6 caratteri).
+4. Pulsante **Entra**.
+
+Gli account non si auto-registrano: l’amministratore li crea in **Firebase Console → Authentication**.
+
+### Sessione web
+
+- La sessione resta attiva sul dispositivo fino a **Logout** (menu in alto).
+- Ogni login e le navigazioni principali sono registrate in Firestore (`activityLog`) e aggiornano l’ultima attività sul profilo utente.
+- La centrale può vedere chi è connesso in **Impostazioni → Utenti** (sessioni web attive).
+
+### Guida PDF
+
+Se l’amministratore ha caricato la guida operativa, nel menu compare il pulsante **Guida** che apre il PDF in una nuova scheda.
+
+---
+
+## 3. Interfaccia comune
 
 ### Barra superiore
 
 | Elemento | Funzione |
 |----------|----------|
 | **Logo** | Torna alla Dashboard |
-| **Nome manifestazione** | Evento/manifestazione corrente |
-| **Pallino verde/rosso** | Connessione Firestore (sincronizzazione dati) |
-| **Ora sincronizzazione** | Ultimo aggiornamento ricevuto da Firestore |
-| **Nuovo evento** | Visibile solo in Dashboard — apre la scheda nuovo evento |
-| **Dashboard / Diario / Eventi / Missioni / Pazienti / Mezzi / Impostazioni** | Navigazione principale |
-| **Reset vista** | Solo in Dashboard — ripristina posizione e dimensioni dei pannelli flottanti |
-| **Logout** | Esce dall’account su questo dispositivo |
+| **Nome manifestazione** | Manifestazione / tenant corrente |
+| **Pallino verde / rosso** | Stato connessione Firestore (dati in tempo reale) |
+| **Ora** | Ultima sincronizzazione ricevuta |
+| **Nome operatore** | Utente loggato (@username se configurato) |
+| **Nuovo evento** | Solo in Dashboard — apre scheda nuovo evento |
+| **Dashboard · Diario · Eventi · Missioni · Pazienti · Mezzi** | Navigazione |
+| **Guida** | Solo se configurato — PDF guida operativa |
+| **Impostazioni** | Configurazione manifestazione |
+| **Reset vista** | Solo in Dashboard — ripristina layout pannelli |
+| **Logout** | Esce da questo dispositivo |
 
 ### Schede modali
 
-Molte entità (evento, missione, mezzo) si aprono in **finestre modali** sovrapposte alla pagina corrente, senza perdere il contesto della lista.
+Eventi, missioni, mezzi e note diario si aprono spesso in **finestre modali** senza uscire dalla pagina corrente.
 
 ---
 
-## 3. Dashboard
+## 4. Dashboard
 
-La Dashboard è la postazione centrale. Due viste, selezionabili dal riquadro in alto.
+Postazione centrale con due viste: **Operativo** e **Mappa tattica**.
 
-### 3.1 Barra operativa (in alto)
+### 4.1 Barra operativa
 
-- **Operativo** / **Mappa tattica**: cambia vista.
-- **Bot Telegram**: interruttore **Attivo / Spento** per abilitare invii e webhook. Se configurato, compare il link `@[nome_bot]`.
-- **Ticker note importanti** (sotto i pulsanti): testo scorrevole con le note del **Diario** marcate come importanti. Clic su un titolo apre la nota. Passando il mouse lo scorrimento si ferma.
+- **Operativo / Mappa tattica** — cambia vista principale.
+- **Bot Telegram — Attivo / Spento** — abilita invii missione, comandi equipaggio e webhook. Se configurato, compare il link `@[nome_bot]`.
+- **Ticker note importanti** — sotto i pulsanti: scorre in loop continuo i titoli delle note diario marcate **importanti**. Clic sul titolo apre la nota. Passando il mouse lo scorrimento si ferma.
 
-### 3.2 Vista Operativo
+### 4.2 Vista Operativo — tre pannelli
 
-Tre **pannelli flottanti** (trascinabili e ridimensionabili):
+I pannelli sono **trascinabili**, **ridimensionabili** e possono essere inviati su **monitor esterni** (vedi [§12](#12-monitor-esterni-kiosk)).
 
 #### Eventi e missioni
 
-- Tabella in tempo reale: eventi aperti con le missioni collegate.
-- Colonna evento: tipo, dettaglio, indirizzo o **luogo fisico**, colore, numero pazienti.
-- Colonna missioni: ID missione, mezzo, stato, pulsante avanzamento stato, invio Telegram.
-- Eventi **senza missione** evidenziati come orfani.
-- Icona **schermo intero** per espandere l’elenco.
+- Tabella in tempo reale: eventi aperti con missioni collegate.
+- Evento: tipo, dettaglio, indirizzo o luogo fisico, colore, numero pazienti.
+- Missioni: ID, mezzo, stato, avanzamento stato, invio Telegram.
+- Eventi senza missione evidenziati come orfani.
+- Icona schermo intero per espandere l’elenco.
 
 #### Stato mezzi
 
-- Elenco mezzi con sigla, tipo, stato (Disponibile / Non disponibile / altri), flag operativo.
-- Clic sulla riga → **scheda mezzo**.
+- Sigla, tipo, stato (Disponibile / Non disponibile), flag operativo.
+- Indicatore **GPS** se il mezzo ha posizione reale da Telegram (tracking attivo).
+- Clic sulla riga → scheda mezzo.
 
-#### Mappa
+#### Mappa operativa
 
-- Mappa Google con eventi (coordinate) e mezzi.
+- Mappa Google: eventi (coordinate) e mezzi.
+- Mezzo **in missione** con tracking GPS ON: marker sulla **posizione reale** inviata da Telegram.
+- Mezzo senza missione o GPS spento: posizione da **stazionamento** (indirizzo configurato).
 - Clic su marker → scheda evento o mezzo.
 
-### 3.3 Vista Mappa tattica
+### 4.3 Vista Mappa tattica
 
-Richiede **piantina** configurata in Impostazioni → INFO LUOGO.
+Richiede **piantina** in Impostazioni → INFO LUOGO (URL immagine, es. Cloudinary).
 
 | Area | Funzione |
 |------|----------|
-| **Sidebar sinistra** | Eventi con luogo fisico; drag sulla piantina; **Crea evento rapido**; pulsanti stato rapido per missione |
-| **Piantina centrale** | Posizionamento eventi e mezzi (coordinate % sulla mappa) |
-| **Pila mezzi (destra)** | Mezzi non ancora sulla piantina; trascina per posizionarli. Verde = libero, rosso = in missione attiva |
+| **Sidebar sinistra** | Eventi con luogo fisico; trascina sulla piantina; crea evento rapido; stati rapidi missione |
+| **Piantina centrale** | Posizionamento eventi e mezzi (coordinate % sulla piantina) |
+| **Pila mezzi (destra)** | Mezzi non ancora sulla piantina; trascina per posizionarli. Verde = libero, rosso = in missione |
 
 **Mezzo solamente esterno** (flag in scheda mezzo): non compare nella pila tattica.
 
-### 3.4 Allarmi SOS
+**Mezzi sulla piantina:** non ricevono richieste GPS da Telegram (posizione già nota in struttura chiusa).
 
-Se un equipaggio invia **SOS** da Telegram, compare un popup a tutto schermo:
+### 4.4 Allarmi SOS
+
+Se un equipaggio invia **SOS / EMERGENZA** da Telegram:
 
 > **ALLARME INVIATO DA [sigla mezzo]**
 
-Confermare con **Ho preso visione** per archiviare l’allarme.
+Popup a tutto schermo fino a **Ho preso visione**.
 
 ---
 
-## 4. Eventi
+## 5. Eventi
 
-Pagina **Eventi** — elenco e gestione completa.
+Pagina **Eventi** — elenco e gestione.
 
-### Creazione e scheda evento
+### Creazione e scheda
 
-- **Nuovo evento** (Dashboard o pagina Eventi): tipo, dettaglio, colore (bianco/verde/giallo/rosso), indirizzo (Google Places), **luogo fisico** (testo libero per piantina/settore), note.
-- Dalla scheda: modifica campi, collegamento **missioni** e **pazienti**, chiusura evento.
+- **Nuovo evento** (Dashboard o Eventi): tipo evento, dettaglio, colore (bianco / verde / giallo / rosso), indirizzo (Google Places), **luogo fisico** (testo per piantina / settore), note.
+- Dalla scheda: modifica, missioni collegate, pazienti, chiusura.
 
-### Chiusura evento
+### Chiusura
 
-- Impostando lo stato evento su **chiuso**, l’evento non compare più tra gli aperti.
-- Chiusura automatica possibile quando tutte le missioni sono terminate con almeno una in **FINE MISSIONE** (logica automatica in scheda).
+- Stato **chiuso** → l’evento non compare tra gli aperti.
+- Chiusura automatica possibile quando tutte le missioni sono terminate con almeno una in **FINE MISSIONE**.
 
 ### Stand-down
 
-- Tipo di chiusura dedicato per stand-down (configurabile nelle eccezioni operative).
+- Tipo di chiusura dedicato (configurabile nelle eccezioni operative).
 
 ---
 
-## 5. Missioni
+## 6. Missioni
 
-Pagina **Missioni** — tutte le missioni della manifestazione.
+Pagina **Missioni**.
 
 ### Scheda missione
 
 | Sezione | Contenuto |
 |---------|-----------|
-| **Intestazione** | ID missione, stato attuale, tempo nello stato |
-| **Note missione** | Testo libero, salvataggio su blur |
-| **Eccezioni operative** | Sezione collassabile (apri solo se serve) — vedi sotto |
-| **Cronologia stati** | Orologio = imposta stato **adesso**; campo data/ora = modifica storico |
-| **Tratte / tappe** | Passaggi operativi (es. rifornimento) con data e descrizione |
-| **Evento collegato** | Link per aprire scheda evento |
-| **Mezzo** | Sigla e stato mezzo |
+| Intestazione | ID missione, stato, tempo nello stato |
+| Note missione | Testo libero (salvataggio automatico) |
+| Eccezioni operative | Dirottamento, flag-down, avaria/sinistro |
+| Cronologia stati | Orologio = stato adesso; data/ora = modifica storico |
+| Tratte / tappe | Passaggi operativi con data e descrizione |
+| Evento collegato | Link scheda evento |
+| Mezzo | Sigla e stato |
 | **Invia su Telegram** | Invio manuale messaggio missione all’equipaggio del mezzo |
 
-### Stati missione
-
-Flusso tipico (configurabile in Impostazioni):
+### Flusso stati (tipico)
 
 `ALLERTARE` → `ALLERTATO` → `PARTITO` → `IN POSTO` → `DIRETTO H` → `ARRIVATO H` → `RIENTRO` → `FINE MISSIONE`
 
-Stato speciale **ANNULLATA** (missione chiusa senza completamento normale).
+Stato **ANNULLATA** per chiusure eccezionali.
 
-Dalla centrale: icona orologio nella cronologia, pulsante avanzamento in tabella Dashboard, o aggiornamento da Telegram (equipaggio).
+Aggiornamento da: centrale (Dashboard, scheda), Telegram (equipaggio), eccezioni operative.
 
-### Eccezioni operative (scheda missione)
+### Eccezioni operative
 
-1. **Dirottamento** — Annulla la missione corrente; il mezzo passa a un altro evento aperto scelto dall’operatore.
-2. **Flag-down (intercettazione a vista)** — Crea evento figlio collegato; annulla missione precedente; apre nuova missione **IN POSTO** sul nuovo intervento.
-3. **Avaria / sinistro** — Chiude missione; evento resta aperto; mezzo segnato **non operativo (avaria/sinistro)**.
+1. **Dirottamento** — Annulla missione corrente; mezzo su altro evento aperto scelto dall’operatore.
+2. **Flag-down (intercettazione a vista)** — Evento figlio; nuova missione **IN POSTO** sul nuovo intervento.
+3. **Avaria / sinistro** — Chiude missione; mezzo **non operativo (avaria/sinistro)**.
 
-### Invio Telegram
+### Notifiche Telegram
 
-- Pulsante **Invia su Telegram** sulla missione (se bot attivo e mezzo assegnato su Telegram).
-- Dopo cambio stato dalla centrale, viene inviata automaticamente una notifica Telegram con il nuovo stato (e pulsante avanzamento se previsto).
+- Invio manuale con **Invia su Telegram**.
+- Dopo cambio stato dalla centrale può partire notifica automatica con pulsante avanzamento (se bot attivo).
 
 ---
 
-## 6. Pazienti
+## 7. Pazienti
 
-Pagina **Pazienti** — anagrafica e stato sanitario collegati agli eventi.
+Pagina **Pazienti** — anagrafica e stato sanitario.
 
 - Collegamento a **evento** e **mezzo**.
-- **Esito** (es. Trasporta, Non trasporta, …) e **stato** (ATTESA, TRASPORTO, ARRIVATO H).
-- Scheda paziente con valutazioni e dati clinici operativi (secondo configurazione manifestazione).
+- **Esito** (Trasporta, Non trasporta, Rifiuto trasporto, …) e **stato** (ATTESA, TRASPORTO, ARRIVATO H).
+- Scheda con dati clinici operativi secondo configurazione.
 
-Quando una missione passa ad **ARRIVATO H**, i pazienti in trasporto sullo stesso evento/mezzo possono essere aggiornati automaticamente.
+Con missione in **ARRIVATO H**, i pazienti in trasporto sullo stesso evento/mezzo possono aggiornarsi automaticamente.
 
 ---
 
-## 7. Mezzi
+## 8. Mezzi
 
-Pagina **Mezzi** — parco mezzi e equipaggi.
+Pagina **Mezzi** — parco mezzi.
 
-### Scheda mezzo (Dashboard o pagina Mezzi)
+### Scheda mezzo
 
 | Campo | Descrizione |
 |-------|-------------|
 | Sigla, tipo, targa, radio | Identificazione |
-| **Stato mezzo** | Due pulsanti: **Disponibile** / **Non disponibile** |
-| **Operativo** | Sì/No (mezzo fuori servizio) |
-| **Posizione tattica** | Se sulla piantina: coordinate % e dettaglio stazionamento |
-| **Equipaggio** | Autista, medico, soccorritori |
-| **Mezzo solamente esterno** | Se attivo: escluso dalla pila mezzi in mappa tattica |
-| **Rimuovi dalla piantina** | Azzera posizione sulla piantina |
+| Stato mezzo | **Disponibile** / **Non disponibile** |
+| Operativo | Sì / No |
+| Stazionamento | Indirizzo e coordinate per mappa (pagina Mezzi / centrale) |
+| Posizione tattica | Coordinate % sulla piantina + dettaglio |
+| **Posizione reale mezzo** | Ultima posizione GPS da Telegram (se tracking attivo) |
+| Equipaggio | Autista, medico, soccorritori |
+| Mezzo solamente esterno | Escluso dalla pila mezzi in mappa tattica |
+| Rimuovi dalla piantina | Azzera coordinate % sulla piantina |
 
-### Creazione mezzo
+### Creazione
 
-- Sigla univoca (senza spazi), tipo, stazionamento, equipaggio, ecc.
+- Sigla univoca (senza spazi), tipo, stazionamento, equipaggio.
 
 ---
 
-## 8. Diario
+## 9. Diario
 
-Pagina **Diario** — note operative condivise.
+Note operative condivise.
 
 | Funzione | Descrizione |
 |----------|-------------|
-| **Aggiungi nota** | Titolo + testo + flag **importante** |
-| **Stato** | Aperta / Chiusa |
-| **Importante** | Evidenziata in giallo; compare nel **ticker** della Dashboard |
-| **Modifica / Elimina** | Da tabella o modale |
+| Aggiungi nota | Titolo, testo, flag **importante** |
+| Stato | Aperta / Chiusa |
+| Importante | Evidenziata; compare nel **ticker** Dashboard |
+| Modifica / Elimina | Da tabella o modale |
+| **Invia a tutti** | Nella visualizzazione nota: invia il testo a tutti gli equipaggi Telegram **loggati** (mezzo assegnato, sessione valida) |
 
-Le note importanti scorrono in Dashboard; clic apre il dettaglio.
+Il ticker in Dashboard mostra solo le note **importanti** in scorrimento continuo.
 
 ---
 
-## 9. Impostazioni
+## 10. Impostazioni
 
-Accesso: menu **Impostazioni**. Quattro schede.
+Sei schede.
 
-### 9.1 Impostazioni eventi
+### 10.1 Impostazioni eventi
 
 - Tipi evento e dettagli per tipo
 - Colori evento
 - Stati missione (ordine del flusso)
-- Altre opzioni collegate agli eventi
+- Opzioni collegate agli eventi
 
-### 9.2 INFO LUOGO
+### 10.2 INFO LUOGO
 
-- **URL piantina** (immagine ospitata, es. Cloudinary) per mappa tattica
-- **Luogo fisico** predefinito (testo suggerito per nuovi eventi)
+- **URL piantina** — immagine per mappa tattica (Cloudinary, URL pubblico, …)
+- **Luogo fisico** predefinito per nuovi eventi
 
-### 9.3 Mezzi e strutture
+### 10.3 Mezzi e strutture
 
 - Tipi mezzo
 - Lista ospedali
 - Stazionamenti predefiniti
 - Centro mappa dashboard (se nessun evento ha coordinate)
 - Registro partecipanti (import Excel)
-- **Zona pericolosa**: elimina tutti eventi, missioni e mezzi (irreversibile)
+- **Zona pericolosa** — elimina tutti eventi, missioni e mezzi (irreversibile)
 
-### 9.4 Telegram
+### 10.4 Utenti
+
+- **Utenti web attivi** — operatori con sessione non revocata (nome, username, email, ultima attività, pagina corrente)
+- Per equipaggio Telegram → scheda **Telegram**
+
+### 10.5 Telegram
 
 | Strumento | Uso |
 |-----------|-----|
-| **Password bot** | Password richiesta all’equipaggio prima di scegliere il mezzo. Al cambio password tutti vengono disconnessi e devono usare `/cambiapassword` poi `/start` |
-| **Forza logout** | Fine turno: disconnette tutti gli utenti Telegram dai mezzi (non cancella messaggi, non slogga l’app web) |
-| **Logout globale e pulizia** | Fine evento/manifestazione: cancella messaggi missione sui telefoni, resetta associazioni bot, invia messaggio di chiusura alle chat. **Doppia conferma**. Non disconnette gli operatori dall’app web |
+| **TRACKING GPS** | ON: equipaggio può inviare GPS; mappa operativa usa posizione reale in missione. OFF: azzera posizioni GPS salvate; solo stazionamento |
+| **Equipaggio loggato (bot)** | Elenco mezzi assegnati su Telegram; destinatari di «Invia a tutti» dal diario |
+| **Password bot** | Password prima della scelta mezzo. Al cambio: tutti disconnessi → `/cambiapassword` e `/start` |
+| **Forza logout** | Disconnette tutti i Telegram dai mezzi (messaggi restano sui telefoni) |
+| **Logout globale e pulizia** | Fine manifestazione: cancella messaggi missione, resetta chat bot, doppia conferma. **Non** slogga l’app web |
 
-Il bot deve essere **Attivo** dalla Dashboard per invii e comandi.
+Il bot deve essere **Attivo** in Dashboard per invii e comandi.
+
+### 10.6 Guida
+
+- Carica **PDF** su Cloudinary (pulsante o URL manuale)
+- Salvataggio in `guida_pdf_url` — abilita link **Guida** nel menu
+
+**Caricamento da terminale (amministratore):**
+
+```bash
+node --env-file=.env.local scripts/upload-guida-pdf.mjs
+# oppure
+npm run upload:guida-pdf
+```
+
+Richiede `CLOUDINARY_*`, `FIREBASE_SERVICE_ACCOUNT_JSON`, `TELEGRAM_TENANT_ID` (o `VITE_TENANT_ID`). File predefinito: `GUIDA.pdf` nella root del progetto.
 
 ---
 
-## 10. Bot Telegram — guida completa
+## 11. Mappe e posizioni (stazionamento vs GPS)
 
-### 10.1 Prerequisiti (amministratore)
+CROSS distingue tre concetti — **non si sovrascrivono**:
+
+| Campo | Origine | Uso |
+|-------|---------|-----|
+| `stazionamento.coordinate` | Pagina Mezzi / centrale | Mappa quando il mezzo **non** è in missione attiva, o GPS spento |
+| `coordinate_stazionamento` | Mappa tattica (% sulla piantina) | Posizione in struttura chiusa; **nessuna richiesta GPS** Telegram |
+| `posizioneReale` | Solo Telegram (GPS) | Mappa operativa quando il mezzo è **in missione** e tracking ON |
+
+### Regole mappa operativa
+
+- **In missione** + tracking GPS ON + posizione ricevuta → marker GPS reale.
+- **In missione** ma senza GPS → stazionamento.
+- **Senza missione** → sempre stazionamento.
+- **Tracking GPS OFF** (Impostazioni) → mai posizione reale; eventuale pulizia massiva delle coordinate GPS.
+
+### Equipaggio Telegram
+
+- Dopo scelta mezzo (se mezzo **non** in piantina): richiesta consenso GPS.
+- Dopo avanzamento stato: può inviare posizione (tasto o live location).
+- Comando **`/gps`** — gestione consenso e invio posizione.
+
+---
+
+## 12. Monitor esterni (Kiosk)
+
+Per postazioni multi-schermo dalla Dashboard:
+
+1. Su ogni pannello (Eventi/missioni, Mezzi, Mappa) usare il pulsante **apri su monitor esterno** (pop-out).
+2. Si apre una finestra dedicata (`/kiosk/eventi`, `/kiosk/mezzi`, `/kiosk/mappa`).
+3. Se la finestra viene chiusa, il pannello torna come **icona** nella barra dock in Dashboard — clic per ripristinare.
+4. **Reset vista** ripristina anche i pannelli kiosk.
+
+Utile per: tabellone eventi su un monitor, mappa su un altro, stato mezzi su un terzo.
+
+---
+
+## 13. Bot Telegram
+
+### 13.1 Prerequisiti (amministratore)
 
 1. Bot creato con [@BotFather](https://t.me/BotFather).
-2. Variabili su Vercel: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_TENANT_ID`, `FIREBASE_SERVICE_ACCOUNT_JSON`, opzionale `TELEGRAM_WEBHOOK_SECRET`.
-3. Webhook Telegram puntato all’URL `https://[tuo-dominio]/api/telegram-webhook`.
-4. In CROSS: bot **Attivo** + password impostata in Impostazioni → Telegram.
-5. Variabile client opzionale `VITE_TELEGRAM_BOT_USERNAME` per mostrare il link al bot nell’app.
+2. Variabili server: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_TENANT_ID`, `FIREBASE_SERVICE_ACCOUNT_JSON`, opzionale `TELEGRAM_WEBHOOK_SECRET`.
+3. Webhook: `https://[dominio]/api/telegram-webhook` (script `scripts/register-telegram-webhook.mjs`).
+4. In CROSS: bot **Attivo** + password (se richiesta) in Impostazioni.
+5. Opzionale: `VITE_TELEGRAM_BOT_USERNAME` per link al bot in app.
 
-### 10.2 Primo accesso equipaggio
+### 13.2 Primo accesso equipaggio
 
-1. Aprire il bot su Telegram (link dalla Dashboard o cercare `@nome_bot`).
-2. Se richiesta **password**: inviare la password configurata dalla centrale (testo semplice, non un comando).
-3. Inviare **`/start`**.
-4. Scegliere il **mezzo** dai pulsanti inline (sigle configurate in CROSS).
-5. Compare la tastiera persistente:
-   - **SOS / EMERGENZA**
-   - **/stato**
-   - **/start**
+1. Aprire il bot (link Dashboard o `@nome_bot`).
+2. Se richiesta: inviare **password** (testo, non comando).
+3. **`/start`** — scegliere **mezzo** dai pulsanti.
+4. Se GPS attivo e mezzo **esterno**: consenso condivisione posizione.
+5. Tastiera: **SOS / EMERGENZA**, **/stato**, **/gps**, **/start**.
 
-### 10.3 Comandi Telegram
+### 13.3 Comandi
 
-| Comando / azione | Chi lo usa | Effetto |
-|------------------|------------|---------|
-| **`/start`** | Equipaggio | Nuova scelta mezzo (dopo password se attiva). Resetta il mezzo corrente e mostra l’elenco sigle |
-| **Password** (testo) | Equipaggio | Solo se il bot richiede password e la sessione è in attesa |
-| **`/cambiapassword`** | Equipaggio | Dopo che la centrale ha cambiato password: termina sessione e chiede la nuova password, poi `/start` |
-| **`/stato`** | Equipaggio | Mostra missioni aperte del proprio mezzo; consente di avanzare lo stato con pulsanti |
-| **SOS / EMERGENZA** (tasto o testo) | Equipaggio | Allarme immediato alla centrale + conferma sul telefono. Popup in app: **ALLARME INVIATO DA [sigla]** |
-| **Pulsante sotto messaggio missione** | Equipaggio | Avanza allo stato successivo previsto (es. da ALLERTATO a PARTITO) |
-| **Selezione mezzo** (pulsanti inline) | Equipaggio | Registra il dispositivo Telegram su quella sigla |
+| Comando / azione | Effetto |
+|------------------|---------|
+| `/start` | Nuova scelta mezzo (dopo password se attiva) |
+| Password (testo) | Solo se richiesta dalla sessione |
+| `/cambiapassword` | Dopo cambio password centrale |
+| `/stato` | Missioni aperte del mezzo; pulsanti avanzamento stato |
+| `/gps` | Gestione consenso e invio posizione GPS |
+| **SOS / EMERGENZA** | Allarme centrale + popup Dashboard |
+| Pulsante sotto messaggio missione | Avanza allo stato successivo |
+| Pulsanti inline mezzo | Registra Telegram su quella sigla |
+| **Invia posizione GPS** | Aggiorna posizione reale su Firestore |
 
-### 10.4 Flusso missione su Telegram
+### 13.4 Flusso missione
 
-1. La centrale crea/aggiorna una missione e preme **Invia su Telegram** (o lo stato viene notificato dopo un cambio dalla centrale).
-2. L’equipaggio del **mezzo assegnato** riceve un messaggio HTML con dati missione/evento.
-3. Sotto il messaggio può comparire un pulsante per passare allo **stato successivo** (se la missione non è chiusa).
-4. Ogni avanzamento aggiorna Firestore; la centrale vede il cambio in tempo reale su Dashboard.
+1. Centrale crea/aggiorna missione → **Invia su Telegram** (o notifica automatica su cambio stato).
+2. Equipaggio del mezzo corretto riceve messaggio HTML.
+3. Pulsante sotto il messaggio per stato successivo (se missione aperta).
+4. Aggiornamenti visibili in tempo reale in Dashboard.
 
-**Nota:** Solo i dispositivi Telegram registrati sul **mezzo corretto** ricevono i messaggi di quella missione.
+Solo i dispositivi registrati sul **mezzo corretto** ricevono i messaggi di quella missione.
 
-### 10.5 Missione annullata dalla centrale
+### 13.5 Casi particolari
 
-Se la centrale imposta **ANNULLATA**, l’equipaggio riceve notifica senza pulsanti attivi; i vecchi pulsanti su messaggi precedenti non sono più validi.
+- **ANNULLATA** — notifica senza pulsanti attivi.
+- **Più missioni aperte** — `/stato` mostra elenco scelta.
+- **Mezzo in piantina** — nessun GPS richiesto.
+- **Tracking OFF** — messaggio informativo; solo stazionamento in mappa.
 
-### 10.6 Più missioni aperte
-
-Con più missioni sullo stesso mezzo, `/stato` mostra prima un elenco per scegliere quale missione aggiornare.
-
-### 10.7 Cosa fa la centrale con il bot
-
-| Azione centrale (app web) | Effetto su Telegram |
-|---------------------------|-------------------|
-| Attiva/disattiva bot | Blocca o abilita invii e comandi |
-| Invia missione | Messaggio ai chat registrati sul mezzo |
-| Cambia stato missione | Notifica automatica (se implementata nel flusso) |
-| SOS ricevuto | Popup allarme in Dashboard |
-| Forza logout | Tutti devono rifare `/start` e scegliere mezzo |
-| Logout globale e pulizia | Messaggi missione cancellati dai telefoni; chat ricevono avviso di sessione conclusa; tutti i legami mezzo vengono azzerati |
-
-### 10.8 Risoluzione problemi Telegram
+### 13.6 Risoluzione problemi
 
 | Problema | Soluzione |
 |----------|-----------|
-| Non ricevo missioni | Verificare bot **Attivo**, mezzo scelto con `/start`, stessa manifestazione (tenant) |
-| Password non accettata | Chiedere alla centrale la password aggiornata; provare `/cambiapassword` |
-| Pulsanti non funzionano | Missione chiusa o annullata; usare `/stato` per messaggio aggiornato |
-| Bot non risponde | Bot spento in Dashboard o webhook non configurato |
-| Dopo fine evento | Centrale esegue **Forza logout** o **Logout globale e pulizia** |
+| Non ricevo missioni | Bot **Attivo**, `/start` + mezzo corretto, stesso tenant |
+| Password rifiutata | Password aggiornata; `/cambiapassword` |
+| Pulsanti inattivi | Missione chiusa/annullata; `/stato` |
+| Bot muto | Bot spento o webhook errato (`scripts/check-telegram-webhook.mjs`) |
+| GPS non aggiorna | Tracking ON in Impostazioni; mezzo non in piantina; consenso `/gps` |
+| Fine evento | **Forza logout** o **Logout globale e pulizia** |
 
 ---
 
-## 11. Chiusura evento e operazioni critiche
+## 14. Sicurezza, sessioni e logout
 
-### Fine turno equipaggio (solo Telegram)
+### Sessione web (operatori)
 
-**Impostazioni → Telegram → Forza logout**
+- Ogni login genera `active_session_token` sul profilo.
+- **Logout globale** amministrativo (se previsto nel flusso) può revocare sessioni remote.
+- Elenco sessioni attive: **Impostazioni → Utenti**.
 
-- Disconnette tutti i Telegram dai mezzi.
-- L’equipaggio deve rifare `/start` (e password se richiesta).
-- I messaggi restano sul telefono.
+### Sessione Telegram (equipaggio)
 
-### Fine manifestazione / pulizia completa Telegram
+- Associazione `chatId` ↔ mezzo in Firestore.
+- **Forza logout** — solo disassociazione, messaggi restano.
+- **Logout globale e pulizia** — wipe messaggi bot + reset utenti Telegram.
 
-**Impostazioni → Telegram → Logout globale e pulizia**
+### Registro attività
 
-- Richiede **doppia conferma**.
-- Cancella i messaggi missione inviati dal bot (nei limiti API Telegram).
-- Invia un messaggio finale alle chat coinvolte.
-- Svuota le registrazioni `telegram_users`.
-- **Non** disconnette gli account dell’app web.
-
-### Reset layout Dashboard
-
-**Reset vista** nel menu — ripristina solo posizione/dimensione pannelli, non cancella dati operativi.
-
-### Zona pericolosa
-
-**Impostazioni → Mezzi e strutture** (in fondo) — elimina **tutti** eventi, missioni e mezzi. Solo per ambienti di test o reset totale.
+- Login, logout, navigazione (`PAGE_VIEW`) in `activityLog`.
+- Ultima pagina e orario visibili in elenco utenti attivi.
 
 ---
 
-## 12. Glossario stati missione
+## 15. Operazioni critiche di fine evento
 
-| Stato | Significato operativo tipico |
-|-------|------------------------------|
+| Azione | Dove | Effetto |
+|--------|------|---------|
+| Fine turno equipaggio | Impostazioni → Telegram → **Forza logout** | Telegram disconnessi dai mezzi; rifare `/start` |
+| Fine manifestazione | **Logout globale e pulizia** | Messaggi missione cancellati, chat avvisate, reset bot |
+| Reset layout | Dashboard → **Reset vista** | Solo posizione pannelli |
+| Reset totale dati | Impostazioni → **Zona pericolosa** | Cancella eventi, missioni, mezzi |
+
+---
+
+## 16. Glossario stati missione
+
+| Stato | Significato tipico |
+|-------|-------------------|
 | **ALLERTARE** | Missione creata, mezzo da allertare |
 | **ALLERTATO** | Equipaggio informato |
-| **PARTITO** | Mezzo in viaggio verso l’evento |
-| **IN POSTO** | Mezzo sul luogo |
-| **DIRETTO H** | Trasporto verso ospedale/struttura |
+| **PARTITO** | In viaggio verso l’evento |
+| **IN POSTO** | Sul luogo |
+| **DIRETTO H** | Trasporto verso ospedale |
 | **ARRIVATO H** | Arrivo in ospedale |
 | **RIENTRO** | Rientro dopo consegna |
-| **FINE MISSIONE** | Missione conclusa normalmente |
-| **ANNULLATA** | Missione chiusa per eccezione (dirottamento, flag-down, ecc.) |
+| **FINE MISSIONE** | Conclusa normalmente |
+| **ANNULLATA** | Chiusa per eccezione |
 
 ---
 
-## Ruoli consigliati
+## 17. Ruoli consigliati
 
 | Ruolo | Strumenti principali |
 |-------|----------------------|
-| **Centrale operativa** | Dashboard, Eventi, Missioni, Diario, Impostazioni (limitate), invio Telegram |
-| **Coordinatore** | Mappa tattica, creazione eventi rapidi, gestione mezzi sulla piantina |
-| **Equipaggio campo** | Bot Telegram: `/start`, `/stato`, SOS |
-| **Amministratore** | Impostazioni complete, password bot, logout/pulizia Telegram |
+| **Centrale operativa** | Dashboard, Eventi, Missioni, Diario, invio Telegram |
+| **Coordinatore** | Mappa tattica, eventi rapidi, monitor kiosk |
+| **Equipaggio campo** | Bot: `/start`, `/stato`, `/gps`, SOS |
+| **Amministratore** | Impostazioni complete, password bot, GPS, guida PDF, utenti attivi, pulizia Telegram |
 
 ---
 
-*Documento generato per il progetto CROSS. Per aggiornamenti funzionali fare riferimento al codice e alle impostazioni della manifestazione attiva.*
+*Documento CROSS — aggiornato alle funzionalità in produzione (web + Telegram + GPS + guida PDF + utenti attivi + kiosk). Per dettagli tecnici di deploy vedere README e `.env.example` nel repository.*
