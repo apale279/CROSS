@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { deleteField } from 'firebase/firestore';
 import L from 'leaflet';
 import { MapContainer, ImageOverlay, Marker, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -58,18 +59,32 @@ function MapDropLayer({ imageSize, onDropMezzo }) {
   return null;
 }
 
-function MezzoTacticalMarker({ mezzo, imageSize, onMoved, onSelect, selected }) {
+const MARKER_SIZE = 48;
+
+function markerFontSize(sigla) {
+  const len = Math.max(String(sigla).length, 1);
+  return Math.max(7, Math.min(12, Math.floor((MARKER_SIZE - 10) / len) + 4));
+}
+
+function isOutsideBoard(lat, lng, height, width) {
+  const margin = 4;
+  return lat < -margin || lng < -margin || lat > height + margin || lng > width + margin;
+}
+
+function MezzoTacticalMarker({ mezzo, imageSize, onMoved, onRemoved, onSelect, selected }) {
   const coord = parseCoordinateStazionamento(mezzo.coordinate_stazionamento);
   if (!coord || !imageSize) return null;
 
   const sigla = mezzo.sigla ?? mezzo._docId;
   const { lat, lng } = percentToLatLng(coord.x, coord.y, imageSize.height, imageSize.width);
+  const fontPx = markerFontSize(sigla);
+  const half = MARKER_SIZE / 2;
 
   const icon = L.divIcon({
     className: '',
-    html: `<div class="cross-mezzo-marker ${selected ? 'cross-mezzo-marker--selected' : ''}"><span>${sigla}</span></div>`,
-    iconSize: [56, 28],
-    iconAnchor: [28, 14],
+    html: `<div class="cross-mezzo-marker ${selected ? 'cross-mezzo-marker--selected' : ''}" style="--marker-font:${fontPx}px"><span>${sigla}</span></div>`,
+    iconSize: [MARKER_SIZE, MARKER_SIZE],
+    iconAnchor: [half, half],
   });
 
   return (
@@ -81,7 +96,12 @@ function MezzoTacticalMarker({ mezzo, imageSize, onMoved, onSelect, selected }) 
         click: () => onSelect?.(mezzo),
         dragend: (e) => {
           const { lat: la, lng: ln } = e.target.getLatLng();
-          const pct = latLngToPercent(la, ln, imageSize.height, imageSize.width);
+          const { height, width } = imageSize;
+          if (isOutsideBoard(la, ln, height, width)) {
+            onRemoved?.(sigla);
+            return;
+          }
+          const pct = latLngToPercent(la, ln, height, width);
           if (pct) onMoved(sigla, pct);
         },
       }}
@@ -123,6 +143,13 @@ export function TabelloneTattico({ piantinaUrl, mezzi, selectedSigla, onSelectMe
   const placeMezzo = useCallback(
     async (sigla, coordinate_stazionamento) => {
       await patchMezzo(manifestationId, sigla, { coordinate_stazionamento });
+    },
+    [manifestationId],
+  );
+
+  const removeMezzoFromBoard = useCallback(
+    async (sigla) => {
+      await patchMezzo(manifestationId, sigla, { coordinate_stazionamento: deleteField() });
     },
     [manifestationId],
   );
@@ -174,6 +201,7 @@ export function TabelloneTattico({ piantinaUrl, mezzi, selectedSigla, onSelectMe
             selected={selectedSigla === sigla}
             onSelect={onSelectMezzo}
             onMoved={placeMezzo}
+            onRemoved={removeMezzoFromBoard}
           />
         );
       })}

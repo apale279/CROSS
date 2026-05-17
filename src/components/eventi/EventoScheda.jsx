@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Plus } from 'lucide-react';
 import { DEFAULT_IMPOSTAZIONI } from '../../constants';
 import { useImpostazioni } from '../../hooks/useImpostazioni';
@@ -41,6 +41,7 @@ export function EventoScheda({
   allMissioni,
   allPazienti,
   existingEventi,
+  initialTab,
   onCreated,
   onDeleted,
 }) {
@@ -58,9 +59,12 @@ export function EventoScheda({
   const [chiusuraStandDown, setChiusuraStandDown] = useState(false);
   const [showCloseForm, setShowCloseForm] = useState(false);
   const [closing, setClosing] = useState(false);
+  const appliedInitialTabRef = useRef(false);
 
   useEffect(() => {
     if (isCreate) {
+      appliedInitialTabRef.current = false;
+      setTab('dettaglio');
       setDraft({
         ...emptyValues(),
         tipoEvento: impostazioni.tipiEvento[0] ?? emptyValues().tipoEvento,
@@ -80,6 +84,12 @@ export function EventoScheda({
     setChiusuraStandDown(false);
     setShowCloseForm(false);
   }, [evento, isCreate, impostazioni.tipiEvento]);
+
+  useEffect(() => {
+    if (isCreate || !initialTab || appliedInitialTabRef.current) return;
+    setTab(initialTab);
+    appliedInitialTabRef.current = true;
+  }, [evento?._docId, isCreate, initialTab]);
 
   const missioniEvento = useMemo(
     () => (evento ? missioniPerEvento(missioni, evento) : []),
@@ -120,6 +130,7 @@ export function EventoScheda({
     setSaving(true);
     try {
       const result = await createEvento(manifestazioneId, draft, existingEventi);
+      setTab('missioni');
       onCreated?.(result);
     } catch (err) {
       alert('Errore: ' + err.message);

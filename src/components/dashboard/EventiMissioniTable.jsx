@@ -3,6 +3,7 @@ import { MissioneTelegramSendButton } from '../telegram/MissioneTelegramSendButt
 import { useElapsedSince } from '../../hooks/useElapsedSince';
 import { PanelAlertIcon } from '../ui/PanelAlertIcon';
 import { ColoreIndicator } from '../ui/ColoreIndicator';
+import { eventoColonnaIndirizzo } from '../../lib/eventoDisplay';
 import { coloreRowBgSoft, statoMissioneBadgeClass } from '../../utils/formatters';
 
 /** Font come «Stato mezzi»; padding ridotto per righe compatte. */
@@ -31,6 +32,7 @@ function MissioneStatoCell({ mis, onAdvance }) {
 }
 
 function EventoCells({ ev, rowSpan, orfano, pazientiCount, multiMission, onOpenEvento }) {
+  const indirizzoColonna = eventoColonnaIndirizzo(ev);
   const open = (e) => {
     e.stopPropagation();
     if (ev) onOpenEvento(ev);
@@ -62,10 +64,10 @@ function EventoCells({ ev, rowSpan, orfano, pazientiCount, multiMission, onOpenE
       <td
         rowSpan={rowSpan}
         className={`${evTd} max-w-0 whitespace-nowrap`}
-        title={ev?.indirizzo}
+        title={indirizzoColonna || undefined}
         onClick={open}
       >
-        <span className="block truncate">{ev?.indirizzo || '—'}</span>
+        <span className="block truncate">{indirizzoColonna || '—'}</span>
       </td>
       <td rowSpan={rowSpan} className={`${evTd} text-center`} onClick={open}>
         {ev ? (

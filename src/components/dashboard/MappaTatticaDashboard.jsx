@@ -81,7 +81,11 @@ export function MappaTatticaDashboard({ eventi, mezzi }) {
             piantinaUrl={piantinaUrl}
             mezzi={mezzi}
             selectedSigla={selectedSigla}
-            onSelectMezzo={(m) => setSelectedMezzo(m)}
+            onSelectMezzo={(m) => {
+              const live = liveMezzo(m);
+              setSelectedMezzo(live);
+              setMezzoModal(live);
+            }}
           />
         </div>
         <MezziPilaSidebar

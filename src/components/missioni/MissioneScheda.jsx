@@ -1,4 +1,5 @@
 import { useCallback, useMemo } from 'react';
+import { Clock } from 'lucide-react';
 import { DEFAULT_IMPOSTAZIONI } from '../../constants';
 import { useManifestazioneId } from '../../context/ManifestazioneContext';
 import { findEvento } from '../../lib/eventoLinks';
@@ -19,7 +20,6 @@ import {
   btnSecondary,
   btnDanger,
   inputClass,
-  selectClass,
 } from '../ui/FormField';
 import { MissioneEccezioniPanel } from './MissioneEccezioniPanel';
 import { useImpostazioni } from '../../hooks/useImpostazioni';
@@ -85,8 +85,7 @@ export function MissioneScheda({ missione, eventi, mezzi, allMissioni, existingE
     await persistTratte(tratte.filter((t) => t.id !== id));
   };
 
-  const applyStato = async (nuovo) => {
-    if (nuovo === missione.stato) return;
+  const impostaStatoOra = async (nuovo) => {
     await patchMissione(
       manifestationId,
       missione._docId,
@@ -97,7 +96,8 @@ export function MissioneScheda({ missione, eventi, mezzi, allMissioni, existingE
 
   const avanzaStato = async () => {
     const nuovo = nextStatoMissione(missione.stato ?? 'ALLERTARE', stati);
-    await applyStato(nuovo);
+    if (nuovo === missione.stato) return;
+    await impostaStatoOra(nuovo);
   };
 
   const onStoricoBlur = async (statoKey, localValue) => {
@@ -161,24 +161,38 @@ export function MissioneScheda({ missione, eventi, mezzi, allMissioni, existingE
       />
 
       <section className="rounded border border-slate-200 bg-slate-50 p-3">
-        <p className="mb-3 text-xs font-bold uppercase text-slate-600">Cronologia stati</p>
+        <p className="mb-1 text-xs font-bold uppercase text-slate-600">Cronologia stati</p>
+        <p className="mb-3 text-[11px] text-slate-500">
+          Usa l&apos;orologio accanto a uno stato per impostarlo subito con l&apos;orario attuale.
+        </p>
         <ul className="space-y-2">
           {stati.map((stato) => {
             const isCurrent = missione.stato === stato;
             return (
               <li
                 key={stato}
-                className={`grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center ${
+                className={`grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,auto)_1fr] sm:items-center ${
                   isCurrent ? 'rounded border border-sky-200 bg-sky-50/80 p-2' : ''
                 }`}
               >
-                <span
-                  className={`text-xs font-bold uppercase ${
-                    isCurrent ? 'text-sky-800' : 'text-slate-600'
-                  }`}
-                >
-                  {stato}
-                </span>
+                <div className="flex items-center gap-1.5">
+                  <span
+                    className={`text-xs font-bold uppercase ${
+                      isCurrent ? 'text-sky-800' : 'text-slate-600'
+                    }`}
+                  >
+                    {stato}
+                  </span>
+                  <button
+                    type="button"
+                    className="inline-flex shrink-0 items-center justify-center rounded border border-slate-300 bg-white p-1 text-slate-600 shadow-sm hover:border-sky-400 hover:bg-sky-50 hover:text-sky-700"
+                    title={`Imposta stato «${stato}» adesso`}
+                    onClick={() => void impostaStatoOra(stato)}
+                  >
+                    <Clock className="h-3.5 w-3.5" aria-hidden />
+                    <span className="sr-only">Imposta {stato} adesso</span>
+                  </button>
+                </div>
                 <input
                   type="datetime-local"
                   className={`${inputClass} font-mono text-xs`}
@@ -277,18 +291,7 @@ export function MissioneScheda({ missione, eventi, mezzi, allMissioni, existingE
       )}
 
       <div className="flex flex-wrap gap-2 border-t border-slate-200 pt-3">
-        <select
-          className={selectClass}
-          value={missione.stato ?? 'ALLERTARE'}
-          onChange={(e) => applyStato(e.target.value)}
-        >
-          {stati.map((s) => (
-            <option key={s} value={s}>
-              {s}
-            </option>
-          ))}
-        </select>
-        <button type="button" className={btnPrimary} onClick={avanzaStato}>
+        <button type="button" className={btnPrimary} onClick={() => void avanzaStato()}>
           Stato successivo
         </button>
         <MissioneTelegramSendButton

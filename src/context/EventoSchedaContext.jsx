@@ -22,7 +22,7 @@ export function EventoSchedaProvider({ children }) {
     if (!pendingDocId) return;
     const found = eventi.find((e) => e._docId === pendingDocId);
     if (found) {
-      setModal({ evento: found });
+      setModal((m) => ({ evento: found, initialTab: m?.initialTab ?? 'missioni' }));
       setPendingDocId(null);
     }
   }, [eventi, pendingDocId]);
@@ -31,7 +31,7 @@ export function EventoSchedaProvider({ children }) {
     ({ docId, idEvento, idUnivoco }) => {
       const found = eventi.find((e) => e._docId === docId);
       if (found) {
-        setModal({ evento: found });
+        setModal({ evento: found, initialTab: 'missioni' });
         return;
       }
       setModal({
@@ -41,6 +41,7 @@ export function EventoSchedaProvider({ children }) {
           idUnivoco,
           stato: true,
         },
+        initialTab: 'missioni',
       });
       setPendingDocId(docId);
     },
@@ -86,6 +87,7 @@ export function EventoSchedaProvider({ children }) {
             allMissioni={missioni}
             allPazienti={pazienti}
             existingEventi={eventi}
+            initialTab={modal.initialTab}
             onCreated={handleCreated}
             onDeleted={closeModal}
           />
