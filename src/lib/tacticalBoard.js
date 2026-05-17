@@ -97,3 +97,8 @@ export function formatPercentPosition(coord) {
 export function mezzoOnTacticalBoard(mezzo) {
   return parseCoordinateStazionamento(mezzo?.coordinate_stazionamento) != null;
 }
+
+/** Posizione % sulla piantina tattica (non sovrascrive luogo_fisico né coordinate geo). */
+export function eventoOnTacticalBoard(evento) {
+  return parseCoordinateStazionamento(evento?.coordinate_piantina) != null;
+}

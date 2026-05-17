@@ -116,6 +116,19 @@ export async function handleStatoAdvanceCallback(callbackQuery, tenantId) {
     return true;
   }
 
+  const missioneCheck = await getMissioneById(tenantId, missionDocId);
+  if (
+    missioneCheck?.aperta === false ||
+    isStatoMissioneTerminale(missioneCheck?.stato)
+  ) {
+    await answerCallbackQuery(callbackQuery.id, 'Missione chiusa', true);
+    await sendMessage(
+      chatId,
+      `🚫 <b>${escapeHtml(missioneCheck?.idMissione ?? '—')}</b> è chiusa (${escapeHtml(missioneCheck?.stato ?? '—')}). Non è possibile aggiornare lo stato da Telegram.`,
+    );
+    return true;
+  }
+
   const result = await advanceMissioneStato(tenantId, missionDocId, ctx.mezzo);
   if (!result.ok) {
     await answerCallbackQuery(callbackQuery.id, result.error ?? 'Errore', true);

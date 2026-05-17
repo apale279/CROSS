@@ -1,8 +1,22 @@
 import { useMemo } from 'react';
-import { Plus } from 'lucide-react';
+import { GripVertical, Plus } from 'lucide-react';
 import { ColoreIndicator } from '../ui/ColoreIndicator';
 import { coloreBadgeClass } from '../../utils/formatters';
+import { missioniPerEvento } from '../../lib/eventoLinks';
+import { eventoOnTacticalBoard } from '../../lib/tacticalBoard';
+import { isMissioneAttiva } from '../../lib/mezzoMissione';
 import { NuovoEventoRapidoForm } from './NuovoEventoRapidoForm';
+import { EventoStatoRapidoButtons } from './EventoStatoRapidoButtons';
+
+export const EVENTO_DRAG_MIME = 'text/x-cross-evento';
+
+function missionePrincipaleAttiva(missioni, ev) {
+  const attive = missioniPerEvento(missioni, ev).filter(isMissioneAttiva);
+  if (!attive.length) return null;
+  return [...attive].sort((a, b) =>
+    String(a.idMissione ?? '').localeCompare(String(b.idMissione ?? ''), 'it'),
+  )[0];
+}
 
 export function EventiTatticaSidebar({
   eventi,
@@ -14,6 +28,8 @@ export function EventiTatticaSidebar({
   onSelectEvento,
   onEventoRapidoCreated,
   onOpenEventoScheda,
+  onMissioneStato,
+  statoSaving,
 }) {
   const eventiConLuogo = useMemo(
     () =>
@@ -28,7 +44,7 @@ export function EventiTatticaSidebar({
       <header className="border-b border-slate-200 px-3 py-3">
         <h2 className="text-sm font-bold uppercase text-slate-800">Eventi in sede</h2>
         <p className="mt-1 text-xs text-slate-500">
-          Eventi aperti con luogo evento. Clic per contesto; doppio clic per scheda completa.
+          Trascina sulla piantina per posizionare. I numeri cambiano lo stato missione.
         </p>
         <button
           type="button"
@@ -61,35 +77,73 @@ export function EventiTatticaSidebar({
         )}
         {eventiConLuogo.map((ev) => {
           const selected = selectedEventoDocId === ev._docId;
+          const onBoard = eventoOnTacticalBoard(ev);
+          const missione = missionePrincipaleAttiva(missioni, ev);
+
           return (
             <li key={ev._docId} className="mb-1.5">
-              <button
-                type="button"
-                onClick={() => onSelectEvento?.(ev)}
-                onDoubleClick={() => onOpenEventoScheda?.(ev)}
-                className={`w-full rounded-lg border px-2 py-2 text-left text-sm transition ${
+              <div
+                className={`rounded-lg border px-2 py-2 transition ${
                   selected
                     ? 'border-sky-500 bg-sky-50 ring-2 ring-sky-400'
-                    : 'border-slate-200 bg-white hover:border-sky-300'
+                    : 'border-slate-200 bg-white'
                 }`}
               >
-                <span className="flex items-center gap-2">
-                  <ColoreIndicator colore={ev.colore} size="sm" />
-                  <span className="font-mono font-bold text-slate-900">{ev.idEvento}</span>
-                  <span
-                    className={`ml-auto rounded px-1 py-0.5 text-[9px] font-bold uppercase ${coloreBadgeClass(ev.colore)}`}
+                <div className="flex items-start gap-1">
+                  {!onBoard && (
+                    <div
+                      draggable
+                      onDragStart={(e) => {
+                        e.dataTransfer.setData(EVENTO_DRAG_MIME, ev._docId);
+                        e.dataTransfer.setData('text/plain', ev._docId);
+                        e.dataTransfer.effectAllowed = 'move';
+                      }}
+                      className="mt-0.5 cursor-grab rounded p-0.5 text-slate-400 hover:bg-slate-100 active:cursor-grabbing"
+                      title="Trascina sulla piantina"
+                    >
+                      <GripVertical className="h-4 w-4" aria-hidden />
+                    </div>
+                  )}
+                  <button
+                    type="button"
+                    className="min-w-0 flex-1 text-left text-sm"
+                    onClick={() => onSelectEvento?.(ev)}
+                    onDoubleClick={() => onOpenEventoScheda?.(ev)}
                   >
-                    {ev.colore}
-                  </span>
-                </span>
-                <span className="mt-1 block truncate text-xs font-medium text-slate-800">
-                  {(ev.luogo_fisico ?? '').trim()}
-                </span>
-                <span className="mt-0.5 block truncate text-xs text-slate-600">
-                  {ev.tipoEvento}
-                  {ev.dettaglioEvento ? ` — ${ev.dettaglioEvento}` : ''}
-                </span>
-              </button>
+                    <span className="flex items-center gap-2">
+                      <ColoreIndicator colore={ev.colore} size="sm" />
+                      <span className="font-mono font-bold text-slate-900">{ev.idEvento}</span>
+                      {onBoard && (
+                        <span className="rounded bg-violet-100 px-1 py-0.5 text-[8px] font-bold uppercase text-violet-800">
+                          Mappa
+                        </span>
+                      )}
+                      <span
+                        className={`ml-auto rounded px-1 py-0.5 text-[9px] font-bold uppercase ${coloreBadgeClass(ev.colore)}`}
+                      >
+                        {ev.colore}
+                      </span>
+                    </span>
+                    <span className="mt-1 block truncate text-xs font-medium text-slate-800">
+                      {(ev.luogo_fisico ?? '').trim()}
+                    </span>
+                    <span className="mt-0.5 block truncate text-xs text-slate-600">
+                      {ev.tipoEvento}
+                      {ev.dettaglioEvento ? ` — ${ev.dettaglioEvento}` : ''}
+                    </span>
+                    {missione && (
+                      <span className="mt-0.5 block font-mono text-[10px] text-violet-700">
+                        {missione.idMissione} · {missione.mezzo}
+                      </span>
+                    )}
+                  </button>
+                </div>
+                <EventoStatoRapidoButtons
+                  missione={missione}
+                  disabled={statoSaving}
+                  onStato={(stato) => onMissioneStato?.(ev, stato)}
+                />
+              </div>
             </li>
           );
         })}

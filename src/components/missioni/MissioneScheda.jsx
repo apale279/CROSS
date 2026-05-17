@@ -13,10 +13,8 @@ import {
 import { patchMissione } from '../../services/missioniService';
 import { useElapsedSince } from '../../hooks/useElapsedSince';
 import { statoMissioneBadgeClass, formatTimestamp } from '../../utils/formatters';
-import { nextStatoMissione } from '../../utils/missionStati';
 import {
   FormField,
-  btnPrimary,
   btnSecondary,
   btnDanger,
   inputClass,
@@ -32,6 +30,10 @@ export function MissioneScheda({ missione, eventi, mezzi, allMissioni, existingE
   const stati = DEFAULT_IMPOSTAZIONI.statiMissione;
   const elapsed = useElapsedSince(missione.statoDa ?? missione.apertura);
   const storico = missione.storicoStati ?? {};
+  const missioneChiusa =
+    missione.aperta === false ||
+    missione.stato === 'FINE MISSIONE' ||
+    missione.stato === 'ANNULLATA';
 
   const evento = useMemo(
     () => findEvento(eventi, missione.eventoIdUnivoco || missione.eventoCorrelato),
@@ -86,18 +88,13 @@ export function MissioneScheda({ missione, eventi, mezzi, allMissioni, existingE
   };
 
   const impostaStatoOra = async (nuovo) => {
+    if (missioneChiusa && nuovo !== missione.stato) return;
     await patchMissione(
       manifestationId,
       missione._docId,
       buildStatoChangeFields(missione, nuovo),
       missione.mezzo,
     );
-  };
-
-  const avanzaStato = async () => {
-    const nuovo = nextStatoMissione(missione.stato ?? 'ALLERTARE', stati);
-    if (nuovo === missione.stato) return;
-    await impostaStatoOra(nuovo);
   };
 
   const onStoricoBlur = async (statoKey, localValue) => {
@@ -164,6 +161,7 @@ export function MissioneScheda({ missione, eventi, mezzi, allMissioni, existingE
         <p className="mb-1 text-xs font-bold uppercase text-slate-600">Cronologia stati</p>
         <p className="mb-3 text-[11px] text-slate-500">
           Usa l&apos;orologio accanto a uno stato per impostarlo subito con l&apos;orario attuale.
+          {missioneChiusa && ' Missione chiusa: gli stati non sono più modificabili.'}
         </p>
         <ul className="space-y-2">
           {stati.map((stato) => {
@@ -185,8 +183,13 @@ export function MissioneScheda({ missione, eventi, mezzi, allMissioni, existingE
                   </span>
                   <button
                     type="button"
-                    className="inline-flex shrink-0 items-center justify-center rounded border border-slate-300 bg-white p-1 text-slate-600 shadow-sm hover:border-sky-400 hover:bg-sky-50 hover:text-sky-700"
-                    title={`Imposta stato «${stato}» adesso`}
+                    disabled={missioneChiusa}
+                    className="inline-flex shrink-0 items-center justify-center rounded border border-slate-300 bg-white p-1 text-slate-600 shadow-sm hover:border-sky-400 hover:bg-sky-50 hover:text-sky-700 disabled:cursor-not-allowed disabled:opacity-40"
+                    title={
+                      missioneChiusa
+                        ? 'Missione chiusa'
+                        : `Imposta stato «${stato}» adesso`
+                    }
                     onClick={() => void impostaStatoOra(stato)}
                   >
                     <Clock className="h-3.5 w-3.5" aria-hidden />
@@ -291,9 +294,6 @@ export function MissioneScheda({ missione, eventi, mezzi, allMissioni, existingE
       )}
 
       <div className="flex flex-wrap gap-2 border-t border-slate-200 pt-3">
-        <button type="button" className={btnPrimary} onClick={() => void avanzaStato()}>
-          Stato successivo
-        </button>
         <MissioneTelegramSendButton
           missione={missione}
           evento={evento}

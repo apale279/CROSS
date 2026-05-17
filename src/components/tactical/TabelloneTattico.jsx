@@ -4,8 +4,10 @@ import L from 'leaflet';
 import { MapContainer, ImageOverlay, Marker, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useManifestazioneId } from '../../context/ManifestazioneContext';
+import { patchEvento } from '../../services/eventiService';
 import { patchMezzo } from '../../services/mezziService';
 import {
+  eventoOnTacticalBoard,
   imageBoundsFromDimensions,
   latLngToPercent,
   loadImageDimensions,
@@ -13,6 +15,7 @@ import {
   parseCoordinateStazionamento,
   percentToLatLng,
 } from '../../lib/tacticalBoard';
+import { EVENTO_DRAG_MIME } from './EventiTatticaSidebar';
 import { MEZZO_DRAG_MIME } from './MezziPilaSidebar';
 
 function FitBounds({ bounds }) {
@@ -24,11 +27,11 @@ function FitBounds({ bounds }) {
   return null;
 }
 
-function MapDropLayer({ imageSize, onDropMezzo }) {
+function MapDropLayer({ imageSize, onDropMezzo, onDropEvento }) {
   const map = useMap();
 
   useEffect(() => {
-    if (!imageSize || !onDropMezzo) return undefined;
+    if (!imageSize) return undefined;
     const el = map.getContainer();
     const { height, width } = imageSize;
 
@@ -39,13 +42,18 @@ function MapDropLayer({ imageSize, onDropMezzo }) {
 
     const onDrop = (e) => {
       e.preventDefault();
-      const sigla =
-        e.dataTransfer.getData(MEZZO_DRAG_MIME) || e.dataTransfer.getData('text/plain');
-      if (!sigla) return;
       const point = map.mouseEventToLatLng(e);
       const pct = latLngToPercent(point.lat, point.lng, height, width);
       if (!pct) return;
-      onDropMezzo(sigla, pct);
+
+      const eventoDocId = e.dataTransfer.getData(EVENTO_DRAG_MIME);
+      if (eventoDocId && onDropEvento) {
+        onDropEvento(eventoDocId, pct);
+        return;
+      }
+
+      const sigla = e.dataTransfer.getData(MEZZO_DRAG_MIME);
+      if (sigla && onDropMezzo) onDropMezzo(sigla, pct);
     };
 
     el.addEventListener('dragover', onDragOver);
@@ -54,7 +62,7 @@ function MapDropLayer({ imageSize, onDropMezzo }) {
       el.removeEventListener('dragover', onDragOver);
       el.removeEventListener('drop', onDrop);
     };
-  }, [map, imageSize, onDropMezzo]);
+  }, [map, imageSize, onDropMezzo, onDropEvento]);
 
   return null;
 }
@@ -85,6 +93,59 @@ function markerLayout(sigla) {
 function isOutsideBoard(lat, lng, height, width) {
   const margin = 4;
   return lat < -margin || lng < -margin || lat > height + margin || lng > width + margin;
+}
+
+function coloreEventoSlug(colore) {
+  return String(colore ?? 'bianco')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+}
+
+function EventoTacticalMarker({
+  evento,
+  imageSize,
+  onMoved,
+  onRemoved,
+  onSelect,
+  selected,
+}) {
+  const coord = parseCoordinateStazionamento(evento.coordinate_piantina);
+  if (!coord || !imageSize) return null;
+
+  const label = evento.idEvento ?? '?';
+  const { lat, lng } = percentToLatLng(coord.x, coord.y, imageSize.height, imageSize.width);
+  const { w, h, fontPx } = markerLayout(label);
+  const slug = coloreEventoSlug(evento.colore);
+
+  const icon = L.divIcon({
+    className: '',
+    html: `<div class="cross-evento-marker cross-evento-marker--${slug} ${selected ? 'cross-evento-marker--selected' : ''}" style="--marker-font:${fontPx}px;width:${w}px;height:${h}px"><span>${escapeHtml(label)}</span></div>`,
+    iconSize: [w, h],
+    iconAnchor: [w / 2, h / 2],
+  });
+
+  return (
+    <Marker
+      position={[lat, lng]}
+      icon={icon}
+      draggable
+      zIndexOffset={400}
+      eventHandlers={{
+        click: () => onSelect?.(evento),
+        dragend: (e) => {
+          const { lat: la, lng: ln } = e.target.getLatLng();
+          const { height, width } = imageSize;
+          if (isOutsideBoard(la, ln, height, width)) {
+            onRemoved?.(evento._docId);
+            return;
+          }
+          const pct = latLngToPercent(la, ln, height, width);
+          if (pct) onMoved(evento._docId, pct);
+        },
+      }}
+    />
+  );
 }
 
 function MezzoTacticalMarker({
@@ -135,9 +196,12 @@ function MezzoTacticalMarker({
 
 export function TabelloneTattico({
   piantinaUrl,
+  eventi = [],
   mezzi,
   mezziOccupati,
+  selectedEventoDocId,
   selectedSigla,
+  onSelectEvento,
   onSelectMezzo,
 }) {
   const manifestationId = useManifestazioneId();
@@ -169,6 +233,10 @@ export function TabelloneTattico({
   );
 
   const mezziOnBoard = useMemo(() => mezzi.filter(mezzoOnTacticalBoard), [mezzi]);
+  const eventiOnBoard = useMemo(
+    () => eventi.filter((e) => e.stato !== false && eventoOnTacticalBoard(e)),
+    [eventi],
+  );
 
   const placeMezzo = useCallback(
     async (sigla, coordinate_stazionamento) => {
@@ -180,6 +248,20 @@ export function TabelloneTattico({
   const removeMezzoFromBoard = useCallback(
     async (sigla) => {
       await patchMezzo(manifestationId, sigla, { coordinate_stazionamento: deleteField() });
+    },
+    [manifestationId],
+  );
+
+  const placeEvento = useCallback(
+    async (docId, coordinate_piantina) => {
+      await patchEvento(manifestationId, docId, { coordinate_piantina });
+    },
+    [manifestationId],
+  );
+
+  const removeEventoFromBoard = useCallback(
+    async (docId) => {
+      await patchEvento(manifestationId, docId, { coordinate_piantina: deleteField() });
     },
     [manifestationId],
   );
@@ -220,7 +302,22 @@ export function TabelloneTattico({
     >
       <ImageOverlay url={piantinaUrl} bounds={bounds} />
       <FitBounds bounds={bounds} />
-      <MapDropLayer imageSize={imageSize} onDropMezzo={placeMezzo} />
+      <MapDropLayer
+        imageSize={imageSize}
+        onDropMezzo={placeMezzo}
+        onDropEvento={placeEvento}
+      />
+      {eventiOnBoard.map((ev) => (
+        <EventoTacticalMarker
+          key={ev._docId}
+          evento={ev}
+          imageSize={imageSize}
+          selected={selectedEventoDocId === ev._docId}
+          onSelect={onSelectEvento}
+          onMoved={placeEvento}
+          onRemoved={removeEventoFromBoard}
+        />
+      ))}
       {mezziOnBoard.map((m) => {
         const sigla = m.sigla ?? m._docId;
         return (

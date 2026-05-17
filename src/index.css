@@ -65,3 +65,50 @@ body {
 .cross-mezzo-marker--selected {
   box-shadow: 0 0 0 3px #f59e0b;
 }
+
+/* Eventi sulla piantina tattica */
+.cross-evento-marker {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  padding: 0 5px;
+  border: 2px solid #000;
+  border-radius: 0.3rem;
+  font-weight: 700;
+  box-shadow: 0 1px 5px rgb(0 0 0 / 40%);
+}
+
+.cross-evento-marker span {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  font: 700 var(--marker-font, 10px) / 1 ui-monospace, monospace;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cross-evento-marker--bianco {
+  background: #f8fafc;
+  color: #0f172a;
+}
+
+.cross-evento-marker--verde {
+  background: #4ade80;
+  color: #052e16;
+}
+
+.cross-evento-marker--giallo {
+  background: #facc15;
+  color: #422006;
+}
+
+.cross-evento-marker--rosso {
+  background: #f87171;
+  color: #450a0a;
+}
+
+.cross-evento-marker--selected {
+  box-shadow: 0 0 0 3px #7c3aed;
+}

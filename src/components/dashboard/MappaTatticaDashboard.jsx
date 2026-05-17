@@ -1,7 +1,11 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useImpostazioni } from '../../hooks/useImpostazioni';
 import { useEventoScheda } from '../../context/EventoSchedaContext';
-import { mezziConMissioneAttiva } from '../../lib/mezzoMissione';
+import { useManifestazioneId } from '../../context/ManifestazioneContext';
+import { missioniPerEvento } from '../../lib/eventoLinks';
+import { mezziConMissioneAttiva, isMissioneAttiva } from '../../lib/mezzoMissione';
+import { buildStatoChangeFields } from '../../lib/missionStoricoStati';
+import { patchMissione } from '../../services/missioniService';
 import { TabelloneTattico } from '../tactical/TabelloneTattico';
 import { MezziPilaSidebar } from '../tactical/MezziPilaSidebar';
 import { EventiTatticaSidebar } from '../tactical/EventiTatticaSidebar';
@@ -9,6 +13,7 @@ import { MezzoScheda } from '../mezzi/MezzoScheda';
 import { Modal } from '../ui/Modal';
 
 export function MappaTatticaDashboard({ eventi, missioni, mezzi }) {
+  const manifestationId = useManifestazioneId();
   const { impostazioni, loading: loadingImpostazioni } = useImpostazioni();
   const { openEventoScheda } = useEventoScheda();
   const piantinaUrl = impostazioni.piantina_url ?? null;
@@ -20,6 +25,7 @@ export function MappaTatticaDashboard({ eventi, missioni, mezzi }) {
   const [selectedMezzo, setSelectedMezzo] = useState(null);
   const [mezzoModal, setMezzoModal] = useState(null);
   const [showRapidoForm, setShowRapidoForm] = useState(false);
+  const [statoSaving, setStatoSaving] = useState(false);
 
   const evento =
     eventiAperti.find((e) => e._docId === eventoDocId) ??
@@ -30,6 +36,31 @@ export function MappaTatticaDashboard({ eventi, missioni, mezzi }) {
 
   const liveMezzo = (m) =>
     mezzi.find((x) => (x.sigla ?? x._docId) === (m.sigla ?? m._docId)) ?? m;
+
+  const handleMissioneStato = useCallback(
+    async (ev, nuovoStato) => {
+      const attive = missioniPerEvento(missioni, ev).filter(isMissioneAttiva);
+      if (!attive.length) return;
+      setStatoSaving(true);
+      try {
+        await Promise.all(
+          attive.map((mis) =>
+            patchMissione(
+              manifestationId,
+              mis._docId,
+              buildStatoChangeFields(mis, nuovoStato),
+              mis.mezzo,
+            ),
+          ),
+        );
+      } catch (err) {
+        alert('Errore: ' + err.message);
+      } finally {
+        setStatoSaving(false);
+      }
+    },
+    [manifestationId, missioni],
+  );
 
   if (!loadingImpostazioni && !piantinaUrl) {
     return (
@@ -75,13 +106,18 @@ export function MappaTatticaDashboard({ eventi, missioni, mezzi }) {
           onSelectEvento={(ev) => setEventoDocId(ev._docId)}
           onEventoRapidoCreated={({ docId }) => setEventoDocId(docId)}
           onOpenEventoScheda={openEventoScheda}
+          onMissioneStato={handleMissioneStato}
+          statoSaving={statoSaving}
         />
         <div className="relative min-h-0 min-w-0 flex-1">
           <TabelloneTattico
             piantinaUrl={piantinaUrl}
+            eventi={eventiAperti}
             mezzi={mezzi}
             mezziOccupati={mezziOccupati}
+            selectedEventoDocId={evento?._docId ?? ''}
             selectedSigla={selectedSigla}
+            onSelectEvento={(ev) => setEventoDocId(ev._docId)}
             onSelectMezzo={(m) => {
               const live = liveMezzo(m);
               setSelectedMezzo(live);

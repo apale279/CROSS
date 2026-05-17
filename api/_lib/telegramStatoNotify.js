@@ -29,7 +29,9 @@ export async function notifyMissionStatoToTelegram(tenantId, missionDocId) {
   const next = nextStatoMissione(stato, stati);
 
   const lines = [
-    '<b>📡 Stato aggiornato dalla centrale</b>',
+    stato === 'ANNULLATA'
+      ? '<b>🚫 Missione annullata dalla centrale</b>'
+      : '<b>📡 Stato aggiornato dalla centrale</b>',
     '',
     `<b>Missione:</b> ${escapeHtml(missione.idMissione ?? '—')}`,
     `<b>Evento:</b> ${escapeHtml(missione.eventoCorrelato ?? '—')}`,
@@ -37,11 +39,16 @@ export async function notifyMissionStatoToTelegram(tenantId, missionDocId) {
   ];
 
   let replyMarkup;
-  if (!terminal && next !== stato) {
+  if (stato === 'ANNULLATA' || terminal) {
+    lines.push(
+      '',
+      stato === 'ANNULLATA'
+        ? '<i>Missione <b>chiusa</b> (annullata). I pulsanti stato su Telegram non sono più attivi.</i>'
+        : '<i>Missione chiusa — nessun passo successivo.</i>',
+    );
+  } else if (next !== stato) {
     lines.push('', `<i>Prossimo passo equipaggio:</i> ${escapeHtml(next)}`);
     replyMarkup = buildStatoAdvanceKeyboard(missionDocId, next);
-  } else if (terminal) {
-    lines.push('', '<i>Missione chiusa — nessun passo successivo.</i>');
   }
 
   const text = lines.join('\n');
