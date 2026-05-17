@@ -1,14 +1,12 @@
-import { useEffect, useRef, useState } from 'react';
-import { ImagePlus, Trash2 } from 'lucide-react';
-import { useManifestazioneId } from '../../context/ManifestazioneContext';
+import { useEffect, useState } from 'react';
+import { Trash2 } from 'lucide-react';
 import { useImpostazioniField } from '../../hooks/useImpostazioniField';
 import { LuogoFisicoField } from '../maps/LuogoFisicoField';
-import { uploadPiantinaInfoLuogo, deletePiantinaInfoLuogo } from '../../services/storageService';
-import { btnDanger, btnSecondary } from '../ui/FormField';
+import { isValidPiantinaUrl } from '../../services/piantinaUploadService';
+import { btnDanger, btnPrimary, btnSecondary, inputClass } from '../ui/FormField';
 import { SaveFeedback } from './SaveFeedback';
 
 export function InfoLuogoPanel() {
-  const manifestationId = useManifestazioneId();
   const {
     value: piantinaUrl,
     saveField: savePiantinaUrl,
@@ -22,48 +20,41 @@ export function InfoLuogoPanel() {
     loading: loadingLuogo,
   } = useImpostazioniField('luogo_fisico');
 
-  const inputRef = useRef(null);
-  const [uploading, setUploading] = useState(false);
-  const [removing, setRemoving] = useState(false);
   const [luogoDraft, setLuogoDraft] = useState('');
   const [luogoFeedback, setLuogoFeedback] = useState('');
+  const [urlDraft, setUrlDraft] = useState('');
+  const [urlFeedback, setUrlFeedback] = useState('');
 
   useEffect(() => {
     if (!loadingLuogo) setLuogoDraft(luogoFisico ?? '');
   }, [loadingLuogo, luogoFisico]);
 
-  const handleFile = async (e) => {
-    const file = e.target.files?.[0];
-    e.target.value = '';
-    if (!file) return;
-    if (file.type !== 'image/png') {
-      alert('Carica solo file .png');
+  useEffect(() => {
+    if (!loadingPiantina) setUrlDraft(piantinaUrl ?? '');
+  }, [loadingPiantina, piantinaUrl]);
+
+  const saveUrl = async () => {
+    const next = urlDraft.trim();
+    if (next === (piantinaUrl ?? '').trim()) return;
+    if (next && !isValidPiantinaUrl(next)) {
+      alert('URL non valido. Usa un link https:// pubblico verso l’immagine.');
       return;
     }
-    setUploading(true);
+    setUrlFeedback('');
     try {
-      const url = await uploadPiantinaInfoLuogo(manifestationId, file);
-      await savePiantinaUrl(url);
+      await savePiantinaUrl(next || null);
+      setUrlFeedback(next ? 'Piantina salvata.' : 'Piantina rimossa.');
     } catch (err) {
-      console.error(err);
-      alert('Errore upload piantina: ' + (err.message ?? err));
-    } finally {
-      setUploading(false);
+      alert('Errore: ' + err.message);
     }
   };
 
-  const handleRemovePiantina = async () => {
-    if (!window.confirm('Rimuovere la piantina del luogo?')) return;
-    setRemoving(true);
-    try {
-      await deletePiantinaInfoLuogo(manifestationId);
-      await savePiantinaUrl(null);
-    } catch (err) {
-      console.error(err);
-      alert('Errore rimozione: ' + (err.message ?? err));
-    } finally {
-      setRemoving(false);
-    }
+  const removePiantina = async () => {
+    if (!piantinaUrl) return;
+    if (!window.confirm('Rimuovere la piantina?')) return;
+    setUrlDraft('');
+    await savePiantinaUrl(null);
+    setUrlFeedback('Piantina rimossa.');
   };
 
   const saveLuogo = async () => {
@@ -78,15 +69,12 @@ export function InfoLuogoPanel() {
     }
   };
 
-  const busy = uploading || removing || savingPiantina;
-
   return (
     <div className="grid gap-6">
       <section className="rounded-lg border border-slate-200 bg-white p-4">
         <h3 className="mb-1 text-sm font-bold uppercase text-slate-800">Luogo fisico (manifestazione)</h3>
         <p className="mb-3 text-sm text-slate-600">
-          Descrizione del sito in struttura chiusa (settore, tribuna, padiglione). Valida per tutto
-          l&apos;evento operativo.
+          Descrizione del sito in struttura chiusa (settore, tribuna, padiglione).
         </p>
         <LuogoFisicoField
           value={luogoDraft}
@@ -107,63 +95,62 @@ export function InfoLuogoPanel() {
       </section>
 
       <section className="rounded-lg border border-slate-200 bg-slate-50/80 p-4">
-        <h3 className="mb-1 text-sm font-bold uppercase text-slate-800">Piantina tabellone tattico (PNG)</h3>
+        <h3 className="mb-1 text-sm font-bold uppercase text-slate-800">Piantina tabellone tattico</h3>
         <p className="mb-4 text-sm text-slate-600">
-          Immagine usata nella dashboard → <strong>Mappa tattica</strong>. Solo file{' '}
-          <strong>.png</strong>, salvati in Storage sotto{' '}
-          <code className="text-xs">piantine_eventi/&#123;manifestazione&#125;/info_luogo.png</code>.
+          Usata in dashboard → <strong>Mappa tattica</strong>. Incolla l&apos;URL di un&apos;immagine
+          già ospitata da te (Cloudinary, sito, Drive con link pubblico, ecc.). Formati: PNG, JPG,
+          WebP o SVG.
         </p>
 
-        {loadingPiantina ? (
-          <p className="text-sm text-slate-500">Caricamento…</p>
-        ) : piantinaUrl ? (
-          <div className="space-y-3">
-            <div className="overflow-hidden rounded-lg border border-slate-300 bg-white">
-              <img
-                src={piantinaUrl}
-                alt="Anteprima piantina luogo"
-                className="max-h-80 w-full object-contain"
-              />
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                className={btnSecondary}
-                disabled={busy}
-                onClick={() => inputRef.current?.click()}
-              >
-                Sostituisci PNG
-              </button>
-              <button
-                type="button"
-                className={`${btnDanger} inline-flex items-center gap-1`}
-                disabled={busy}
-                onClick={handleRemovePiantina}
-              >
-                <Trash2 className="h-4 w-4" aria-hidden />
-                Rimuovi piantina
-              </button>
-            </div>
-          </div>
-        ) : (
+        <label className="mb-1 block text-sm font-medium text-slate-700">URL immagine piantina</label>
+        <input
+          type="url"
+          className={`${inputClass} mb-3`}
+          placeholder="https://esempio.com/piantina.png"
+          value={urlDraft}
+          onChange={(e) => setUrlDraft(e.target.value)}
+          disabled={loadingPiantina}
+        />
+
+        <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
-            className={`${btnSecondary} inline-flex items-center gap-2`}
-            disabled={busy}
-            onClick={() => inputRef.current?.click()}
+            className={btnPrimary}
+            disabled={savingPiantina || loadingPiantina}
+            onClick={saveUrl}
           >
-            <ImagePlus className="h-4 w-4" aria-hidden />
-            {uploading ? 'Caricamento…' : 'Carica piantina .png'}
+            {savingPiantina ? 'Salvataggio…' : 'Salva piantina'}
           </button>
-        )}
+          {piantinaUrl && (
+            <button
+              type="button"
+              className={`${btnDanger} inline-flex items-center gap-1`}
+              disabled={savingPiantina}
+              onClick={removePiantina}
+            >
+              <Trash2 className="h-4 w-4" aria-hidden />
+              Rimuovi
+            </button>
+          )}
+          <SaveFeedback message={urlFeedback} onClear={() => setUrlFeedback('')} />
+        </div>
 
-        <input
-          ref={inputRef}
-          type="file"
-          accept="image/png,.png"
-          className="hidden"
-          onChange={handleFile}
-        />
+        {loadingPiantina ? (
+          <p className="mt-4 text-sm text-slate-500">Caricamento…</p>
+        ) : (
+          piantinaUrl && (
+            <div className="mt-4 overflow-hidden rounded-lg border border-slate-300 bg-white">
+              <img
+                src={piantinaUrl}
+                alt="Anteprima piantina"
+                className="max-h-80 w-full object-contain"
+                onError={() =>
+                  setUrlFeedback('Anteprima non caricata: verifica che l’URL sia pubblico.')
+                }
+              />
+            </div>
+          )
+        )}
       </section>
     </div>
   );

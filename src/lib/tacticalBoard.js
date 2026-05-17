@@ -1,14 +1,55 @@
-/** Carica dimensioni naturali di un'immagine (per bounds Leaflet CRS.Simple). */
+async function loadSvgDimensionsFromText(svgText) {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(svgText, 'image/svg+xml');
+  const svg = doc.querySelector('svg');
+  if (!svg) throw new Error('SVG non valido');
+
+  const viewBox = svg.getAttribute('viewBox');
+  if (viewBox) {
+    const parts = viewBox.trim().split(/[\s,]+/).map(Number);
+    if (parts.length === 4 && parts.every((n) => Number.isFinite(n) && n > 0)) {
+      return { width: parts[2], height: parts[3] };
+    }
+  }
+
+  const w = Number.parseFloat(svg.getAttribute('width'));
+  const h = Number.parseFloat(svg.getAttribute('height'));
+  if (Number.isFinite(w) && Number.isFinite(h) && w > 0 && h > 0) {
+    return { width: w, height: h };
+  }
+
+  return { width: 1000, height: 1000 };
+}
+
+async function loadSvgDimensions(url) {
+  const res = await fetch(url, { mode: 'cors' });
+  if (!res.ok) throw new Error('Impossibile caricare la piantina SVG');
+  const text = await res.text();
+  return loadSvgDimensionsFromText(text);
+}
+
+/** Carica dimensioni naturali (PNG/JPG/WebP/SVG) per bounds Leaflet CRS.Simple. */
 export function loadImageDimensions(url) {
+  const u = (url ?? '').trim().toLowerCase();
+  const isSvg = u.includes('.svg') || u.startsWith('data:image/svg+xml');
+
+  if (isSvg) {
+    return loadSvgDimensions(url);
+  }
+
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => {
-      resolve({
-        width: img.naturalWidth,
-        height: img.naturalHeight,
-      });
+      const width = img.naturalWidth || img.width;
+      const height = img.naturalHeight || img.height;
+      if (!width || !height) {
+        reject(new Error('Impossibile leggere le dimensioni della piantina'));
+        return;
+      }
+      resolve({ width, height });
     };
     img.onerror = () => reject(new Error('Impossibile caricare la piantina'));
+    img.crossOrigin = 'anonymous';
     img.src = url;
   });
 }

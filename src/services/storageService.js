@@ -5,15 +5,19 @@ function infoLuogoPiantinaPath(tenantId) {
   return `piantine_eventi/${tenantId}/info_luogo.png`;
 }
 
-/** Piantina tabellone tattico (impostazioni manifestazione). */
+const ALLOWED = new Set(['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml']);
+
+/** Piantina tabellone tattico (impostazioni manifestazione) — richiede Firebase Storage attivo. */
 export async function uploadPiantinaInfoLuogo(tenantId, file) {
   if (!tenantId) throw new Error('Manifestazione mancante');
-  if (!file || file.type !== 'image/png') {
-    throw new Error('Sono ammessi solo file .png');
+  if (!file) throw new Error('File mancante');
+  const contentType = file.type || 'image/png';
+  if (!ALLOWED.has(contentType) && !file.name?.match(/\.(png|jpe?g|webp|svg)$/i)) {
+    throw new Error('Formato non supportato');
   }
 
   const storageRef = ref(storage, infoLuogoPiantinaPath(tenantId));
-  await uploadBytes(storageRef, file, { contentType: 'image/png' });
+  await uploadBytes(storageRef, file, { contentType });
   return getDownloadURL(storageRef);
 }
 
