@@ -83,6 +83,7 @@ export async function setTelegramUserAwaitingPassword(tenantId, chatId, awaiting
   );
 }
 
+/** Solo autenticazione password: rimuove assegnazione mezzo (logout equipaggio). */
 export async function setTelegramUserAuthenticated(tenantId, chatId, epoch, profile = {}) {
   await telegramUsersCollection(tenantId).doc(String(chatId)).set(
     {
@@ -90,8 +91,37 @@ export async function setTelegramUserAuthenticated(tenantId, chatId, epoch, prof
       manifestationId: tenantId,
       passwordEpoch: epoch,
       awaitingPassword: false,
+      mezzo: FieldValue.delete(),
       firstName: profile.firstName ?? '',
       username: profile.username ?? '',
+      timestamp: FieldValue.serverTimestamp(),
+    },
+    { merge: true },
+  );
+}
+
+/** Rimuove solo il mezzo (nuova sessione equipaggio, es. /start). */
+export async function clearTelegramUserMezzo(tenantId, chatId) {
+  await telegramUsersCollection(tenantId).doc(String(chatId)).set(
+    {
+      chatId: Number(chatId),
+      manifestationId: tenantId,
+      mezzo: FieldValue.delete(),
+      timestamp: FieldValue.serverTimestamp(),
+    },
+    { merge: true },
+  );
+}
+
+/** Reset sessione: password + scelta mezzo da rifare. */
+export async function resetTelegramUserSession(tenantId, chatId) {
+  await telegramUsersCollection(tenantId).doc(String(chatId)).set(
+    {
+      chatId: Number(chatId),
+      manifestationId: tenantId,
+      passwordEpoch: 0,
+      awaitingPassword: true,
+      mezzo: FieldValue.delete(),
       timestamp: FieldValue.serverTimestamp(),
     },
     { merge: true },
@@ -123,7 +153,11 @@ export async function invalidateAllTelegramAuth(tenantId) {
   for (const doc of snap.docs) {
     batch.set(
       doc.ref,
-      { passwordEpoch: 0, awaitingPassword: true },
+      {
+        passwordEpoch: 0,
+        awaitingPassword: true,
+        mezzo: FieldValue.delete(),
+      },
       { merge: true },
     );
   }
@@ -143,7 +177,14 @@ export async function findChatIdsByMezzo(tenantId, mezzo, { authenticatedOnly = 
   }
 
   return snap.docs
-    .filter((d) => Number(d.data().passwordEpoch) === settings.epoch)
+    .filter((d) => {
+      const data = d.data();
+      return (
+        Number(data.passwordEpoch) === settings.epoch &&
+        typeof data.mezzo === 'string' &&
+        data.mezzo.trim().length > 0
+      );
+    })
     .map((d) => d.data().chatId)
     .filter((id) => id != null);
 }

@@ -33,7 +33,7 @@ export function TelegramBotPasswordEditor() {
       setConfirm('');
       setFeedback({
         type: 'ok',
-        message: `Password impostata. ${res.invalidated ?? 0} dispositivi dovranno usare /cambiapassword sul bot.`,
+        message: `Password impostata. ${res.invalidated ?? 0} dispositivi disconnessi: dovranno usare /cambiapassword, poi /start.`,
       });
     } catch (err) {
       setFeedback({ type: 'error', message: err.message ?? 'Errore salvataggio' });
@@ -62,7 +62,8 @@ export function TelegramBotPasswordEditor() {
       <h3 className="mb-1 text-lg font-semibold text-slate-900">Bot Telegram — password</h3>
       <p className="mb-4 text-sm text-slate-600">
         L&apos;equipaggio dovrà inserire questa password su Telegram prima di scegliere il mezzo.
-        Dopo ogni cambio password inviano <strong>/cambiapassword</strong> e la nuova password.
+        Dopo ogni cambio password l&apos;equipaggio viene disconnesso:{' '}
+        <strong>/cambiapassword</strong> → nuova password → <strong>/start</strong> → scelta mezzo.
         {passwordActive && (
           <span className="mt-2 block font-medium text-emerald-700">
             Password attiva (revisione {epoch})

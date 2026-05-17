@@ -47,7 +47,7 @@ export default async function handler(req, res) {
     const chatIds = await findChatIdsByMezzo(tenantId, mezzo, { authenticatedOnly: true });
     if (!chatIds.length) {
       return res.status(404).json({
-        error: `Nessun equipaggio registrato (o non autenticato) su Telegram per il mezzo ${mezzo}. Chiedi di inviare /cambiapassword sul bot.`,
+        error: `Nessun equipaggio registrato su Telegram per il mezzo ${mezzo}. Chiedi: /cambiapassword (se serve), poi /start e scelta mezzo.`,
         sent: 0,
       });
     }

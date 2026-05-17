@@ -26,5 +26,6 @@ export function buildMissionTelegramPayload(missione, evento) {
     dettaglioEvento: evento?.dettaglioEvento ?? '',
     colore: evento?.colore ?? missione.codiceColore ?? '',
     noteMissione: missione.noteMissione ?? '',
+    coordinate: evento?.coordinate ?? null,
   };
 }

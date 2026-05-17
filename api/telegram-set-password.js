@@ -42,7 +42,7 @@ export default async function handler(req, res) {
     if (notify && invalidated > 0) {
       const snap = await telegramUsersCollection(tenantId).get();
       const text =
-        '🔐 <b>Password del bot aggiornata.</b>\n\nInvia /cambiapassword e inserisci la nuova password per continuare a ricevere le missioni.';
+        '🔐 <b>Password aggiornata.</b> Sei stato disconnesso.\n\n1️⃣ /cambiapassword → nuova password\n2️⃣ /start → scegli di nuovo il mezzo';
       await Promise.allSettled(
         snap.docs.map((d) => {
           const chatId = d.data()?.chatId;

@@ -6,6 +6,8 @@ import {
   getTelegramAuthSettings,
   getTelegramUser,
   listMezziSigle,
+  clearTelegramUserMezzo,
+  resetTelegramUserSession,
   setTelegramUserAwaitingPassword,
   setTelegramUserAuthenticated,
   upsertTelegramUser,
@@ -71,7 +73,11 @@ export async function handlePasswordText(chatId, tenantId, text, from) {
   }
 
   const authed = existing && existing.passwordEpoch === settings.epoch;
-  if (authed && existing.mezzo && !existing.awaitingPassword) {
+  if (authed && !existing.awaitingPassword) {
+    if (!existing.mezzo?.trim()) {
+      await sendMessage(chatId, 'Invia <b>/start</b> per scegliere il mezzo.');
+      return;
+    }
     await sendMessage(chatId, `Sei registrato su <b>${existing.mezzo}</b>. Usa /start per cambiare mezzo.`);
     return;
   }
@@ -92,17 +98,10 @@ export async function handlePasswordText(chatId, tenantId, text, from) {
     username: from?.username,
   });
 
-  const user = await getTelegramUser(tenantId, chatId);
-  if (user?.mezzo) {
-    await sendMessage(
-      chatId,
-      `✅ Accesso consentito. Riceverai le missioni per <b>${user.mezzo}</b>.`,
-    );
-    return;
-  }
-
-  await sendMessage(chatId, '✅ Password corretta.');
-  await sendMezzoPicker(chatId, tenantId);
+  await sendMessage(
+    chatId,
+    '✅ Password corretta.\n\nInvia <b>/start</b> per scegliere di nuovo il mezzo.',
+  );
 }
 
 export async function handleStart(chatId, tenantId, enabled) {
@@ -125,6 +124,7 @@ export async function handleStart(chatId, tenantId, enabled) {
     }
   }
 
+  await clearTelegramUserMezzo(tenantId, chatId);
   await sendMezzoPicker(chatId, tenantId);
 }
 
@@ -135,11 +135,10 @@ export async function handleCambiaPassword(chatId, tenantId) {
     return;
   }
 
-  await setTelegramUserAwaitingPassword(tenantId, chatId, true);
-  await setTelegramUserAuthenticated(tenantId, chatId, 0);
+  await resetTelegramUserSession(tenantId, chatId);
   await sendMessage(
     chatId,
-    '<b>Password aggiornata dalla centrale.</b>\n\nInserisci la <b>nuova password</b> del bot (messaggio di testo).',
+    '<b>Sessione terminata.</b> Password aggiornata dalla centrale.\n\n1️⃣ Inserisci la <b>nuova password</b>\n2️⃣ Poi invia <b>/start</b> per scegliere il mezzo',
   );
 }
 
