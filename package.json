@@ -9,7 +9,8 @@
     "vercel-build": "vite build",
     "preview": "vite preview",
     "seed:demo": "node scripts/seed-demo-data.mjs",
-    "import:impostazioni-eventi": "node scripts/import-impostazioni-eventi.mjs"
+    "import:impostazioni-eventi": "node scripts/import-impostazioni-eventi.mjs",
+    "upload:guida-pdf": "node scripts/upload-guida-pdf.mjs"
   },
   "dependencies": {
     "@react-google-maps/api": "^2.20.8",

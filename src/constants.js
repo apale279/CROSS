@@ -46,6 +46,8 @@ export const DEFAULT_IMPOSTAZIONI = {
   mappaDashboardDefault: null,
   /** Piantina PNG per tabellone tattico (Storage → URL download). */
   piantina_url: null,
+  /** Guida operativa PDF (Cloudinary raw → URL). */
+  guida_pdf_url: null,
   /** Luogo fisico predefinito (struttura chiusa, settore, tribuna…). */
   luogo_fisico: '',
   /** Se true, webhook e invio missioni Telegram sono consentiti. */

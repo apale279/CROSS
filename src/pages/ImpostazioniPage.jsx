@@ -8,10 +8,12 @@ import { WipeOpsDangerZone } from '../components/impostazioni/WipeOpsDangerZone'
 import { MappaDashboardCentroEditor } from '../components/impostazioni/MappaDashboardCentroEditor';
 import { TelegramBotPasswordEditor } from '../components/impostazioni/TelegramBotPasswordEditor';
 import { InfoLuogoPanel } from '../components/impostazioni/InfoLuogoPanel';
+import { GuidaPdfPanel } from '../components/impostazioni/GuidaPdfPanel';
 import { GlobalLogoutPuliziaPanel } from '../components/impostazioni/GlobalLogoutPuliziaPanel';
 import { TelegramForceLogoutPanel } from '../components/impostazioni/TelegramForceLogoutPanel';
 import { TelegramGpsTrackingToggle } from '../components/impostazioni/TelegramGpsTrackingToggle';
 import { TelegramLoggedUsersPanel } from '../components/impostazioni/TelegramLoggedUsersPanel';
+import { ActiveUsersPanel } from '../components/impostazioni/ActiveUsersPanel';
 
 const ALTRE_LISTE = {
   listaOspedali: 'Lista ospedali',
@@ -41,14 +43,24 @@ export default function ImpostazioniPage() {
         <button type="button" className={tabClass(tab === 'altro')} onClick={() => setTab('altro')}>
           Mezzi e strutture
         </button>
+        <button type="button" className={tabClass(tab === 'utenti')} onClick={() => setTab('utenti')}>
+          Utenti
+        </button>
         <button type="button" className={tabClass(tab === 'telegram')} onClick={() => setTab('telegram')}>
           Telegram
+        </button>
+        <button type="button" className={tabClass(tab === 'guida')} onClick={() => setTab('guida')}>
+          Guida
         </button>
       </nav>
 
       {tab === 'eventi' && <ImpostazioniEventiPanel />}
 
       {tab === 'infoLuogo' && <InfoLuogoPanel />}
+
+      {tab === 'guida' && <GuidaPdfPanel />}
+
+      {tab === 'utenti' && <ActiveUsersPanel />}
 
       {tab === 'telegram' && (
         <div className="grid gap-4">

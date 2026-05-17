@@ -1,6 +1,7 @@
-import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
+import { addDoc, collection, serverTimestamp, setDoc } from 'firebase/firestore';
 import { db } from '../firebaseConfig';
 import { COLLECTIONS } from '../lib/firestorePaths';
+import { userProfileDocRef } from './userProfileService';
 
 /**
  * @param {string} manifestationId
@@ -24,4 +25,14 @@ export async function logUserActivity(manifestationId, payload) {
     path: path ?? null,
     createdAt: serverTimestamp(),
   });
+
+  await setDoc(
+    userProfileDocRef(manifestationId, uid),
+    {
+      lastSeenAt: serverTimestamp(),
+      lastPath: path ?? null,
+      lastActivityType: type,
+    },
+    { merge: true },
+  );
 }

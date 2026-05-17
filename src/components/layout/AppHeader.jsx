@@ -3,6 +3,7 @@ import { Link, NavLink, useLocation } from 'react-router-dom';
 import { useTenantContext } from '../../context/TenantContext';
 import { useAuth } from '../../context/AuthContext';
 import { useManifestazione } from '../../hooks/useManifestazione';
+import { useImpostazioni } from '../../hooks/useImpostazioni';
 import { useEventoScheda } from '../../context/EventoSchedaContext';
 import { useFirestoreSync } from '../../context/FirestoreSyncContext';
 import { resetDashboardLayout } from '../../lib/dashboardLayout';
@@ -36,6 +37,8 @@ export function AppHeader() {
   const { tenantId } = useTenantContext();
   const { user, profile, logout } = useAuth();
   const { manifestazione } = useManifestazione();
+  const { impostazioni } = useImpostazioni();
+  const guidaPdfUrl = (impostazioni.guida_pdf_url ?? '').trim();
   const { openNuovoEvento } = useEventoScheda();
   const { online, lastSyncAt, error } = useFirestoreSync();
   const kioskPopOut = useKioskPopOutContextOptional();
@@ -106,6 +109,17 @@ export function AppHeader() {
         <NavLink to="/mezzi" className={navClass}>
           Mezzi
         </NavLink>
+        {guidaPdfUrl && (
+          <a
+            href={guidaPdfUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={navButtonClass}
+            title="Apri guida operativa (PDF)"
+          >
+            Guida
+          </a>
+        )}
         <NavLink to="/impostazioni" className={navClass}>
           Impostazioni
         </NavLink>
