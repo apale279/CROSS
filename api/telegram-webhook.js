@@ -5,6 +5,11 @@ import {
   handlePasswordText,
   handleStart,
 } from './_lib/telegramBotFlow.js';
+import {
+  handleStatoAdvanceCallback,
+  handleStatoCommand,
+  handleStatoSelectCallback,
+} from './_lib/telegramStatoFlow.js';
 import { isTelegramBotEnabled } from './_lib/telegramFirestore.js';
 
 export default async function handler(req, res) {
@@ -27,7 +32,14 @@ export default async function handler(req, res) {
     const enabled = await isTelegramBotEnabled(tenantId);
 
     if (update.callback_query) {
-      await handleMezzoCallback(update.callback_query, tenantId);
+      const cq = update.callback_query;
+      if (await handleStatoAdvanceCallback(cq, tenantId)) {
+        return res.status(200).json({ ok: true });
+      }
+      if (await handleStatoSelectCallback(cq, tenantId)) {
+        return res.status(200).json({ ok: true });
+      }
+      await handleMezzoCallback(cq, tenantId);
       return res.status(200).json({ ok: true });
     }
 
@@ -41,6 +53,7 @@ export default async function handler(req, res) {
 
     const isStart = /^\/start(\s|$|@)/i.test(text);
     const isCambiaPassword = /^\/cambiapassword(\s|$|@)/i.test(text) || /^CAMBIA\s+PASSWORD$/i.test(text);
+    const isStato = /^\/stato(\s|$|@)/i.test(text);
 
     if (isStart) {
       await handleStart(chatId, tenantId, enabled);
@@ -52,6 +65,14 @@ export default async function handler(req, res) {
         return res.status(200).json({ ok: true });
       }
       await handleCambiaPassword(chatId, tenantId);
+      return res.status(200).json({ ok: true });
+    }
+
+    if (isStato) {
+      if (!enabled) {
+        return res.status(200).json({ ok: true });
+      }
+      await handleStatoCommand(chatId, tenantId);
       return res.status(200).json({ ok: true });
     }
 

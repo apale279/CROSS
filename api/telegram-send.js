@@ -5,7 +5,10 @@ import {
   findChatIdsByMezzo,
   isTelegramBotEnabled,
 } from './_lib/telegramFirestore.js';
+import { getStatiMissione } from './_lib/missionAdmin.js';
 import { formatMissionTelegramHtml } from './_lib/telegramMissionMessage.js';
+import { buildStatoAdvanceKeyboard } from './_lib/telegramMissionStato.js';
+import { isStatoMissioneTerminale, nextStatoMissione } from './_lib/missionStati.js';
 
 async function verifyFirebaseUser(req) {
   const authHeader = req.headers.authorization;
@@ -53,12 +56,22 @@ export default async function handler(req, res) {
     }
 
     const text = formatMissionTelegramHtml(missione);
+    const missionDocId = (missione.missionDocId ?? missione._docId ?? '').trim();
+    let replyMarkup;
+    if (missionDocId && missione.aperta !== false && !isStatoMissioneTerminale(missione.stato)) {
+      const stati = await getStatiMissione(tenantId);
+      const next = nextStatoMissione(missione.stato ?? 'ALLERTARE', stati);
+      if (next !== missione.stato) {
+        replyMarkup = buildStatoAdvanceKeyboard(missionDocId, next);
+      }
+    }
+
     let sent = 0;
     const errors = [];
 
     for (const chatId of chatIds) {
       try {
-        await sendMessage(chatId, text);
+        await sendMessage(chatId, text, replyMarkup ? { reply_markup: replyMarkup } : {});
         sent += 1;
       } catch (e) {
         errors.push({ chatId, message: e.message });

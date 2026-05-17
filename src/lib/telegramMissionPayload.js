@@ -17,6 +17,7 @@ export function findEventoForMissione(eventi, missione) {
 /** Payload inviato all'API Telegram (allineato ai campi Firestore missione/evento). */
 export function buildMissionTelegramPayload(missione, evento) {
   return {
+    missionDocId: missione._docId ?? '',
     idMissione: missione.idMissione ?? '',
     eventoCorrelato: missione.eventoCorrelato ?? '',
     mezzo: missione.mezzo ?? '',
