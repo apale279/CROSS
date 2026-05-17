@@ -130,7 +130,7 @@ export function TabelloneTattico({ piantinaUrl, mezzi, selectedSigla, onSelectMe
   if (!piantinaUrl) {
     return (
       <div className="flex h-full items-center justify-center bg-slate-100 p-6 text-center text-sm text-slate-600">
-        Nessuna piantina per questo evento. Caricala da Impostazioni evento nella scheda evento.
+        Nessuna piantina configurata. Caricala da Impostazioni → Info luogo.
       </div>
     );
   }

@@ -22,7 +22,6 @@ import {
   selectClass,
 } from '../ui/FormField';
 import { EventoDettaglioForm } from './EventoDettaglioForm';
-import { EventoPiantinaUpload } from './EventoPiantinaUpload';
 
 const emptyValues = () => ({
   tipoEvento: DEFAULT_IMPOSTAZIONI.tipiEvento[0],
@@ -207,7 +206,6 @@ export function EventoScheda({
         { id: 'dettaglio', label: 'Dettaglio' },
         { id: 'missioni', label: `Missioni (${missioniEvento.length})` },
         { id: 'pazienti', label: `Pazienti (${pazientiEvento.length})` },
-        { id: 'impostazioni', label: 'Impostazioni evento' },
       ];
 
   return (
@@ -285,12 +283,6 @@ export function EventoScheda({
               </button>
             </div>
           )}
-        </div>
-      )}
-
-      {!isCreate && tab === 'impostazioni' && (
-        <div className="space-y-4">
-          <EventoPiantinaUpload evento={evento} />
         </div>
       )}
 

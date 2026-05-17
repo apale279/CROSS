@@ -12,7 +12,8 @@ import {
 
 function defaultForField(fieldKey) {
   if (fieldKey === 'dettagliPerTipoEvento') return {};
-  if (fieldKey === 'mappaDashboardDefault') return null;
+  if (fieldKey === 'mappaDashboardDefault' || fieldKey === 'piantina_url') return null;
+  if (fieldKey === 'luogo_fisico') return '';
   return DEFAULT_IMPOSTAZIONI[fieldKey] ?? null;
 }
 

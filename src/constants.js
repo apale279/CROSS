@@ -42,6 +42,10 @@ export const DEFAULT_IMPOSTAZIONI = {
    * `{ luogo, lat, lng, zoom? }` oppure null = default geografico Roma.
    */
   mappaDashboardDefault: null,
+  /** Piantina PNG per tabellone tattico (Storage → URL download). */
+  piantina_url: null,
+  /** Luogo fisico predefinito (struttura chiusa, settore, tribuna…). */
+  luogo_fisico: '',
   /** Se true, webhook e invio missioni Telegram sono consentiti. */
   telegramBotEnabled: false,
   /** Incrementato a ogni cambio password bot; i client Telegram devono allinearsi. */
