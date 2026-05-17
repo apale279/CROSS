@@ -38,11 +38,18 @@ body {
   justify-content: center;
   box-sizing: border-box;
   padding: 0 5px;
-  border: 2px solid #0369a1;
+  border: 2px solid #000;
   border-radius: 0.3rem;
-  background: #0ea5e9;
   color: #fff;
   box-shadow: 0 1px 4px rgb(0 0 0 / 35%);
+}
+
+.cross-mezzo-marker--libero {
+  background: #22c55e;
+}
+
+.cross-mezzo-marker--occupato {
+  background: #ef4444;
 }
 
 .cross-mezzo-marker span {
@@ -56,6 +63,5 @@ body {
 }
 
 .cross-mezzo-marker--selected {
-  border-color: #f59e0b;
-  background: #d97706;
+  box-shadow: 0 0 0 3px #f59e0b;
 }

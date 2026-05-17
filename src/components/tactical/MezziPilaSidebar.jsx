@@ -5,7 +5,7 @@ import { mezzoRowClass } from '../../utils/formatters';
 
 export const MEZZO_DRAG_MIME = 'text/x-cross-mezzo';
 
-export function MezziPilaSidebar({ mezzi, selectedSigla, onSelect }) {
+export function MezziPilaSidebar({ mezzi, mezziOccupati, selectedSigla, onSelect }) {
   const inPila = mezzi.filter((m) => !mezzoOnTacticalBoard(m));
 
   return (
@@ -13,7 +13,7 @@ export function MezziPilaSidebar({ mezzi, selectedSigla, onSelect }) {
       <header className="border-b border-slate-200 px-3 py-3">
         <h2 className="text-sm font-bold uppercase text-slate-800">Pila mezzi</h2>
         <p className="mt-1 text-xs text-slate-500">
-          Trascina sulla piantina per posizionare. Qui: mezzi non ancora sul tabellone.
+          Trascina sulla piantina. Verde = libero, rosso = in missione.
         </p>
       </header>
       <ul className="min-h-0 flex-1 overflow-y-auto p-2">
@@ -25,6 +25,7 @@ export function MezziPilaSidebar({ mezzi, selectedSigla, onSelect }) {
         {inPila.map((m) => {
           const sigla = m.sigla ?? m._docId;
           const selected = selectedSigla === sigla;
+          const occupato = mezziOccupati?.has(sigla);
           return (
             <li key={sigla} className="mb-1.5">
               <button
@@ -36,9 +37,11 @@ export function MezziPilaSidebar({ mezzi, selectedSigla, onSelect }) {
                   e.dataTransfer.effectAllowed = 'move';
                 }}
                 onClick={() => onSelect?.(m)}
-                className={`flex w-full cursor-grab items-center gap-2 rounded-lg border px-2 py-2 text-left text-sm active:cursor-grabbing ${mezzoRowClass(m)} ${
-                  selected ? 'ring-2 ring-sky-500' : 'border-slate-200 hover:border-sky-300'
-                }`}
+                className={`flex w-full cursor-grab items-center gap-2 rounded-lg border-2 px-2 py-2 text-left text-sm active:cursor-grabbing ${mezzoRowClass(m)} ${
+                  occupato
+                    ? 'border-black bg-red-50'
+                    : 'border-black bg-emerald-50'
+                } ${selected ? 'ring-2 ring-sky-500' : 'hover:border-sky-400'}`}
               >
                 <GripVertical className="h-4 w-4 shrink-0 text-slate-400" aria-hidden />
                 <span className="min-w-0 flex-1">

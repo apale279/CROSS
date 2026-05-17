@@ -87,7 +87,15 @@ function isOutsideBoard(lat, lng, height, width) {
   return lat < -margin || lng < -margin || lat > height + margin || lng > width + margin;
 }
 
-function MezzoTacticalMarker({ mezzo, imageSize, onMoved, onRemoved, onSelect, selected }) {
+function MezzoTacticalMarker({
+  mezzo,
+  imageSize,
+  onMoved,
+  onRemoved,
+  onSelect,
+  selected,
+  occupato,
+}) {
   const coord = parseCoordinateStazionamento(mezzo.coordinate_stazionamento);
   if (!coord || !imageSize) return null;
 
@@ -98,7 +106,7 @@ function MezzoTacticalMarker({ mezzo, imageSize, onMoved, onRemoved, onSelect, s
 
   const icon = L.divIcon({
     className: '',
-    html: `<div class="cross-mezzo-marker ${selected ? 'cross-mezzo-marker--selected' : ''}" style="--marker-font:${fontPx}px;width:${w}px;height:${h}px"><span>${safeSigla}</span></div>`,
+    html: `<div class="cross-mezzo-marker ${occupato ? 'cross-mezzo-marker--occupato' : 'cross-mezzo-marker--libero'} ${selected ? 'cross-mezzo-marker--selected' : ''}" style="--marker-font:${fontPx}px;width:${w}px;height:${h}px"><span>${safeSigla}</span></div>`,
     iconSize: [w, h],
     iconAnchor: [w / 2, h / 2],
   });
@@ -125,7 +133,13 @@ function MezzoTacticalMarker({ mezzo, imageSize, onMoved, onRemoved, onSelect, s
   );
 }
 
-export function TabelloneTattico({ piantinaUrl, mezzi, selectedSigla, onSelectMezzo }) {
+export function TabelloneTattico({
+  piantinaUrl,
+  mezzi,
+  mezziOccupati,
+  selectedSigla,
+  onSelectMezzo,
+}) {
   const manifestationId = useManifestazioneId();
   const [imageSize, setImageSize] = useState(null);
   const [loadError, setLoadError] = useState('');
@@ -218,6 +232,7 @@ export function TabelloneTattico({ piantinaUrl, mezzi, selectedSigla, onSelectMe
             onSelect={onSelectMezzo}
             onMoved={placeMezzo}
             onRemoved={removeMezzoFromBoard}
+            occupato={mezziOccupati?.has(sigla)}
           />
         );
       })}

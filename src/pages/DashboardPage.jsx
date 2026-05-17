@@ -202,7 +202,7 @@ export default function DashboardPage() {
 
       {dashboardView === 'tattica' ? (
         <div className="min-h-0 flex-1">
-          <MappaTatticaDashboard eventi={eventi} mezzi={mezzi} />
+          <MappaTatticaDashboard eventi={eventi} missioni={missioni} mezzi={mezzi} />
         </div>
       ) : (
         <div className="relative min-h-0 flex-1 overflow-hidden">
