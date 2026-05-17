@@ -6,6 +6,10 @@ import {
   MEZZO_STATO_NON_DISPONIBILE,
 } from '../../lib/mezzoStati';
 import { parseCoordinate } from '../../lib/googleMaps';
+import {
+  formatPosizioneRealeDisplay,
+  mezzoPosizioneRealeCoordinate,
+} from '../../lib/mezzoPosizione';
 import { formatPercentPosition, mezzoOnTacticalBoard } from '../../lib/tacticalBoard';
 import { deleteField } from 'firebase/firestore';
 import { deleteMezzo, patchMezzo } from '../../services/mezziService';
@@ -27,6 +31,8 @@ export function MezzoScheda({ mezzo, onDeleted, readOnly = false }) {
 
   const sigla = mezzo.sigla ?? mezzo._docId;
   const coord = parseCoordinate(mezzo.stazionamento?.coordinate);
+  const posReale = mezzoPosizioneRealeCoordinate(mezzo);
+  const posRealeLabel = formatPosizioneRealeDisplay(mezzo);
   const onBoard = mezzoOnTacticalBoard(mezzo);
   const posLabel = formatPercentPosition(mezzo.coordinate_stazionamento);
   const stato = mezzo.statoMezzo ?? MEZZO_STATO_DISPONIBILE;
@@ -103,6 +109,7 @@ export function MezzoScheda({ mezzo, onDeleted, readOnly = false }) {
           label="Solo esterno"
           value={mezzo.solamente_esterno === true ? 'Sì' : 'No'}
         />
+        <PosizioneRealeRow coord={posReale} label={posRealeLabel} fonte={mezzo.posizioneReale?.fonte} />
         <EquipaggioList equipaggio={mezzo.equipaggio} />
       </dl>
     );
@@ -185,6 +192,8 @@ export function MezzoScheda({ mezzo, onDeleted, readOnly = false }) {
         </>
       )}
 
+      <PosizioneRealeRow coord={posReale} label={posRealeLabel} fonte={mezzo.posizioneReale?.fonte} />
+
       <EquipaggioList equipaggio={mezzo.equipaggio} />
 
       <label className="flex cursor-pointer items-start gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-800">
@@ -230,6 +239,36 @@ function Row({ label, value, mono, children }) {
         {children ?? value}
       </dd>
     </div>
+  );
+}
+
+function PosizioneRealeRow({ coord, label, fonte }) {
+  const mapsUrl = coord
+    ? `https://www.google.com/maps/search/?api=1&query=${coord.lat},${coord.lng}`
+    : null;
+  return (
+    <Row label="Posizione reale mezzo">
+      {label ? (
+        <span>
+          <span className="font-mono">{label}</span>
+          {fonte === 'telegram' && (
+            <span className="mt-0.5 block text-xs text-slate-500">Da Telegram (GPS equipaggio)</span>
+          )}
+          {mapsUrl && (
+            <a
+              href={mapsUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-1 block text-xs font-medium text-sky-700 underline"
+            >
+              Apri su Google Maps
+            </a>
+          )}
+        </span>
+      ) : (
+        <span className="text-slate-500">Non ancora ricevuta (da Telegram con GPS attivo)</span>
+      )}
+    </Row>
   );
 }
 

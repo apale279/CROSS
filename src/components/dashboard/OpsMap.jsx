@@ -10,6 +10,7 @@ import {
 } from '../../lib/googleMaps';
 import { coloreHex } from '../../utils/formatters';
 import { getEmojiMarkerIcon } from '../../lib/mapMarkers';
+import { mezzoMapCoordinate, mezzoPosizioneRealeCoordinate } from '../../lib/mezzoPosizione';
 import { emojiForTipoMezzo, normalizeTipiMezzo } from '../../lib/tipiMezzo';
 import {
   OPS_MAP_VIEW_STANDARD,
@@ -103,7 +104,7 @@ export function OpsMap({ eventi, mezzi, onSelect, readOnly = false }) {
       }
     });
     mezzi.forEach((m) => {
-      const pos = parseCoordinate(m.stazionamento?.coordinate);
+      const pos = mezzoMapCoordinate(m);
       if (pos) {
         list.push({
           pos,
@@ -203,11 +204,15 @@ export function OpsMap({ eventi, mezzi, onSelect, readOnly = false }) {
         const key =
           m.type === 'evento' ? `e-${m.data._docId}` : `z-${m.data.sigla ?? m.data._docId}`;
         const label = m.type === 'evento' ? m.data.idEvento : (m.data.sigla ?? m.data._docId);
+        const title =
+          m.type === 'mezzo' && mezzoPosizioneRealeCoordinate(m.data)
+            ? `${label} · pos. GPS`
+            : label;
         return (
           <Marker
             key={key}
             position={m.pos}
-            title={label}
+            title={title}
             clickable={Boolean(onSelect)}
             onClick={onSelect ? () => onSelect({ type: m.type, data: m.data }) : undefined}
             icon={

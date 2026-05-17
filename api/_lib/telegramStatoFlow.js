@@ -18,6 +18,7 @@ import {
   formatMissioneStatoPanel,
 } from './telegramMissionStato.js';
 import { isStatoMissioneTerminale, nextStatoMissione } from './missionStati.js';
+import { promptGpsAfterStatoAdvance } from './telegramGpsFlow.js';
 
 async function requireRegisteredUser(chatId, tenantId) {
   const settings = await getTelegramAuthSettings(tenantId);
@@ -157,5 +158,7 @@ export async function handleStatoAdvanceCallback(callbackQuery, tenantId) {
         ? buildStatoAdvanceKeyboard(missionDocId, next)
         : undefined,
   });
+
+  await promptGpsAfterStatoAdvance(chatId, tenantId);
   return true;
 }

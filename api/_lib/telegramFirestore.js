@@ -113,6 +113,8 @@ export async function clearTelegramUserMezzo(tenantId, chatId) {
       chatId: Number(chatId),
       manifestationId: tenantId,
       mezzo: FieldValue.delete(),
+      gpsStatoConsenso: FieldValue.delete(),
+      awaitingGpsAfterStato: FieldValue.delete(),
       timestamp: FieldValue.serverTimestamp(),
     },
     { merge: true },
@@ -146,6 +148,29 @@ export async function upsertTelegramUser(tenantId, chatId, mezzo, profile = {}) 
       passwordEpoch: profile.passwordEpoch ?? 0,
       awaitingPassword: false,
       timestamp: FieldValue.serverTimestamp(),
+    },
+    { merge: true },
+  );
+}
+
+export async function setTelegramUserGpsConsent(tenantId, chatId, consent) {
+  await telegramUsersCollection(tenantId).doc(String(chatId)).set(
+    {
+      chatId: Number(chatId),
+      manifestationId: tenantId,
+      gpsStatoConsenso: consent === true,
+      awaitingGpsAfterStato: false,
+    },
+    { merge: true },
+  );
+}
+
+export async function setTelegramUserAwaitingGpsAfterStato(tenantId, chatId, awaiting) {
+  await telegramUsersCollection(tenantId).doc(String(chatId)).set(
+    {
+      chatId: Number(chatId),
+      manifestationId: tenantId,
+      awaitingGpsAfterStato: awaiting === true,
     },
     { merge: true },
   );

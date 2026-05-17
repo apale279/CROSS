@@ -13,6 +13,12 @@ import {
 } from './_lib/telegramStatoFlow.js';
 import { isTelegramBotEnabled } from './_lib/telegramFirestore.js';
 import { handleSosCommand, isSosTelegramText } from './_lib/telegramSosFlow.js';
+import {
+  handleGpsCommand,
+  handleGpsConsentCallback,
+  handleGpsSendNowCallback,
+  handleLocationMessage,
+} from './_lib/telegramGpsFlow.js';
 
 export default async function handler(req, res) {
   if (req.method === 'GET') {
@@ -55,6 +61,12 @@ export default async function handler(req, res) {
 
     if (update.callback_query) {
       const cq = update.callback_query;
+      if (await handleGpsConsentCallback(cq, tenantId)) {
+        return res.status(200).json({ ok: true });
+      }
+      if (await handleGpsSendNowCallback(cq, tenantId)) {
+        return res.status(200).json({ ok: true });
+      }
       if (await handleStatoAdvanceCallback(cq, tenantId)) {
         return res.status(200).json({ ok: true });
       }
@@ -65,7 +77,7 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: true });
     }
 
-    const msg = update.message;
+    const msg = update.message ?? update.edited_message;
     if (!msg) {
       return res.status(200).json({ ok: true, ignored: true });
     }
@@ -76,7 +88,14 @@ export default async function handler(req, res) {
     const isStart = /^\/start(\s|$|@)/i.test(text);
     const isCambiaPassword = /^\/cambiapassword(\s|$|@)/i.test(text) || /^CAMBIA\s+PASSWORD$/i.test(text);
     const isStato = /^\/stato(\s|$|@)/i.test(text);
+    const isGps = /^\/gps(\s|$|@)/i.test(text);
     const isSos = isSosTelegramText(text);
+
+    if (msg.location && enabled) {
+      if (await handleLocationMessage(chatId, tenantId, msg)) {
+        return res.status(200).json({ ok: true });
+      }
+    }
 
     if (isStart) {
       await handleStart(chatId, tenantId, enabled);
@@ -104,6 +123,14 @@ export default async function handler(req, res) {
         return res.status(200).json({ ok: true });
       }
       await handleSosCommand(chatId, tenantId, msg.from);
+      return res.status(200).json({ ok: true });
+    }
+
+    if (isGps) {
+      if (!enabled) {
+        return res.status(200).json({ ok: true });
+      }
+      await handleGpsCommand(chatId, tenantId);
       return res.status(200).json({ ok: true });
     }
 

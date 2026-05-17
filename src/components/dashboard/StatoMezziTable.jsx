@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { DEFAULT_IMPOSTAZIONI } from '../../constants';
 import { useImpostazioni } from '../../hooks/useImpostazioni';
 import { mezzoStazionamentoLabel } from '../../lib/mezzoDisplay';
+import { mezzoPosizioneRealeCoordinate } from '../../lib/mezzoPosizione';
 import { emojiForTipoMezzo, normalizeTipiMezzo } from '../../lib/tipiMezzo';
 import { mezzoRowClass } from '../../utils/formatters';
 
@@ -44,7 +45,14 @@ export function StatoMezziTable({ loading, mezzi, readOnly = false, onOpenMezzo 
                 onClick={interactive ? () => onOpenMezzo(m) : undefined}
                 className={`${mezzoRowClass(m)} ${interactive ? 'cursor-pointer' : ''}`}
               >
-                <td className={`${tdClass} font-mono font-bold`}>{sigla}</td>
+                <td className={`${tdClass} font-mono font-bold`}>
+                  {sigla}
+                  {mezzoPosizioneRealeCoordinate(m) ? (
+                    <span className="ml-1 text-sky-600" title="Posizione reale GPS (Telegram)">
+                      📍
+                    </span>
+                  ) : null}
+                </td>
                 <td className={`${tdClass} max-w-[12rem] text-xs text-slate-700`}>
                   {stazionamento || '—'}
                 </td>

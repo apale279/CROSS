@@ -14,6 +14,7 @@ import {
 import { ensureAuthenticatedOrPrompt, promptForPassword } from './telegramAuth.js';
 import { verifyBotPassword } from './telegramPassword.js';
 import { buildEquipaggioReplyKeyboard } from './telegramKeyboard.js';
+import { promptGpsConsentIfNeeded } from './telegramGpsFlow.js';
 
 export { ensureAuthenticatedOrPrompt, promptForPassword };
 
@@ -47,8 +48,15 @@ export async function handlePasswordText(chatId, tenantId, text, from) {
   const existing = await getTelegramUser(tenantId, chatId);
 
   if (!settings.required) {
-    if (!existing?.mezzo) await sendMezzoPicker(chatId, tenantId);
-    else await sendMessage(chatId, `Sei registrato su <b>${existing.mezzo}</b>. Usa /start per cambiare mezzo.`);
+    if (!existing?.mezzo) {
+      await sendMezzoPicker(chatId, tenantId);
+    } else {
+      await sendMessage(
+        chatId,
+        `Sei registrato su <b>${existing.mezzo}</b>. Usa /start per cambiare mezzo.`,
+      );
+      await promptGpsConsentIfNeeded(chatId, tenantId);
+    }
     return;
   }
 
@@ -58,7 +66,11 @@ export async function handlePasswordText(chatId, tenantId, text, from) {
       await sendMessage(chatId, 'Invia <b>/start</b> per scegliere il mezzo.');
       return;
     }
-    await sendMessage(chatId, `Sei registrato su <b>${existing.mezzo}</b>. Usa /start per cambiare mezzo.`);
+    await sendMessage(
+      chatId,
+      `Sei registrato su <b>${existing.mezzo}</b>. Usa /start per cambiare mezzo.`,
+    );
+    await promptGpsConsentIfNeeded(chatId, tenantId);
     return;
   }
 
@@ -154,7 +166,10 @@ export async function handleMezzoCallback(callbackQuery, tenantId) {
     chatId,
     `Perfetto! Riceverai le missioni per <b>${mezzo}</b> qui.\n\n` +
       `• <b>/stato</b> — aggiorna stato missione\n` +
-      `• <b>🚨 SOS / EMERGENZA</b> — allarme immediato alla centrale`,
+      `• <b>🚨 SOS / EMERGENZA</b> — allarme immediato alla centrale\n` +
+      `• <b>/gps</b> — gestione posizione GPS`,
     { reply_markup: buildEquipaggioReplyKeyboard() },
   );
+
+  await promptGpsConsentIfNeeded(chatId, tenantId);
 }

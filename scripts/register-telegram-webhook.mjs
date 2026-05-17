@@ -20,7 +20,10 @@ if (!token || !base) {
 const url = new URL(`${base}/api/telegram-webhook`);
 if (tenant) url.searchParams.set('tenant', tenant);
 
-const body = { url: url.toString(), allowed_updates: ['message', 'callback_query'] };
+const body = {
+  url: url.toString(),
+  allowed_updates: ['message', 'edited_message', 'callback_query'],
+};
 if (secret) body.secret_token = secret;
 
 const res = await fetch(`https://api.telegram.org/bot${token}/setWebhook`, {
