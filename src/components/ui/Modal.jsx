@@ -1,9 +1,10 @@
+import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 
 export function Modal({ title, onClose, children, wide = false }) {
-  return (
+  return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4"
+      className="fixed inset-0 z-[2000] flex items-center justify-center bg-slate-900/50 p-4"
       onClick={onClose}
       role="presentation"
     >
@@ -31,6 +32,7 @@ export function Modal({ title, onClose, children, wide = false }) {
         </div>
         <div className="p-5">{children}</div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

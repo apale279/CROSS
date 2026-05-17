@@ -59,11 +59,27 @@ function MapDropLayer({ imageSize, onDropMezzo }) {
   return null;
 }
 
-const MARKER_SIZE = 48;
+const MARKER_MIN_W = 34;
+const MARKER_MAX_W = 96;
+const MARKER_H = 22;
 
-function markerFontSize(sigla) {
-  const len = Math.max(String(sigla).length, 1);
-  return Math.max(7, Math.min(12, Math.floor((MARKER_SIZE - 10) / len) + 4));
+function escapeHtml(text) {
+  return String(text)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function markerLayout(sigla) {
+  const text = String(sigla);
+  const len = Math.max(text.length, 1);
+  const fontPx = len <= 6 ? 11 : len <= 10 ? 10 : 9;
+  const w = Math.min(
+    MARKER_MAX_W,
+    Math.max(MARKER_MIN_W, Math.ceil(len * fontPx * 0.62) + 10),
+  );
+  return { w, h: MARKER_H, fontPx };
 }
 
 function isOutsideBoard(lat, lng, height, width) {
@@ -77,14 +93,14 @@ function MezzoTacticalMarker({ mezzo, imageSize, onMoved, onRemoved, onSelect, s
 
   const sigla = mezzo.sigla ?? mezzo._docId;
   const { lat, lng } = percentToLatLng(coord.x, coord.y, imageSize.height, imageSize.width);
-  const fontPx = markerFontSize(sigla);
-  const half = MARKER_SIZE / 2;
+  const { w, h, fontPx } = markerLayout(sigla);
+  const safeSigla = escapeHtml(sigla);
 
   const icon = L.divIcon({
     className: '',
-    html: `<div class="cross-mezzo-marker ${selected ? 'cross-mezzo-marker--selected' : ''}" style="--marker-font:${fontPx}px"><span>${sigla}</span></div>`,
-    iconSize: [MARKER_SIZE, MARKER_SIZE],
-    iconAnchor: [half, half],
+    html: `<div class="cross-mezzo-marker ${selected ? 'cross-mezzo-marker--selected' : ''}" style="--marker-font:${fontPx}px;width:${w}px;height:${h}px"><span>${safeSigla}</span></div>`,
+    iconSize: [w, h],
+    iconAnchor: [w / 2, h / 2],
   });
 
   return (
