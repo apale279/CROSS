@@ -10,18 +10,20 @@ export function mezzoPosizioneRealeCoordinate(mezzo) {
  * - In missione attiva: posizione reale GPS (Telegram), altrimenti stazionamento.
  * - Senza missione: solo stazionamento.
  */
-export function mezzoMapCoordinate(mezzo, onMission = false) {
+export function mezzoMapCoordinate(mezzo, onMission = false, gpsTrackingEnabled = true) {
   const stazionamento = parseCoordinate(mezzo?.stazionamento?.coordinate);
-  const posizioneReale = mezzoPosizioneRealeCoordinate(mezzo);
+  const posizioneReale = gpsTrackingEnabled ? mezzoPosizioneRealeCoordinate(mezzo) : null;
   if (onMission) {
     return posizioneReale ?? stazionamento ?? null;
   }
   return stazionamento ?? null;
 }
 
-/** Marker mappa usa GPS reale (solo se in missione e coordinate presenti). */
-export function mezzoMapUsesPosizioneReale(mezzo, onMission) {
-  return onMission && Boolean(mezzoPosizioneRealeCoordinate(mezzo));
+/** Marker mappa usa GPS reale (solo se tracking ON, in missione e coordinate presenti). */
+export function mezzoMapUsesPosizioneReale(mezzo, onMission, gpsTrackingEnabled = true) {
+  return (
+    gpsTrackingEnabled && onMission && Boolean(mezzoPosizioneRealeCoordinate(mezzo))
+  );
 }
 
 function formatTimestamp(ts) {

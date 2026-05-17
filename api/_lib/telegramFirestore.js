@@ -26,6 +26,12 @@ export async function isTelegramBotEnabled(tenantId) {
   return data?.telegramBotEnabled === true;
 }
 
+/** Tracking GPS da Telegram (default ON se campo assente). */
+export async function isTelegramGpsTrackingEnabled(tenantId) {
+  const data = await readImpostazioniData(tenantId);
+  return data?.telegramGpsTrackingEnabled !== false;
+}
+
 export async function getTelegramAuthSettings(tenantId) {
   const data = await readImpostazioniData(tenantId);
   return parseTelegramPasswordSettings(data ?? {});

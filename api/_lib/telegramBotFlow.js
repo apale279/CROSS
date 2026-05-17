@@ -15,6 +15,7 @@ import { ensureAuthenticatedOrPrompt, promptForPassword } from './telegramAuth.j
 import { verifyBotPassword } from './telegramPassword.js';
 import { buildEquipaggioReplyKeyboard } from './telegramKeyboard.js';
 import { mezzoRichiedeGpsTelegram } from './mezzoTacticalBoard.js';
+import { isTelegramGpsTrackingEnabled } from './telegramFirestore.js';
 import { promptGpsConsentIfNeeded } from './telegramGpsFlow.js';
 
 export { ensureAuthenticatedOrPrompt, promptForPassword };
@@ -163,7 +164,8 @@ export async function handleMezzoCallback(callbackQuery, tenantId) {
   });
 
   await answerCallbackQuery(callbackQuery.id, `Registrato su ${mezzo}`);
-  const richiedeGps = await mezzoRichiedeGpsTelegram(tenantId, mezzo);
+  const trackingOn = await isTelegramGpsTrackingEnabled(tenantId);
+  const richiedeGps = trackingOn && (await mezzoRichiedeGpsTelegram(tenantId, mezzo));
   const righe = [
     `Perfetto! Riceverai le missioni per <b>${mezzo}</b> qui.\n`,
     `• <b>/stato</b> — aggiorna stato missione`,

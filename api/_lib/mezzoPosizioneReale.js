@@ -1,6 +1,7 @@
 import { FieldValue } from 'firebase-admin/firestore';
 import { getAdminDb } from './firebaseAdmin.js';
 import { resolveMezzoSiglaForTelegram } from './mezzoResolve.js';
+import { isTelegramGpsTrackingEnabled } from './telegramFirestore.js';
 
 function mezzoRef(tenantId, sigla) {
   return getAdminDb()
@@ -17,6 +18,10 @@ function mezzoRef(tenantId, sigla) {
  * @param {string} [meta.fonte]
  */
 export async function updateMezzoPosizioneReale(tenantId, siglaRaw, lat, lng, meta = {}) {
+  if (!(await isTelegramGpsTrackingEnabled(tenantId))) {
+    throw new Error('Tracking GPS disattivato in Impostazioni → Telegram');
+  }
+
   const s = await resolveMezzoSiglaForTelegram(tenantId, String(siglaRaw ?? '').trim());
   if (!s || !Number.isFinite(lat) || !Number.isFinite(lng)) {
     throw new Error('Sigla o coordinate non valide');

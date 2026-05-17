@@ -50,6 +50,8 @@ export const DEFAULT_IMPOSTAZIONI = {
   luogo_fisico: '',
   /** Se true, webhook e invio missioni Telegram sono consentiti. */
   telegramBotEnabled: false,
+  /** Se false, niente posizione reale da Telegram e mappa solo stazionamento. */
+  telegramGpsTrackingEnabled: true,
   /** Incrementato a ogni cambio password bot; i client Telegram devono allinearsi. */
   telegramPasswordEpoch: 0,
 };

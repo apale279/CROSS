@@ -93,6 +93,7 @@ export function OpsMap({ eventi, mezzi, missioni = [], onSelect, readOnly = fals
     [impostazioni.tipiMezzo],
   );
   const mezziInMissione = useMemo(() => mezziConMissioneAttiva(missioni), [missioni]);
+  const gpsTrackingEnabled = impostazioni?.telegramGpsTrackingEnabled !== false;
 
   const { center, zoom, markers, eventPositions } = useMemo(() => {
     const list = [];
@@ -107,7 +108,7 @@ export function OpsMap({ eventi, mezzi, missioni = [], onSelect, readOnly = fals
     });
     mezzi.forEach((m) => {
       const onMission = mezzoIsOnMissioneAttiva(m, mezziInMissione);
-      const pos = mezzoMapCoordinate(m, onMission);
+      const pos = mezzoMapCoordinate(m, onMission, gpsTrackingEnabled);
       if (pos) {
         list.push({
           pos,
@@ -115,7 +116,7 @@ export function OpsMap({ eventi, mezzi, missioni = [], onSelect, readOnly = fals
           data: m,
           emoji: emojiForTipoMezzo(m.tipo, tipiMezzo),
           onMission,
-          usesGps: mezzoMapUsesPosizioneReale(m, onMission),
+          usesGps: mezzoMapUsesPosizioneReale(m, onMission, gpsTrackingEnabled),
         });
       }
     });
@@ -147,7 +148,7 @@ export function OpsMap({ eventi, mezzi, missioni = [], onSelect, readOnly = fals
       markers: list,
       eventPositions: eventOnly,
     };
-  }, [eventi, mezzi, mezziInMissione, impostazioni, tipiMezzo]);
+  }, [eventi, mezzi, mezziInMissione, gpsTrackingEnabled, impostazioni, tipiMezzo]);
 
   if (loadError) {
     return (

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useManifestazioneId } from '../../context/ManifestazioneContext';
+import { useImpostazioni } from '../../hooks/useImpostazioni';
 import {
   MEZZO_STATO_DISPONIBILE,
   MEZZO_STATO_NON_DISPONIBILE,
@@ -19,6 +20,8 @@ import { btnDanger, btnSecondary, inputClass } from '../ui/FormField';
 /** Scheda mezzo (modale dashboard): dettaglio + modifica stato disponibilità. */
 export function MezzoScheda({ mezzo, onDeleted, readOnly = false }) {
   const manifestationId = useManifestazioneId();
+  const { impostazioni } = useImpostazioni();
+  const gpsTrackingEnabled = impostazioni?.telegramGpsTrackingEnabled !== false;
   const [savingStato, setSavingStato] = useState(false);
   const [savingDettaglio, setSavingDettaglio] = useState(false);
   const [dettaglioDraft, setDettaglioDraft] = useState(mezzo?.dettaglio_stazionamento ?? '');
@@ -109,7 +112,12 @@ export function MezzoScheda({ mezzo, onDeleted, readOnly = false }) {
           label="Solo esterno"
           value={mezzo.solamente_esterno === true ? 'Sì' : 'No'}
         />
-        <PosizioneRealeRow coord={posReale} label={posRealeLabel} fonte={mezzo.posizioneReale?.fonte} />
+        <PosizioneRealeRow
+          coord={posReale}
+          label={posRealeLabel}
+          fonte={mezzo.posizioneReale?.fonte}
+          trackingEnabled={gpsTrackingEnabled}
+        />
         <EquipaggioList equipaggio={mezzo.equipaggio} />
       </dl>
     );
@@ -192,7 +200,12 @@ export function MezzoScheda({ mezzo, onDeleted, readOnly = false }) {
         </>
       )}
 
-      <PosizioneRealeRow coord={posReale} label={posRealeLabel} fonte={mezzo.posizioneReale?.fonte} />
+      <PosizioneRealeRow
+        coord={posReale}
+        label={posRealeLabel}
+        fonte={mezzo.posizioneReale?.fonte}
+        trackingEnabled={gpsTrackingEnabled}
+      />
 
       <EquipaggioList equipaggio={mezzo.equipaggio} />
 
@@ -242,13 +255,22 @@ function Row({ label, value, mono, children }) {
   );
 }
 
-function PosizioneRealeRow({ coord, label, fonte }) {
+function PosizioneRealeRow({ coord, label, fonte, trackingEnabled = true }) {
   const mapsUrl = coord
     ? `https://www.google.com/maps/search/?api=1&query=${coord.lat},${coord.lng}`
     : null;
   return (
     <Row label="Posizione reale mezzo">
-      {label ? (
+      {!trackingEnabled ? (
+        <span className="text-slate-500">
+          Tracking GPS disattivato in Impostazioni → Telegram. In mappa si usa lo stazionamento.
+          {label ? (
+            <span className="mt-1 block font-mono text-xs text-slate-400">
+              Ultimo rilevamento (non aggiornato): {label}
+            </span>
+          ) : null}
+        </span>
+      ) : label ? (
         <span>
           <span className="font-mono">{label}</span>
           {fonte === 'telegram' && (

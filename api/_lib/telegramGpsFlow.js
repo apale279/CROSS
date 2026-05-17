@@ -7,11 +7,23 @@ import {
 import { buildEquipaggioReplyKeyboard } from './telegramKeyboard.js';
 import {
   getTelegramUser,
+  isTelegramGpsTrackingEnabled,
   setTelegramUserAwaitingGpsAfterStato,
   setTelegramUserGpsConsent,
 } from './telegramFirestore.js';
 
 export const GPS_CONSENT_PREFIX = 'gps_consent:';
+
+export const MSG_GPS_TRACKING_DISATTIVATO =
+  'ℹ️ Il <b>tracking GPS</b> è <b>disattivato</b> dalla centrale (Impostazioni → Telegram). La posizione del mezzo resta quella di stazionamento.';
+
+async function gpsTrackingAttivo(tenantId, chatId) {
+  if (await isTelegramGpsTrackingEnabled(tenantId)) return true;
+  await sendMessage(chatId, MSG_GPS_TRACKING_DISATTIVATO, {
+    reply_markup: buildEquipaggioReplyKeyboard(),
+  });
+  return false;
+}
 
 export function buildLocationRequestKeyboard() {
   return {
@@ -33,6 +45,8 @@ export function buildGpsConsentKeyboard() {
 }
 
 export async function promptGpsConsentIfNeeded(chatId, tenantId) {
+  if (!(await isTelegramGpsTrackingEnabled(tenantId))) return;
+
   const user = await getTelegramUser(tenantId, chatId);
   const mezzo = user?.mezzo?.trim();
   if (!mezzo) return;
@@ -64,6 +78,14 @@ export async function handleGpsConsentCallback(callbackQuery, tenantId) {
   const chatId = callbackQuery.message?.chat?.id ?? callbackQuery.from?.id;
   if (!chatId) return false;
 
+  if (!(await isTelegramGpsTrackingEnabled(tenantId))) {
+    await answerCallbackQuery(callbackQuery.id, 'Tracking GPS disattivato');
+    await sendMessage(chatId, MSG_GPS_TRACKING_DISATTIVATO, {
+      reply_markup: buildEquipaggioReplyKeyboard(),
+    });
+    return true;
+  }
+
   const consent = choice === 'yes';
   await setTelegramUserGpsConsent(tenantId, chatId, consent);
 
@@ -92,6 +114,8 @@ export async function handleGpsConsentCallback(callbackQuery, tenantId) {
 
 /** Dopo avanzamento stato: chiedi posizione se l\'equipaggio ha dato consenso. */
 export async function promptGpsAfterStatoAdvance(chatId, tenantId) {
+  if (!(await isTelegramGpsTrackingEnabled(tenantId))) return;
+
   const user = await getTelegramUser(tenantId, chatId);
   const mezzo = user?.mezzo?.trim();
   if (user?.gpsStatoConsenso !== true || !mezzo) return;
@@ -123,6 +147,8 @@ function extractLocation(loc) {
 export async function handleLocationMessage(chatId, tenantId, message) {
   const loc = extractLocation(message?.location);
   if (!loc) return false;
+
+  if (!(await gpsTrackingAttivo(tenantId, chatId))) return true;
 
   const user = await getTelegramUser(tenantId, chatId);
   const mezzo = user?.mezzo?.trim();
@@ -161,6 +187,8 @@ export async function handleGpsCommand(chatId, tenantId) {
     await sendMessage(chatId, 'Prima invia <b>/start</b> e scegli il mezzo.');
     return;
   }
+
+  if (!(await gpsTrackingAttivo(tenantId, chatId))) return;
 
   if (!(await mezzoRichiedeGpsTelegram(tenantId, mezzo))) {
     await sendMessage(chatId, MSG_GPS_NON_RICHIESTO_PIANTINA, {
@@ -201,6 +229,14 @@ export async function handleGpsSendNowCallback(callbackQuery, tenantId) {
 
   const chatId = callbackQuery.message?.chat?.id ?? callbackQuery.from?.id;
   if (!chatId) return false;
+
+  if (!(await isTelegramGpsTrackingEnabled(tenantId))) {
+    await answerCallbackQuery(callbackQuery.id, 'Tracking GPS disattivato');
+    await sendMessage(chatId, MSG_GPS_TRACKING_DISATTIVATO, {
+      reply_markup: buildEquipaggioReplyKeyboard(),
+    });
+    return true;
+  }
 
   const user = await getTelegramUser(tenantId, chatId);
   const mezzo = user?.mezzo?.trim();

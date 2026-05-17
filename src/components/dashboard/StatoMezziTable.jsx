@@ -16,6 +16,7 @@ export function StatoMezziTable({ loading, mezzi, readOnly = false, onOpenMezzo 
     () => normalizeTipiMezzo(impostazioni.tipiMezzo ?? DEFAULT_IMPOSTAZIONI.tipiMezzo),
     [impostazioni.tipiMezzo],
   );
+  const gpsTrackingEnabled = impostazioni?.telegramGpsTrackingEnabled !== false;
 
   return (
     <table className="w-full border-collapse">
@@ -47,7 +48,7 @@ export function StatoMezziTable({ loading, mezzi, readOnly = false, onOpenMezzo 
               >
                 <td className={`${tdClass} font-mono font-bold`}>
                   {sigla}
-                  {mezzoPosizioneRealeCoordinate(m) ? (
+                  {gpsTrackingEnabled && mezzoPosizioneRealeCoordinate(m) ? (
                     <span className="ml-1 text-sky-600" title="Posizione reale GPS (Telegram)">
                       📍
                     </span>

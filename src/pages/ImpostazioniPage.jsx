@@ -10,6 +10,7 @@ import { TelegramBotPasswordEditor } from '../components/impostazioni/TelegramBo
 import { InfoLuogoPanel } from '../components/impostazioni/InfoLuogoPanel';
 import { GlobalLogoutPuliziaPanel } from '../components/impostazioni/GlobalLogoutPuliziaPanel';
 import { TelegramForceLogoutPanel } from '../components/impostazioni/TelegramForceLogoutPanel';
+import { TelegramGpsTrackingToggle } from '../components/impostazioni/TelegramGpsTrackingToggle';
 
 const ALTRE_LISTE = {
   listaOspedali: 'Lista ospedali',
@@ -50,6 +51,7 @@ export default function ImpostazioniPage() {
 
       {tab === 'telegram' && (
         <div className="grid gap-4">
+          <TelegramGpsTrackingToggle />
           <TelegramBotPasswordEditor />
           <TelegramForceLogoutPanel />
           <GlobalLogoutPuliziaPanel />
