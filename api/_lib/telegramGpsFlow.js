@@ -75,6 +75,8 @@ export async function handleGpsConsentCallback(callbackQuery, tenantId) {
   if (!data.startsWith(GPS_CONSENT_PREFIX)) return false;
 
   const choice = data.slice(GPS_CONSENT_PREFIX.length);
+  if (choice !== 'yes' && choice !== 'no') return false;
+
   const chatId = callbackQuery.message?.chat?.id ?? callbackQuery.from?.id;
   if (!chatId) return false;
 

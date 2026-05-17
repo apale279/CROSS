@@ -32,6 +32,8 @@ export function useDiarioTelegramBroadcast() {
         } else {
           alert(`Nota inviata a ${res.sent} di ${res.total} equipaggi.`);
         }
+      } catch (err) {
+        alert(err.message ?? 'Errore invio Telegram');
       } finally {
         setBroadcasting(false);
       }

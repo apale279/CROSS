@@ -6,6 +6,7 @@ import 'leaflet/dist/leaflet.css';
 import { useManifestazioneId } from '../../context/ManifestazioneContext';
 import { patchEvento } from '../../services/eventiService';
 import { patchMezzo } from '../../services/mezziService';
+import { siglaInMezziMissione } from '../../lib/mezzoMissione';
 import {
   eventoOnTacticalBoard,
   imageBoundsFromDimensions,
@@ -329,7 +330,7 @@ export function TabelloneTattico({
             onSelect={onSelectMezzo}
             onMoved={placeMezzo}
             onRemoved={removeMezzoFromBoard}
-            occupato={mezziOccupati?.has(sigla)}
+            occupato={siglaInMezziMissione(sigla, mezziOccupati)}
           />
         );
       })}

@@ -33,7 +33,7 @@ export async function getMezzoForTelegram(tenantId, mezzoRaw) {
 /** Equipaggio su mezzo in piantina: niente richiesta GPS Telegram. */
 export async function mezzoRichiedeGpsTelegram(tenantId, mezzoRaw) {
   const mezzo = await getMezzoForTelegram(tenantId, mezzoRaw);
-  if (!mezzo) return true;
+  if (!mezzo) return false;
   return !mezzoOnTacticalBoard(mezzo);
 }
 

@@ -14,7 +14,7 @@ async function verifyFirebaseUser(req) {
 
 function formatNotaBroadcastHtml(titolo, testo) {
   const t = escapeHtml(titolo);
-  const body = escapeHtml(testo).replace(/\n/g, '\n');
+  const body = escapeHtml(testo);
   return `📢 <b>NOTA DIARIO — CENTRALE</b>\n\n<b>${t}</b>${body ? `\n\n${body}` : ''}`;
 }
 

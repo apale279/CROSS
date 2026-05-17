@@ -1,5 +1,6 @@
 import { GripVertical } from 'lucide-react';
 import { MEZZO_STATO_DISPONIBILE } from '../../lib/mezzoStati';
+import { siglaInMezziMissione } from '../../lib/mezzoMissione';
 import { mezzoOnTacticalBoard } from '../../lib/tacticalBoard';
 import { mezzoRowClass } from '../../utils/formatters';
 
@@ -25,7 +26,7 @@ export function MezziPilaSidebar({ mezzi, mezziOccupati, selectedSigla, onSelect
         {inPila.map((m) => {
           const sigla = m.sigla ?? m._docId;
           const selected = selectedSigla === sigla;
-          const occupato = mezziOccupati?.has(sigla);
+          const occupato = siglaInMezziMissione(sigla, mezziOccupati);
           return (
             <li key={sigla} className="mb-1.5">
               <button
