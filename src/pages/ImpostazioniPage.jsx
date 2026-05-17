@@ -8,6 +8,7 @@ import { MappaDashboardCentroEditor } from '../components/impostazioni/MappaDash
 import { TelegramBotPasswordEditor } from '../components/impostazioni/TelegramBotPasswordEditor';
 import { InfoLuogoPanel } from '../components/impostazioni/InfoLuogoPanel';
 import { GlobalLogoutPuliziaPanel } from '../components/impostazioni/GlobalLogoutPuliziaPanel';
+import { TelegramForceLogoutPanel } from '../components/impostazioni/TelegramForceLogoutPanel';
 
 const ALTRE_LISTE = {
   tipiMezzo: 'Tipo mezzo',
@@ -41,19 +42,16 @@ export default function ImpostazioniPage() {
         <button type="button" className={tabClass(tab === 'telegram')} onClick={() => setTab('telegram')}>
           Telegram
         </button>
-        <button type="button" className={tabClass(tab === 'admin')} onClick={() => setTab('admin')}>
-          Amministrazione
-        </button>
       </nav>
 
       {tab === 'eventi' && <ImpostazioniEventiPanel />}
 
       {tab === 'infoLuogo' && <InfoLuogoPanel />}
 
-      {tab === 'telegram' && <TelegramBotPasswordEditor />}
-
-      {tab === 'admin' && (
+      {tab === 'telegram' && (
         <div className="grid gap-4">
+          <TelegramBotPasswordEditor />
+          <TelegramForceLogoutPanel />
           <GlobalLogoutPuliziaPanel />
         </div>
       )}

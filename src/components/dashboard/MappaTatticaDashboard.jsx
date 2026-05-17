@@ -3,6 +3,7 @@ import { useImpostazioni } from '../../hooks/useImpostazioni';
 import { useEventoScheda } from '../../context/EventoSchedaContext';
 import { useManifestazioneId } from '../../context/ManifestazioneContext';
 import { mezziConMissioneAttiva, isMissioneAttiva } from '../../lib/mezzoMissione';
+import { filterMezziMappaTattica } from '../../lib/mezzoFilters';
 import { buildStatoChangeFields } from '../../lib/missionStoricoStati';
 import { patchMissione } from '../../services/missioniService';
 import { TabelloneTattico } from '../tactical/TabelloneTattico';
@@ -18,6 +19,7 @@ export function MappaTatticaDashboard({ eventi, missioni, mezzi }) {
   const piantinaUrl = impostazioni.piantina_url ?? null;
 
   const eventiAperti = useMemo(() => eventi.filter((e) => e.stato !== false), [eventi]);
+  const mezziTattica = useMemo(() => filterMezziMappaTattica(mezzi), [mezzi]);
   const mezziOccupati = useMemo(() => mezziConMissioneAttiva(missioni), [missioni]);
 
   const [eventoDocId, setEventoDocId] = useState('');
@@ -107,7 +109,7 @@ export function MappaTatticaDashboard({ eventi, missioni, mezzi }) {
           <TabelloneTattico
             piantinaUrl={piantinaUrl}
             eventi={eventiAperti}
-            mezzi={mezzi}
+            mezzi={mezziTattica}
             mezziOccupati={mezziOccupati}
             selectedEventoDocId={evento?._docId ?? ''}
             selectedSigla={selectedSigla}
@@ -120,7 +122,7 @@ export function MappaTatticaDashboard({ eventi, missioni, mezzi }) {
           />
         </div>
         <MezziPilaSidebar
-          mezzi={mezzi}
+          mezzi={mezziTattica}
           mezziOccupati={mezziOccupati}
           selectedSigla={selectedSigla}
           onSelect={(m) => setSelectedMezzo(m)}

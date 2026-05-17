@@ -4,6 +4,7 @@ import { GoogleMapsProvider } from '../../context/GoogleMapsContext';
 import { RouteErrorBoundary } from '../ui/RouteErrorFallback';
 import { AppHeader } from './AppHeader';
 import { ActivityRouteListener } from '../auth/ActivityRouteListener';
+import { SosAlertListener } from '../sos/SosAlertListener';
 
 export function DashboardLayout() {
   const { pathname } = useLocation();
@@ -13,6 +14,7 @@ export function DashboardLayout() {
     <GoogleMapsProvider>
       <EventoSchedaProvider>
         <ActivityRouteListener />
+        <SosAlertListener />
         <div className="flex h-screen flex-col bg-slate-100">
           <AppHeader />
           <main

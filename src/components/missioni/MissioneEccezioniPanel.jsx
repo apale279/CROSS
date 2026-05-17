@@ -171,7 +171,7 @@ export function MissioneEccezioniPanel({
 
   return (
     <details className="rounded-lg border border-amber-200 bg-amber-50/50">
-      <summary className="cursor-pointer px-4 py-2.5 text-sm font-bold uppercase text-amber-900">
+      <summary className="cursor-pointer list-none px-4 py-2.5 text-sm font-bold uppercase text-amber-900 marker:content-none [&::-webkit-details-marker]:hidden">
         Eccezioni operative
       </summary>
       <div className="space-y-4 border-t border-amber-200/80 p-4 pt-3">

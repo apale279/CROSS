@@ -11,6 +11,7 @@ import {
   handleStatoSelectCallback,
 } from './_lib/telegramStatoFlow.js';
 import { isTelegramBotEnabled } from './_lib/telegramFirestore.js';
+import { handleSosCommand, isSosTelegramText } from './_lib/telegramSosFlow.js';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -54,6 +55,7 @@ export default async function handler(req, res) {
     const isStart = /^\/start(\s|$|@)/i.test(text);
     const isCambiaPassword = /^\/cambiapassword(\s|$|@)/i.test(text) || /^CAMBIA\s+PASSWORD$/i.test(text);
     const isStato = /^\/stato(\s|$|@)/i.test(text);
+    const isSos = isSosTelegramText(text);
 
     if (isStart) {
       await handleStart(chatId, tenantId, enabled);
@@ -73,6 +75,14 @@ export default async function handler(req, res) {
         return res.status(200).json({ ok: true });
       }
       await handleStatoCommand(chatId, tenantId);
+      return res.status(200).json({ ok: true });
+    }
+
+    if (isSos) {
+      if (!enabled) {
+        return res.status(200).json({ ok: true });
+      }
+      await handleSosCommand(chatId, tenantId, msg.from);
       return res.status(200).json({ ok: true });
     }
 

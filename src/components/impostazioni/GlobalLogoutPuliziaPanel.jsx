@@ -1,8 +1,7 @@
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AlertTriangle, X } from 'lucide-react';
-import { useManifestazioneId } from '../../context/ManifestazioneContext';
-import { executeGlobalLogoutAndTelegramWipe } from '../../services/globalLogoutService';
+import { executeTelegramBotWipeOnly } from '../../services/globalLogoutService';
 import { btnPrimary, btnSecondary } from '../ui/FormField';
 
 function ConfirmModal({ title, children, tone = 'default', onCancel, onConfirm, confirmLabel }) {
@@ -67,7 +66,6 @@ function ConfirmModal({ title, children, tone = 'default', onCancel, onConfirm, 
 }
 
 export function GlobalLogoutPuliziaPanel() {
-  const manifestationId = useManifestazioneId();
   const [step, setStep] = useState(null);
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState(null);
@@ -79,8 +77,8 @@ export function GlobalLogoutPuliziaPanel() {
     setError(null);
     setResult(null);
     try {
-      const res = await executeGlobalLogoutAndTelegramWipe(manifestationId);
-      setResult(res);
+      const telegram = await executeTelegramBotWipeOnly();
+      setResult(telegram);
     } catch (e) {
       setError(e?.message ?? String(e));
     } finally {
@@ -92,11 +90,12 @@ export function GlobalLogoutPuliziaPanel() {
     <section className="rounded-lg border-2 border-red-300 bg-red-50/90 p-4">
       <h3 className="flex items-center gap-2 text-sm font-bold uppercase text-red-950">
         <AlertTriangle className="h-4 w-4 shrink-0" aria-hidden />
-        Console amministrazione
+        Logout globale Telegram
       </h3>
       <p className="mt-2 text-sm text-red-950/90">
-        Disconnette istantaneamente tutti gli operatori (sessioni mezzi e account), cancella i
-        messaggi missione su Telegram e azzera le associazioni equipaggio del bot.
+        Chiude le sessioni bot Telegram, cancella i messaggi missione dai telefoni degli equipaggi e
+        azzera le associazioni mezzo. <strong>Non disconnette</strong> gli operatori dall&apos;app web
+        CROSS.
       </p>
 
       {error && (
@@ -106,16 +105,15 @@ export function GlobalLogoutPuliziaPanel() {
       )}
       {result && (
         <p className="mt-2 rounded border border-emerald-300 bg-white px-2 py-1 text-xs text-emerald-900">
-          Completato: {result.mezziCleared} mezzi, {result.usersCleared} profili utente. Telegram:{' '}
-          {result.telegram?.messagesDeleted ?? 0} messaggi rimossi,{' '}
-          {result.telegram?.telegramUsersDeleted ?? 0} utenti bot resettati.
-          {busy ? '' : ' Verrai disconnesso a breve se ancora connesso.'}
+          Completato: {result.messagesDeleted ?? 0} messaggi rimossi,{' '}
+          {result.telegramUsersDeleted ?? 0} utenti bot resettati, {result.chatsNotified ?? 0} chat
+          avvisate.
         </p>
       )}
 
       <button
         type="button"
-        disabled={busy || !manifestationId}
+        disabled={busy}
         onClick={() => {
           setError(null);
           setResult(null);
@@ -128,17 +126,15 @@ export function GlobalLogoutPuliziaPanel() {
 
       {step === 1 && (
         <ConfirmModal
-          title="Conferma logout globale"
+          title="Conferma pulizia Telegram"
           onCancel={() => setStep(null)}
           onConfirm={() => setStep(2)}
           confirmLabel="Conferma"
         >
-          <p>
-            Sei sicuro di voler disconnettere tutti i dispositivi e ripulire i dati?
-          </p>
+          <p>Sei sicuro di voler chiudere tutte le sessioni bot e ripulire i messaggi Telegram?</p>
           <p className="text-slate-600">
-            Verranno azzerate le sessioni attive su mezzi e profili utente, quindi verrà avviata la
-            cancellazione dei messaggi Telegram collegati alle missioni.
+            Gli operatori restano connessi all&apos;app web; verranno disconnessi solo i dispositivi
+            Telegram e i messaggi missione verranno eliminati.
           </p>
         </ConfirmModal>
       )}
@@ -152,12 +148,8 @@ export function GlobalLogoutPuliziaPanel() {
           confirmLabel="Procedi"
         >
           <p className="font-semibold">
-            Azione irreversibile. Tutti gli operatori sul campo verranno buttati fuori
-            dall&apos;applicazione. Vuoi procedere davvero?
-          </p>
-          <p className="text-red-100/90">
-            I messaggi missione su Telegram verranno eliminati dai dispositivi e le sessioni bot
-            verranno resettate.
+            Azione irreversibile. Tutti i messaggi missione su Telegram verranno cancellati e le
+            sessioni equipaggio chiuse. Procedere?
           </p>
         </ConfirmModal>
       )}

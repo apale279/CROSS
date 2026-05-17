@@ -1,8 +1,5 @@
 import { auth } from '../firebaseConfig';
-import {
-  clearAllMezziSessionTokens,
-  clearAllUserSessionTokens,
-} from './deviceSessionService';
+import { apiUrl } from '../lib/apiUrl';
 
 async function authHeaders() {
   const user = auth.currentUser;
@@ -14,30 +11,32 @@ async function authHeaders() {
   };
 }
 
-/**
- * Logout globale: azzera sessioni mezzi + profili, poi wipe messaggi Telegram.
- */
-export async function executeGlobalLogoutAndTelegramWipe(manifestationId) {
-  const mezziCleared = await clearAllMezziSessionTokens(manifestationId);
-  const usersCleared = await clearAllUserSessionTokens(manifestationId);
-
+/** Solo bot Telegram: cancella messaggi missione e svuota sessioni equipaggio (non disconnette l'app web). */
+export async function executeTelegramBotWipeOnly() {
   const headers = await authHeaders();
-  const res = await fetch('/api/telegram-wipe', {
+  const res = await fetch(apiUrl('/api/telegram-wipe'), {
     method: 'POST',
     headers,
     body: JSON.stringify({}),
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    throw new Error(
-      data.error ??
-        `Pulizia Telegram fallita (${res.status}). Sessioni già azzerate su Firestore.`,
-    );
+    throw new Error(data.error ?? `Pulizia Telegram fallita (${res.status})`);
   }
+  return data;
+}
 
-  return {
-    mezziCleared,
-    usersCleared,
-    telegram: data,
-  };
+/** Fine evento: logout forzato di tutti gli utenti Telegram (mantiene i messaggi). */
+export async function forceTelegramBotLogout() {
+  const headers = await authHeaders();
+  const res = await fetch(apiUrl('/api/telegram-force-logout'), {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({}),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(data.error ?? `Logout bot fallito (${res.status})`);
+  }
+  return data;
 }

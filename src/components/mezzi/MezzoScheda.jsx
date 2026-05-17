@@ -1,14 +1,16 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useManifestazioneId } from '../../context/ManifestazioneContext';
-import { MEZZO_STATO_DISPONIBILE } from '../../lib/mezzoStati';
+import {
+  MEZZO_STATO_DISPONIBILE,
+  MEZZO_STATO_NON_DISPONIBILE,
+} from '../../lib/mezzoStati';
 import { parseCoordinate } from '../../lib/googleMaps';
 import { formatPercentPosition, mezzoOnTacticalBoard } from '../../lib/tacticalBoard';
 import { deleteField } from 'firebase/firestore';
 import { deleteMezzo, patchMezzo } from '../../services/mezziService';
 import { confirmDelete } from '../../utils/confirmDelete';
 import { btnDanger, btnSecondary, inputClass } from '../ui/FormField';
-import { MezzoStatoSelect } from './MezzoStatoSelect';
 
 /** Scheda mezzo (modale dashboard): dettaglio + modifica stato disponibilità. */
 export function MezzoScheda({ mezzo, onDeleted }) {
@@ -29,8 +31,7 @@ export function MezzoScheda({ mezzo, onDeleted }) {
   const posLabel = formatPercentPosition(mezzo.coordinate_stazionamento);
   const stato = mezzo.statoMezzo ?? MEZZO_STATO_DISPONIBILE;
 
-  const handleStatoChange = async (e) => {
-    const statoMezzo = e.target.value;
+  const setStatoMezzo = async (statoMezzo) => {
     if (statoMezzo === (mezzo.statoMezzo ?? MEZZO_STATO_DISPONIBILE)) return;
     setSavingStato(true);
     try {
@@ -40,6 +41,15 @@ export function MezzoScheda({ mezzo, onDeleted }) {
       alert('Errore aggiornamento stato mezzo: ' + err.message);
     } finally {
       setSavingStato(false);
+    }
+  };
+
+  const toggleSolamenteEsterno = async (checked) => {
+    try {
+      await patchMezzo(manifestationId, sigla, { solamente_esterno: checked });
+    } catch (err) {
+      console.error(err);
+      alert('Errore: ' + err.message);
     }
   };
 
@@ -69,8 +79,36 @@ export function MezzoScheda({ mezzo, onDeleted }) {
       <Row label="Targa" value={mezzo.targa || '—'} />
       <Row label="Radio" value={mezzo.radio || '—'} />
       <Row label="Stato mezzo">
-        <MezzoStatoSelect value={stato} onChange={handleStatoChange} saving={savingStato} />
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            disabled={savingStato}
+            onClick={() => void setStatoMezzo(MEZZO_STATO_DISPONIBILE)}
+            className={`rounded-lg border-2 px-3 py-1.5 text-xs font-bold uppercase ${
+              stato === MEZZO_STATO_DISPONIBILE
+                ? 'border-emerald-600 bg-emerald-600 text-white'
+                : 'border-slate-300 bg-white text-slate-700 hover:border-emerald-400'
+            }`}
+          >
+            Disponibile
+          </button>
+          <button
+            type="button"
+            disabled={savingStato}
+            onClick={() => void setStatoMezzo(MEZZO_STATO_NON_DISPONIBILE)}
+            className={`rounded-lg border-2 px-3 py-1.5 text-xs font-bold uppercase ${
+              stato === MEZZO_STATO_NON_DISPONIBILE
+                ? 'border-slate-600 bg-slate-600 text-white'
+                : 'border-slate-300 bg-white text-slate-700 hover:border-slate-500'
+            }`}
+          >
+            Non disponibile
+          </button>
+        </div>
         {savingStato && <span className="mt-1 block text-xs text-slate-500">Salvataggio…</span>}
+        {stato !== MEZZO_STATO_DISPONIBILE && stato !== MEZZO_STATO_NON_DISPONIBILE && (
+          <span className="mt-1 block text-xs text-amber-800">Stato da missione: {stato}</span>
+        )}
       </Row>
       <Row label="Operativo" value={mezzo.operativo !== false ? 'Sì' : 'No'} />
       {mezzo.operativo === false && <Row label="Note" value={mezzo.noteOperativo || '—'} />}
@@ -112,6 +150,22 @@ export function MezzoScheda({ mezzo, onDeleted }) {
       )}
 
       <EquipaggioList equipaggio={mezzo.equipaggio} />
+
+      <label className="flex cursor-pointer items-start gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-800">
+        <input
+          type="checkbox"
+          className="mt-0.5"
+          checked={mezzo.solamente_esterno === true}
+          onChange={(e) => void toggleSolamenteEsterno(e.target.checked)}
+        />
+        <span>
+          <span className="font-semibold">Mezzo solamente esterno</span>
+          <span className="mt-0.5 block text-xs text-slate-500">
+            Non compare nella pila mezzi della mappa tattica (solo supporto esterno).
+          </span>
+        </span>
+      </label>
+
       <div className="flex flex-wrap gap-2 pt-2">
         <Link to="/mezzi" className={`${btnSecondary} inline-block text-center`}>
           Pagina mezzi

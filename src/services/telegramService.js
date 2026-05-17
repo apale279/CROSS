@@ -1,4 +1,5 @@
 import { auth } from '../firebaseConfig';
+import { apiUrl } from '../lib/apiUrl';
 import { buildMissionTelegramPayload } from '../lib/telegramMissionPayload';
 
 async function authHeaders() {
@@ -22,7 +23,7 @@ export async function sendMissionToTelegram(mezzoId, missione, evento = null) {
   const missionePayload = buildMissionTelegramPayload(missione, evento);
   const headers = await authHeaders();
 
-  const res = await fetch('/api/telegram-send', {
+  const res = await fetch(apiUrl('/api/telegram-send'), {
     method: 'POST',
     headers,
     body: JSON.stringify({
@@ -52,7 +53,7 @@ export function notifyTelegramStatoFromCentrale(missionDocId) {
   void (async () => {
     try {
       const headers = await authHeaders();
-      await fetch('/api/telegram-notify-stato', {
+      await fetch(apiUrl('/api/telegram-notify-stato'), {
         method: 'POST',
         headers,
         body: JSON.stringify({ missionDocId: id }),
@@ -65,7 +66,7 @@ export function notifyTelegramStatoFromCentrale(missionDocId) {
 
 export async function setTelegramBotPassword(password, { notifyUsers = true } = {}) {
   const headers = await authHeaders();
-  const res = await fetch('/api/telegram-set-password', {
+  const res = await fetch(apiUrl('/api/telegram-set-password'), {
     method: 'POST',
     headers,
     body: JSON.stringify({ password, notifyUsers }),

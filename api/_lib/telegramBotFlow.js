@@ -13,6 +13,7 @@ import {
 } from './telegramFirestore.js';
 import { ensureAuthenticatedOrPrompt, promptForPassword } from './telegramAuth.js';
 import { verifyBotPassword } from './telegramPassword.js';
+import { buildEquipaggioReplyKeyboard } from './telegramKeyboard.js';
 
 export { ensureAuthenticatedOrPrompt, promptForPassword };
 
@@ -151,6 +152,9 @@ export async function handleMezzoCallback(callbackQuery, tenantId) {
   await answerCallbackQuery(callbackQuery.id, `Registrato su ${mezzo}`);
   await sendMessage(
     chatId,
-    `Perfetto! Riceverai le missioni per <b>${mezzo}</b> qui.\n\nPer aggiornare lo stato missione: <b>/stato</b> oppure il pulsante sotto ogni missione.`,
+    `Perfetto! Riceverai le missioni per <b>${mezzo}</b> qui.\n\n` +
+      `• <b>/stato</b> — aggiorna stato missione\n` +
+      `• <b>🚨 SOS / EMERGENZA</b> — allarme immediato alla centrale`,
+    { reply_markup: buildEquipaggioReplyKeyboard() },
   );
 }
