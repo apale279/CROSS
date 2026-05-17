@@ -5,11 +5,38 @@ import { AddressPicker } from '../maps/AddressPicker';
 import { LuogoFisicoField } from '../maps/LuogoFisicoField';
 import { ColoreIndicator } from '../ui/ColoreIndicator';
 import { FormField, inputClass, selectClass } from '../ui/FormField';
+import { eventoColonnaIndirizzo } from '../../lib/eventoDisplay';
 
-export function EventoDettaglioForm({ values, onPatch, onCommitLocation, readOnlyId }) {
+export function EventoDettaglioForm({
+  values,
+  onPatch,
+  onCommitLocation,
+  readOnlyId,
+  readOnly = false,
+}) {
   const { impostazioni, loading } = useImpostazioni();
 
   if (loading) return null;
+
+  if (readOnly) {
+    const indirizzo = values.indirizzo || eventoColonnaIndirizzo(values) || '—';
+    return (
+      <dl className="space-y-3 text-sm">
+        {readOnlyId && (
+          <div>
+            <dt className="font-medium text-slate-500">ID evento</dt>
+            <dd className="font-mono text-lg font-bold text-sky-700">{readOnlyId}</dd>
+          </div>
+        )}
+        <Row label="Tipo evento" value={values.tipoEvento || '—'} />
+        <Row label="Dettaglio" value={values.dettaglioEvento || '—'} />
+        <Row label="Colore" value={values.colore || '—'} />
+        <Row label="Luogo fisico" value={values.luogo_fisico || '—'} />
+        <Row label="Indirizzo" value={indirizzo} />
+        <Row label="Note" value={values.noteEvento || '—'} />
+      </dl>
+    );
+  }
 
   const tipo = values.tipoEvento ?? impostazioni.tipiEvento[0] ?? '';
   const opzioniDettaglio = dettagliPerTipoEvento(impostazioni, tipo);
@@ -121,6 +148,15 @@ export function EventoDettaglioForm({ values, onPatch, onCommitLocation, readOnl
           onChange={(e) => onPatch({ noteEvento: e.target.value })}
         />
       </FormField>
+    </div>
+  );
+}
+
+function Row({ label, value }) {
+  return (
+    <div className="grid grid-cols-3 gap-2 border-b border-slate-100 pb-2">
+      <dt className="font-medium text-slate-500">{label}</dt>
+      <dd className="col-span-2 text-slate-900">{value}</dd>
     </div>
   );
 }

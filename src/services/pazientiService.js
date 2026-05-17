@@ -75,6 +75,7 @@ export async function transitionPazienteArrivatoHTransaction(manifestationId, pa
     t.update(ref, {
       stato: 'ARRIVATO H',
       arrivatoHAt: Timestamp.now(),
+      aperta: false,
     });
   });
 }
@@ -89,7 +90,7 @@ function payloadValutazioneRow(v) {
     base.msbDetails = normalizeMsbDetails(v.msbDetails);
     return base;
   }
-  return { ...base, msbDetails: null };
+  return { ...base, msbDetails: null, mezzo: v.mezzo ?? '' };
 }
 
 export async function createPaziente(manifestationId, payload, existingPazienti) {

@@ -1,5 +1,5 @@
 import { getAdminAuth } from './_lib/firebaseAdmin.js';
-import { getTelegramTenantId } from './_lib/env.js';
+import { requireTenant } from './_lib/resolveTenant.js';
 import {
   invalidateAllTelegramAuth,
   setTelegramBotPassword,
@@ -23,9 +23,10 @@ export default async function handler(req, res) {
 
   try {
     await verifyFirebaseUser(req);
-    const tenantId = getTelegramTenantId();
-    const password = String(req.body?.password ?? '').trim();
-    const notify = req.body?.notifyUsers !== false;
+    const body = req.body ?? {};
+    const tenantId = requireTenant(req, body);
+    const password = String(body.password ?? '').trim();
+    const notify = body.notifyUsers !== false;
 
     if (!password) {
       await setTelegramBotPassword(tenantId, null);

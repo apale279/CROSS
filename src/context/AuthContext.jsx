@@ -6,20 +6,12 @@ import {
   useMemo,
   useState,
 } from 'react';
-import {
-  createUserWithEmailAndPassword,
-  onAuthStateChanged,
-  signInWithEmailAndPassword,
-  signOut,
-  updateProfile,
-} from 'firebase/auth';
+import { onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import { auth, db } from '../firebaseConfig';
 import { COLLECTIONS } from '../lib/firestorePaths';
 import { useTenantContext } from './TenantContext';
-import { authEmailFromNomeUtente, normalizeNomeUtente } from '../lib/authIdentity';
 import { logUserActivity } from '../services/activityLogService';
-import { createUserProfile } from '../services/userProfileService';
 import { ensureUserSessionToken } from '../services/deviceSessionService';
 import { writeStoredUserSessionToken } from '../lib/deviceSession';
 
@@ -89,49 +81,24 @@ export function AuthProvider({ children }) {
     [tenantId, user, profile],
   );
 
-  const register = useCallback(
-    async ({ nome, nomeUtente, password }) => {
-      if (!tenantId) throw new Error('Manifestazione non disponibile.');
-      const email = authEmailFromNomeUtente(nomeUtente, tenantId);
-      const nomeUtenteNorm = normalizeNomeUtente(nomeUtente);
-      const cred = await createUserWithEmailAndPassword(auth, email, password);
-      const nomeTrim = nome?.trim() ?? '';
-      await updateProfile(cred.user, { displayName: nomeTrim });
-      await createUserProfile(tenantId, cred.user.uid, {
-        nome: nomeTrim,
-        nomeUtente: nomeUtenteNorm,
-      });
-      const sessionToken = await ensureUserSessionToken(tenantId, cred.user.uid);
-      writeStoredUserSessionToken(tenantId, cred.user.uid, sessionToken);
-
-      await logUserActivity(tenantId, {
-        uid: cred.user.uid,
-        nomeUtente: nomeUtenteNorm,
-        nome: nomeTrim,
-        type: 'REGISTER',
-        detail: null,
-        path:
-          typeof window !== 'undefined'
-            ? `${window.location.pathname}${window.location.search}`
-            : null,
-      });
-    },
-    [tenantId],
-  );
-
   const login = useCallback(
-    async ({ nomeUtente, password }) => {
+    async ({ email, password }) => {
       if (!tenantId) throw new Error('Manifestazione non disponibile.');
-      const email = authEmailFromNomeUtente(nomeUtente, tenantId);
-      const nomeUtenteNorm = normalizeNomeUtente(nomeUtente);
-      const cred = await signInWithEmailAndPassword(auth, email, password);
+      const emailNorm = String(email ?? '').trim();
+      if (!emailNorm) throw new Error('Inserisci l\'indirizzo email.');
+      const cred = await signInWithEmailAndPassword(auth, emailNorm, password);
       const sessionToken = await ensureUserSessionToken(tenantId, cred.user.uid);
       writeStoredUserSessionToken(tenantId, cred.user.uid, sessionToken);
 
+      const profSnap = await getDoc(
+        doc(db, COLLECTIONS.manifestazioni, tenantId, 'userProfiles', cred.user.uid),
+      );
+      const prof = profSnap.exists() ? profSnap.data() : {};
+
       await logUserActivity(tenantId, {
         uid: cred.user.uid,
-        nomeUtente: nomeUtenteNorm,
-        nome: cred.user.displayName ?? null,
+        nomeUtente: prof.nomeUtente ?? null,
+        nome: prof.nome ?? cred.user.displayName ?? null,
         type: 'LOGIN',
         detail: null,
         path:
@@ -172,12 +139,11 @@ export function AuthProvider({ children }) {
       user,
       profile,
       loading,
-      register,
       login,
       logout,
       logActivity,
     }),
-    [user, profile, loading, register, login, logout, logActivity],
+    [user, profile, loading, login, logout, logActivity],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

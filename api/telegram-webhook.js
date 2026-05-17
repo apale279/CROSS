@@ -1,4 +1,5 @@
-import { getTelegramTenantId, getWebhookSecret } from './_lib/env.js';
+import { getWebhookSecret } from './_lib/env.js';
+import { requireTenant, resolveTenantFromRequest } from './_lib/resolveTenant.js';
 import {
   handleCambiaPassword,
   handleMezzoCallback,
@@ -14,8 +15,13 @@ import { isTelegramBotEnabled } from './_lib/telegramFirestore.js';
 import { handleSosCommand, isSosTelegramText } from './_lib/telegramSosFlow.js';
 
 export default async function handler(req, res) {
+  if (req.method === 'GET') {
+    const tenant = resolveTenantFromRequest(req) || null;
+    return res.status(200).json({ ok: true, service: 'telegram-webhook', tenant });
+  }
+
   if (req.method !== 'POST') {
-    res.setHeader('Allow', 'POST');
+    res.setHeader('Allow', 'GET, POST');
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
@@ -28,7 +34,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const tenantId = getTelegramTenantId();
+    const tenantId = requireTenant(req);
     const update = req.body ?? {};
     const enabled = await isTelegramBotEnabled(tenantId);
 

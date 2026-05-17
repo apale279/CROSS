@@ -1,11 +1,16 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Maximize2 } from 'lucide-react';
-import { DEFAULT_IMPOSTAZIONI } from '../constants';
 import { COLLECTIONS } from '../lib/firestorePaths';
 import { useManifestazioneCollection } from '../hooks/useManifestazioneCollection';
 import { useEventoScheda } from '../context/EventoSchedaContext';
 import { useManifestazioneId } from '../context/ManifestazioneContext';
 import { useImpostazioni } from '../hooks/useImpostazioni';
+import { useOperativoDashboardData } from '../hooks/useOperativoDashboardData';
+import { PopOutButton } from '../components/ui/PopOutButton';
+import { MinimizeToDockButton } from '../components/ui/MinimizeToDockButton';
+import { KioskDockBar } from '../components/dashboard/KioskDockBar';
+import { useKioskPopOutContext } from '../context/KioskPopOutContext';
+import { StatoMezziTable } from '../components/dashboard/StatoMezziTable';
 import { TelegramBotToggle } from '../components/telegram/TelegramBotToggle';
 import { buildStatoChangeFields } from '../lib/missionStoricoStati';
 import { patchMissione } from '../services/missioniService';
@@ -20,12 +25,6 @@ import { Modal } from '../components/ui/Modal';
 import { DiarioImportantTicker } from '../components/diario/DiarioImportantTicker';
 import { DiarioNotaModal } from '../components/diario/DiarioNotaModal';
 import { useDiarioNotaActions } from '../hooks/useDiarioNotaActions';
-import { mezzoRowClass } from '../utils/formatters';
-import {
-  missioniPerEvento,
-  pazientiPerEvento,
-  eventoSenzaCoperturaMissione,
-} from '../lib/eventoLinks';
 import { nextStatoMissione } from '../utils/missionStati';
 import {
   DEFAULT_DASHBOARD_LAYOUT,
@@ -33,18 +32,22 @@ import {
   saveDashboardLayout,
 } from '../lib/dashboardLayout';
 
-const thClass =
-  'sticky top-0 z-10 bg-slate-100/95 px-3 py-2 text-left text-xs font-bold uppercase text-slate-600 backdrop-blur';
-const tdClass = 'border-t border-slate-200/80 px-3 py-2 text-sm text-slate-900';
-
 export default function DashboardPage() {
   const manifestationId = useManifestazioneId();
   const { impostazioni } = useImpostazioni();
   const telegramEnabled = impostazioni?.telegramBotEnabled === true;
-  const { data: eventi, loading: loadingE } = useManifestazioneCollection(COLLECTIONS.eventi);
-  const { data: missioni, loading: loadingM } = useManifestazioneCollection(COLLECTIONS.missioni);
-  const { data: mezzi, loading: loadingZ } = useManifestazioneCollection(COLLECTIONS.mezzi);
-  const { data: pazienti, loading: loadingP } = useManifestazioneCollection(COLLECTIONS.pazienti);
+  const {
+    eventi,
+    eventiAperti,
+    missioni,
+    mezzi,
+    mezziSorted,
+    operativoBlocks,
+    operativoStats,
+    pazientiCountByEvento,
+    loading,
+    stati,
+  } = useOperativoDashboardData();
   const { data: noteDiario, loading: loadingDiario } = useManifestazioneCollection(
     COLLECTIONS.note_diario,
   );
@@ -66,13 +69,33 @@ export default function DashboardPage() {
   const [zOrder, setZOrder] = useState(['operativo', 'mezzi', 'mappa']);
   const [operativoFullscreen, setOperativoFullscreen] = useState(false);
   const [dashboardView, setDashboardView] = useState('operativo');
+  const {
+    dockedPanelIds,
+    popOutPanel,
+    dockPanel,
+    restorePanel,
+    isPanelVisible,
+  } = useKioskPopOutContext();
+
+  const panelHeaderActions = (panelId, extra = null) => (
+    <>
+      <PopOutButton panelId={panelId} onPopOut={popOutPanel} />
+      <MinimizeToDockButton panelId={panelId} onDock={() => dockPanel(panelId, 'embedded')} />
+      {extra}
+    </>
+  );
 
   useEffect(() => {
     setLayout(loadDashboardLayout(manifestationId));
   }, [manifestationId]);
 
   useEffect(() => {
-    const onReset = () => setLayout({ ...DEFAULT_DASHBOARD_LAYOUT });
+    const onReset = () => {
+      setLayout({ ...DEFAULT_DASHBOARD_LAYOUT });
+      setZOrder(['operativo', 'mezzi', 'mappa']);
+      setOperativoFullscreen(false);
+      setDashboardView('operativo');
+    };
     window.addEventListener('dashboard-layout-reset', onReset);
     return () => window.removeEventListener('dashboard-layout-reset', onReset);
   }, []);
@@ -90,76 +113,6 @@ export default function DashboardPage() {
   }, []);
 
   const zIndexFor = (id) => 10 + zOrder.indexOf(id);
-
-  const eventiAperti = useMemo(() => eventi.filter((e) => e.stato !== false), [eventi]);
-
-  const pazientiCountByEvento = useMemo(() => {
-    const m = new Map();
-    for (const ev of eventiAperti) {
-      m.set(ev._docId, pazientiPerEvento(pazienti, ev).length);
-    }
-    return m;
-  }, [eventiAperti, pazienti]);
-  const missioniAperte = useMemo(() => missioni.filter((m) => m.aperta !== false), [missioni]);
-
-  const sortMissioni = (list) =>
-    list.slice().sort((a, b) => {
-      const cmpM = String(a.idMissione ?? '').localeCompare(String(b.idMissione ?? ''), 'it', {
-        sensitivity: 'base',
-      });
-      if (cmpM !== 0) return cmpM;
-      const mz = String(a.mezzo ?? '').localeCompare(String(b.mezzo ?? ''), 'it', {
-        sensitivity: 'base',
-      });
-      if (mz !== 0) return mz;
-      return (b.apertura?.toMillis?.() ?? 0) - (a.apertura?.toMillis?.() ?? 0);
-    });
-
-  /** Blocchi evento + missioni: evento a sinistra (rowSpan), missioni a destra. */
-  const operativoBlocks = useMemo(() => {
-    const usedMissionIds = new Set();
-    const blocks = [];
-
-    for (const ev of eventiAperti) {
-      const missions = sortMissioni(missioniPerEvento(missioniAperte, ev));
-      missions.forEach((m) => usedMissionIds.add(m._docId));
-      blocks.push({
-        key: `ev-${ev._docId}`,
-        ev,
-        missions,
-        orfano: ev.stato !== false && eventoSenzaCoperturaMissione(missioni, ev),
-      });
-    }
-
-    const orphans = sortMissioni(missioniAperte.filter((m) => !usedMissionIds.has(m._docId)));
-    if (orphans.length) {
-      blocks.push({ key: 'orphan-missions', ev: null, missions: orphans, orfano: false });
-    }
-
-    const blockTime = (b) => {
-      if (b.missions.length) return b.missions[0]?.apertura?.toMillis?.() ?? 0;
-      return b.ev?.apertura?.toMillis?.() ?? 0;
-    };
-    blocks.sort((a, b) => blockTime(b) - blockTime(a));
-    return blocks;
-  }, [eventiAperti, missioniAperte, missioni]);
-
-  const operativoStats = useMemo(() => {
-    const eventCount = operativoBlocks.filter((b) => b.ev).length;
-    const missionCount = operativoBlocks.reduce((s, b) => s + b.missions.length, 0);
-    return { eventCount, missionCount };
-  }, [operativoBlocks]);
-
-  const mezziSorted = useMemo(
-    () =>
-      [...mezzi].sort((a, b) =>
-        (a.sigla ?? a._docId).localeCompare(b.sigla ?? b._docId),
-      ),
-    [mezzi],
-  );
-
-  const loading = loadingE || loadingM || loadingZ || loadingP;
-  const stati = DEFAULT_IMPOSTAZIONI.statiMissione;
 
   const avanzaStatoMissione = async (e, mis) => {
     e.stopPropagation();
@@ -229,7 +182,10 @@ export default function DashboardPage() {
               Mappa tattica
             </button>
           </nav>
-          <TelegramBotToggle />
+          <div className="ml-auto flex flex-wrap items-center gap-2">
+            <KioskDockBar dockedPanelIds={dockedPanelIds} onRestore={restorePanel} />
+            <TelegramBotToggle />
+          </div>
         </div>
         <DiarioImportantTicker
           note={noteDiario}
@@ -244,13 +200,15 @@ export default function DashboardPage() {
         </div>
       ) : (
         <div className="relative min-h-0 flex-1 overflow-hidden">
+      {isPanelVisible('operativo') && (
       <FloatingPanel
         title="Eventi e missioni"
         layout={layout.operativo ?? DEFAULT_DASHBOARD_LAYOUT.operativo}
         zIndex={zIndexFor('operativo')}
         onFocus={() => focusPanel('operativo')}
         onLayoutChange={(patch) => updatePanel('operativo', patch)}
-        headerActions={
+        headerActions={panelHeaderActions(
+          'operativo',
           <button
             type="button"
             onClick={() => setOperativoFullscreen(true)}
@@ -259,14 +217,16 @@ export default function DashboardPage() {
             aria-label="Apri eventi e missioni a tutto schermo"
           >
             <Maximize2 className="h-4 w-4" aria-hidden />
-          </button>
-        }
+          </button>,
+        )}
       >
         {operativoTable}
       </FloatingPanel>
+      )}
 
       {operativoFullscreen && (
         <FullscreenPanel
+          contained
           title="Eventi e missioni"
           subtitle={operativoSubtitle}
           onClose={() => setOperativoFullscreen(false)}
@@ -275,74 +235,31 @@ export default function DashboardPage() {
         </FullscreenPanel>
       )}
 
+      {isPanelVisible('mezzi') && (
       <FloatingPanel
         title="Stato mezzi"
         layout={layout.mezzi}
         zIndex={zIndexFor('mezzi')}
         onFocus={() => focusPanel('mezzi')}
         onLayoutChange={(patch) => updatePanel('mezzi', patch)}
+        headerActions={panelHeaderActions('mezzi')}
       >
-        <table className="w-full border-collapse">
-          <thead>
-            <tr>
-              <th className={thClass}>Sigla</th>
-              <th className={thClass}>Tipo</th>
-              <th className={thClass}>Stato</th>
-              <th className={thClass}>Operativo</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading && (
-              <tr>
-                <td colSpan={4} className={tdClass} />
-              </tr>
-            )}
-            {!loading &&
-              mezziSorted.map((m) => {
-                const sigla = m.sigla ?? m._docId;
-                return (
-                  <tr
-                    key={sigla}
-                    onClick={() => setModal({ type: 'mezzo', data: m })}
-                    className={`cursor-pointer ${mezzoRowClass(m)}`}
-                  >
-                    <td className={`${tdClass} font-mono font-bold`}>{sigla}</td>
-                    <td className={tdClass}>{m.tipo}</td>
-                    <td className={tdClass}>
-                      <span
-                        className={`font-semibold ${
-                          (m.statoMezzo ?? 'Disponibile') === 'Disponibile'
-                            ? 'text-emerald-800'
-                            : 'text-slate-600'
-                        }`}
-                      >
-                        {m.statoMezzo ?? 'Disponibile'}
-                      </span>
-                    </td>
-                    <td className={tdClass}>
-                      <span
-                        className={
-                          m.operativo !== false
-                            ? 'font-semibold text-emerald-800'
-                            : 'font-semibold text-red-800'
-                        }
-                      >
-                        {m.operativo !== false ? 'Sì' : 'No'}
-                      </span>
-                    </td>
-                  </tr>
-                );
-              })}
-          </tbody>
-        </table>
+        <StatoMezziTable
+          loading={loading}
+          mezzi={mezziSorted}
+          onOpenMezzo={(m) => setModal({ type: 'mezzo', data: m })}
+        />
       </FloatingPanel>
+      )}
 
+      {isPanelVisible('mappa') && (
       <FloatingPanel
         title="Mappa"
         layout={layout.mappa}
         zIndex={zIndexFor('mappa')}
         onFocus={() => focusPanel('mappa')}
         onLayoutChange={(patch) => updatePanel('mappa', patch)}
+        headerActions={panelHeaderActions('mappa')}
       >
         <OpsMap
           eventi={eventiAperti}
@@ -353,6 +270,7 @@ export default function DashboardPage() {
           }}
         />
       </FloatingPanel>
+      )}
 
       {modal?.type === 'mezzo' && (
         <Modal

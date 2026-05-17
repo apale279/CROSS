@@ -13,7 +13,7 @@ import { confirmDelete } from '../../utils/confirmDelete';
 import { btnDanger, btnSecondary, inputClass } from '../ui/FormField';
 
 /** Scheda mezzo (modale dashboard): dettaglio + modifica stato disponibilità. */
-export function MezzoScheda({ mezzo, onDeleted }) {
+export function MezzoScheda({ mezzo, onDeleted, readOnly = false }) {
   const manifestationId = useManifestazioneId();
   const [savingStato, setSavingStato] = useState(false);
   const [savingDettaglio, setSavingDettaglio] = useState(false);
@@ -71,6 +71,42 @@ export function MezzoScheda({ mezzo, onDeleted }) {
     if (!window.confirm('Rimuovere il mezzo dalla piantina tattica?')) return;
     await patchMezzo(manifestationId, sigla, { coordinate_stazionamento: deleteField() });
   };
+
+  if (readOnly) {
+    return (
+      <dl className="space-y-3 text-sm">
+        <Row label="Sigla" value={sigla} mono />
+        <Row label="Tipo" value={mezzo.tipo} />
+        <Row label="Targa" value={mezzo.targa || '—'} />
+        <Row label="Radio" value={mezzo.radio || '—'} />
+        <Row label="Stato mezzo" value={stato} />
+        <Row label="Operativo" value={mezzo.operativo !== false ? 'Sì' : 'No'} />
+        {mezzo.operativo === false && <Row label="Note" value={mezzo.noteOperativo || '—'} />}
+        {onBoard ? (
+          <>
+            <Row label="Posizione tattica" value={posLabel ?? '—'} mono />
+            <Row label="Dettaglio stazionamento" value={mezzo.dettaglio_stazionamento || '—'} />
+          </>
+        ) : (
+          <>
+            {mezzo.stazionamento?.luogo_fisico && (
+              <Row label="Luogo fisico" value={mezzo.stazionamento.luogo_fisico} />
+            )}
+            <Row label="Stazionamento" value={mezzo.stazionamento?.indirizzo || '—'} />
+            <Row
+              label="Coordinate"
+              value={coord ? `${coord.lat.toFixed(5)}, ${coord.lng.toFixed(5)}` : '—'}
+            />
+          </>
+        )}
+        <Row
+          label="Solo esterno"
+          value={mezzo.solamente_esterno === true ? 'Sì' : 'No'}
+        />
+        <EquipaggioList equipaggio={mezzo.equipaggio} />
+      </dl>
+    );
+  }
 
   return (
     <dl className="space-y-3 text-sm">

@@ -1,8 +1,11 @@
 import { useEffect } from 'react';
 import { X } from 'lucide-react';
 
-/** Overlay a tutto schermo per liste lunghe (es. eventi e missioni). */
-export function FullscreenPanel({ title, subtitle, onClose, children }) {
+/**
+ * Overlay espanso per liste lunghe.
+ * @param {boolean} [contained] - Se true, riempie solo l'area sotto l'header dashboard (non copre ticker/note).
+ */
+export function FullscreenPanel({ title, subtitle, onClose, children, contained = false }) {
   useEffect(() => {
     const onKey = (e) => {
       if (e.key === 'Escape') onClose();
@@ -13,7 +16,7 @@ export function FullscreenPanel({ title, subtitle, onClose, children }) {
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex flex-col bg-white"
+      className={`${contained ? 'absolute' : 'fixed'} inset-0 z-[100] flex flex-col bg-white`}
       role="dialog"
       aria-modal="true"
       aria-labelledby="fullscreen-panel-title"

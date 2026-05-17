@@ -1,5 +1,5 @@
 import { getAdminAuth } from './_lib/firebaseAdmin.js';
-import { getTelegramTenantId } from './_lib/env.js';
+import { requireTenant } from './_lib/resolveTenant.js';
 import { notifyMissionStatoToTelegram } from './_lib/telegramStatoNotify.js';
 
 async function verifyFirebaseUser(req) {
@@ -19,8 +19,8 @@ export default async function handler(req, res) {
   try {
     await verifyFirebaseUser(req);
 
-    const tenantId = getTelegramTenantId();
     const body = req.body ?? {};
+    const tenantId = requireTenant(req, body);
     const missionDocId = (body.missionDocId ?? body.docId ?? '').trim();
     if (!missionDocId) {
       return res.status(400).json({ error: 'Campo missionDocId obbligatorio' });

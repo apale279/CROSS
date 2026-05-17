@@ -1,5 +1,6 @@
 import { auth } from '../firebaseConfig';
 import { apiUrl } from '../lib/apiUrl';
+import { tenantApiBody } from '../lib/tenantApiBody';
 
 async function authHeaders() {
   const user = auth.currentUser;
@@ -12,12 +13,12 @@ async function authHeaders() {
 }
 
 /** Solo bot Telegram: cancella messaggi missione e svuota sessioni equipaggio (non disconnette l'app web). */
-export async function executeTelegramBotWipeOnly() {
+export async function executeTelegramBotWipeOnly(manifestationId) {
   const headers = await authHeaders();
   const res = await fetch(apiUrl('/api/telegram-wipe'), {
     method: 'POST',
     headers,
-    body: JSON.stringify({}),
+    body: JSON.stringify(tenantApiBody(manifestationId, {})),
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
@@ -27,12 +28,12 @@ export async function executeTelegramBotWipeOnly() {
 }
 
 /** Fine evento: logout forzato di tutti gli utenti Telegram (mantiene i messaggi). */
-export async function forceTelegramBotLogout() {
+export async function forceTelegramBotLogout(manifestationId) {
   const headers = await authHeaders();
   const res = await fetch(apiUrl('/api/telegram-force-logout'), {
     method: 'POST',
     headers,
-    body: JSON.stringify({}),
+    body: JSON.stringify(tenantApiBody(manifestationId, {})),
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {

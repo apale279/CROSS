@@ -54,5 +54,6 @@ export function applyMissioneArrivatoH(paziente) {
   return {
     stato: 'ARRIVATO H',
     arrivatoHAt: Timestamp.now(),
+    aperta: false,
   };
 }

@@ -1,8 +1,10 @@
 import { useState } from 'react';
+import { useManifestazioneId } from '../../context/ManifestazioneContext';
 import { forceTelegramBotLogout } from '../../services/globalLogoutService';
 import { btnSecondary } from '../ui/FormField';
 
 export function TelegramForceLogoutPanel() {
+  const manifestationId = useManifestazioneId();
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState(null);
 
@@ -17,7 +19,7 @@ export function TelegramForceLogoutPanel() {
     setBusy(true);
     setFeedback(null);
     try {
-      const res = await forceTelegramBotLogout();
+      const res = await forceTelegramBotLogout(manifestationId);
       setFeedback({
         type: 'ok',
         message: `${res.invalidated ?? 0} sessioni bot terminate.`,

@@ -28,7 +28,10 @@ export function TelegramBotPasswordEditor() {
     setSaving(true);
     setFeedback(null);
     try {
-      const res = await setTelegramBotPassword(password, { notifyUsers: true });
+      const res = await setTelegramBotPassword(password, {
+        notifyUsers: true,
+        manifestationId,
+      });
       setPassword('');
       setConfirm('');
       setFeedback({
@@ -48,7 +51,7 @@ export function TelegramBotPasswordEditor() {
     }
     setSaving(true);
     try {
-      await setTelegramBotPassword('', { notifyUsers: false });
+      await setTelegramBotPassword('', { notifyUsers: false, manifestationId });
       setFeedback({ type: 'ok', message: 'Password rimossa' });
     } catch (err) {
       setFeedback({ type: 'error', message: err.message ?? 'Errore' });

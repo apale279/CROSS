@@ -44,6 +44,8 @@ export function EventoScheda({
   initialTab,
   onCreated,
   onDeleted,
+  readOnly = false,
+  onOpenMissione,
 }) {
   const isCreate = !evento;
   const manifestazioneId = useManifestazioneId();
@@ -105,10 +107,10 @@ export function EventoScheda({
   const eventoAperto = isCreate || evento.stato !== false;
 
   useEffect(() => {
-    if (isCreate || !evento?._docId || evento.stato === false) return;
+    if (readOnly || isCreate || !evento?._docId || evento.stato === false) return;
     if (!shouldAutoCloseEvento(missioniEvento)) return;
     patchEvento(manifestazioneId, evento._docId, { stato: false });
-  }, [isCreate, evento, missioniEvento, manifestazioneId]);
+  }, [readOnly, isCreate, evento, missioniEvento, manifestazioneId]);
 
   const patch = (fields) => {
     if (isCreate) {
@@ -243,17 +245,19 @@ export function EventoScheda({
               Chiuso: {formatTimestamp(evento.chiusuraIl)}
             </span>
           )}
-          <button
-            type="button"
-            className={`${btnDanger} ml-auto`}
-            onClick={async () => {
-              if (!confirmDelete(`evento ${evento.idEvento}`)) return;
-              await deleteEvento(manifestazioneId, evento._docId);
-              onDeleted?.();
-            }}
-          >
-            Elimina evento
-          </button>
+          {!readOnly && (
+            <button
+              type="button"
+              className={`${btnDanger} ml-auto`}
+              onClick={async () => {
+                if (!confirmDelete(`evento ${evento.idEvento}`)) return;
+                await deleteEvento(manifestazioneId, evento._docId);
+                onDeleted?.();
+              }}
+            >
+              Elimina evento
+            </button>
+          )}
         </div>
       )}
 
@@ -281,6 +285,7 @@ export function EventoScheda({
             onPatch={patch}
             onCommitLocation={commitLocation}
             readOnlyId={evento?.idEvento}
+            readOnly={readOnly}
           />
           {isCreate && (
             <div className="mt-4">
@@ -299,7 +304,7 @@ export function EventoScheda({
 
       {!isCreate && tab === 'missioni' && (
         <div className="space-y-3">
-          {eventoAperto && (
+          {!readOnly && eventoAperto && (
             <button
               type="button"
               className={`${btnPrimary} flex items-center gap-2`}
@@ -309,7 +314,7 @@ export function EventoScheda({
               Nuova missione
             </button>
           )}
-          {showMissioneForm && eventoAperto && (
+          {!readOnly && showMissioneForm && eventoAperto && (
             <form
               onSubmit={handleNuovaMissione}
               className="rounded-lg border border-violet-200 bg-violet-50/50 p-4"
@@ -366,7 +371,16 @@ export function EventoScheda({
               {missioniEvento.map((mis) => (
                 <li
                   key={mis._docId}
-                  className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm"
+                  className={`rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm ${
+                    readOnly && onOpenMissione
+                      ? 'cursor-pointer hover:border-violet-300 hover:bg-violet-50/40'
+                      : ''
+                  }`}
+                  onClick={
+                    readOnly && onOpenMissione ? () => onOpenMissione(mis) : undefined
+                  }
+                  role={readOnly && onOpenMissione ? 'button' : undefined}
+                  tabIndex={readOnly && onOpenMissione ? 0 : undefined}
                 >
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="font-mono font-bold text-violet-700">
@@ -374,23 +388,33 @@ export function EventoScheda({
                     </span>
                     <span className="font-mono">{mis.mezzo}</span>
                   </div>
-                  <select
-                    className={`${selectClass} mt-2`}
-                    value={mis.stato ?? 'ALLERTARE'}
-                    disabled={mis.aperta === false}
-                    onChange={(e) => changeStatoMissione(mis, e.target.value)}
-                  >
-                    {DEFAULT_IMPOSTAZIONI.statiMissione.map((s) => (
-                      <option key={s} value={s}>
-                        {s}
-                      </option>
-                    ))}
-                  </select>
-                  <span
-                    className={`mt-2 inline-block rounded border px-2 py-0.5 text-xs font-bold uppercase ${statoMissioneBadgeClass(mis.stato)}`}
-                  >
-                    {mis.stato}
-                  </span>
+                  {readOnly ? (
+                    <span
+                      className={`mt-2 inline-block rounded border px-2 py-0.5 text-xs font-bold uppercase ${statoMissioneBadgeClass(mis.stato)}`}
+                    >
+                      {mis.stato}
+                    </span>
+                  ) : (
+                    <>
+                      <select
+                        className={`${selectClass} mt-2`}
+                        value={mis.stato ?? 'ALLERTARE'}
+                        disabled={mis.aperta === false}
+                        onChange={(e) => changeStatoMissione(mis, e.target.value)}
+                      >
+                        {DEFAULT_IMPOSTAZIONI.statiMissione.map((s) => (
+                          <option key={s} value={s}>
+                            {s}
+                          </option>
+                        ))}
+                      </select>
+                      <span
+                        className={`mt-2 inline-block rounded border px-2 py-0.5 text-xs font-bold uppercase ${statoMissioneBadgeClass(mis.stato)}`}
+                      >
+                        {mis.stato}
+                      </span>
+                    </>
+                  )}
                 </li>
               ))}
             </ul>
@@ -400,7 +424,7 @@ export function EventoScheda({
 
       {!isCreate && tab === 'pazienti' && (
         <div className="space-y-3">
-          {eventoAperto && (
+          {!readOnly && eventoAperto && (
             <button
               type="button"
               className={`${btnPrimary} flex items-center gap-2`}
@@ -414,6 +438,24 @@ export function EventoScheda({
             <ul className="space-y-2">
               {pazientiEvento.map((paz) => (
                 <li key={paz._docId}>
+                  {readOnly ? (
+                    <div className="w-full rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-mono font-bold text-teal-700">{paz.idPaziente}</span>
+                        <span>
+                          {[paz.cognome, paz.nome].filter(Boolean).join(' ') || '—'}
+                        </span>
+                        {paz.esito && (
+                          <span className="rounded bg-slate-200 px-1.5 py-0.5 text-xs">{paz.esito}</span>
+                        )}
+                        {paz.stato && (
+                          <span className="rounded bg-teal-100 px-1.5 py-0.5 text-xs font-medium text-teal-900">
+                            {paz.stato}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
                   <button
                     type="button"
                     onClick={() => setPazienteModal({ paziente: paz })}
@@ -437,6 +479,7 @@ export function EventoScheda({
                       )}
                     </div>
                   </button>
+                  )}
                 </li>
               ))}
             </ul>
@@ -444,7 +487,7 @@ export function EventoScheda({
         </div>
       )}
 
-      {pazienteModal && (
+      {!readOnly && pazienteModal && (
         <Modal
           title={
             pazienteModal.create
@@ -464,7 +507,7 @@ export function EventoScheda({
         </Modal>
       )}
 
-      {!isCreate && (
+      {!isCreate && !readOnly && (
         <div className="mt-6 border-t border-slate-200 pt-4">
           {eventoAperto ? (
             <>

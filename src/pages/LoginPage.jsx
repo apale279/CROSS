@@ -3,42 +3,47 @@ import { Navigate, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTenantContext } from '../context/TenantContext';
 import { TenantConfigMissing } from '../components/routing/TenantConfigMissing';
-import { validateNomeUtente } from '../lib/authIdentity';
 import { AppLogo } from '../components/brand/AppLogo';
 
 function mapAuthError(code) {
   switch (code) {
     case 'auth/invalid-email':
-      return 'Email o nome utente non valido.';
+      return 'Indirizzo email non valido.';
     case 'auth/user-disabled':
       return 'Account disabilitato.';
     case 'auth/user-not-found':
     case 'auth/wrong-password':
     case 'auth/invalid-credential':
-      return 'Nome utente o password non corretti.';
-    case 'auth/email-already-in-use':
-      return 'Questo nome utente è già registrato per questa manifestazione.';
+      return 'Email o password non corretti.';
     case 'auth/weak-password':
       return 'La password deve essere di almeno 6 caratteri.';
     case 'auth/operation-not-allowed':
       return 'Accesso con email/password non abilitato nel progetto Firebase (Console → Authentication).';
     case 'auth/network-request-failed':
       return 'Errore di rete. Riprova.';
+    case 'auth/too-many-requests':
+      return 'Troppi tentativi. Riprova tra qualche minuto.';
     default:
       return null;
   }
 }
 
+function validateEmail(value) {
+  const email = String(value ?? '').trim();
+  if (!email) return "Inserisci l'indirizzo email.";
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return 'Inserisci un indirizzo email valido.';
+  }
+  return null;
+}
+
 export default function LoginPage() {
   const navigate = useNavigate();
   const { tenantId, loading: tenantLoading } = useTenantContext();
-  const { user, register, login } = useAuth();
+  const { user, login } = useAuth();
 
-  const [mode, setMode] = useState('login');
-  const [nome, setNome] = useState('');
-  const [nomeUtente, setNomeUtente] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [password2, setPassword2] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
 
@@ -61,40 +66,23 @@ export default function LoginPage() {
   const onSubmit = async (e) => {
     e.preventDefault();
     setError(null);
-    if (mode === 'register') {
-      if (!nome.trim()) {
-        setError('Inserisci il nome.');
-        return;
-      }
-      if (password.length < 6) {
-        setError('La password deve essere di almeno 6 caratteri.');
-        return;
-      }
-      if (password !== password2) {
-        setError('Le password non coincidono.');
-        return;
-      }
-    } else if (password.length < 6) {
-      setError('La password deve essere di almeno 6 caratteri.');
+
+    const emailErr = validateEmail(email);
+    if (emailErr) {
+      setError(emailErr);
       return;
     }
-
-    const nomeUtenteErr = validateNomeUtente(nomeUtente);
-    if (nomeUtenteErr) {
-      setError(nomeUtenteErr);
+    if (password.length < 6) {
+      setError('La password deve essere di almeno 6 caratteri.');
       return;
     }
 
     setSubmitting(true);
     try {
-      if (mode === 'register') {
-        await register({ nome: nome.trim(), nomeUtente, password });
-      } else {
-        await login({ nomeUtente, password });
-      }
+      await login({ email: email.trim(), password });
       navigate('/', { replace: true });
     } catch (err) {
-      const msg = mapAuthError(err?.code) ?? err?.message ?? 'Operazione non riuscita.';
+      const msg = mapAuthError(err?.code) ?? err?.message ?? 'Accesso non riuscito.';
       setError(msg);
     } finally {
       setSubmitting(false);
@@ -109,71 +97,20 @@ export default function LoginPage() {
           <p className="text-sm text-slate-600">Accesso operativo</p>
         </div>
 
-        <div className="mt-6 flex rounded-lg border border-slate-200 p-0.5 text-sm font-bold">
-          <button
-            type="button"
-            className={`flex-1 rounded-md py-2 ${
-              mode === 'login' ? 'bg-sky-600 text-white shadow' : 'text-slate-600 hover:bg-slate-50'
-            }`}
-            onClick={() => {
-              setMode('login');
-              setError(null);
-            }}
-          >
-            Accedi
-          </button>
-          <button
-            type="button"
-            className={`flex-1 rounded-md py-2 ${
-              mode === 'register'
-                ? 'bg-sky-600 text-white shadow'
-                : 'text-slate-600 hover:bg-slate-50'
-            }`}
-            onClick={() => {
-              setMode('register');
-              setError(null);
-            }}
-          >
-            Nuovo utente
-          </button>
-        </div>
-
         <form className="mt-6 space-y-4" onSubmit={onSubmit}>
-          {mode === 'register' && (
-            <div>
-              <label htmlFor="login-nome" className="mb-1 block text-xs font-bold uppercase text-slate-600">
-                Nome
-              </label>
-              <input
-                id="login-nome"
-                type="text"
-                autoComplete="name"
-                value={nome}
-                onChange={(ev) => setNome(ev.target.value)}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none ring-sky-500 focus:ring-2"
-                placeholder="Nome e cognome"
-              />
-            </div>
-          )}
           <div>
-            <label htmlFor="login-user" className="mb-1 block text-xs font-bold uppercase text-slate-600">
-              Nome utente
+            <label htmlFor="login-email" className="mb-1 block text-xs font-bold uppercase text-slate-600">
+              Email
             </label>
             <input
-              id="login-user"
-              type="text"
-              autoComplete="username"
-              value={nomeUtente}
-              onChange={(ev) => setNomeUtente(ev.target.value)}
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 font-mono text-sm outline-none ring-sky-500 focus:ring-2"
-              placeholder="mario.rossi"
+              id="login-email"
+              type="email"
+              autoComplete="email"
+              value={email}
+              onChange={(ev) => setEmail(ev.target.value)}
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none ring-sky-500 focus:ring-2"
+              placeholder="nome@esempio.it"
             />
-            <p className="mt-1 text-xs leading-snug text-slate-600">
-              Formato consigliato:{' '}
-              <span className="font-mono text-slate-800">nome.cognome</span>. Nessuno spazio; solo lettere,
-              numeri, <span className="font-mono">.</span>, <span className="font-mono">_</span>,{' '}
-              <span className="font-mono">-</span>.
-            </p>
           </div>
           <div>
             <label htmlFor="login-pass" className="mb-1 block text-xs font-bold uppercase text-slate-600">
@@ -182,27 +119,12 @@ export default function LoginPage() {
             <input
               id="login-pass"
               type="password"
-              autoComplete={mode === 'register' ? 'new-password' : 'current-password'}
+              autoComplete="current-password"
               value={password}
               onChange={(ev) => setPassword(ev.target.value)}
               className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none ring-sky-500 focus:ring-2"
             />
           </div>
-          {mode === 'register' && (
-            <div>
-              <label htmlFor="login-pass2" className="mb-1 block text-xs font-bold uppercase text-slate-600">
-                Ripeti password
-              </label>
-              <input
-                id="login-pass2"
-                type="password"
-                autoComplete="new-password"
-                value={password2}
-                onChange={(ev) => setPassword2(ev.target.value)}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none ring-sky-500 focus:ring-2"
-              />
-            </div>
-          )}
 
           {error && (
             <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">{error}</p>
@@ -213,14 +135,17 @@ export default function LoginPage() {
             disabled={submitting}
             className="w-full rounded-lg bg-sky-600 py-2.5 text-sm font-bold uppercase tracking-wide text-white hover:bg-sky-700 disabled:opacity-60"
           >
-            {submitting ? 'Attendere…' : mode === 'register' ? 'Crea account e accedi' : 'Entra'}
+            {submitting ? 'Attendere…' : 'Entra'}
           </button>
         </form>
 
-        <p className="mt-4 text-center text-xs text-slate-500">
-          La sessione resta attiva su questo dispositivo fino al logout. Navigazione e accessi sono registrati in
-          Firestore nella sotto-collezione{' '}
-          <code className="rounded bg-slate-100 px-1 font-mono text-[10px]">activityLog</code> della manifestazione.
+        <p className="mt-4 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs leading-relaxed text-slate-600">
+          Gli account sono creati solo dall&apos;amministratore in Firebase Authentication. Per assistenza
+          contatta la centrale operativa.
+        </p>
+
+        <p className="mt-3 text-center text-xs text-slate-500">
+          La sessione resta attiva su questo dispositivo fino al logout.
         </p>
       </div>
     </div>

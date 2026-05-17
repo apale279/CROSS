@@ -1,22 +1,26 @@
 import { DEFAULT_IMPOSTAZIONI } from '../../constants';
 import {
-  ESITI_MSB,
   MR_OPTIONS,
   normalizeMsbDetails,
   toggleMeccanica,
 } from '../../lib/msbValutazione';
 import { ColoreIndicator } from '../ui/ColoreIndicator';
 import { FormField, inputClass, selectClass } from '../ui/FormField';
+import { ValutazioneMezzoButtons } from './ValutazioneMezzoButtons';
 
 const avpuOpts = ['A', 'V', 'P', 'U'];
 
-export function MsbValutazioneForm({ msbDetails, onPatch, ospedali, mezziEventoSigle }) {
+export function MsbValutazioneForm({ msbDetails, onPatch, mezziEventoSigle }) {
   const d = normalizeMsbDetails(msbDetails);
-  const transportato = d.esitoMsb === 'Trasportato';
-  const altro = d.esitoMsb === 'Altro';
 
   return (
     <div className="space-y-3 border-l-2 border-teal-300 pl-3">
+      <ValutazioneMezzoButtons
+        mezziSigle={mezziEventoSigle}
+        value={d.mezzoMsb ?? ''}
+        onChange={(mezzoMsb) => onPatch({ mezzoMsb })}
+      />
+
       <FormField label="AVPU">
         <select
           className={selectClass}
@@ -165,74 +169,6 @@ export function MsbValutazioneForm({ msbDetails, onPatch, ospedali, mezziEventoS
           })}
         </div>
       </div>
-
-      <FormField label="Esito">
-        <select
-          className={selectClass}
-          value={d.esitoMsb}
-          onChange={(e) => {
-            const esitoMsb = e.target.value;
-            const next = { esitoMsb };
-            if (esitoMsb !== 'Trasportato') {
-              next.mezzoMsb = '';
-              next.ospedaleDestinazioneMsb = '';
-            }
-            if (esitoMsb !== 'Altro') next.esitoAltroMsb = '';
-            onPatch(next);
-          }}
-        >
-          {ESITI_MSB.map((e) => (
-            <option key={e} value={e}>
-              {e}
-            </option>
-          ))}
-        </select>
-      </FormField>
-
-      {altro && (
-        <FormField label="Specificare">
-          <textarea
-            className={inputClass}
-            rows={2}
-            value={d.esitoAltroMsb ?? ''}
-            onChange={(e) => onPatch({ esitoAltroMsb: e.target.value })}
-          />
-        </FormField>
-      )}
-
-      {transportato && (
-        <>
-          <FormField label="Mezzo">
-            <select
-              className={selectClass}
-              title="Può coincidere con il mezzo del trasporto; più pazienti possono condividere lo stesso mezzo."
-              value={d.mezzoMsb ?? ''}
-              onChange={(e) => onPatch({ mezzoMsb: e.target.value })}
-            >
-              <option value="">—</option>
-              {(mezziEventoSigle ?? []).map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
-            </select>
-          </FormField>
-          <FormField label="H destinazione">
-            <select
-              className={selectClass}
-              value={d.ospedaleDestinazioneMsb ?? ''}
-              onChange={(e) => onPatch({ ospedaleDestinazioneMsb: e.target.value })}
-            >
-              <option value="">—</option>
-              {(ospedali ?? []).map((h) => (
-                <option key={h} value={h}>
-                  {h}
-                </option>
-              ))}
-            </select>
-          </FormField>
-        </>
-      )}
     </div>
   );
 }

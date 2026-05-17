@@ -1,5 +1,5 @@
 import { getAdminAuth } from './_lib/firebaseAdmin.js';
-import { getTelegramTenantId } from './_lib/env.js';
+import { requireTenant } from './_lib/resolveTenant.js';
 import { sendMessage } from './_lib/telegramApi.js';
 import {
   findChatIdsByMezzo,
@@ -29,8 +29,8 @@ export default async function handler(req, res) {
   try {
     await verifyFirebaseUser(req);
 
-    const tenantId = getTelegramTenantId();
     const body = req.body ?? {};
+    const tenantId = requireTenant(req, body);
     const mezzo = (body.mezzo ?? body.mezzo_id ?? '').trim();
     const missione = body.missione ?? body.missione_data ?? body.missioneData;
 

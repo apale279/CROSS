@@ -1,4 +1,5 @@
 import { DEFAULT_IMPOSTAZIONI } from '../constants';
+import { normalizeTipiMezzo } from './tipiMezzo';
 
 /** Unifica dati Firestore con default e migra dettagliEvento → dettagliPerTipoEvento. */
 export function normalizeImpostazioni(data) {
@@ -39,7 +40,12 @@ export function normalizeImpostazioni(data) {
     mappaDashboardDefault = null;
   }
 
-  return { ...merged, dettagliPerTipoEvento: dettagliPerTipo, mappaDashboardDefault };
+  return {
+    ...merged,
+    dettagliPerTipoEvento: dettagliPerTipo,
+    mappaDashboardDefault,
+    tipiMezzo: normalizeTipiMezzo(merged.tipiMezzo),
+  };
 }
 
 export function dettagliPerTipoEvento(impostazioni, tipoEvento) {

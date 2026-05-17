@@ -23,7 +23,15 @@ import { MissioneEccezioniPanel } from './MissioneEccezioniPanel';
 import { useImpostazioni } from '../../hooks/useImpostazioni';
 import { MissioneTelegramSendButton } from '../telegram/MissioneTelegramSendButton';
 
-export function MissioneScheda({ missione, eventi, mezzi, allMissioni, existingEventi, onOpenEvento }) {
+export function MissioneScheda({
+  missione,
+  eventi,
+  mezzi,
+  allMissioni,
+  existingEventi,
+  onOpenEvento,
+  readOnly = false,
+}) {
   const manifestationId = useManifestazioneId();
   const { impostazioni } = useImpostazioni();
   const telegramEnabled = impostazioni?.telegramBotEnabled === true;
@@ -108,6 +116,102 @@ export function MissioneScheda({ missione, eventi, mezzi, allMissioni, existingE
       missione.mezzo,
     );
   };
+
+  if (readOnly) {
+    return (
+      <div className="space-y-4 text-sm">
+        <div className="flex flex-wrap items-center gap-3 border-b border-slate-200 pb-3">
+          <span className="font-mono text-xl font-bold text-slate-900">{missione.idMissione}</span>
+          <span
+            className={`rounded border px-2 py-0.5 text-xs font-bold uppercase ${statoMissioneBadgeClass(missione.stato)}`}
+          >
+            {missione.stato}
+          </span>
+          <span className="font-mono text-xs text-slate-500">{elapsed}</span>
+        </div>
+        <dl className="grid gap-2">
+          <Row label="Evento" value={missione.eventoCorrelato} mono />
+          <Row label="Mezzo" value={missione.mezzo} mono />
+          <Row label="Apertura" value={formatTimestamp(missione.apertura)} />
+          <Row label="Aperta" value={missione.aperta !== false ? 'Sì' : 'No'} />
+          <Row label="Equipaggio" value={missione.equipaggio || '—'} />
+        </dl>
+        {(missione.noteMissione ?? '').trim() ? (
+          <section className="rounded border border-slate-200 bg-slate-50 p-3">
+            <p className="text-xs font-bold uppercase text-slate-600">Note missione</p>
+            <p className="mt-1 whitespace-pre-wrap text-slate-800">{missione.noteMissione}</p>
+          </section>
+        ) : null}
+        <section className="rounded border border-slate-200 bg-slate-50 p-3">
+          <p className="mb-2 text-xs font-bold uppercase text-slate-600">Cronologia stati</p>
+          <ul className="space-y-1">
+            {stati.map((stato) => (
+              <li key={stato} className="flex flex-wrap gap-2 text-xs">
+                <span
+                  className={`font-bold uppercase ${
+                    missione.stato === stato ? 'text-sky-800' : 'text-slate-600'
+                  }`}
+                >
+                  {stato}
+                </span>
+                <span className="font-mono text-slate-500">
+                  {formatTimestamp(
+                    storico[stato] ??
+                      (stato === missione.stato
+                        ? missione.statoDa ?? missione.apertura
+                        : null),
+                  )}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+        {tratte.length > 0 && (
+          <section className="rounded border border-slate-200 bg-slate-50 p-3">
+            <p className="mb-2 text-xs font-bold uppercase text-slate-600">Tratte / tappe</p>
+            <ul className="space-y-2">
+              {tratte.map((t) => (
+                <li key={t.id} className="rounded border border-slate-200 bg-white p-2 text-sm">
+                  <span className="font-mono text-xs text-slate-500">
+                    {formatTimestamp(t.quando)}
+                  </span>
+                  <p className="text-slate-800">{t.descrizione || '—'}</p>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+        {evento && (
+          <section className="rounded border border-slate-200 bg-slate-50 p-3">
+            <p className="mb-2 text-xs font-bold uppercase text-slate-600">Evento collegato</p>
+            <p className="text-slate-800">{evento.indirizzo || '—'}</p>
+            <p className="text-slate-600">
+              {evento.tipoEvento}
+              {evento.dettaglioEvento ? ` — ${evento.dettaglioEvento}` : ''}
+            </p>
+            {onOpenEvento && (
+              <button
+                type="button"
+                className={`${btnSecondary} mt-2`}
+                onClick={() => onOpenEvento(evento)}
+              >
+                Apri scheda evento
+              </button>
+            )}
+          </section>
+        )}
+        {mezzo && (
+          <section className="rounded border border-slate-200 bg-slate-50 p-3">
+            <p className="text-xs font-bold uppercase text-slate-600">Mezzo</p>
+            <p className="font-mono font-semibold">{mezzo.sigla ?? mezzo._docId}</p>
+            <p>
+              {mezzo.tipo} · {mezzo.statoMezzo ?? 'Disponibile'}
+            </p>
+          </section>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4 text-sm">

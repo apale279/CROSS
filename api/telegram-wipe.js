@@ -1,5 +1,5 @@
 import { getAdminAuth } from './_lib/firebaseAdmin.js';
-import { getTelegramTenantId } from './_lib/env.js';
+import { requireTenant } from './_lib/resolveTenant.js';
 import { wipeTelegramForTenant } from './_lib/telegramWipe.js';
 
 async function verifyFirebaseUser(req) {
@@ -18,7 +18,7 @@ export default async function handler(req, res) {
 
   try {
     await verifyFirebaseUser(req);
-    const tenantId = getTelegramTenantId();
+    const tenantId = requireTenant(req, req.body ?? {});
     const result = await wipeTelegramForTenant(tenantId);
     return res.status(200).json({ ok: true, ...result });
   } catch (err) {

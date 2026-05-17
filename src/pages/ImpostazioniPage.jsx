@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { StazionamentiEditor } from '../components/impostazioni/StazionamentiEditor';
 import { ListEditorField } from '../components/impostazioni/ListEditorField';
+import { TipiMezzoEditor } from '../components/impostazioni/TipiMezzoEditor';
 import { ImpostazioniEventiPanel } from '../components/impostazioni/ImpostazioniEventiPanel';
 import { PartecipantiRegistryEditor } from '../components/impostazioni/PartecipantiRegistryEditor';
 import { WipeOpsDangerZone } from '../components/impostazioni/WipeOpsDangerZone';
@@ -11,7 +12,6 @@ import { GlobalLogoutPuliziaPanel } from '../components/impostazioni/GlobalLogou
 import { TelegramForceLogoutPanel } from '../components/impostazioni/TelegramForceLogoutPanel';
 
 const ALTRE_LISTE = {
-  tipiMezzo: 'Tipo mezzo',
   listaOspedali: 'Lista ospedali',
 };
 
@@ -58,6 +58,7 @@ export default function ImpostazioniPage() {
 
       {tab === 'altro' && (
         <div className="grid gap-4">
+          <TipiMezzoEditor />
           {Object.entries(ALTRE_LISTE).map(([key, label]) => (
             <ListEditorField key={key} fieldKey={key} label={label} />
           ))}

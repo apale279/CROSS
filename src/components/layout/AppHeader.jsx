@@ -6,6 +6,7 @@ import { useManifestazione } from '../../hooks/useManifestazione';
 import { useEventoScheda } from '../../context/EventoSchedaContext';
 import { useFirestoreSync } from '../../context/FirestoreSyncContext';
 import { resetDashboardLayout } from '../../lib/dashboardLayout';
+import { useKioskPopOutContextOptional } from '../../context/KioskPopOutContext';
 import { AppLogo } from '../brand/AppLogo';
 
 const navClass = ({ isActive }) =>
@@ -37,6 +38,7 @@ export function AppHeader() {
   const { manifestazione } = useManifestazione();
   const { openNuovoEvento } = useEventoScheda();
   const { online, lastSyncAt, error } = useFirestoreSync();
+  const kioskPopOut = useKioskPopOutContextOptional();
   const [syncLabel, setSyncLabel] = useState('—');
 
   useEffect(() => {
@@ -111,7 +113,10 @@ export function AppHeader() {
           <button
             type="button"
             className={navButtonClass}
-            onClick={() => resetDashboardLayout(tenantId)}
+            onClick={() => {
+              resetDashboardLayout(tenantId);
+              kioskPopOut?.resetAllPanels();
+            }}
           >
             Reset vista
           </button>

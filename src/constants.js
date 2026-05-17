@@ -11,6 +11,8 @@ export const GOOGLE_MAPS_API_KEY = (
   import.meta.env.VITE_GOOGLE_MAPS_API_KEY ?? ''
 ).trim();
 
+import { DEFAULT_TIPI_MEZZO } from './lib/tipiMezzo';
+
 export const ESITO_TRASPORTA = 'Trasporta';
 export const ESITO_ALTRO = 'Altro (specificare)';
 
@@ -19,7 +21,7 @@ export const DEFAULT_IMPOSTAZIONI = {
   tipiEvento: ['Trauma', 'Malore', 'Intossicazione', 'Parto', 'Altro'],
   /** Dettaglio evento per ogni voce di tipiEvento (chiave = nome tipo) */
   dettagliPerTipoEvento: {},
-  tipiMezzo: ['Ambulanza', 'Auto medica', 'Moto medica', 'Unità mobile'],
+  tipiMezzo: DEFAULT_TIPI_MEZZO,
   listaOspedali: [],
   stazionamenti: [],
   /** Corridori da Excel: [{ pettorale, nome, cognome, dataNascita, telefono }] */

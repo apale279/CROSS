@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Plus } from 'lucide-react';
 import { DEFAULT_IMPOSTAZIONI } from '../constants';
 import { useImpostazioni } from '../hooks/useImpostazioni';
@@ -18,6 +18,7 @@ import {
 import { confirmDelete } from '../utils/confirmDelete';
 import { MezzoStatoSelect } from '../components/mezzi/MezzoStatoSelect';
 import { MEZZO_STATO_DISPONIBILE } from '../lib/mezzoStati';
+import { normalizeTipiMezzo } from '../lib/tipiMezzo';
 import {
   FormField,
   btnDanger,
@@ -29,7 +30,7 @@ import {
 
 const emptyForm = (tipiMezzo) => ({
   sigla: '',
-  tipo: tipiMezzo[0] ?? '',
+  tipo: tipiMezzo[0]?.nome ?? '',
   stazionamento: { indirizzo: '', luogo_fisico: '', coordinate: null },
   stazionamentoPredefinito: false,
   targa: '',
@@ -42,11 +43,24 @@ const emptyForm = (tipiMezzo) => ({
 export default function MezziPage() {
   const manifestazioneId = useManifestazioneId();
   const { impostazioni } = useImpostazioni();
-  const tipiMezzo = impostazioni.tipiMezzo ?? DEFAULT_IMPOSTAZIONI.tipiMezzo;
+  const tipiMezzo = useMemo(
+    () => normalizeTipiMezzo(impostazioni.tipiMezzo ?? DEFAULT_IMPOSTAZIONI.tipiMezzo),
+    [impostazioni.tipiMezzo],
+  );
   const stazionamentiPreset = impostazioni.stazionamenti ?? [];
   const { data: mezzi, loading } = useManifestazioneCollection(COLLECTIONS.mezzi);
   const [form, setForm] = useState(() => emptyForm(tipiMezzo));
   const [showForm, setShowForm] = useState(false);
+
+  useEffect(() => {
+    setForm((f) => {
+      if (!tipiMezzo.length) return f;
+      const names = tipiMezzo.map((t) => t.nome);
+      if (f.tipo && names.includes(f.tipo)) return f;
+      return { ...f, tipo: tipiMezzo[0]?.nome ?? '' };
+    });
+  }, [tipiMezzo]);
+
   const [saving, setSaving] = useState(false);
   const [expanded, setExpanded] = useState(null);
 
@@ -83,7 +97,12 @@ export default function MezziPage() {
         <button
           type="button"
           className={`${btnPrimary} flex items-center gap-2`}
-          onClick={() => setShowForm((v) => !v)}
+          onClick={() => {
+            setShowForm((v) => {
+              if (!v) setForm(emptyForm(tipiMezzo));
+              return !v;
+            });
+          }}
         >
           <Plus className="h-4 w-4" />
           Nuovo mezzo
@@ -114,8 +133,8 @@ export default function MezziPage() {
                 onChange={(e) => setForm((f) => ({ ...f, tipo: e.target.value }))}
               >
                 {tipiMezzo.map((t) => (
-                  <option key={t} value={t}>
-                    {t}
+                  <option key={t.nome} value={t.nome}>
+                    {t.emoji} {t.nome}
                   </option>
                 ))}
               </select>
@@ -252,8 +271,8 @@ export default function MezziPage() {
                           onChange={(e) => patch(sigla, { tipo: e.target.value })}
                         >
                           {tipiMezzo.map((t) => (
-                            <option key={t} value={t}>
-                              {t}
+                            <option key={t.nome} value={t.nome}>
+                              {t.emoji} {t.nome}
                             </option>
                           ))}
                         </select>

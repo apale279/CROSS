@@ -38,6 +38,7 @@ import { patchMissioneCodiceColoreFromPaziente } from '../../services/missioniSe
 import { formatTimestamp } from '../../utils/formatters';
 import { FormField, btnPrimary, btnSecondary, inputClass, selectClass } from '../ui/FormField';
 import { MsbValutazioneForm } from './MsbValutazioneForm';
+import { ValutazioneMezzoButtons } from './ValutazioneMezzoButtons';
 
 function emptyDraft() {
   return {
@@ -433,102 +434,6 @@ export function PazienteScheda({
         )}
       </dl>
 
-      <FormField label="Esito">
-        <select
-          className={selectClass}
-          value={draft.esito}
-          onChange={(e) => onEsitoChange(e.target.value)}
-        >
-          <option value="">—</option>
-          {ESITI_PAZIENTE.map((e) => (
-            <option key={e} value={e}>
-              {e}
-            </option>
-          ))}
-        </select>
-      </FormField>
-
-      {showAltro && (
-        <FormField label="Specificare esito">
-          <textarea
-            className={inputClass}
-            rows={2}
-            value={draft.esitoAltro}
-            onChange={(e) => {
-              touchDirty('esitoAltro');
-              setDraft((d) => ({ ...d, esitoAltro: e.target.value }));
-            }}
-            onBlur={(e) =>
-              !isCreate &&
-              patchPatientFields({ esitoAltro: e.target.value }, ['esitoAltro'])
-            }
-          />
-        </FormField>
-      )}
-
-      {trasporta && (
-        <>
-          <FormField label="Mezzo (missioni evento)">
-            <select
-              className={selectClass}
-              title="Più pazienti possono essere associati allo stesso mezzo e alla stessa missione."
-              value={draft.mezzo}
-              onChange={(e) => onMezzoChange(e.target.value)}
-            >
-              <option value="">—</option>
-              {mezziEvento.map((sigla) => (
-                <option key={sigla} value={sigla}>
-                  {sigla}
-                </option>
-              ))}
-            </select>
-            <p className="mt-1 text-[10px] text-slate-500">
-              Stesso veicolo può trasportare più pazienti: usano tutti lo stesso <span className="font-mono">idMissione</span>{' '}
-              della missione aperta su quel mezzo.
-            </p>
-          </FormField>
-          <FormField label="Ospedale destinazione">
-            <select
-              className={selectClass}
-              value={draft.ospedaleDestinazione}
-              onChange={(e) => {
-                touchDirty('ospedaleDestinazione');
-                const ospedaleDestinazione = e.target.value;
-                setDraft((d) => ({ ...d, ospedaleDestinazione }));
-                void patchPatientFields({ ospedaleDestinazione }, ['ospedaleDestinazione']);
-              }}
-            >
-              <option value="">—</option>
-              {ospedali.map((h) => (
-                <option key={h} value={h}>
-                  {h}
-                </option>
-              ))}
-            </select>
-          </FormField>
-          <FormField label="Stato paziente">
-            <select
-              className={selectClass}
-              value={draft.stato}
-              disabled
-              title="Impostato automaticamente in base a esito e mezzo"
-            >
-              {STATI_PAZIENTE.map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
-            </select>
-          </FormField>
-        </>
-      )}
-
-      {!trasporta && draft.esito && (
-        <FormField label="Stato paziente">
-          <p className="font-semibold text-slate-700">{draft.stato || 'ATTESA'}</p>
-        </FormField>
-      )}
-
       <div className="border-t border-slate-200 pt-3">
         <p className="mb-2 text-xs font-bold uppercase text-slate-600">Anagrafica</p>
         <div className="grid gap-3 sm:grid-cols-2">
@@ -687,6 +592,91 @@ export function PazienteScheda({
       </div>
 
       <div className="border-t border-slate-200 pt-3">
+        <p className="mb-2 text-xs font-bold uppercase text-slate-600">Esito e trasporto</p>
+        <div className="mb-4 space-y-3">
+          <FormField label="Esito">
+            <select
+              className={selectClass}
+              value={draft.esito}
+              onChange={(e) => onEsitoChange(e.target.value)}
+            >
+              <option value="">—</option>
+              {ESITI_PAZIENTE.map((e) => (
+                <option key={e} value={e}>
+                  {e}
+                </option>
+              ))}
+            </select>
+          </FormField>
+          {showAltro && (
+            <FormField label="Specificare esito">
+              <textarea
+                className={inputClass}
+                rows={2}
+                value={draft.esitoAltro}
+                onChange={(e) => {
+                  touchDirty('esitoAltro');
+                  setDraft((d) => ({ ...d, esitoAltro: e.target.value }));
+                }}
+                onBlur={(e) =>
+                  !isCreate &&
+                  patchPatientFields({ esitoAltro: e.target.value }, ['esitoAltro'])
+                }
+              />
+            </FormField>
+          )}
+          {trasporta && (
+            <>
+              <FormField label="Mezzo (missioni evento)">
+                <select
+                  className={selectClass}
+                  value={draft.mezzo}
+                  onChange={(e) => onMezzoChange(e.target.value)}
+                >
+                  <option value="">—</option>
+                  {mezziEvento.map((sigla) => (
+                    <option key={sigla} value={sigla}>
+                      {sigla}
+                    </option>
+                  ))}
+                </select>
+              </FormField>
+              <FormField label="Ospedale destinazione">
+                <select
+                  className={selectClass}
+                  value={draft.ospedaleDestinazione}
+                  onChange={(e) => {
+                    touchDirty('ospedaleDestinazione');
+                    const ospedaleDestinazione = e.target.value;
+                    setDraft((d) => ({ ...d, ospedaleDestinazione }));
+                    void patchPatientFields({ ospedaleDestinazione }, ['ospedaleDestinazione']);
+                  }}
+                >
+                  <option value="">—</option>
+                  {ospedali.map((h) => (
+                    <option key={h} value={h}>
+                      {h}
+                    </option>
+                  ))}
+                </select>
+              </FormField>
+              <FormField label="Stato paziente">
+                <select className={selectClass} value={draft.stato} disabled>
+                  {STATI_PAZIENTE.map((s) => (
+                    <option key={s} value={s}>
+                      {s}
+                    </option>
+                  ))}
+                </select>
+              </FormField>
+            </>
+          )}
+          {!trasporta && draft.esito && (
+            <FormField label="Stato paziente">
+              <p className="font-semibold text-slate-700">{draft.stato || 'ATTESA'}</p>
+            </FormField>
+          )}
+        </div>
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <p className="text-xs font-bold uppercase text-slate-600">
             Valutazioni mezzi di soccorso
@@ -746,11 +736,32 @@ export function PazienteScheda({
                 {v.tipo === 'MSB' ? (
                   <MsbValutazioneForm
                     msbDetails={v.msbDetails}
-                    ospedali={ospedali}
                     mezziEventoSigle={mezziEvento}
                     onPatch={(partial) => void patchMsbValutazione(v.id, partial)}
                   />
                 ) : (
+                  <div className="space-y-3">
+                    <ValutazioneMezzoButtons
+                      mezziSigle={mezziEvento}
+                      value={v.mezzo ?? ''}
+                      onChange={(mezzo) => {
+                        if (isCreate) {
+                          setDraft((d) => ({
+                            ...d,
+                            valutazioniSoccorso: (d.valutazioniSoccorso ?? []).map((row) =>
+                              row.id === v.id ? { ...row, mezzo } : row,
+                            ),
+                          }));
+                        } else {
+                          void updateValutazioneSoccorsoDoc(
+                            manifestationId,
+                            patientDocId,
+                            v.id,
+                            { mezzo },
+                          );
+                        }
+                      }}
+                    />
                   <textarea
                     className={inputClass}
                     rows={4}
@@ -786,6 +797,7 @@ export function PazienteScheda({
                       });
                     }}
                   />
+                  </div>
                 )}
               </li>
             ))}

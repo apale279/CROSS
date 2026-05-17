@@ -12,33 +12,50 @@ const thClass =
 const tdClass =
   'border-t border-slate-200/80 px-2 py-0.5 text-sm leading-tight text-slate-900';
 
-function MissioneStatoCell({ mis, onAdvance }) {
+function MissioneStatoCell({ mis, onAdvance, readOnly }) {
   const elapsed = useElapsedSince(mis.statoDa ?? mis.apertura);
   return (
     <td className={`${tdClass} text-right`}>
       <div className="flex items-center justify-end gap-1 whitespace-nowrap">
         <span className="font-mono text-[10px] tabular-nums text-slate-500">{elapsed}</span>
-        <button
-          type="button"
-          onClick={(e) => onAdvance(e, mis)}
-          className={`cursor-pointer rounded border px-2 py-0.5 text-xs font-bold uppercase hover:opacity-80 ${statoMissioneBadgeClass(mis.stato)}`}
-          title="Clic per stato successivo"
-        >
-          {mis.stato}
-        </button>
+        {readOnly ? (
+          <span
+            className={`rounded border px-2 py-0.5 text-xs font-bold uppercase ${statoMissioneBadgeClass(mis.stato)}`}
+          >
+            {mis.stato}
+          </span>
+        ) : (
+          <button
+            type="button"
+            onClick={(e) => onAdvance(e, mis)}
+            className={`cursor-pointer rounded border px-2 py-0.5 text-xs font-bold uppercase hover:opacity-80 ${statoMissioneBadgeClass(mis.stato)}`}
+            title="Clic per stato successivo"
+          >
+            {mis.stato}
+          </button>
+        )}
       </div>
     </td>
   );
 }
 
-function EventoCells({ ev, rowSpan, orfano, pazientiCount, multiMission, onOpenEvento }) {
+function EventoCells({
+  ev,
+  rowSpan,
+  orfano,
+  pazientiCount,
+  multiMission,
+  onOpenEvento,
+  readOnly,
+}) {
   const indirizzoColonna = eventoColonnaIndirizzo(ev);
+  const canOpenEvento = Boolean(onOpenEvento);
   const open = (e) => {
     e.stopPropagation();
-    if (ev) onOpenEvento(ev);
+    if (ev && canOpenEvento) onOpenEvento(ev);
   };
   const evBorder = multiMission ? 'border-r border-r-violet-200/60' : 'border-r-2 border-slate-200';
-  const evTd = `cursor-pointer hover:brightness-95 ${tdClass} ${evBorder} align-top`;
+  const evTd = `${canOpenEvento ? 'cursor-pointer hover:brightness-95 ' : ''}${tdClass} ${evBorder} align-top`;
 
   return (
     <>
@@ -99,6 +116,7 @@ export function EventiMissioniTable({
   pazientiCountByEvento,
   eventi = [],
   telegramEnabled = false,
+  readOnly = false,
   onOpenEvento,
   onOpenMissione,
   onAdvanceStato,
@@ -128,13 +146,15 @@ export function EventiMissioniTable({
           </th>
           <th className={`${thClass} bg-slate-50/90 whitespace-nowrap`}>Mezzo</th>
           <th className={`${thClass} bg-slate-50/90 text-right`}>Stato</th>
-          <th className={`${thClass} bg-slate-50/90 text-center`}>TG</th>
+          {!readOnly && (
+            <th className={`${thClass} bg-slate-50/90 text-center`}>TG</th>
+          )}
         </tr>
       </thead>
       <tbody>
         {loading && (
           <tr>
-            <td colSpan={9} className={tdClass} />
+            <td colSpan={readOnly ? 8 : 9} className={tdClass} />
           </tr>
         )}
         {!loading &&
@@ -150,7 +170,7 @@ export function EventiMissioniTable({
               return (
                 <tr
                   key={block.key}
-                  className={`cursor-pointer hover:brightness-95 ${
+                  className={`${onOpenEvento ? 'cursor-pointer hover:brightness-95' : ''} ${
                     orfano ? 'bg-amber-50 ring-1 ring-inset ring-amber-300' : ''
                   }`}
                 >
@@ -161,9 +181,10 @@ export function EventiMissioniTable({
                     pazientiCount={pz}
                     multiMission={false}
                     onOpenEvento={onOpenEvento}
+                    readOnly={readOnly}
                   />
                   <td
-                    colSpan={4}
+                    colSpan={readOnly ? 3 : 4}
                     className={`${tdClass} border-l-2 border-slate-300 bg-slate-50/50 text-center text-sm italic text-slate-500`}
                   >
                     Nessuna missione aperta
@@ -178,8 +199,8 @@ export function EventiMissioniTable({
               return (
                 <tr
                   key={mis._docId}
-                  onClick={() => onOpenMissione(mis)}
-                  className={`cursor-pointer hover:brightness-95 ${coloreRowBgSoft(colore)} ${
+                  onClick={onOpenMissione ? () => onOpenMissione(mis) : undefined}
+                  className={`${onOpenMissione ? 'cursor-pointer hover:brightness-95' : ''} ${coloreRowBgSoft(colore)} ${
                     daAllertare ? 'ring-1 ring-inset ring-red-400' : ''
                   } ${orfano && idx === 0 ? 'bg-amber-50/40' : ''} ${blockBorder}`}
                 >
@@ -191,6 +212,7 @@ export function EventiMissioniTable({
                       pazientiCount={pz}
                       multiMission={multiMission}
                       onOpenEvento={onOpenEvento}
+                      readOnly={readOnly}
                     />
                   )}
                   <td
@@ -208,15 +230,17 @@ export function EventiMissioniTable({
                     </span>
                   </td>
                   <td className={`${tdClass} font-mono whitespace-nowrap`}>{mis.mezzo}</td>
-                  <MissioneStatoCell mis={mis} onAdvance={onAdvanceStato} />
-                  <td className={`${tdClass} border-l border-slate-200/80 text-center`}>
-                    <MissioneTelegramSendButton
-                      missione={mis}
-                      evento={ev}
-                      eventi={eventi}
-                      telegramEnabled={telegramEnabled}
-                    />
-                  </td>
+                  <MissioneStatoCell mis={mis} onAdvance={onAdvanceStato} readOnly={readOnly} />
+                  {!readOnly && (
+                    <td className={`${tdClass} border-l border-slate-200/80 text-center`}>
+                      <MissioneTelegramSendButton
+                        missione={mis}
+                        evento={ev}
+                        eventi={eventi}
+                        telegramEnabled={telegramEnabled}
+                      />
+                    </td>
+                  )}
                 </tr>
               );
             });

@@ -1,5 +1,6 @@
 import { auth } from '../firebaseConfig';
 import { apiUrl } from '../lib/apiUrl';
+import { tenantApiBody } from '../lib/tenantApiBody';
 import { buildMissionTelegramPayload } from '../lib/telegramMissionPayload';
 
 async function authHeaders() {
@@ -12,11 +13,23 @@ async function authHeaders() {
   };
 }
 
+function apiUnavailableHint(status) {
+  if (import.meta.env.DEV && (status === 404 || status === 0)) {
+    return ' In locale imposta VITE_API_BASE_URL nel file .env.local (vedi .env.example).';
+  }
+  return '';
+}
+
 /**
  * Invia missione in background (non blocca la UI).
  * @returns {Promise<{ ok: boolean, sent?: number, error?: string }>}
  */
-export async function sendMissionToTelegram(mezzoId, missione, evento = null) {
+export async function sendMissionToTelegram(
+  mezzoId,
+  missione,
+  evento = null,
+  manifestationId,
+) {
   const mezzo = (mezzoId ?? missione?.mezzo ?? '').trim();
   if (!mezzo) throw new Error('Mezzo non specificato');
 
@@ -26,17 +39,22 @@ export async function sendMissionToTelegram(mezzoId, missione, evento = null) {
   const res = await fetch(apiUrl('/api/telegram-send'), {
     method: 'POST',
     headers,
-    body: JSON.stringify({
-      mezzo,
-      mezzo_id: mezzo,
-      missione: missionePayload,
-      missione_data: missionePayload,
-    }),
+    body: JSON.stringify(
+      tenantApiBody(manifestationId, {
+        mezzo,
+        mezzo_id: mezzo,
+        missione: missionePayload,
+        missione_data: missionePayload,
+      }),
+    ),
   });
 
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    return { ok: false, error: data.error ?? `Invio fallito (${res.status})` };
+    return {
+      ok: false,
+      error: (data.error ?? `Invio fallito (${res.status})`) + apiUnavailableHint(res.status),
+    };
   }
   const sent = data.sent ?? 0;
   if (sent === 0) {
@@ -46,7 +64,7 @@ export async function sendMissionToTelegram(mezzoId, missione, evento = null) {
 }
 
 /** Dopo cambio stato dalla centrale: nuovo messaggio Telegram con pulsante corretto. */
-export function notifyTelegramStatoFromCentrale(missionDocId) {
+export function notifyTelegramStatoFromCentrale(manifestationId, missionDocId) {
   const id = (missionDocId ?? '').trim();
   if (!id) return;
 
@@ -56,7 +74,7 @@ export function notifyTelegramStatoFromCentrale(missionDocId) {
       await fetch(apiUrl('/api/telegram-notify-stato'), {
         method: 'POST',
         headers,
-        body: JSON.stringify({ missionDocId: id }),
+        body: JSON.stringify(tenantApiBody(manifestationId, { missionDocId: id })),
       });
     } catch (err) {
       console.warn('[telegram notify stato]', err);
@@ -64,14 +82,23 @@ export function notifyTelegramStatoFromCentrale(missionDocId) {
   })();
 }
 
-export async function setTelegramBotPassword(password, { notifyUsers = true } = {}) {
+export async function setTelegramBotPassword(
+  password,
+  { notifyUsers = true, manifestationId } = {},
+) {
   const headers = await authHeaders();
   const res = await fetch(apiUrl('/api/telegram-set-password'), {
     method: 'POST',
     headers,
-    body: JSON.stringify({ password, notifyUsers }),
+    body: JSON.stringify(
+      tenantApiBody(manifestationId, { password, notifyUsers }),
+    ),
   });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error ?? 'Salvataggio password fallito');
+  if (!res.ok) {
+    throw new Error(
+      (data.error ?? 'Salvataggio password fallito') + apiUnavailableHint(res.status),
+    );
+  }
   return data;
 }

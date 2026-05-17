@@ -14,15 +14,20 @@ export function impostazioniDocRef(tenantId) {
     .doc('impostazioni');
 }
 
-export async function isTelegramBotEnabled(tenantId) {
+/** Legge impostazioni dal percorso canonico `settings/impostazioni`. */
+async function readImpostazioniData(tenantId) {
   const snap = await impostazioniDocRef(tenantId).get();
-  if (!snap.exists) return false;
-  return snap.data()?.telegramBotEnabled === true;
+  return snap.exists ? snap.data() : null;
+}
+
+export async function isTelegramBotEnabled(tenantId) {
+  const data = await readImpostazioniData(tenantId);
+  return data?.telegramBotEnabled === true;
 }
 
 export async function getTelegramAuthSettings(tenantId) {
-  const snap = await impostazioniDocRef(tenantId).get();
-  return parseTelegramPasswordSettings(snap.exists ? snap.data() : {});
+  const data = await readImpostazioniData(tenantId);
+  return parseTelegramPasswordSettings(data ?? {});
 }
 
 export async function setTelegramBotPassword(tenantId, password) {

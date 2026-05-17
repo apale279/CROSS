@@ -141,6 +141,6 @@ export async function patchMissione(manifestationId, docId, fields, mezzoSigla) 
     await tryAutoCloseEventoForMissione(manifestationId, docId);
   }
   if (fields.stato != null) {
-    notifyTelegramStatoFromCentrale(docId);
+    notifyTelegramStatoFromCentrale(manifestationId, docId);
   }
 }

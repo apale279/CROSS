@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AlertTriangle, X } from 'lucide-react';
+import { useManifestazioneId } from '../../context/ManifestazioneContext';
 import { executeTelegramBotWipeOnly } from '../../services/globalLogoutService';
 import { btnPrimary, btnSecondary } from '../ui/FormField';
 
@@ -66,6 +67,7 @@ function ConfirmModal({ title, children, tone = 'default', onCancel, onConfirm, 
 }
 
 export function GlobalLogoutPuliziaPanel() {
+  const manifestationId = useManifestazioneId();
   const [step, setStep] = useState(null);
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState(null);
@@ -77,7 +79,7 @@ export function GlobalLogoutPuliziaPanel() {
     setError(null);
     setResult(null);
     try {
-      const telegram = await executeTelegramBotWipeOnly();
+      const telegram = await executeTelegramBotWipeOnly(manifestationId);
       setResult(telegram);
     } catch (e) {
       setError(e?.message ?? String(e));

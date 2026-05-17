@@ -1,5 +1,6 @@
 import { Outlet, useLocation } from 'react-router-dom';
 import { EventoSchedaProvider } from '../../context/EventoSchedaContext';
+import { KioskPopOutProvider } from '../../context/KioskPopOutContext';
 import { GoogleMapsProvider } from '../../context/GoogleMapsContext';
 import { RouteErrorBoundary } from '../ui/RouteErrorFallback';
 import { AppHeader } from './AppHeader';
@@ -13,18 +14,20 @@ export function DashboardLayout() {
   return (
     <GoogleMapsProvider>
       <EventoSchedaProvider>
-        <ActivityRouteListener />
-        <SosAlertListener />
-        <div className="flex h-screen flex-col bg-slate-100">
-          <AppHeader />
-          <main
-            className={`min-h-0 flex-1 ${isDashboard ? 'overflow-hidden' : 'overflow-y-auto'}`}
-          >
-            <RouteErrorBoundary>
-              <Outlet />
-            </RouteErrorBoundary>
-          </main>
-        </div>
+        <KioskPopOutProvider>
+          <ActivityRouteListener />
+          <SosAlertListener />
+          <div className="flex h-screen flex-col bg-slate-100">
+            <AppHeader />
+            <main
+              className={`min-h-0 flex-1 ${isDashboard ? 'overflow-hidden' : 'overflow-y-auto'}`}
+            >
+              <RouteErrorBoundary>
+                <Outlet />
+              </RouteErrorBoundary>
+            </main>
+          </div>
+        </KioskPopOutProvider>
       </EventoSchedaProvider>
     </GoogleMapsProvider>
   );

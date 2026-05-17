@@ -56,7 +56,12 @@ export function MissioneTelegramSendButton({
 
     void (async () => {
       try {
-        const result = await sendMissionToTelegram(missione.mezzo, missione, evento);
+        const result = await sendMissionToTelegram(
+          missione.mezzo,
+          missione,
+          evento,
+          manifestationId,
+        );
         if (result.ok) {
           setSendStatus('ok');
           storeStatus(manifestationId, missionDocId, 'ok');

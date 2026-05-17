@@ -1,4 +1,5 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { Map, MapPinned } from 'lucide-react';
 import { GoogleMap, Marker, useGoogleMap } from '@react-google-maps/api';
 import { useGoogleMapsReady } from '../../context/GoogleMapsContext';
 import { useImpostazioni } from '../../hooks/useImpostazioni';
@@ -8,13 +9,45 @@ import {
   parseCoordinate,
 } from '../../lib/googleMaps';
 import { coloreHex } from '../../utils/formatters';
+import { getEmojiMarkerIcon } from '../../lib/mapMarkers';
+import { emojiForTipoMezzo, normalizeTipiMezzo } from '../../lib/tipiMezzo';
+import {
+  OPS_MAP_VIEW_STANDARD,
+  OPS_MAP_VIEW_STREET,
+  opsMapOptionsForView,
+  persistOpsMapViewMode,
+  readOpsMapViewMode,
+} from '../../lib/opsMapView';
 
-const mapOptions = {
+const baseMapOptions = {
   disableDefaultUI: false,
   mapTypeControl: false,
   streetViewControl: false,
   fullscreenControl: true,
 };
+
+const readOnlyMapOptions = {
+  ...baseMapOptions,
+  fullscreenControl: false,
+  zoomControl: true,
+  draggable: true,
+  scrollwheel: true,
+  disableDoubleClickZoom: false,
+  keyboardShortcuts: false,
+};
+
+function ApplyMapViewOptions({ viewMode }) {
+  const map = useGoogleMap();
+
+  useEffect(() => {
+    if (!map || !window.google?.maps) return;
+    const base = { mapTypeControl: false, streetViewControl: false };
+    const next = opsMapOptionsForView(base, viewMode);
+    map.setOptions(next);
+  }, [map, viewMode]);
+
+  return null;
+}
 
 function FitEventBounds({ eventPositions }) {
   const map = useGoogleMap();
@@ -36,9 +69,27 @@ function FitEventBounds({ eventPositions }) {
   return null;
 }
 
-export function OpsMap({ eventi, mezzi, onSelect }) {
+const viewToggleBtn =
+  'flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-semibold transition-colors';
+
+export function OpsMap({ eventi, mezzi, onSelect, readOnly = false }) {
   const { isLoaded, loadError } = useGoogleMapsReady();
   const { impostazioni } = useImpostazioni();
+  const [viewMode, setViewMode] = useState(readOpsMapViewMode);
+
+  const selectViewMode = (mode) => {
+    setViewMode(mode);
+    persistOpsMapViewMode(mode);
+  };
+
+  const mapOptions = useMemo(
+    () => opsMapOptionsForView(readOnly ? readOnlyMapOptions : baseMapOptions, viewMode),
+    [readOnly, viewMode],
+  );
+  const tipiMezzo = useMemo(
+    () => normalizeTipiMezzo(impostazioni.tipiMezzo),
+    [impostazioni.tipiMezzo],
+  );
 
   const { center, zoom, markers, eventPositions } = useMemo(() => {
     const list = [];
@@ -53,7 +104,14 @@ export function OpsMap({ eventi, mezzi, onSelect }) {
     });
     mezzi.forEach((m) => {
       const pos = parseCoordinate(m.stazionamento?.coordinate);
-      if (pos) list.push({ pos, type: 'mezzo', data: m, color: '#0284c7' });
+      if (pos) {
+        list.push({
+          pos,
+          type: 'mezzo',
+          data: m,
+          emoji: emojiForTipoMezzo(m.tipo, tipiMezzo),
+        });
+      }
     });
 
     if (eventOnly.length === 0) {
@@ -83,7 +141,7 @@ export function OpsMap({ eventi, mezzi, onSelect }) {
       markers: list,
       eventPositions: eventOnly,
     };
-  }, [eventi, mezzi, impostazioni]);
+  }, [eventi, mezzi, impostazioni, tipiMezzo]);
 
   if (loadError) {
     return (
@@ -99,13 +157,48 @@ export function OpsMap({ eventi, mezzi, onSelect }) {
   }
 
   return (
-    <GoogleMap
-      mapContainerClassName="h-full w-full"
-      center={center}
-      zoom={zoom}
-      options={mapOptions}
-    >
-      {eventPositions.length > 0 && <FitEventBounds eventPositions={eventPositions} />}
+    <div className="relative h-full w-full">
+      <div
+        className="pointer-events-none absolute right-2 top-2 z-10 flex rounded-lg border border-slate-200/90 bg-white/95 p-0.5 shadow-md backdrop-blur-sm"
+        role="group"
+        aria-label="Tipo vista mappa"
+      >
+        <button
+          type="button"
+          className={`pointer-events-auto ${viewToggleBtn} ${
+            viewMode === OPS_MAP_VIEW_STANDARD
+              ? 'bg-sky-600 text-white shadow-sm'
+              : 'text-slate-600 hover:bg-slate-100'
+          }`}
+          aria-pressed={viewMode === OPS_MAP_VIEW_STANDARD}
+          onClick={() => selectViewMode(OPS_MAP_VIEW_STANDARD)}
+        >
+          <Map className="h-3.5 w-3.5 shrink-0" />
+          Standard
+        </button>
+        <button
+          type="button"
+          className={`pointer-events-auto ${viewToggleBtn} ${
+            viewMode === OPS_MAP_VIEW_STREET
+              ? 'bg-sky-600 text-white shadow-sm'
+              : 'text-slate-600 hover:bg-slate-100'
+          }`}
+          aria-pressed={viewMode === OPS_MAP_VIEW_STREET}
+          onClick={() => selectViewMode(OPS_MAP_VIEW_STREET)}
+        >
+          <MapPinned className="h-3.5 w-3.5 shrink-0" />
+          Solo strade
+        </button>
+      </div>
+
+      <GoogleMap
+        mapContainerClassName="h-full w-full"
+        center={center}
+        zoom={zoom}
+        options={mapOptions}
+      >
+        <ApplyMapViewOptions viewMode={viewMode} />
+        {eventPositions.length > 0 && <FitEventBounds eventPositions={eventPositions} />}
       {markers.map((m) => {
         const key =
           m.type === 'evento' ? `e-${m.data._docId}` : `z-${m.data.sigla ?? m.data._docId}`;
@@ -115,7 +208,8 @@ export function OpsMap({ eventi, mezzi, onSelect }) {
             key={key}
             position={m.pos}
             title={label}
-            onClick={() => onSelect?.({ type: m.type, data: m.data })}
+            clickable={Boolean(onSelect)}
+            onClick={onSelect ? () => onSelect({ type: m.type, data: m.data }) : undefined}
             icon={
               m.type === 'evento'
                 ? {
@@ -126,18 +220,12 @@ export function OpsMap({ eventi, mezzi, onSelect }) {
                     strokeColor: '#1e293b',
                     strokeWeight: 2,
                   }
-                : {
-                    path: window.google.maps.SymbolPath.BACKWARD_CLOSED_ARROW,
-                    scale: 6,
-                    fillColor: '#0284c7',
-                    fillOpacity: 1,
-                    strokeColor: '#0c4a6e',
-                    strokeWeight: 1,
-                  }
+                : getEmojiMarkerIcon(window.google, m.emoji)
             }
           />
         );
       })}
-    </GoogleMap>
+      </GoogleMap>
+    </div>
   );
 }
