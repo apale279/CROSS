@@ -53,11 +53,8 @@ export function DiarioImportantTicker({ note, loading, onOpenNota }) {
       {!loading && importanti.length > 0 && (
         <div className="diario-ticker-mask relative w-full overflow-hidden py-2">
           <div className="diario-ticker-track flex w-max items-center">
-            {renderTrack()}
-            <span className="mx-4 text-amber-400" aria-hidden>
-              ◆
-            </span>
-            {renderTrack('-dup')}
+            {renderTrack('-a')}
+            {renderTrack('-b')}
           </div>
         </div>
       )}

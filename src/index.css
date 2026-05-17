@@ -124,7 +124,7 @@ body {
 }
 
 .diario-ticker-track {
-  animation: diario-ticker-scroll 40s linear infinite;
+  animation: diario-ticker-scroll 33s linear infinite;
 }
 
 .diario-ticker-track:hover {

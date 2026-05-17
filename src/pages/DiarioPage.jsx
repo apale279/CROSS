@@ -4,6 +4,7 @@ import { COLLECTIONS } from '../lib/firestorePaths';
 import { useManifestazioneCollection } from '../hooks/useManifestazioneCollection';
 import { DiarioNotaModal } from '../components/diario/DiarioNotaModal';
 import { useDiarioNotaActions } from '../hooks/useDiarioNotaActions';
+import { useDiarioTelegramBroadcast } from '../hooks/useDiarioTelegramBroadcast';
 import { confirmDelete } from '../utils/confirmDelete';
 import { formatTimestamp } from '../utils/formatters';
 import { btnDanger, btnPrimary, btnSecondary } from '../components/ui/FormField';
@@ -25,6 +26,7 @@ function truncate(text, max = 120) {
 export default function DiarioPage() {
   const { data: note, loading } = useManifestazioneCollection(COLLECTIONS.note_diario);
   const [modal, setModal] = useState(null);
+  const { broadcast, broadcasting } = useDiarioTelegramBroadcast();
   const { saving, createNota, updateNota, toggleChiusa, toggleImportante, removeNota } =
     useDiarioNotaActions({
       onAfterSave: () => {},
@@ -216,6 +218,8 @@ export default function DiarioPage() {
                 }
               : undefined
           }
+          onBroadcastTelegram={modal.mode === 'view' && modal.nota?._docId ? broadcast : undefined}
+          broadcasting={broadcasting}
         />
       )}
     </div>

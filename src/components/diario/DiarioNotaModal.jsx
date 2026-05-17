@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Star } from 'lucide-react';
+import { Send, Star } from 'lucide-react';
 import { Modal } from '../ui/Modal';
 import { DiarioNotaForm } from './DiarioNotaForm';
 import { btnDanger, btnPrimary, btnSecondary } from '../ui/FormField';
@@ -15,6 +15,8 @@ export function DiarioNotaModal({
   onDelete,
   onToggleChiusa,
   onToggleImportante,
+  onBroadcastTelegram,
+  broadcasting = false,
 }) {
   const [editing, setEditing] = useState(mode === 'edit' || mode === 'create');
 
@@ -78,6 +80,17 @@ export function DiarioNotaModal({
             >
               {nota.importante ? 'Rimuovi importante' : 'Segna importante'}
             </button>
+            {onBroadcastTelegram && (
+              <button
+                type="button"
+                className={`${btnSecondary} inline-flex items-center gap-1.5`}
+                disabled={saving || broadcasting}
+                onClick={() => onBroadcastTelegram?.(nota)}
+              >
+                <Send className="h-4 w-4 shrink-0" aria-hidden />
+                {broadcasting ? 'Invio…' : 'Invia a tutti'}
+              </button>
+            )}
             <button
               type="button"
               className={btnDanger}

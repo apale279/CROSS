@@ -25,6 +25,7 @@ import { Modal } from '../components/ui/Modal';
 import { DiarioImportantTicker } from '../components/diario/DiarioImportantTicker';
 import { DiarioNotaModal } from '../components/diario/DiarioNotaModal';
 import { useDiarioNotaActions } from '../hooks/useDiarioNotaActions';
+import { useDiarioTelegramBroadcast } from '../hooks/useDiarioTelegramBroadcast';
 import { nextStatoMissione } from '../utils/missionStati';
 import {
   DEFAULT_DASHBOARD_LAYOUT,
@@ -65,6 +66,8 @@ export default function DashboardPage() {
       setDiarioModal((m) => (m?.nota?._docId === docId ? null : m));
     },
   });
+  const { broadcast: broadcastDiario, broadcasting: broadcastingDiario } =
+    useDiarioTelegramBroadcast();
   const [layout, setLayout] = useState(() => loadDashboardLayout(manifestationId));
   const [zOrder, setZOrder] = useState(['operativo', 'mezzi', 'mappa']);
   const [operativoFullscreen, setOperativoFullscreen] = useState(false);
@@ -328,6 +331,8 @@ export default function DashboardPage() {
           onToggleImportante={async (importante) => {
             await toggleImportanteDiario(diarioModalNota, importante);
           }}
+          onBroadcastTelegram={diarioModal?.mode === 'view' ? broadcastDiario : undefined}
+          broadcasting={broadcastingDiario}
         />
       )}
         </div>

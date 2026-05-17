@@ -85,6 +85,49 @@ export function notifyTelegramStatoFromCentrale(manifestationId, missionDocId) {
   })();
 }
 
+export async function fetchTelegramLoggedUsers(manifestationId) {
+  const headers = await authHeaders();
+  const id = (manifestationId ?? '').trim();
+  const q = id ? `?manifestationId=${encodeURIComponent(id)}&tenantId=${encodeURIComponent(id)}` : '';
+  const res = await fetch(apiUrl(`/api/telegram-logged-users${q}`), {
+    method: 'GET',
+    headers,
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(
+      (data.error ?? `Caricamento equipaggio fallito (${res.status})`) + apiUnavailableHint(res.status),
+    );
+  }
+  return data;
+}
+
+export async function broadcastNotaToTelegram({ titolo, testo, manifestationId }) {
+  const headers = await authHeaders();
+  const res = await fetch(apiUrl('/api/telegram-broadcast-nota'), {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(tenantApiBody(manifestationId, { titolo, testo })),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    return {
+      ok: false,
+      error: (data.error ?? `Invio fallito (${res.status})`) + apiUnavailableHint(res.status),
+    };
+  }
+  const sent = data.sent ?? 0;
+  if (sent === 0) {
+    return {
+      ok: false,
+      sent: 0,
+      total: data.total ?? 0,
+      error: data.error ?? 'Nessun equipaggio loggato sul bot',
+    };
+  }
+  return { ok: true, sent, total: data.total ?? sent };
+}
+
 export async function setTelegramBotPassword(
   password,
   { notifyUsers = true, manifestationId } = {},
