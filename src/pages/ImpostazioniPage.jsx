@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { StazionamentiEditor } from '../components/impostazioni/StazionamentiEditor';
+import { PmaEditor } from '../components/impostazioni/PmaEditor';
 import { ListEditorField } from '../components/impostazioni/ListEditorField';
 import { TipiMezzoEditor } from '../components/impostazioni/TipiMezzoEditor';
 import { ImpostazioniEventiPanel } from '../components/impostazioni/ImpostazioniEventiPanel';
@@ -14,6 +15,7 @@ import { TelegramForceLogoutPanel } from '../components/impostazioni/TelegramFor
 import { TelegramGpsTrackingToggle } from '../components/impostazioni/TelegramGpsTrackingToggle';
 import { TelegramLoggedUsersPanel } from '../components/impostazioni/TelegramLoggedUsersPanel';
 import { ActiveUsersPanel } from '../components/impostazioni/ActiveUsersPanel';
+import { PmappIntegrationPanel } from '../components/impostazioni/PmappIntegrationPanel';
 
 const ALTRE_LISTE = {
   listaOspedali: 'Lista ospedali',
@@ -74,11 +76,13 @@ export default function ImpostazioniPage() {
 
       {tab === 'altro' && (
         <div className="grid gap-4">
+          <PmappIntegrationPanel />
           <TipiMezzoEditor />
           {Object.entries(ALTRE_LISTE).map(([key, label]) => (
             <ListEditorField key={key} fieldKey={key} label={label} />
           ))}
           <StazionamentiEditor />
+          <PmaEditor />
           <MappaDashboardCentroEditor />
           <PartecipantiRegistryEditor />
           <WipeOpsDangerZone />

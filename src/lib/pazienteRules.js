@@ -1,5 +1,6 @@
 import { Timestamp } from 'firebase/firestore';
 import { ESITO_TRASPORTA } from '../constants';
+import { emptySoreuFirestoreClear } from './soreuTrasporto';
 
 /**
  * Modello trasporto (centrale / evento):
@@ -43,6 +44,7 @@ export function fieldsPerEsito(esito, { mezzo, missione, clearTrasporto } = {}) 
       ospedaleDestinazione: '',
       stato: 'ATTESA',
       arrivatoHAt: null,
+      ...emptySoreuFirestoreClear(),
     };
   }
   return { esito, stato: 'ATTESA' };

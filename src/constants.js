@@ -12,6 +12,10 @@ export const GOOGLE_MAPS_API_KEY = (
 ).trim();
 
 import { DEFAULT_TIPI_MEZZO } from './lib/tipiMezzo';
+import {
+  DEFAULT_DETTAGLI_PER_TIPO_LUOGO,
+  DEFAULT_TIPI_LUOGO,
+} from './data/defaultLuoghiImpostazioni';
 
 export const ESITO_TRASPORTA = 'Trasporta';
 export const ESITO_ALTRO = 'Altro (specificare)';
@@ -21,9 +25,14 @@ export const DEFAULT_IMPOSTAZIONI = {
   tipiEvento: ['Trauma', 'Malore', 'Intossicazione', 'Parto', 'Altro'],
   /** Dettaglio evento per ogni voce di tipiEvento (chiave = nome tipo) */
   dettagliPerTipoEvento: {},
+  tipiLuogo: [...DEFAULT_TIPI_LUOGO],
+  /** Dettaglio luogo per ogni voce di tipiLuogo (chiave = nome tipo luogo) */
+  dettagliPerTipoLuogo: { ...DEFAULT_DETTAGLI_PER_TIPO_LUOGO },
   tipiMezzo: DEFAULT_TIPI_MEZZO,
   listaOspedali: [],
   stazionamenti: [],
+  /** PMA: [{ id, nome, indirizzo, luogo_fisico, coordinate }] */
+  pma: [],
   /** Corridori da Excel: [{ pettorale, nome, cognome, dataNascita, telefono }] */
   registryPartecipanti: [],
   coloriEvento: ['Bianco', 'Verde', 'Giallo', 'Rosso'],
@@ -56,6 +65,10 @@ export const DEFAULT_IMPOSTAZIONI = {
   telegramGpsTrackingEnabled: true,
   /** Incrementato a ogni cambio password bot; i client Telegram devono allinearsi. */
   telegramPasswordEpoch: 0,
+  /** Integrazione PMApp (collezione root `pazienti`, invio PS su DIRETTO H). */
+  pmappIntegrationEnabled: false,
+  /** ID documento manifestazione in PMApp (`manifestazioni/{id}` lato PMApp). */
+  pmappManifestazioneId: '',
 };
 
 export const ESITI_PAZIENTE = [

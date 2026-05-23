@@ -1,6 +1,14 @@
 import { useCallback, useMemo } from 'react';
 import { Clock } from 'lucide-react';
 import { DEFAULT_IMPOSTAZIONI } from '../../constants';
+import {
+  resolveCodiceColoreEvento,
+  resolveCodiceColoreMissione,
+  resolveCodiceColoreTrasporto,
+  normalizeCodiceColore,
+} from '../../lib/codiciColore';
+import { ESITI_MISSIONE, ESITO_MISSIONE_DEFAULT, normalizeEsitoMissione } from '../../lib/missioneEsito';
+import { ColoreIndicator } from '../ui/ColoreIndicator';
 import { useManifestazioneId } from '../../context/ManifestazioneContext';
 import { findEvento } from '../../lib/eventoLinks';
 import { toDatetimeLocalValue, fromDatetimeLocalValue } from '../../lib/datetimeLocal';
@@ -18,6 +26,7 @@ import {
   btnSecondary,
   btnDanger,
   inputClass,
+  selectClass,
 } from '../ui/FormField';
 import { MissioneEccezioniPanel } from './MissioneEccezioniPanel';
 import { useImpostazioni } from '../../hooks/useImpostazioni';
@@ -38,10 +47,8 @@ export function MissioneScheda({
   const stati = DEFAULT_IMPOSTAZIONI.statiMissione;
   const elapsed = useElapsedSince(missione.statoDa ?? missione.apertura);
   const storico = missione.storicoStati ?? {};
-  const missioneChiusa =
-    missione.aperta === false ||
-    missione.stato === 'FINE MISSIONE' ||
-    missione.stato === 'ANNULLATA';
+  const statoMissioneBloccato =
+    missione.stato === 'FINE MISSIONE' || missione.stato === 'ANNULLATA';
 
   const evento = useMemo(
     () => findEvento(eventi, missione.eventoIdUnivoco || missione.eventoCorrelato),
@@ -95,8 +102,39 @@ export function MissioneScheda({
     await persistTratte(tratte.filter((t) => t.id !== id));
   };
 
+  const patchColoreMissione = async (colore) => {
+    await patchMissione(
+      manifestationId,
+      missione._docId,
+      { codiceColoreMissione: normalizeCodiceColore(colore) },
+      missione.mezzo,
+    );
+  };
+
+  const patchColoreTrasporto = async (colore) => {
+    await patchMissione(
+      manifestationId,
+      missione._docId,
+      {
+        codiceColoreTrasporto: normalizeCodiceColore(colore),
+        codiceColoreTrasportoManuale: true,
+      },
+      missione.mezzo,
+    );
+  };
+
+  const patchEsitoMissione = async (esito, altro) => {
+    const fields = { esitoMissione: normalizeEsitoMissione(esito) };
+    if (fields.esitoMissione === 'ALTRO') {
+      fields.esitoMissioneAltro = (altro ?? '').trim();
+    } else {
+      fields.esitoMissioneAltro = '';
+    }
+    await patchMissione(manifestationId, missione._docId, fields, missione.mezzo);
+  };
+
   const impostaStatoOra = async (nuovo) => {
-    if (missioneChiusa && nuovo !== missione.stato) return;
+    if (statoMissioneBloccato && nuovo !== missione.stato) return;
     await patchMissione(
       manifestationId,
       missione._docId,
@@ -233,6 +271,86 @@ export function MissioneScheda({
         <Row label="Equipaggio" value={missione.equipaggio || '—'} />
       </dl>
 
+      <section className="rounded border border-slate-200 bg-slate-50 p-3">
+        <p className="mb-3 text-xs font-bold uppercase text-slate-600">Codici colore</p>
+        <div className="grid gap-4 sm:grid-cols-3">
+          <div>
+            <p className="mb-1 text-[11px] font-semibold text-slate-500">E — Evento</p>
+            <ColoreIndicator colore={resolveCodiceColoreEvento(evento)} size="lg" />
+          </div>
+          <div>
+            <p className="mb-1 text-[11px] font-semibold text-slate-500">M — Missione</p>
+            <div className="flex flex-wrap gap-1">
+              {DEFAULT_IMPOSTAZIONI.coloriEvento.map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  title={c}
+                  onClick={() => void patchColoreMissione(c)}
+                  className={`rounded border p-0.5 ${
+                    resolveCodiceColoreMissione(missione, evento) === c
+                      ? 'border-sky-600 ring-2 ring-sky-400'
+                      : 'border-slate-300'
+                  }`}
+                >
+                  <ColoreIndicator colore={c} size="md" />
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <p className="mb-1 text-[11px] font-semibold text-slate-500">T — Trasporto</p>
+            <div className="flex flex-wrap gap-1">
+              {DEFAULT_IMPOSTAZIONI.coloriEvento.map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  title={c}
+                  onClick={() => void patchColoreTrasporto(c)}
+                  className={`rounded border p-0.5 ${
+                    resolveCodiceColoreTrasporto(missione, evento) === c
+                      ? 'border-sky-600 ring-2 ring-sky-400'
+                      : 'border-slate-300'
+                  }`}
+                >
+                  <ColoreIndicator colore={c} size="md" />
+                </button>
+              ))}
+            </div>
+            {missione.codiceColoreTrasportoManuale && (
+              <p className="mt-1 text-[10px] text-slate-500">Impostato manualmente</p>
+            )}
+          </div>
+        </div>
+      </section>
+
+      <FormField label="Esito missione">
+        <select
+          className={selectClass}
+          value={normalizeEsitoMissione(missione.esitoMissione ?? ESITO_MISSIONE_DEFAULT)}
+          onChange={(e) => void patchEsitoMissione(e.target.value, missione.esitoMissioneAltro)}
+        >
+          {ESITI_MISSIONE.map((e) => (
+            <option key={e} value={e}>
+              {e}
+            </option>
+          ))}
+        </select>
+        {normalizeEsitoMissione(missione.esitoMissione) === 'ALTRO' && (
+          <textarea
+            className={`${inputClass} mt-2`}
+            rows={2}
+            placeholder="Note esito"
+            defaultValue={missione.esitoMissioneAltro ?? ''}
+            onBlur={(e) => {
+              const v = e.target.value;
+              if (v === (missione.esitoMissioneAltro ?? '')) return;
+              void patchEsitoMissione('ALTRO', v);
+            }}
+          />
+        )}
+      </FormField>
+
       <FormField label="Note missione">
         <textarea
           key={missione._docId}
@@ -265,7 +383,7 @@ export function MissioneScheda({
         <p className="mb-1 text-xs font-bold uppercase text-slate-600">Cronologia stati</p>
         <p className="mb-3 text-[11px] text-slate-500">
           Usa l&apos;orologio accanto a uno stato per impostarlo subito con l&apos;orario attuale.
-          {missioneChiusa && ' Missione chiusa: gli stati non sono più modificabili.'}
+          {statoMissioneBloccato && ' Missione terminata: gli stati non sono più modificabili.'}
         </p>
         <ul className="space-y-2">
           {stati.map((stato) => {
@@ -287,11 +405,11 @@ export function MissioneScheda({
                   </span>
                   <button
                     type="button"
-                    disabled={missioneChiusa}
+                    disabled={statoMissioneBloccato}
                     className="inline-flex shrink-0 items-center justify-center rounded border border-slate-300 bg-white p-1 text-slate-600 shadow-sm hover:border-sky-400 hover:bg-sky-50 hover:text-sky-700 disabled:cursor-not-allowed disabled:opacity-40"
                     title={
-                      missioneChiusa
-                        ? 'Missione chiusa'
+                      statoMissioneBloccato
+                        ? 'Missione terminata'
                         : `Imposta stato «${stato}» adesso`
                     }
                     onClick={() => void impostaStatoOra(stato)}

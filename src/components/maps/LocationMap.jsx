@@ -107,7 +107,10 @@ export function LocationMap({
         mapRef.current = new maps.Map(containerRef.current, {
           center: coord ?? DEFAULT_MAP_CENTER,
           zoom: coord ? 16 : hint ? 12 : 12,
-          mapTypeControl: false,
+          mapTypeControl: true,
+          mapTypeControlOptions: {
+            mapTypeIds: ['roadmap', 'satellite', 'hybrid'],
+          },
           streetViewControl: false,
           fullscreenControl: true,
         });

@@ -1,0 +1,221 @@
+Prompt per integrazione con CROSS
+# Contesto: applicazione CROSS
+## Cos’è CROSS
+CROSS è una **centrale operativa web** (React + Vite + Firebase) per coordinare **soccorso sanitario** durante manifestazioni ed eventi (gare, concerti, fiere, ecc.).
+Funzioni principali:
+- Gestione **eventi** (interventi sanitari) con priorità colore (Bianco/Verde/Giallo/Rosso)
+- Assegnazione **missioni** ai **mezzi** (ambulanze, auto mediche, moto mediche)
+- Anagrafica e stato **pazienti** (esiti, trasporto, valutazioni cliniche MSB/MSA)
+- **Dashboard** operativa in tempo reale (tabelle eventi/missioni, stato mezzi, mappa Google)
+- **Mappa tattica** su piantina (Leaflet, coordinate % su immagine)
+- **Diario** operativo con note importanti in ticker
+- **Bot Telegram** per equipaggi: ricezione missioni, avanzamento stati, GPS, SOS
+- **Kiosk** (pagine `/kiosk/*`) per monitor esterni in sola lettura
+- **Impostazioni** per tenant: tipi evento, ospedali, stazionamenti, registro partecipanti, Telegram, PDF guida
+Stack: React 19, React Router 7, Tailwind 4, Firebase (Auth + Firestore + client SDK), Firebase Admin nelle API Vercel (`/api/*`), Google Maps, Leaflet, deploy tipico su **Vercel**.
+---
+## Modello multi-tenant
+Ogni installazione può avere una o più **manifestazioni** (tenant). Tutti i dati operativi vivono sotto:
+`manifestazioni/{tenantId}/...`
+- **tenantId** = ID documento Firestore in collezione root `manifestazioni`
+- In produzione si imposta `VITE_TENANT_ID`; se omesso e esiste un solo documento in `manifestazioni`, viene scelto automaticamente (`TenantContext`)
+- Ogni documento manifestazione ha metadati: `nome`, `dataInizio` (Timestamp), `luogo`, `creatoIl`
+**Non confondere:**
+- `idEvento` / `idMissione` / `idPaziente` = ID progressivi leggibili (E1, M2, P3)
+- `idUnivoco` = UUID stabile per collegamenti tra entità (preferire questo per integrazioni)
+- `_docId` = ID documento Firestore (auto-generato, usato dall’app per update/delete)
+---
+## Gerarchia Firestore (schema canonico)
+manifestazioni/{tenantId} ├── (documento tenant: nome, dataInizio, luogo, creatoIl) ├── eventi/{eventoDocId} ├── missioni/{missioneDocId} ├── mezzi/{siglaMezzo} ← document ID = sigla mezzo (es. "A01") ├── pazienti/{pazienteDocId} │ └── valutazioniSoccorso/{valutazioneId} ├── note_diario/{notaDocId} ├── telegram_users/{chatId} ← chatId Telegram come stringa ├── sos_alerts/{alertDocId} ├── activityLog/{logDocId} ├── userProfiles/{firebaseAuthUid} └── settings/ └── impostazioni ← documento singolo configurazione └── registryPartecipanti/{pettorale} ← doc ID = numero pettorale come stringa
+
+**Percorsi legacy (deprecati, ancora nelle security rules ma NON usati dall’app attuale):**
+collezioni root `eventi`, `missioni`, `mezzi`, `pazienti`, `impostazioni` — ignorare per nuove integrazioni.
+**File di riferimento nel repo:** `src/lib/firestorePaths.js`, `src/constants.js`, `src/lib/impostazioniNormalize.js`
+---
+## Entità e campi principali
+### 1. Impostazioni — `manifestazioni/{tenantId}/settings/impostazioni`
+Documento di configurazione (merge con default in `DEFAULT_IMPOSTAZIONI`):
+| Campo | Tipo | Note |
+|-------|------|------|
+| `tipiEvento` | string[] | es. Trauma, Malore, … |
+| `dettagliPerTipoEvento` | map tipo → string[] | Dettagli per tipo evento |
+| `tipiMezzo` | string[] | Tipi ammessi |
+| `listaOspedali` | string[] | Destinazioni trasporto |
+| `stazionamenti` | object[] | `{ indirizzo, coordinate?, luogo_fisico? }` |
+| `coloriEvento` | string[] | Bianco, Verde, Giallo, Rosso |
+| `statiMissione` | string[] | Flusso stati (vedi sotto) |
+| `mappaDashboardDefault` | `{ luogo, lat, lng, zoom? }` \| null | Centro mappa |
+| `piantina_url` | string \| null | URL immagine piantina tattica |
+| `guida_pdf_url` | string \| null | PDF guida operativa |
+| `luogo_fisico` | string | Default per nuovi eventi |
+| `telegramBotEnabled` | boolean | Bot attivo |
+| `telegramGpsTrackingEnabled` | boolean | GPS da Telegram (default true) |
+| `telegramPasswordEpoch` | number | Incrementato al cambio password bot |
+| `telegramBotPasswordSalt` / `telegramBotPasswordHash` | string | Solo server (hash password equipaggio) |
+| `manifestationId` | string | Ridondante, utile in script |
+**Registry partecipanti** (gare podistiche): sottocollezione `registryPartecipanti/{pettorale}` con `{ pettorale, nome, cognome, dataNascita, telefono }`. Campo legacy `registryPartecipanti` array sul doc impostazioni è migrato e rimosso.
+---
+### 2. Eventi — `.../eventi/{docId}`
+| Campo | Tipo | Note |
+|-------|------|------|
+| `manifestationId` | string | tenantId |
+| `idUnivoco` | string (UUID) | Chiave logica collegamenti |
+| `idEvento` | string | Progressivo E1, E2, … |
+| `stato` | boolean | `true` = aperto, `false` = chiuso |
+| `apertura` | Timestamp | |
+| `chiusuraIl` | Timestamp? | Se chiuso |
+| `tipoEvento`, `dettaglioEvento` | string | |
+| `colore` | string | Bianco/Verde/Giallo/Rosso |
+| `indirizzo` | string | Indirizzo testuale / Places |
+| `luogo_fisico` | string | Settore/tribuna per piantina |
+| `coordinate` | `{ lat, lng }`? | Posizione geo su mappa operativa |
+| `coordinate_piantina` | `{ x, y }` (0–100)? | Posizione % su piantina tattica |
+| `noteEvento` | string | |
+| `noteChiusura`, `tipoChiusuraEvento` | string? | Chiusura forzata / stand-down |
+| `eventoGenitoreIdUnivoco`, `eventoGenitoreCorrelato` | string? | Evento figlio (es. flag-down) |
+| `origineEccezione` | string? | es. `FLAG_DOWN` |
+**Regole:**
+- Chiusura automatica quando **tutte** le missioni collegate sono terminate (`aperta=false` o stato `FINE MISSIONE`/`ANNULLATA`) **e** almeno una è `FINE MISSIONE` (non basta solo `ANNULLATA`)
+- Eliminazione evento → cascade delete missioni + pazienti collegati
+---
+### 3. Missioni — `.../missioni/{docId}`
+| Campo | Tipo | Note |
+|-------|------|------|
+| `manifestationId` | string | |
+| `idUnivoco`, `idMissione` | string | UUID + progressivo M1, M2 |
+| `eventoIdUnivoco`, `eventoCorrelato` | string | Link all’evento |
+| `mezzo` | string | Sigla mezzo |
+| `stato` | string | Vedi glossario stati |
+| `statoDa` | Timestamp | Ultimo cambio stato |
+| `storicoStati` | map stato → Timestamp | Cronologia |
+| `aperta` | boolean | `false` a fine missione/annullamento |
+| `apertura` | Timestamp | |
+| `pazienteAutopresentato` | boolean | Se true, stato iniziale `IN POSTO` invece di `ALLERTARE` |
+| `equipaggio` | string | Snapshot testuale equipaggio al creare missione |
+| `noteMissione` | string | |
+| `tratteMissione` | array | `{ id, descrizione, quando }` tappe operative |
+| `codiceColore` | string? | Da valutazione MSB paziente |
+| `missioneEccezioneMotivo` | string? | `DIROTTAMENTO`, `FLAG_DOWN`, `AVARIA_SINISTRO` |
+**Glossario stati missione (ordine tipico):**
+`ALLERTARE` → `ALLERTATO` → `PARTITO` → `IN POSTO` → `DIRETTO H` → `ARRIVATO H` → `RIENTRO` → `FINE MISSIONE`
+Eccezione: `ANNULLATA` (dirottamento, flag-down, avaria)
+**Side effects al cambio stato:**
+- `FINE MISSIONE` → mezzo `statoMezzo: "Disponibile"`
+- `ANNULLATA` + motivo avaria → mezzo `"Non operativo (avaria/sinistro)"`, `operativo: false`
+- `ARRIVATO H` → tutti i pazienti dello stesso evento/mezzo con esito `"Trasporta"` passano a stato `ARRIVATO H`
+- Creazione missione → mezzo `statoMezzo: "Non disponibile"`
+- Cambio stato da centrale → notifica Telegram equipaggio (API server)
+---
+### 4. Mezzi — `.../mezzi/{sigla}`
+**Document ID = sigla** (univoca, senza spazi).
+| Campo | Tipo | Note |
+|-------|------|------|
+| `manifestationId`, `idUnivoco`, `sigla` | string | |
+| `tipo`, `targa`, `radio` | string | |
+| `statoMezzo` | string | `Disponibile`, `Non disponibile`, `Non operativo (avaria/sinistro)` |
+| `operativo` | boolean | |
+| `equipaggio` | object | `{ autista, medico, soccorritore1, soccorritore2 }` ciascuno `{ nome, cognome, telefono }` |
+| `stazionamento` | object | `{ indirizzo, coordinate?, luogo_fisico? }` — mappa quando non in missione/GPS off |
+| `coordinate_stazionamento` | `{ x, y }` (0–100)? | Posizione % piantina (NON è GPS) |
+| `dettaglio_stazionamento` | string | |
+| `posizioneReale` | object? | Solo da Telegram GPS: `{ coordinate: {lat,lng}, aggiornatoIl, fonte, precisione? }` |
+| `solamente_esterno` | boolean | Escluso da pila mappa tattica |
+| `noteOperativo`, `creatoIl` | | |
+| `active_session_token` | string? | Sessione tablet/mezzo (logout globale) |
+**Tre sistemi di posizione (non si sovrascrivono):**
+1. `stazionamento.coordinate` — geo da centrale
+2. `coordinate_stazionamento` — % piantina tattica
+3. `posizioneReale` — GPS live da Telegram (solo se missione attiva + tracking ON)
+---
+### 5. Pazienti — `.../pazienti/{docId}`
+| Campo | Tipo | Note |
+|-------|------|------|
+| `manifestationId`, `idUnivoco`, `idPaziente` | string | |
+| `eventoIdUnivoco`, `eventoCorrelato` | string | |
+| `aperta` | boolean | |
+| `apertura`, `arrivatoHAt` | Timestamp | |
+| `esito` | string | `Trasporta`, `Non trasporta`, `Rifiuto trasporto`, `Risolto in posto`, `Si allontana`, `Altro (specificare)` |
+| `esitoAltro` | string | Se esito Altro |
+| `stato` | string | `ATTESA`, `TRASPORTO`, `ARRIVATO H` |
+| `mezzo`, `idMissione`, `missioneIdUnivoco` | string | Se in trasporto |
+| `ospedaleDestinazione` | string | |
+| `pettorale`, `telefono`, `dataNascita`, `nome`, `cognome`, `eta`, `sesso` | | Anagrafica |
+| `notePaziente` | string | |
+**Sottocollezione valutazioniSoccorso/{id}:**
+- `tipo`: `MSB` | `MSA`
+- `testo`, `creatoIl`
+- `msbDetails` (se MSB): parametri clinici (AVPU, FR, SpO2, PA, meccanica respiratoria, codiceColore, esitoMsb, mezzoMsb, ospedale…)
+- `mezzo` (se MSA)
+**Vincolo operativo documentato:** max **3 pazienti in «Trasporta»** contemporanei sullo **stesso mezzo** (capacità logistica).
+---
+### 6. Note diario — `.../note_diario/{docId}`
+`titolo`, `testo`, `aperta` (boolean), `importante` (boolean → ticker dashboard), `creatoIl`, `aggiornatoIl`, `manifestationId`
+---
+### 7. Telegram users — `.../telegram_users/{chatId}`
+| Campo | Note |
+|-------|------|
+| `chatId` | number |
+| `mezzo` | sigla assegnata (assente se solo autenticato password) |
+| `passwordEpoch` | deve coincidere con impostazioni dopo cambio password |
+| `awaitingPassword`, `awaitingGpsAfterStato` | boolean |
+| `gpsStatoConsenso` | boolean consenso GPS |
+| `firstName`, `username`, `timestamp` | profilo Telegram |
+Flusso: password bot → scelta mezzo → comandi stato missione / GPS / SOS.
+---
+### 8. SOS alerts — `.../sos_alerts/{docId}`
+`mezzo`, `chatId`, `firstName`, `username`, `acknowledged` (false finché centrale non conferma), `creatoIl`, `acknowledgedAt`
+---
+### 9. User profiles — `.../userProfiles/{firebaseUid}`
+`lastSeenAt`, `lastPath`, `lastActivityType`, `active_session_token` (revoca logout globale web), `nome`, `nomeUtente`, …
+### 10. Activity log — `.../activityLog/{docId}`
+`userId`, `nomeUtente`, `nome`, `type`, `detail`, `path`, `createdAt`
+---
+## Relazioni tra entità (per integrazioni)
+Evento (idUnivoco) ├── Missioni (eventoIdUnivoco + eventoCorrelato=idEvento) │ └── Mezzo (sigla = missione.mezzo) └── Pazienti (eventoIdUnivoco + eventoCorrelato)
+
+Paziente in trasporto → missioneIdUnivoco / idMissione + mezzo Missione ARRIVATO H → sync pazienti Trasporta stesso evento+mezzo
+
+**Query consigliate per integrazione:**
+- Filtrare per `manifestationId` (sempre presente sui documenti)
+- Collegare preferendo `idUnivoco` (evento/missione/paziente)
+- Per mezzi usare **sigla** come chiave primaria
+- Ascoltare in real-time le sottocollezioni sotto `manifestazioni/{tenantId}/`
+---
+## API server (Vercel, richiedono Firebase ID token Bearer + tenantId nel body)
+Endpoint principali in `/api/`:
+- `telegram-webhook` — bot Telegram (stati, GPS, SOS, auth)
+- `telegram-send` — invio manuale missione a equipaggio
+- `telegram-notify-stato` — notifica cambio stato
+- `telegram-set-password`, `telegram-force-logout`, `telegram-wipe`, `telegram-logged-users`
+- `telegram-broadcast-nota` — diario → tutti equipaggi loggati
+- `active-users` — sessioni web attive
+- `clear-mezzi-gps` — pulizia posizioni GPS
+- `piantina-upload`, `guida-pdf-upload` — asset su storage esterno
+Il tenant nelle API si risolve da body (`tenantId` / `manifestationId`) o env `TELEGRAM_TENANT_ID` / `VITE_TENANT_ID`.
+---
+## Autenticazione
+- **Web:** Firebase Auth (email/password). Nessuna auto-registrazione.
+- **Firestore rules attuali:** `allow read, write: if true` (aperte — in produzione andrebbero restringate).
+- **Telegram:** password condivisa per manifestazione (hash su impostazioni) + associazione chatId ↔ mezzo.
+---
+## Variabili ambiente rilevanti
+Client: `VITE_FIREBASE_*`, `VITE_TENANT_ID`, `VITE_GOOGLE_MAPS_API_KEY`, `VITE_SUPERADMIN`
+Server/API: `FIREBASE_SERVICE_ACCOUNT_JSON`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_TENANT_ID`, `CLOUDINARY_*`
+---
+## Linee guida per integrare un’altra app
+1. **Usare sempre il path tenant:** `manifestazioni/{tenantId}/...`
+2. **Non scrivere sulle collezioni root legacy.**
+3. **Rispettare i side effect** (stato mezzo, sync pazienti ARRIVATO H, auto-chiusura evento) o replicarli esplicitamente.
+4. **Identificatori:** esporre/consumare `idUnivoco` tra sistemi; `idEvento`/`M`/`P` sono solo display.
+5. **Real-time:** Firestore `onSnapshot` sulle collezioni tenant (come `ManifestazioneDataContext`).
+6. **Posizioni:** non mescolare `stazionamento`, `coordinate_piantina`, `posizioneReale`.
+7. **Telegram:** integrazioni esterne che modificano stati missione dovrebbero allinearsi al flusso stati e opzionalmente chiamare le API notify o aggiornare Firestore in modo coerente con `buildStatoChangeFields` / `storicoStati`.
+8. **Capacità mezzo:** se l’altra app assegna trasporti, rispettare il limite di 3 pazienti «Trasporta» per mezzo.
+---
+## Dominio in una frase
+CROSS modella un’**emergenza sanitaria** come **Evento** → una o più **Missioni** (mezzi inviati) → **Pazienti** valutati/trasportati, con **stati missione** che guidano logistica e notifiche campo, e **configurazione per manifestazione** in un unico tenant Firestore isolato.
+Note per te
+Il prompt è auto-contenuto per un’altra AI: dominio, percorsi Firestore, campi, relazioni e regole di business.
+Per dettagli operativi lato utente c’è anche GUIDA.md nel repo.
+Le security rules attuali sono permissive (if true): per integrazioni in produzione conviene menzionare che vanno endure o che l’accesso passa da backend con service account.
+Se vuoi, posso salvare questo testo in un file tipo INTEGRAZIONE.md nel progetto o adattarlo a uno stack specifico (es. solo lettura eventi/pazienti, o sync bidirezionale missioni).

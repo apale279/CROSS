@@ -3,6 +3,7 @@ import { getAdminDb } from './firebaseAdmin.js';
 import { impostazioniDocRef } from './telegramFirestore.js';
 import { buildStatoChangeFields } from './missionStoricoStati.js';
 import { isStatoMissioneTerminale, nextStatoMissione } from './missionStati.js';
+import { syncPmappOnDirettoH } from './pmappSyncDirettoH.js';
 
 const DEFAULT_STATI_MISSIONE = [
   'ALLERTARE',
@@ -52,7 +53,12 @@ export async function listMissioniAperteByMezzo(tenantId, mezzo) {
   const snap = await missioniCol(tenantId).where('mezzo', '==', mezzo).get();
   return snap.docs
     .map((d) => ({ _docId: d.id, ...d.data() }))
-    .filter((m) => m.aperta !== false && !isStatoMissioneTerminale(m.stato))
+    .filter(
+      (m) =>
+        m.aperta !== false &&
+        !isStatoMissioneTerminale(m.stato) &&
+        (m.stato ?? '') !== 'RIENTRO',
+    )
     .sort((a, b) => String(a.idMissione ?? '').localeCompare(String(b.idMissione ?? ''), 'it'));
 }
 
@@ -113,7 +119,14 @@ async function tryAutoCloseEventoAdmin(tenantId, eventoIdUnivoco, eventoCorrelat
   if (!eventoRef) return;
   const evSnap = await eventoRef.get();
   if (!evSnap.exists || evSnap.data()?.stato === false) return;
-  await eventoRef.set({ stato: false }, { merge: true });
+  if (evSnap.data()?.operativoTerminato === true) return;
+  await eventoRef.set(
+    {
+      operativoTerminato: true,
+      operativoTerminatoIl: FieldValue.serverTimestamp(),
+    },
+    { merge: true },
+  );
 }
 
 /**
@@ -145,7 +158,7 @@ export async function advanceMissioneStato(tenantId, missionDocId, expectedMezzo
   if (nuovo === 'ARRIVATO H') {
     await syncPazientiArrivatoHAdmin(tenantId, missioneAggiornata);
   }
-  if (nuovo === 'FINE MISSIONE') {
+  if (nuovo === 'RIENTRO' || nuovo === 'FINE MISSIONE') {
     await patchMezzoAdmin(tenantId, expectedMezzo, { statoMezzo: 'Disponibile' });
   }
   if (nuovo === 'ANNULLATA') {
@@ -165,6 +178,14 @@ export async function advanceMissioneStato(tenantId, missionDocId, expectedMezzo
     missione.eventoIdUnivoco,
     missione.eventoCorrelato,
   );
+
+  if (nuovo === 'DIRETTO H') {
+    try {
+      await syncPmappOnDirettoH(tenantId, missionDocId);
+    } catch (e) {
+      console.warn('[advanceMissioneStato pmapp]', e.message ?? e);
+    }
+  }
 
   return {
     ok: true,

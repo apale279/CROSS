@@ -1,5 +1,6 @@
 import { DEFAULT_IMPOSTAZIONI } from '../../constants';
-import { dettagliPerTipoEvento } from '../../lib/impostazioniNormalize';
+import { dettagliPerTipoEvento, dettagliPerTipoLuogo } from '../../lib/impostazioniNormalize';
+import { CHIAMANTI_EVENTO, METEO_EVENTO } from '../../lib/eventoCampi';
 import { useImpostazioni } from '../../hooks/useImpostazioni';
 import { AddressPicker } from '../maps/AddressPicker';
 import { LuogoFisicoField } from '../maps/LuogoFisicoField';
@@ -28,8 +29,12 @@ export function EventoDettaglioForm({
             <dd className="font-mono text-lg font-bold text-sky-700">{readOnlyId}</dd>
           </div>
         )}
+        <Row label="Chiamante" value={values.chiamante || '—'} />
         <Row label="Tipo evento" value={values.tipoEvento || '—'} />
-        <Row label="Dettaglio" value={values.dettaglioEvento || '—'} />
+        <Row label="Dettaglio evento" value={values.dettaglioEvento || '—'} />
+        <Row label="Luogo" value={values.luogo || '—'} />
+        <Row label="Tipo luogo" value={values.tipoLuogo || '—'} />
+        <Row label="Meteo" value={values.meteo || '—'} />
         <Row label="Colore" value={values.colore || '—'} />
         <Row label="Luogo fisico" value={values.luogo_fisico || '—'} />
         <Row label="Indirizzo" value={indirizzo} />
@@ -40,6 +45,8 @@ export function EventoDettaglioForm({
 
   const tipo = values.tipoEvento ?? impostazioni.tipiEvento[0] ?? '';
   const opzioniDettaglio = dettagliPerTipoEvento(impostazioni, tipo);
+  const luogo = values.luogo ?? impostazioni.tipiLuogo[0] ?? '';
+  const opzioniTipoLuogo = dettagliPerTipoLuogo(impostazioni, luogo);
 
   const onTipoChange = (nuovoTipo) => {
     const opzioni = dettagliPerTipoEvento(impostazioni, nuovoTipo);
@@ -47,6 +54,15 @@ export function EventoDettaglioForm({
     onPatch({
       tipoEvento: nuovoTipo,
       dettaglioEvento: dettaglioOk ? values.dettaglioEvento : '',
+    });
+  };
+
+  const onLuogoChange = (nuovoLuogo) => {
+    const opzioni = dettagliPerTipoLuogo(impostazioni, nuovoLuogo);
+    const tipoOk = opzioni.includes(values.tipoLuogo);
+    onPatch({
+      luogo: nuovoLuogo,
+      tipoLuogo: tipoOk ? values.tipoLuogo : '',
     });
   };
 
@@ -60,6 +76,21 @@ export function EventoDettaglioForm({
           <p className="font-mono text-lg font-bold text-sky-700">{readOnlyId}</p>
         </FormField>
       )}
+
+      <FormField label="Chiamante">
+        <select
+          className={selectClass}
+          value={values.chiamante ?? ''}
+          onChange={(e) => onPatch({ chiamante: e.target.value })}
+        >
+          <option value="">—</option>
+          {CHIAMANTI_EVENTO.map((c) => (
+            <option key={c} value={c}>
+              {c}
+            </option>
+          ))}
+        </select>
+      </FormField>
 
       <div className="grid gap-4 md:grid-cols-2">
         <FormField label="Tipo evento">
@@ -102,6 +133,64 @@ export function EventoDettaglioForm({
           )}
         </FormField>
       </div>
+
+      <div className="grid gap-4 md:grid-cols-2">
+        <FormField label="Luogo">
+          <select
+            className={selectClass}
+            value={luogo}
+            onChange={(e) => onLuogoChange(e.target.value)}
+          >
+            <option value="">—</option>
+            {(impostazioni.tipiLuogo ?? []).map((t) => (
+              <option key={t} value={t}>
+                {t}
+              </option>
+            ))}
+          </select>
+        </FormField>
+
+        <FormField label="Tipo luogo">
+          {opzioniTipoLuogo.length > 0 ? (
+            <select
+              className={selectClass}
+              value={values.tipoLuogo ?? ''}
+              onChange={(e) => onPatch({ tipoLuogo: e.target.value })}
+            >
+              <option value="">—</option>
+              {opzioniTipoLuogo.map((d) => (
+                <option key={d} value={d}>
+                  {d}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <input
+              className={inputClass}
+              value={values.tipoLuogo ?? ''}
+              onChange={(e) => onPatch({ tipoLuogo: e.target.value })}
+              placeholder={
+                luogo ? `Nessun dettaglio configurato per «${luogo}»` : 'Seleziona un luogo'
+              }
+            />
+          )}
+        </FormField>
+      </div>
+
+      <FormField label="Meteo">
+        <select
+          className={selectClass}
+          value={values.meteo ?? ''}
+          onChange={(e) => onPatch({ meteo: e.target.value })}
+        >
+          <option value="">—</option>
+          {METEO_EVENTO.map((m) => (
+            <option key={m} value={m}>
+              {m}
+            </option>
+          ))}
+        </select>
+      </FormField>
 
       <div>
         <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-600">

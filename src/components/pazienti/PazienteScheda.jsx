@@ -13,8 +13,11 @@ import { db } from '../../firebaseConfig';
 import { useManifestazioneId } from '../../context/ManifestazioneContext';
 import { cercaPerPettorale, etaDaDataNascita } from '../../lib/excelPartecipanti';
 import { emptyMsbDetails, normalizeMsbDetails } from '../../lib/msbValutazione';
+import { emptyMsaDetails, normalizeMsaDetails } from '../../lib/msaValutazione';
+import { MsaValutazioneForm } from './MsaValutazioneForm';
 import { normalizeValutazioniSoccorso } from '../../lib/pazienteValutazioniSoccorso';
 import { mergePatientDraftFromServer, patientDocToDraftFields } from '../../lib/pazienteDraftMerge';
+import { listaDestinazioniOspedale } from '../../lib/destinazioniOspedale';
 import {
   pazientiPath,
   pazienteValutazioniSoccorsoPathSegments,
@@ -39,6 +42,12 @@ import { formatTimestamp } from '../../utils/formatters';
 import { FormField, btnPrimary, btnSecondary, inputClass, selectClass } from '../ui/FormField';
 import { MsbValutazioneForm } from './MsbValutazioneForm';
 import { ValutazioneMezzoButtons } from './ValutazioneMezzoButtons';
+import { SoreuTrasportoFields } from './SoreuTrasportoFields';
+import {
+  defaultSoreuOraMissione,
+  soreuFieldsForFirestore,
+  soreuFieldsFromPatient,
+} from '../../lib/soreuTrasporto';
 
 function emptyDraft() {
   return {
@@ -55,6 +64,7 @@ function emptyDraft() {
     sesso: '',
     notePaziente: '',
     valutazioniSoccorso: [],
+    ...soreuFieldsFromPatient(null),
     pettorale: '',
     telefono: '',
     dataNascita: '',
@@ -82,7 +92,10 @@ export function PazienteScheda({
   const { registryPartecipanti } = useRegistryPartecipanti(
     impostazioni?.registryPartecipanti ?? [],
   );
-  const ospedali = impostazioni.listaOspedali ?? [];
+  const ospedali = useMemo(
+    () => listaDestinazioniOspedale(impostazioni),
+    [impostazioni],
+  );
   const mezziEvento = useMemo(() => mezziMissioniEvento(missioniEvento), [missioniEvento]);
 
   const [serverPatient, setServerPatient] = useState(
@@ -106,7 +119,6 @@ export function PazienteScheda({
   });
 
   const [valuationRows, setValuationRows] = useState([]);
-  const [msaLocalById, setMsaLocalById] = useState({});
   const [saving, setSaving] = useState(false);
 
   /** Snapshot diretto sul documento paziente → merge preservando campi dirty. */
@@ -206,7 +218,9 @@ export function PazienteScheda({
       tipo,
       testo: '',
       msbDetails: tipo === 'MSB' ? emptyMsbDetails() : null,
-      creatoIl: isCreate ? null : Timestamp.now(),
+      msaDetails: tipo === 'MSA' ? emptyMsaDetails() : null,
+      mezzo: '',
+      creatoIl: Timestamp.now(),
     };
     if (isCreate) {
       setDraft((d) => ({
@@ -250,6 +264,52 @@ export function PazienteScheda({
     }
   };
 
+  const patchMsaValutazione = async (id, partial) => {
+    if (isCreate) {
+      const mergeOne = (v) => {
+        if (v.id !== id || v.tipo !== 'MSA') return v;
+        const merged = normalizeMsaDetails({ ...emptyMsaDetails(), ...v.msaDetails, ...partial });
+        return { ...v, msaDetails: merged, mezzo: partial.mezzoMsa ?? merged.mezzoMsa ?? v.mezzo };
+      };
+      setDraft((d) => ({
+        ...d,
+        valutazioniSoccorso: (d.valutazioniSoccorso ?? []).map(mergeOne),
+      }));
+      return;
+    }
+    const row = valuationRows.find((r) => r.id === id);
+    if (!row || row.tipo !== 'MSA') return;
+    const merged = normalizeMsaDetails({
+      ...emptyMsaDetails(),
+      ...row.msaDetails,
+      ...partial,
+    });
+    await updateValutazioneSoccorsoDoc(manifestationId, patientDocId, id, {
+      msaDetails: merged,
+      mezzo: merged.mezzoMsa ?? row.mezzo ?? '',
+    });
+    if ('codiceColore' in partial && displayPatient) {
+      await patchMissioneCodiceColoreFromPaziente(
+        manifestationId,
+        displayPatient,
+        merged.codiceColore,
+      );
+    }
+  };
+
+  const patchMsaCreatoIl = async (id, creatoIl) => {
+    if (isCreate) {
+      setDraft((d) => ({
+        ...d,
+        valutazioniSoccorso: (d.valutazioniSoccorso ?? []).map((v) =>
+          v.id === id ? { ...v, creatoIl } : v,
+        ),
+      }));
+      return;
+    }
+    await updateValutazioneSoccorsoDoc(manifestationId, patientDocId, id, { creatoIl });
+  };
+
   const removeValutazione = async (id) => {
     if (isCreate) {
       setDraft((d) => ({
@@ -259,20 +319,25 @@ export function PazienteScheda({
       return;
     }
     await deleteValutazioneSoccorsoDoc(manifestationId, patientDocId, id);
-    setMsaLocalById((p) => {
-      const n = { ...p };
-      delete n[id];
-      return n;
-    });
   };
 
   const onEsitoChange = async (esito) => {
     const clearTrasporto = esito !== ESITO_TRASPORTA;
     const fields = fieldsPerEsito(esito, { clearTrasporto });
-    ['esito', 'mezzo', 'stato', 'ospedaleDestinazione'].forEach(touchDirty);
+    const soreuKeys = [
+      'esito',
+      'mezzo',
+      'stato',
+      'ospedaleDestinazione',
+      'soreuOraMissione',
+      'soreuNumeroMissione',
+      'soreuAccompagnato',
+      'soreuCodice',
+    ];
+    soreuKeys.forEach(touchDirty);
     setDraft((d) => ({ ...d, ...fields, esitoAltro: clearTrasporto ? '' : d.esitoAltro }));
     if (!isCreate) {
-      await patchPatientFields(fields, ['esito', 'mezzo', 'stato', 'ospedaleDestinazione']);
+      await patchPatientFields(fields, soreuKeys);
     }
   };
 
@@ -301,6 +366,7 @@ export function PazienteScheda({
           esito: draft.esito,
           esitoAltro: showAltro ? draft.esitoAltro : '',
           ospedaleDestinazione: trasporta ? draft.ospedaleDestinazione : '',
+          ...(trasporta ? soreuFieldsForFirestore(draft) : {}),
           stato: draft.stato,
           mezzo: trasporta ? draft.mezzo : '',
           idMissione: trasporta ? mis?.idMissione ?? '' : '',
@@ -324,7 +390,12 @@ export function PazienteScheda({
             if (v.tipo === 'MSB') {
               return { ...base, msbDetails: normalizeMsbDetails(v.msbDetails) };
             }
-            return base;
+            const msa = normalizeMsaDetails(v.msaDetails);
+            return {
+              ...base,
+              msaDetails: msa,
+              mezzo: v.mezzo ?? msa.mezzoMsa ?? '',
+            };
           }),
         },
         allPazienti,
@@ -648,8 +719,15 @@ export function PazienteScheda({
                   onChange={(e) => {
                     touchDirty('ospedaleDestinazione');
                     const ospedaleDestinazione = e.target.value;
-                    setDraft((d) => ({ ...d, ospedaleDestinazione }));
-                    void patchPatientFields({ ospedaleDestinazione }, ['ospedaleDestinazione']);
+                    const soreuInit =
+                      ospedaleDestinazione && !draft.soreuOraMissione
+                        ? { soreuOraMissione: defaultSoreuOraMissione() }
+                        : {};
+                    setDraft((d) => ({ ...d, ospedaleDestinazione, ...soreuInit }));
+                    void patchPatientFields(
+                      { ospedaleDestinazione, ...soreuInit },
+                      ['ospedaleDestinazione', ...(Object.keys(soreuInit).length ? ['soreuOraMissione'] : [])],
+                    );
                   }}
                 >
                   <option value="">—</option>
@@ -660,6 +738,16 @@ export function PazienteScheda({
                   ))}
                 </select>
               </FormField>
+              {draft.ospedaleDestinazione && (
+                <SoreuTrasportoFields
+                  values={draft}
+                  onPatch={(partial) => {
+                    Object.keys(partial).forEach(touchDirty);
+                    setDraft((d) => ({ ...d, ...partial }));
+                    if (!isCreate) void patchPatientFields(partial, Object.keys(partial));
+                  }}
+                />
+              )}
               <FormField label="Stato paziente">
                 <select className={selectClass} value={draft.stato} disabled>
                   {STATI_PAZIENTE.map((s) => (
@@ -740,64 +828,13 @@ export function PazienteScheda({
                     onPatch={(partial) => void patchMsbValutazione(v.id, partial)}
                   />
                 ) : (
-                  <div className="space-y-3">
-                    <ValutazioneMezzoButtons
-                      mezziSigle={mezziEvento}
-                      value={v.mezzo ?? ''}
-                      onChange={(mezzo) => {
-                        if (isCreate) {
-                          setDraft((d) => ({
-                            ...d,
-                            valutazioniSoccorso: (d.valutazioniSoccorso ?? []).map((row) =>
-                              row.id === v.id ? { ...row, mezzo } : row,
-                            ),
-                          }));
-                        } else {
-                          void updateValutazioneSoccorsoDoc(
-                            manifestationId,
-                            patientDocId,
-                            v.id,
-                            { mezzo },
-                          );
-                        }
-                      }}
-                    />
-                  <textarea
-                    className={inputClass}
-                    rows={4}
-                    placeholder="Report / testo valutazione…"
-                    value={msaLocalById[v.id] !== undefined ? msaLocalById[v.id] : (v.testo ?? '')}
-                    onChange={(e) => {
-                      const t = e.target.value;
-                      if (isCreate) {
-                        setDraft((d) => ({
-                          ...d,
-                          valutazioniSoccorso: (d.valutazioniSoccorso ?? []).map((row) =>
-                            row.id === v.id ? { ...row, testo: t } : row,
-                          ),
-                        }));
-                      } else {
-                        setMsaLocalById((prev) => ({ ...prev, [v.id]: t }));
-                      }
-                    }}
-                    onBlur={(e) => {
-                      if (isCreate) return;
-                      const testoBlurred = e.target.value;
-                      void updateValutazioneSoccorsoDoc(
-                        manifestationId,
-                        patientDocId,
-                        v.id,
-                        { testo: testoBlurred },
-                      ).then(() => {
-                        setMsaLocalById((prev) => {
-                          const n = { ...prev };
-                          delete n[v.id];
-                          return n;
-                        });
-                      });
-                    }}
+                  <MsaValutazioneForm
+                    msaDetails={v.msaDetails}
+                    creatoIl={v.creatoIl}
+                    mezziEventoSigle={mezziEvento}
+                    onPatchDetails={(partial) => void patchMsaValutazione(v.id, partial)}
+                    onPatchCreatoIl={(creatoIl) => void patchMsaCreatoIl(v.id, creatoIl)}
                   />
-                  </div>
                 )}
               </li>
             ))}

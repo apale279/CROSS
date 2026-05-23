@@ -1,0 +1,20 @@
+export const CHIAMANTI_EVENTO = [
+  'SOREU',
+  'ORGANIZZAZIONE',
+  'AUTOPRESENTATO',
+  'FFOO',
+  'PC',
+  'VVF',
+  'CNSAS',
+  'AVVISTATO',
+  'ALTRO',
+];
+
+export const METEO_EVENTO = [
+  'GHIACCIO',
+  'NEBBIA',
+  'NEVE',
+  'PIOGGIA/TEMPORALE',
+  'VENTO',
+  'TEMPERATURE ESTREME',
+];

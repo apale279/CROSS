@@ -1,4 +1,4 @@
-import { collection, doc, getDoc, getDocs, query, where } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, query, serverTimestamp, where } from 'firebase/firestore';
 import { db } from '../firebaseConfig';
 import { eventiPath, missioniPath } from '../lib/firestorePaths';
 import { shouldAutoCloseEvento } from '../utils/eventoAutoClose';
@@ -54,8 +54,11 @@ export async function tryAutoCloseEvento(manifestationId, eventoRef) {
     if (!snap.empty) eventoDoc = { id: snap.docs[0].id, ...snap.docs[0].data() };
   }
 
-  if (!eventoDoc || eventoDoc.stato === false) return;
-  await patchEvento(manifestationId, eventoDoc.id, { stato: false });
+  if (!eventoDoc || eventoDoc.stato === false || eventoDoc.operativoTerminato === true) return;
+  await patchEvento(manifestationId, eventoDoc.id, {
+    operativoTerminato: true,
+    operativoTerminatoIl: serverTimestamp(),
+  });
 }
 
 export async function tryAutoCloseEventoForMissione(manifestationId, missioneDocId) {

@@ -11,14 +11,18 @@ import {
   where,
 } from 'firebase/firestore';
 import { db } from '../firebaseConfig';
-import { missioniPath } from '../lib/firestorePaths';
+import { missioniPath, pazientiPath } from '../lib/firestorePaths';
 import { newIdUnivoco } from '../lib/ids';
 import { nextProgressiveId } from './idGenerator';
 import { patchMezzo } from './mezziService';
 import { tryAutoCloseEventoForMissione } from './eventoAutoCloseService';
-import { DEFAULT_IMPOSTAZIONI } from '../constants';
+import { DEFAULT_IMPOSTAZIONI, ESITO_TRASPORTA } from '../constants';
+import { pickGravestColore, normalizeCodiceColore } from '../lib/codiciColore';
+import { ESITO_MISSIONE_DEFAULT } from '../lib/missioneEsito';
 import { MISSIONE_ECCEZIONE_MOTIVO, MEZZO_STATO_AVARIA_SINISTRO } from '../lib/missionEccezioni';
+import { patchPaziente } from './pazientiService';
 import { syncPazientiArrivatoH } from './pazientiService';
+import { notifyPmappDirettoHFromCentrale } from './pmappIntegrationService';
 import { notifyTelegramStatoFromCentrale } from './telegramService';
 
 function formatEquipaggio(equipaggio) {
@@ -52,6 +56,7 @@ export async function createMissione(manifestationId, payload, existingMissioni,
       : autopresentato
         ? 'IN POSTO'
         : 'ALLERTARE';
+  const coloreEvento = normalizeCodiceColore(payload.coloreEvento ?? 'Bianco');
   const colRef = collection(db, ...missioniPath(manifestationId));
   const docRef = await addDoc(colRef, {
     manifestationId,
@@ -69,6 +74,9 @@ export async function createMissione(manifestationId, payload, existingMissioni,
     apertura: serverTimestamp(),
     noteMissione: '',
     tratteMissione: [],
+    codiceColoreMissione: coloreEvento,
+    codiceColoreTrasporto: coloreEvento,
+    esitoMissione: ESITO_MISSIONE_DEFAULT,
   });
   await patchMezzo(manifestationId, payload.mezzo, { statoMezzo: 'Non disponibile' });
   return { docId: docRef.id, idMissione, idUnivoco };
@@ -76,37 +84,68 @@ export async function createMissione(manifestationId, payload, existingMissioni,
 
 const COLORI_VALIDI = new Set(DEFAULT_IMPOSTAZIONI.coloriEvento);
 
-/**
- * Allinea `codiceColore` sulla missione collegata al paziente (valutazione MSB).
- */
-export async function patchMissioneCodiceColoreFromPaziente(manifestationId, paziente, codiceColore) {
-  if (!manifestationId || !paziente || codiceColore == null || codiceColore === '') return;
-  if (!COLORI_VALIDI.has(codiceColore)) return;
-
+async function findMissioneDocForPaziente(manifestationId, paziente) {
   const colRef = collection(db, ...missioniPath(manifestationId));
-  let missionDocId = null;
-
   if (paziente.missioneIdUnivoco) {
     const q = query(colRef, where('idUnivoco', '==', paziente.missioneIdUnivoco), limit(4));
     const snap = await getDocs(q);
     const hit = snap.docs.find((d) => d.data().aperta !== false) ?? snap.docs[0];
-    if (hit) missionDocId = hit.id;
+    if (hit) return { id: hit.id, data: hit.data() };
   }
-
-  if (!missionDocId && paziente.idMissione && paziente.mezzo) {
+  if (paziente.idMissione && paziente.mezzo) {
     const q = query(colRef, where('idMissione', '==', paziente.idMissione), limit(24));
     const snap = await getDocs(q);
     const open = snap.docs.find((d) => {
       const x = d.data();
       return x.mezzo === paziente.mezzo && x.aperta !== false;
     });
-    if (open) missionDocId = open.id;
+    if (open) return { id: open.id, data: open.data() };
+  }
+  return null;
+}
+
+function pazienteMatchesMissione(p, missione) {
+  const sameEvento =
+    (missione.eventoIdUnivoco && p.eventoIdUnivoco === missione.eventoIdUnivoco) ||
+    p.eventoCorrelato === missione.eventoCorrelato;
+  return sameEvento && p.mezzo === missione.mezzo && p.esito === ESITO_TRASPORTA;
+}
+
+/** Ricalcola codice colore trasporto dai pazienti in trasporto sul mezzo (se non impostato manualmente). */
+export async function refreshMissioneCodiceColoreTrasporto(manifestationId, missionDocId, missione) {
+  if (!missionDocId || !missione || missione.codiceColoreTrasportoManuale === true) return;
+  const pazientiSnap = await getDocs(collection(db, ...pazientiPath(manifestationId)));
+  const colori = [];
+  for (const d of pazientiSnap.docs) {
+    const p = d.data();
+    if (!pazienteMatchesMissione(p, missione)) continue;
+    const c = p.codiceColoreSanitario ?? p.codiceColore;
+    if (c && COLORI_VALIDI.has(c)) colori.push(c);
+  }
+  const next = colori.length
+    ? pickGravestColore(colori)
+    : normalizeCodiceColore(missione.codiceColoreMissione ?? missione.codiceColore);
+  await updateDoc(doc(db, ...missioniPath(manifestationId), missionDocId), {
+    codiceColoreTrasporto: next,
+  });
+}
+
+/**
+ * Allinea colore sanitario paziente e codice trasporto missione (valutazione MSB/MSA).
+ */
+export async function patchMissioneCodiceColoreFromPaziente(manifestationId, paziente, codiceColore) {
+  if (!manifestationId || !paziente || codiceColore == null || codiceColore === '') return;
+  if (!COLORI_VALIDI.has(codiceColore)) return;
+
+  if (paziente._docId) {
+    await patchPaziente(manifestationId, paziente._docId, {
+      codiceColoreSanitario: codiceColore,
+    });
   }
 
-  if (!missionDocId) return;
-  await updateDoc(doc(db, ...missioniPath(manifestationId), missionDocId), {
-    codiceColore,
-  });
+  const hit = await findMissioneDocForPaziente(manifestationId, paziente);
+  if (!hit) return;
+  await refreshMissioneCodiceColoreTrasporto(manifestationId, hit.id, hit.data);
 }
 
 export async function patchMissione(manifestationId, docId, fields, mezzoSigla) {
@@ -122,6 +161,9 @@ export async function patchMissione(manifestationId, docId, fields, mezzoSigla) 
     if (snap.exists()) {
       await syncPazientiArrivatoH(manifestationId, { _docId: snap.id, ...snap.data() });
     }
+  }
+  if (fields.stato === 'RIENTRO' && mezzoSigla) {
+    await patchMezzo(manifestationId, mezzoSigla, { statoMezzo: 'Disponibile' });
   }
   if (fields.stato === 'FINE MISSIONE' && mezzoSigla) {
     await patchMezzo(manifestationId, mezzoSigla, { statoMezzo: 'Disponibile' });
@@ -142,5 +184,8 @@ export async function patchMissione(manifestationId, docId, fields, mezzoSigla) 
   }
   if (fields.stato != null) {
     notifyTelegramStatoFromCentrale(manifestationId, docId);
+    if (fields.stato === 'DIRETTO H') {
+      notifyPmappDirettoHFromCentrale(manifestationId, docId);
+    }
   }
 }

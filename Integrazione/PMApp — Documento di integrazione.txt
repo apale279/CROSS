@@ -1,0 +1,379 @@
+PMApp — Documento di integrazione
+1. Scopo dell’applicazione
+PMApp è una web app per la gestione sanitaria dei pazienti nei PMA (Posti Medici Avanzati) durante grandi eventi (manifestazioni sportive, concerti, ecc.).
+
+Obiettivi principali:
+
+Veloce, leggera, usabile su tablet/smartphone in campo
+Multi-utente e multi-dispositivo sullo stesso paziente senza sovrascritture accidentali
+Struttura gerarchica: Manifestazione → PMA → Paziente
+Non espone un backend REST proprio: tutta la logica dati passa da Firebase (Auth + Firestore) lato client.
+
+2. Stack tecnologico
+Layer	Tecnologia
+Frontend
+React 19 + TypeScript + Vite
+Routing
+React Router v7
+Styling
+Tailwind CSS v4
+Database
+Firebase Firestore
+Auth
+Firebase Authentication (email/password)
+Storage legacy
+Firebase Storage (firme medico legacy)
+File/media
+Cloudinary (upload unsigned: ECG, file utili manifestazione)
+PDF/ZIP
+jsPDF, jspdf-autotable, JSZip, file-saver
+Excel import
+xlsx (elenco partecipanti)
+Barcode CF
+@zxing/browser (tessera sanitaria)
+Test
+Vitest
+Variabili ambiente (.env.local):
+
+VITE_FIREBASE_API_KEY
+VITE_FIREBASE_AUTH_DOMAIN
+VITE_FIREBASE_PROJECT_ID
+VITE_FIREBASE_STORAGE_BUCKET
+VITE_FIREBASE_MESSAGING_SENDER_ID
+VITE_FIREBASE_APP_ID
+VITE_CLOUDINARY_CLOUD_NAME      # opzionale
+VITE_CLOUDINARY_UPLOAD_PRESET   # opzionale
+VITE_BOOTSTRAP_SUPERADMIN_EMAIL # solo dev
+VITE_BOOTSTRAP_SUPERADMIN_PASSWORD
+3. Gerarchia dati (modello mentale)
+Manifestazione (evento)
+  ├── stato: APERTA | CHIUSA (se CHIUSA → dati in sola lettura)
+  ├── impostazioni (liste cliniche, preset, consensi, partecipanti…)
+  ├── contatori/pazienti_progressivo → genera ID visibili P_1, P_2…
+  └── PMA (1 o più per manifestazione)
+        ├── impostazioni_pma (posti_letto, farmaci_usati)
+        └── Pazienti (UUID Firestore, ID visibile P_n)
+Tenant / scope:
+
+id_manifestazione → isola tutto ciò che appartiene a un evento
+id_pma → isola pazienti e alert operativi
+Utenti legati a manifestazione e/o PMA tramite profilo Firestore
+4. Autenticazione e profilo utente
+Firebase Auth
+Login email/password
+Persistenza: browserSessionPersistence (logout implicito alla chiusura tab)
+Superadmin: timeout idle 10 minuti
+Documento profilo: utenti/{uid}
+{
+  uid: string              // = Firebase Auth UID
+  email: string            // da Auth
+  nome: string
+  rank: UserRank
+  id_manifestazione?: string  // obbligatorio per Centrale e staff operativo
+  id_pma?: string             // obbligatorio per Medico/Infermiere/Soccorritore/Triage
+  telefono?: string
+  email_contatto?: string
+  note_utente?: string
+  firmaUrl?: string              // legacy Storage
+  firma_medico_base64?: string   // firma medico (data URL/base64)
+}
+Regola architetturale: profilo utente letto con getDoc, mai onSnapshot.
+
+5. Ruoli (RBAC)
+Rank	Scope	Permessi principali
+Superadmin
+Globale
+Tutto: manifestazioni, utenti, PMA, pazienti, admin panel
+Centrale
+1 manifestazione
+Dashboard evento, gestione utenti/PMA della manifestazione, creazione pazienti "in arrivo", dimissione
+Medico
+1 PMA
+Scheda paziente completa, dimissione, invio PS
+Infermiere
+1 PMA
+Cartella clinica, parametri vitali, farmaci
+Soccorritore
+1 PMA
+Operatività base scheda
+Triage
+1 PMA
+Solo tab Generale/Anagrafica (NO cartella clinica, NO dimissione)
+Redirect post-login:
+
+Superadmin → /admin
+Centrale → /manifestazione/{id_manifestazione}
+Staff PMA → /pma/{id_pma}
+Alla creazione manifestazione viene creato automaticamente un utente Centrale:
+admin_{nomemanifestazione} / password_{nomemanifestazione}
+
+6. Collezioni Firestore
+manifestazioni/{nome}
+ID documento = nome evento (senza spazi, univoco)
+{
+  nome: string
+  data: Timestamp
+  stato: 'APERTA' | 'CHIUSA'
+  impostazioni: {
+    prestazioni_imp: string[]
+    farmaci_imp: string[]
+    preset_farmaci: { nome, farmaci: [{ nome, dose, via }] }[]
+    preset_dimissione: { titolo, testo }[]
+    consenso_generico_cure: string
+    consenso_privacy: string
+    rifiuto_invio_ps: string
+    partecipanti_elenco: [{ pettorale, nome, cognome, data_nascita_ymd, telefono }]
+  }
+  // anche a livello root (duplicati/legacy):
+  tipo_evento: string[]
+  dettaglio_evento.{tipo}: string[]
+  dettaglio_eo_rapido.{NEUROLOGICO|CUTE|TORACE|ADDOME|CAPO/COLLO|GENERALE}: string[]
+  prestazioni_lista: string[]
+  farmaci_lista: string[]
+}
+Subcollection: manifestazioni/{id}/contatori/pazienti_progressivo → { ultimo: number }
+
+pma/{id}
+ID documento = nome PMA normalizzato (minuscolo, senza spazi)
+{
+  nome: string
+  luogo: string
+  id_manifestazione: string
+  impostazioni_pma: {
+    posti_letto: number
+    elenco_farmaci_usati?: string[]  // auto-popolato quando un farmaco viene usato
+  }
+}
+pazienti/{uuid} — entità centrale
+Documento grande con snake_case. Salvataggio sempre con updateDoc parziale (mai setDoc completo su documento esistente).
+
+Sezione 1 — Generale
+
+{
+  id: string                    // = doc ID Firestore
+  id_manifestazione: string
+  id_pma: string
+  aperto: boolean               // false = scheda chiusa (quasi tutto read-only)
+  id_paziente_visibile: string // es. "P_42"
+  apertura_scheda: Timestamp
+  tipo_paziente: 'trasportato' | 'autopresentato'
+  breve_descrizione: string
+  codice_colore: 'bianco' | 'verde' | 'giallo' | 'rosso'
+  stato: 'in_arrivo' | 'in_attesa' | 'in_carico' | 'in_sospeso' | 'dimesso'
+  trasportato_da?: string
+  note_centrale?: string
+  eta_pma_minuti?: number
+  eta_pma_deadline?: Timestamp
+}
+Sezione 2 — Anagrafica
+
+{
+  pettorale?: number
+  nome, cognome: string
+  data_nascita?: Timestamp
+  eta?: number
+  email, telefono: string
+  codice_fiscale: string      // 16 char, anche da barcode tessera sanitaria
+}
+Sezione 3 — Cartella clinica
+
+{
+  apr, allergie, app: string
+  allergie_verifica?: 'si' | 'no' | 'non_noto'
+  EO_GENERALE, EO_NEUROLOGICO, EO_CUTE, EO_TORACE, EO_ADDOME, EO_CAPO_COLLO: string[]
+  eo_note: string
+  parametri_vitali: [{
+    id, registrato_at, operatore_nome,
+    gcs, fr, spo2_aa, spo2_o2, fc, pa_sistolica, pa_diastolica, temperatura, nrs
+  }]
+  prestazioni_sel: string[]
+  ecg_cloudinary_url?: string
+  farmaci: [{ id, nome, dose, via: 'EV'|'OS'|'IM'|'SC', registrato_at, inserito_da_nome? }]
+  rivalutazioni: [{ id, testo, creato_at, firma_uid, firma_nome }]
+  lesioni: [{ n, vista: 'front'|'back', x, y, descrizione }]
+  tipo_evento, dettaglio_evento: string
+}
+Sezione 4 — Dimissione
+
+{
+  dimissione_esito: 'dimissione' | 'rinvio_mmg' | 'invio_ps' | 'rifiuta_invio_ps' | 'si_allontana' | 'riaffidato' | 'altro' | null
+  dimissione_note: string
+  affidatario_nome, affidatario_cognome, affidatario_legame: string
+  firma_paziente_base64: string | null
+  dimissione_firma_medico_base64: string | null
+  dimesso_at: Timestamp | null
+  ripreso_in_carico_at?: Timestamp | null
+}
+Sezione 5 — Invio PS (visibile solo se dimissione_esito === 'invio_ps', editabile anche con scheda chiusa)
+
+{
+  invio_ps_missione_areu: number | null
+  invio_ps_data_ora: Timestamp | null
+  invio_ps_mezzo: string
+  invio_ps_ospedale: string
+  invio_ps_codice_trasporto: 'verde' | 'giallo' | 'rosso' | null
+  invio_ps_note: string
+}
+Riferimenti soft staff
+
+{ infermiere_rif: string, medico_rif: string }
+Metadati creazione
+
+{ creato_da_uid, creato_da_rank, creato_at: serverTimestamp }
+utenti/{uid} — vedi sezione Auth
+codici_minori/{id} — prestazioni minori (non pazienti completi)
+{
+  id_manifestazione, id_pma: string
+  ora_accesso: Timestamp
+  numero_pettorale: number | null
+  motivo_accesso: string
+  prestazioni: string
+  ora_dimissione: Timestamp | null
+  created_at: Timestamp
+}
+allerte_pma/{id} — alert operativi real-time
+{
+  id_pma, id_manifestazione: string
+  paziente_id: string
+  id_paziente_visibile: string
+  messaggio: string
+  creato_da_uid: string
+  created_at: serverTimestamp
+}
+Generati automaticamente su nuova scheda codice ROSSO (non da Centrale).
+
+rubrica_contatti/{id} — numeri utili manifestazione
+{ id_manifestazione, nome, numero, descrizione, created_at, updated_at }
+manifestazione_file_utili/{id} — documenti condivisi evento
+{ id_manifestazione, nome_file, descrizione, cloudinary_url, caricato_at }
+7. Regole Firestore (security)
+Attualmente permissive: qualsiasi utente autenticato può leggere/scrivere su tutte le collezioni principali.
+Eccezione parziale: codici_minori richiede rank valido in utenti/{uid}.rank.
+
+Isolamento tenant: enforced lato app (query filtrate su id_manifestazione / id_pma), non nelle rules.
+
+8. Pattern di sincronizzazione (CRITICO per integrazione)
+onSnapshot (real-time)  →  pazienti, dashboard PMA, dashboard manifestazione, allerte, codici_minori, rubrica, file utili
+getDoc / getDocs          →  utenti, impostazioni (caricamento iniziale), manifestazioni (liste)
+updateDoc parziale        →  SEMPRE per salvataggi paziente (mai overwrite intero documento)
+runTransaction            →  creazione paziente + incremento progressivo P_n
+Motivazione: più operatori medici possono lavorare contemporaneamente sulla stessa scheda.
+
+9. Pagine / routing
+Route	Descrizione
+/login
+Login
+/
+Home manifestazioni (APERTE; CHIUSE solo Superadmin)
+/admin
+Dashboard Superadmin
+/admin/manifestazioni
+CRUD manifestazioni
+/admin/pma
+Lista globale PMA
+/admin/pazienti
+Lista globale pazienti
+/admin/utenti
+Gestione utenti (Superadmin + Centrale)
+/manifestazione/:id
+Dashboard centrale evento
+/manifestazione/:id/impostazioni
+Config liste cliniche, preset, consensi, partecipanti
+/manifestazione/:id/rubrica
+Rubrica contatti
+/manifestazione/:id/file-utili
+Documenti conmotione
+/pma/:id
+Dashboard PMA (lista pazienti live, codici minori, alert, export ZIP)
+/pma/:id/paziente/:pazienteId
+Scheda paziente (5 tab)
+10. Funzionalità principali
+Dashboard PMA
+Lista pazienti in tempo reale filtrata per id_pma
+Filtri per stato/colore
+Conteggio posti letto (in_carico vs impostazioni_pma.posti_letto)
+Creazione nuova scheda con progressivo atomico
+Codici minori (accessi rapidi non full-patient)
+Allerte PMA real-time + notifiche browser
+Export massivo PDF in ZIP (pazienti dimessi/chiusi, solo Centrale)
+Scheda paziente
+Tab Generale: triage, stato, ETA trasporto, note centrale
+Tab Anagrafica: dati anagrafici, lookup partecipanti per pettorale, scanner CF tessera sanitaria
+Tab Cartella clinica: APR/allergie/APP, EO rapido per area, parametri vitali, farmaci, prestazioni, rivalutazioni con firma, lesioni su omino SVG, upload ECG
+Tab Dimissione: esito, note preset, firma paziente canvas, firma medico
+Tab Invio PS: dati trasporto AREU (condizionale)
+PDF
+Generazione scheda A4 compatta (jsPDF)
+Invio email via mailto: (PDF scaricato manualmente, no allegato automatico)
+Export ZIP multiplo
+Impostazioni manifestazione
+Liste configurabili: tipo evento, dettaglio evento, prestazioni, farmaci, EO rapido
+Preset farmaci e dimissione
+Testi consenso/privacy/rifiuto PS
+Import Excel partecipanti (colonne A–E: pettorale, nome, cognome, data nascita, telefono)
+11. Stati paziente e regole business
+Stato	Significato
+in_arrivo
+Creato da Centrale, in attesa di arrivo
+in_attesa
+In attesa nel PMA
+in_carico
+In cura attiva (occupa posto letto)
+in_sospeso
+Sospeso
+dimesso
+Dimesso
+Stato iniziale alla creazione: in_arrivo se Centrale, in_carico se staff PMA
+Scheda chiusa (aperto: false): quasi tutto read-only; eccezione = tab Invio PS
+Solo Centrale può impostare stato in_arrivo
+Medico può "riprendere in carico" un dimesso dall'elenco dimessi
+12. Punti di integrazione con un'altra app
+A. Condivisione Firebase (approccio più semplice)
+Se l'altra app usa lo stesso progetto Firebase:
+
+Leggere/scrivere le stesse collezioni rispettando lo schema sopra
+Usare updateDoc parziale su pazienti
+Rispettare id_manifestazione e id_pma come chiavi di scope
+Non usare setDoc full-document su pazienti esistenti
+B. Progetti Firebase separati (sync)
+Serve un bridge (Cloud Functions, cron, webhook) che:
+
+Mappa entità tra i due sistemi (tabella external_id o campo custom)
+Replica eventi: nuovo paziente, cambio stato, dimissione, invio PS
+Gestisce conflitti con timestamp/updated_at (attualmente non c'è un campo updated_at globale sul paziente — andrebbe aggiunto se serve sync bidirezionale)
+C. Campi utili da aggiungere per integrazione cross-app
+Se l'altra app deve collegarsi, considerare campi opzionali su pazienti:
+
+external_app_id?: string      // ID nell'altra app
+external_sync_at?: Timestamp
+external_source?: string      // nome app sorgente
+D. Eventi chiave da propagare
+Creazione paziente (P_n assegnato)
+Cambio stato / codice_colore
+Dimissione (dimissione_esito, dimesso_at)
+Invio PS (invio_ps_*)
+Chiusura scheda (aperto: false)
+E. Auth condivisa
+Stesso Firebase Auth UID → stesso utenti/{uid}
+Oppure custom claims / mapping UID tra progetti
+F. File e media
+ECG e file utili: URL Cloudinary pubblici (secure_url)
+Firme: base64 inline nel documento Firestore (non URL esterni)
+13. Indici Firestore configurati
+pma:           id_manifestazione ASC
+pazienti:      id_pma ASC
+codici_minori: id_pma ASC + ora_accesso DESC
+Query comuni:
+
+Pazienti per PMA: where('id_pma', '==', pmaId)
+PMA per manifestazione: where('id_manifestazione', '==', manId)
+Pazienti dimessi: where('id_manifestazione', '==', manId) + filtro client-side stato == 'dimesso'
+14. Vincoli e note per l'integratore
+Nessuna REST API: integrazione via Firestore SDK, Admin SDK, o Cloud Functions
+Naming convention: snake_case su Firestore, ID manifestazione senza spazi
+Manifestazione CHIUSA = read-only in UI (rispettare in integrazioni)
+Multi-tenancy soft: sempre filtrare per id_manifestazione / id_pma
+Progressivo paziente (P_n) è per-manifestazione, non globale
+Rank matrix complessa: permessi tab scheda variano per ruolo (vedi src/lib/rankMatrix.ts)
+Offline: Firestore con cache persistente IndexedDB + multi-tab
+Repo: PMApp — SPA deployabile su Firebase Hosting / Vercel / qualsiasi static host

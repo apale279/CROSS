@@ -14,19 +14,57 @@ export function findEventoForMissione(eventi, missione) {
   );
 }
 
-/** Payload inviato all'API Telegram (allineato ai campi Firestore missione/evento). */
+function serializeTimestamp(ts) {
+  if (!ts) return '';
+  if (typeof ts === 'string') return ts;
+  if (typeof ts === 'number') return new Date(ts).toISOString();
+  if (typeof ts.toDate === 'function') return ts.toDate().toISOString();
+  const sec = ts.seconds ?? ts._seconds;
+  if (sec != null) return new Date(Number(sec) * 1000).toISOString();
+  return '';
+}
+
+function pickEventoForTelegram(evento) {
+  if (!evento) return {};
+  return {
+    tipoEvento: evento.tipoEvento ?? '',
+    luogo: evento.luogo ?? '',
+    tipoLuogo: evento.tipoLuogo ?? '',
+    indirizzo: evento.indirizzo ?? '',
+    noteEvento: evento.noteEvento ?? '',
+    coordinate: evento.coordinate ?? null,
+  };
+}
+
+function pickMissioneForTelegram(missione) {
+  if (!missione) return {};
+  return {
+    idMissione: missione.idMissione ?? '',
+    apertura: serializeTimestamp(missione.apertura),
+    stato: missione.stato ?? '',
+    mezzo: missione.mezzo ?? '',
+    codiceColoreMissione:
+      missione.codiceColoreMissione ?? missione.codiceColore ?? '',
+    aperta: missione.aperta !== false,
+  };
+}
+
+/** Payload inviato all'API Telegram. */
 export function buildMissionTelegramPayload(missione, evento) {
+  const ev = pickEventoForTelegram(evento);
+  const mi = pickMissioneForTelegram(missione);
   return {
     missionDocId: missione._docId ?? '',
-    idMissione: missione.idMissione ?? '',
-    eventoCorrelato: missione.eventoCorrelato ?? '',
-    mezzo: missione.mezzo ?? '',
-    stato: missione.stato ?? '',
-    indirizzo: evento?.indirizzo ?? '',
-    tipoEvento: evento?.tipoEvento ?? '',
-    dettaglioEvento: evento?.dettaglioEvento ?? '',
-    colore: evento?.colore ?? missione.codiceColore ?? '',
-    noteMissione: missione.noteMissione ?? '',
-    coordinate: evento?.coordinate ?? null,
+    aperta: mi.aperta,
+    mezzo: mi.mezzo,
+    stato: mi.stato,
+    idMissione: mi.idMissione,
+    apertura: mi.apertura,
+    evento: ev,
+    missione: mi,
+    indirizzo: ev.indirizzo,
+    tipoEvento: ev.tipoEvento,
+    coordinate: ev.coordinate,
+    colore: mi.codiceColoreMissione,
   };
 }

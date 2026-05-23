@@ -1,4 +1,5 @@
 import { useReadOnlyMode } from '../../hooks/useReadOnlyMode';
+import { useImpostazioni } from '../../hooks/useImpostazioni';
 import { useOperativoDashboardData } from '../../hooks/useOperativoDashboardData';
 import { OpsMap } from '../../components/dashboard/OpsMap';
 import { KioskPageHeader } from '../../components/kiosk/KioskPageHeader';
@@ -7,6 +8,7 @@ import { useKioskScheda } from '../../context/KioskSchedaContext';
 export default function KioskMappaPage() {
   const readOnly = useReadOnlyMode();
   const { openEvento, openMezzo } = useKioskScheda();
+  const { impostazioni } = useImpostazioni();
   const { eventiAperti, mezzi, missioni } = useOperativoDashboardData();
 
   return (
@@ -17,6 +19,7 @@ export default function KioskMappaPage() {
           eventi={eventiAperti}
           mezzi={mezzi}
           missioni={missioni}
+          pmaList={impostazioni.pma ?? []}
           readOnly={readOnly}
           onSelect={(payload) => {
             if (payload.type === 'evento') openEvento(payload.data);

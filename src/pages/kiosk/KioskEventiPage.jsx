@@ -17,6 +17,8 @@ export default function KioskEventiPage() {
     eventiAperti,
     operativoBlocks,
     pazientiCountByEvento,
+    pazientiTrasportoByMissione,
+    eventi,
     loading,
   } = useOperativoDashboardData();
 
@@ -32,7 +34,8 @@ export default function KioskEventiPage() {
           loading={loading}
           blocks={blocks}
           pazientiCountByEvento={pazientiCountByEvento}
-          eventi={eventiAperti}
+          pazientiTrasportoByMissione={pazientiTrasportoByMissione}
+          eventi={eventi}
           telegramEnabled={telegramEnabled}
           readOnly={readOnly}
           onOpenEvento={openEvento}

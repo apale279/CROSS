@@ -1,19 +1,22 @@
+import { useState } from 'react';
 import { COLLECTIONS } from '../lib/firestorePaths';
 import { useManifestazioneCollection } from '../hooks/useManifestazioneCollection';
-import { useEventoScheda } from '../context/EventoSchedaContext';
 import { useImpostazioni } from '../hooks/useImpostazioni';
-import { formatTimestamp, statoMissioneBadgeClass } from '../utils/formatters';
+import { formatTimeOnly, statoMissioneBadgeClass } from '../utils/formatters';
 import { MissioneTelegramSendButton } from '../components/telegram/MissioneTelegramSendButton';
 import { findEventoForMissione } from '../lib/telegramMissionPayload';
+import { MissioneScheda } from '../components/missioni/MissioneScheda';
+import { Modal } from '../components/ui/Modal';
 
 export default function MissioniPage() {
   const { data: missioni, loading: loadingM } = useManifestazioneCollection(COLLECTIONS.missioni);
   const { data: eventi, loading: loadingE } = useManifestazioneCollection(COLLECTIONS.eventi);
+  const { data: mezzi, loading: loadingZ } = useManifestazioneCollection(COLLECTIONS.mezzi);
   const { impostazioni } = useImpostazioni();
-  const { openEventoScheda } = useEventoScheda();
+  const [missioneModal, setMissioneModal] = useState(null);
 
   const telegramEnabled = impostazioni?.telegramBotEnabled === true;
-  const loading = loadingM || loadingE;
+  const loading = loadingM || loadingE || loadingZ;
 
   const sorted = [...missioni].sort((a, b) => {
     const ta = a.apertura?.toMillis?.() ?? 0;
@@ -37,7 +40,7 @@ export default function MissioniPage() {
               <th className={thClass}>Mezzo</th>
               <th className={thClass}>Evento</th>
               <th className={thClass}>Aperta</th>
-              <th className={thClass}>Apertura</th>
+              <th className={thClass}>Ora</th>
               <th className={`${thClass} text-center`}>Telegram</th>
             </tr>
           </thead>
@@ -52,7 +55,7 @@ export default function MissioniPage() {
                 return (
                   <tr
                     key={row._docId}
-                    onClick={() => openEventoScheda(row.eventoIdUnivoco || row.eventoCorrelato)}
+                    onClick={() => setMissioneModal(row)}
                     className="cursor-pointer hover:bg-violet-50"
                   >
                     <td className={`${tdClass} font-mono font-bold`}>{row.idMissione}</td>
@@ -66,8 +69,8 @@ export default function MissioniPage() {
                     <td className={`${tdClass} font-mono`}>{row.mezzo}</td>
                     <td className={`${tdClass} font-mono`}>{row.eventoCorrelato}</td>
                     <td className={tdClass}>{row.aperta !== false ? 'Sì' : 'No'}</td>
-                    <td className={tdClass}>{formatTimestamp(row.apertura)}</td>
-                    <td className={`${tdClass} text-center`}>
+                    <td className={`${tdClass} font-mono`}>{formatTimeOnly(row.apertura)}</td>
+                    <td className={`${tdClass} text-center`} onClick={(e) => e.stopPropagation()}>
                       <MissioneTelegramSendButton
                         missione={row}
                         evento={evento}
@@ -82,6 +85,23 @@ export default function MissioniPage() {
           </tbody>
         </table>
       </div>
+
+      {missioneModal && (
+        <Modal
+          title={`Missione ${missioneModal.idMissione}`}
+          onClose={() => setMissioneModal(null)}
+        >
+          <MissioneScheda
+            missione={
+              missioni.find((m) => m._docId === missioneModal._docId) ?? missioneModal
+            }
+            eventi={eventi}
+            mezzi={mezzi}
+            allMissioni={missioni}
+            existingEventi={eventi}
+          />
+        </Modal>
+      )}
     </div>
   );
 }

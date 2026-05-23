@@ -1,14 +1,6 @@
-import { getAdminAuth } from './_lib/firebaseAdmin.js';
 import { requireTenant } from './_lib/resolveTenant.js';
 import { notifyMissionStatoToTelegram } from './_lib/telegramStatoNotify.js';
-
-async function verifyFirebaseUser(req) {
-  const authHeader = req.headers.authorization;
-  if (!authHeader?.startsWith('Bearer ')) {
-    throw Object.assign(new Error('Token di autenticazione mancante'), { status: 401 });
-  }
-  return getAdminAuth().verifyIdToken(authHeader.slice(7));
-}
+import { verifyFirebaseUser } from './_lib/verifyFirebaseUser.js';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {

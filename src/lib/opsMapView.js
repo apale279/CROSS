@@ -6,16 +6,25 @@ export const OPS_MAP_VIEW_STANDARD = 'standard';
 /** Planimetria stradale senza POI e trasporto pubblico. */
 export const OPS_MAP_VIEW_STREET = 'street';
 
+/** Vista satellite con etichette stradali. */
+export const OPS_MAP_VIEW_SATELLITE = 'satellite';
+
 export const OPS_MAP_STREET_ONLY_STYLES = [
   { featureType: 'poi', stylers: [{ visibility: 'off' }] },
   { featureType: 'poi.business', stylers: [{ visibility: 'off' }] },
   { featureType: 'transit', stylers: [{ visibility: 'off' }] },
 ];
 
+const VALID_MODES = new Set([
+  OPS_MAP_VIEW_STANDARD,
+  OPS_MAP_VIEW_STREET,
+  OPS_MAP_VIEW_SATELLITE,
+]);
+
 export function readOpsMapViewMode() {
   try {
     const v = sessionStorage.getItem(OPS_MAP_VIEW_STORAGE_KEY);
-    if (v === OPS_MAP_VIEW_STREET || v === OPS_MAP_VIEW_STANDARD) return v;
+    if (VALID_MODES.has(v)) return v;
   } catch {
     /* ignore */
   }
@@ -31,6 +40,13 @@ export function persistOpsMapViewMode(mode) {
 }
 
 export function opsMapOptionsForView(baseOptions, viewMode) {
+  if (viewMode === OPS_MAP_VIEW_SATELLITE) {
+    return {
+      ...baseOptions,
+      mapTypeId: 'hybrid',
+      styles: undefined,
+    };
+  }
   if (viewMode === OPS_MAP_VIEW_STREET) {
     return {
       ...baseOptions,

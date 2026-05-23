@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Guida CROSS — Applicazione e Bot Telegram</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #1e3a8a; /* Blue-900 */
+            --secondary: #2563eb; /* Blue-600 */
+            --accent: #f8fafc;
+            --text-main: #334155;
+            --border: #e2e8f0;
+        }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            color: var(--text-main);
+            line-height: 1.6;
+            max-width: 850px;
+            margin: 0 auto;
+            padding: 40px 20px;
+            background-color: #fff;
+        }
+
+        h1 {
+            color: var(--primary);
+            font-size: 2.5rem;
+            border-bottom: 3px solid var(--primary);
+            padding-bottom: 10px;
+            margin-bottom: 30px;
+        }
+
+        h2 {
+            color: var(--secondary);
+            font-size: 1.75rem;
+            margin-top: 2.5em;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 8px;
+        }
+
+        h3 {
+            color: var(--primary);
+            font-size: 1.25rem;
+            margin-top: 1.8em;
+        }
+
+        a {
+            color: var(--secondary);
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        a:hover {
+            text-decoration: underline;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1.5em 0;
+            font-size: 0.95rem;
+        }
+
+        th, td {
+            border: 1px solid var(--border);
+            padding: 12px 16px;
+            text-align: left;
+        }
+
+        th {
+            background-color: var(--accent);
+            color: var(--primary);
+            font-weight: 600;
+        }
+
+        tr:nth-child(even) {
+            background-color: #fcfcfc;
+        }
+
+        code {
+            background-color: #f1f5f9;
+            color: #0f172a;
+            padding: 3px 6px;
+            border-radius: 4px;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 0.9em;
+            font-weight: 600;
+        }
+
+        blockquote {
+            border-left: 4px solid var(--secondary);
+            background-color: var(--accent);
+            margin: 1.5em 0;
+            padding: 12px 20px;
+            border-radius: 0 8px 8px 0;
+            font-style: italic;
+        }
+
+        hr {
+            border: 0;
+            height: 1px;
+            background: var(--border);
+            margin: 3em 0;
+        }
+
+        ul, ol {
+            padding-left: 24px;
+        }
+
+        li {
+            margin-bottom: 8px;
+        }
+
+        /* --- PRINT STYLES FOR PDF EXPORT --- */
+        @media print {
+            body {
+                padding: 0;
+                max-width: 100%;
+            }
+            h2 {
+                page-break-before: auto;
+            }
+            table, blockquote, .avoid-break {
+                page-break-inside: avoid;
+            }
+            h2, h3 {
+                page-break-after: avoid;
+            }
+            a {
+                color: #000;
+                text-decoration: none;
+            }
+            /* Hide the internal index links on print if desired, but kept for PDF usability */
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Guida CROSS — Applicazione e Bot Telegram</h1>
+    
+    <p>CROSS è il sistema di gestione operativa per soccorso sanitario in manifestazioni ed eventi. La centrale lavora da browser; l’equipaggio sul campo può ricevere missioni e aggiornare gli stati tramite <strong>Bot Telegram</strong>.</p>
+
+    <hr>
+
+    <div class="avoid-break">
+        <h2>Indice</h2>
+        <ol>
+            <li><a href="#accesso">Accesso all’applicazione</a></li>
+            <li><a href="#interfaccia">Interfaccia comune</a></li>
+            <li><a href="#dashboard">Dashboard</a></li>
+            <li><a href="#eventi">Eventi</a></li>
+            <li><a href="#missioni">Missioni</a></li>
+            <li><a href="#pazienti">Pazienti</a></li>
+            <li><a href="#mezzi">Mezzi</a></li>
+            <li><a href="#diario">Diario</a></li>
+            <li><a href="#impostazioni">Impostazioni</a></li>
+            <li><a href="#telegram">Bot Telegram — guida completa</a></li>
+            <li><a href="#chiusura">Chiusura evento e operazioni critiche</a></li>
+            <li><a href="#glossario">Glossario stati missione</a></li>
+        </ol>
+    </div>
+
+    <hr>
+
+    <h2 id="accesso">1. Accesso all’applicazione</h2>
+
+    <h3>Login e registrazione</h3>
+    <ul>
+        <li>All’avvio compare la schermata <strong>Accesso operativo</strong> con il logo CROSS.</li>
+        <li><strong>Accedi</strong>: nome utente e password (minimo 6 caratteri).</li>
+        <li><strong>Nuovo utente</strong>: nome visualizzato, nome utente univoco per la manifestazione, password e conferma.</li>
+    </ul>
+    <p>Ogni accesso e le navigazioni principali vengono registrate in Firestore (<code>activityLog</code>).</p>
+
+    <h3>Sessione</h3>
+    <ul>
+        <li>La sessione resta attiva sul dispositivo fino al <strong>Logout</strong> (menu in alto a destra).</li>
+        <li>In caso di <strong>logout globale Telegram</strong> o revoca sessione da amministrazione, gli operatori web restano connessi; solo il bot viene resettato (vedi <a href="#flusso-telegram">§10.5</a>).</li>
+    </ul>
+
+    <h2 id="interfaccia">2. Interfaccia comune</h2>
+
+    <h3>Barra superiore</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>Elemento</th>
+                <th>Funzione</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><strong>Logo</strong></td>
+                <td>Torna alla Dashboard</td>
+            </tr>
+            <tr>
+                <td><strong>Nome manifestazione</strong></td>
+                <td>Evento/manifestazione corrente</td>
+            </tr>
+            <tr>
+                <td><strong>Pallino verde/rosso</strong></td>
+                <td>Connessione Firestore (sincronizzazione dati)</td>
+            </tr>
+            <tr>
+                <td><strong>Ora sincronizzazione</strong></td>
+                <td>Ultimo aggiornamento ricevuto da Firestore</td>
+            </tr>
+            <tr>
+                <td><strong>Nuovo evento</strong></td>
+                <td>Visibile solo in Dashboard — apre la scheda nuovo evento</td>
+            </tr>
+            <tr>
+                <td><strong>Dashboard / Diario / Eventi / ...</strong></td>
+                <td>Navigazione principale</td>
+            </tr>
+            <tr>
+                <td><strong>Reset vista</strong></td>
+                <td>Solo in Dashboard — ripristina posizione pannelli flottanti</td>
+            </tr>
+            <tr>
+                <td><strong>Logout</strong></td>
+                <td>Esce dall’account su questo dispositivo</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <h3>Schede modali</h3>
+    <p>Molte entità (evento, missione, mezzo) si aprono in <strong>finestre modali</strong> sovrapposte alla pagina corrente, senza perdere il contesto della lista.</p>
+
+    <h2 id="dashboard">3. Dashboard</h2>
+    <p>La Dashboard è la postazione centrale. Due viste, selezionabili dal riquadro in alto.</p>
+
+    <h3>3.1 Barra operativa (in alto)</h3>
+    <ul>
+        <li><strong>Operativo</strong> / <strong>Mappa tattica</strong>: cambia vista.</li>
+        <li><strong>Bot Telegram</strong>: interruttore <strong>Attivo / Spento</strong> per abilitare invii e webhook.</li>
+        <li><strong>Ticker note importanti</strong>: testo scorrevole con le note del <strong>Diario</strong>.</li>
+    </ul>
+
+    <h3>3.2 Vista Operativo</h3>
+    <p>Tre <strong>pannelli flottanti</strong> (trascinabili e ridimensionabili):</p>
+    <ul>
+        <li><strong>Eventi e missioni:</strong> Tabella in tempo reale degli eventi aperti. Clicca sull'icona <strong>schermo intero</strong> per espandere l’elenco.</li>
+        <li><strong>Stato mezzi:</strong> Elenco mezzi con sigla, tipo, stato e flag operativo.</li>
+        <li><strong>Mappa:</strong> Mappa stradale con eventi (coordinate) e mezzi.</li>
+    </ul>
+
+    <h3>3.3 Vista Mappa tattica</h3>
+    <p>Richiede <strong>piantina</strong> configurata in Impostazioni → INFO LUOGO.</p>
+    <table>
+        <thead>
+            <tr>
+                <th>Area</th>
+                <th>Funzione</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><strong>Sidebar sinistra</strong></td>
+                <td>Eventi con luogo fisico; drag sulla piantina; pulsanti stato rapido.</td>
+            </tr>
+            <tr>
+                <td><strong>Piantina centrale</strong></td>
+                <td>Posizionamento eventi e mezzi (coordinate %).</td>
+            </tr>
+            <tr>
+                <td><strong>Pila mezzi (destra)</strong></td>
+                <td>Mezzi non ancora sulla piantina. Verde = libero, rosso = in missione.</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <h3>3.4 Allarmi SOS</h3>
+    <p>Se un equipaggio invia <strong>SOS</strong> da Telegram, compare un popup a tutto schermo:</p>
+    <blockquote><strong>ALLARME INVIATO DA [sigla mezzo]</strong></blockquote>
+
+    <h2 id="eventi">4. Eventi</h2>
+
+    <h3>Creazione e scheda evento</h3>
+    <p>In fase di creazione puoi specificare tipo, dettaglio, colore (bianco/verde/giallo/rosso), indirizzo stradale o <strong>luogo fisico</strong> (testo libero per settori interni). Impostando lo stato su <strong>chiuso</strong>, l’evento scompare dalla lista aperti.</p>
+
+    <h2 id="missioni">5. Missioni</h2>
+
+    <h3>Stati missione</h3>
+    <p>Flusso tipico (configurabile):<br>
+    <code>ALLERTARE</code> → <code>ALLERTATO</code> → <code>PARTITO</code> → <code>IN POSTO</code> → <code>DIRETTO H</code> → <code>ARRIVATO H</code> → <code>RIENTRO</code> → <code>FINE MISSIONE</code></p>
+
+    <h3>Eccezioni operative (scheda missione)</h3>
+    <ol>
+        <li><strong>Dirottamento:</strong> Annulla la missione corrente; il mezzo passa a un altro evento.</li>
+        <li><strong>Flag-down (intercettazione a vista):</strong> Crea evento figlio, annulla missione precedente.</li>
+        <li><strong>Avaria / sinistro:</strong> Chiude missione, mezzo segnato non operativo.</li>
+    </ol>
+
+    <h2 id="pazienti">6. Pazienti</h2>
+    <p>Anagrafica e stato sanitario. Quando una missione passa ad <strong>ARRIVATO H</strong>, i pazienti in trasporto sullo stesso mezzo possono essere aggiornati automaticamente.</p>
+
+    <h2 id="mezzi">7. Mezzi</h2>
+    <p>Gestione del parco mezzi e degli equipaggi. Dalla scheda è possibile impostare lo stato (Disponibile/Non disponibile) e gestire la posizione tattica tramite la Mappa Tattica.</p>
+
+    <h2 id="diario">8. Diario</h2>
+    <p>Note operative condivise. Le note marcate come <strong>Importanti</strong> vengono evidenziate in giallo e compaiono nel ticker scorrevole della Dashboard.</p>
+
+    <h2 id="impostazioni">9. Impostazioni</h2>
+    <p>Accesso riservato. Include configurazioni per Eventi, INFO LUOGO (URL piantina), Mezzi e Strutture (inclusa la <strong>Zona pericolosa</strong> per il reset dati) e la configurazione globale per <strong>Telegram</strong>.</p>
+
+    <h2 id="telegram">10. Bot Telegram — guida completa</h2>
+
+    <h3>10.2 Primo accesso equipaggio</h3>
+    <ol>
+        <li>Aprire il bot su Telegram.</li>
+        <li>Se richiesta, inviare la <strong>password</strong>.</li>
+        <li>Inviare <code>/start</code> e scegliere il mezzo.</li>
+    </ol>
+
+    <h3>10.3 Comandi Telegram</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>Comando</th>
+                <th>Effetto</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><code>/start</code></td>
+                <td>Nuova scelta mezzo.</td>
+            </tr>
+            <tr>
+                <td><code>/cambiapassword</code></td>
+                <td>Termina sessione e chiede nuova password.</td>
+            </tr>
+            <tr>
+                <td><code>/stato</code></td>
+                <td>Mostra missioni aperte e pulsanti di avanzamento.</td>
+            </tr>
+            <tr>
+                <td><strong>SOS / EMERGENZA</strong></td>
+                <td>Allarme immediato alla centrale.</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <h2 id="chiusura">11. Chiusura evento e operazioni critiche</h2>
+
+    <h3>Fine turno equipaggio</h3>
+    <p><strong>Impostazioni → Telegram → Forza logout</strong>: Disconnette tutti i Telegram dai mezzi. L'equipaggio deve rifare <code>/start</code>.</p>
+
+    <h3 id="flusso-telegram">Fine manifestazione / pulizia completa Telegram</h3>
+    <p><strong>Impostazioni → Telegram → Logout globale e pulizia</strong>: Richiede <strong>doppia conferma</strong>. Cancella i messaggi missione dai telefoni, svuota le registrazioni e invia un messaggio di chiusura. Non disconnette gli account dell'app web.</p>
+
+    <h2 id="glossario">12. Glossario stati missione</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Stato</th>
+                <th>Significato</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr><td><strong>ALLERTARE</strong></td><td>Missione creata, mezzo da allertare</td></tr>
+            <tr><td><strong>ALLERTATO</strong></td><td>Equipaggio informato</td></tr>
+            <tr><td><strong>PARTITO</strong></td><td>Mezzo in viaggio verso l’evento</td></tr>
+            <tr><td><strong>IN POSTO</strong></td><td>Mezzo sul luogo</td></tr>
+            <tr><td><strong>DIRETTO H</strong></td><td>Trasporto verso ospedale</td></tr>
+            <tr><td><strong>ARRIVATO H</strong></td><td>Arrivo in ospedale</td></tr>
+            <tr><td><strong>RIENTRO</strong></td><td>Rientro dopo consegna</td></tr>
+            <tr><td><strong>FINE MISSIONE</strong></td><td>Missione conclusa normalmente</td></tr>
+            <tr><td><strong>ANNULLATA</strong></td><td>Missione chiusa per eccezione</td></tr>
+        </tbody>
+    </table>
+    
+    <br>
+    <hr>
+    <p style="text-align: center; font-size: 0.85rem; color: #64748b;">
+        <em>Documento generato per il progetto CROSS.</em>
+    </p>
+
+</body>
+</html>

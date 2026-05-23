@@ -90,6 +90,7 @@ export function NuovoEventoRapidoForm({
           eventoCorrelato: result.idEvento,
           mezzo: draft.mezzo,
           pazienteAutopresentato: false,
+          coloreEvento: draft.colore,
         },
         missioni,
         mezzo,

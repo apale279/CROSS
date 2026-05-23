@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Map, MapPinned } from 'lucide-react';
+import { Map, MapPinned, Satellite } from 'lucide-react';
 import { GoogleMap, Marker, useGoogleMap } from '@react-google-maps/api';
 import { useGoogleMapsReady } from '../../context/GoogleMapsContext';
 import { useImpostazioni } from '../../hooks/useImpostazioni';
@@ -14,6 +14,7 @@ import { mezzoMapCoordinate, mezzoMapUsesPosizioneReale } from '../../lib/mezzoP
 import { mezziConMissioneAttiva, mezzoIsOnMissioneAttiva } from '../../lib/mezzoMissione';
 import { emojiForTipoMezzo, normalizeTipiMezzo } from '../../lib/tipiMezzo';
 import {
+  OPS_MAP_VIEW_SATELLITE,
   OPS_MAP_VIEW_STANDARD,
   OPS_MAP_VIEW_STREET,
   opsMapOptionsForView,
@@ -74,7 +75,9 @@ function FitEventBounds({ eventPositions }) {
 const viewToggleBtn =
   'flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-semibold transition-colors';
 
-export function OpsMap({ eventi, mezzi, missioni = [], onSelect, readOnly = false }) {
+const PMA_MAP_EMOJI = '🏕️';
+
+export function OpsMap({ eventi, mezzi, missioni = [], pmaList = [], onSelect, readOnly = false }) {
   const { isLoaded, loadError } = useGoogleMapsReady();
   const { impostazioni } = useImpostazioni();
   const [viewMode, setViewMode] = useState(readOpsMapViewMode);
@@ -120,6 +123,17 @@ export function OpsMap({ eventi, mezzi, missioni = [], onSelect, readOnly = fals
         });
       }
     });
+    (pmaList ?? []).forEach((p) => {
+      const pos = parseCoordinate(p.coordinate);
+      if (pos) {
+        list.push({
+          pos,
+          type: 'pma',
+          data: p,
+          emoji: PMA_MAP_EMOJI,
+        });
+      }
+    });
 
     if (eventOnly.length === 0) {
       const custom = dashboardMapDefaultFromImpostazioni(impostazioni);
@@ -148,7 +162,7 @@ export function OpsMap({ eventi, mezzi, missioni = [], onSelect, readOnly = fals
       markers: list,
       eventPositions: eventOnly,
     };
-  }, [eventi, mezzi, mezziInMissione, gpsTrackingEnabled, impostazioni, tipiMezzo]);
+  }, [eventi, mezzi, mezziInMissione, gpsTrackingEnabled, impostazioni, tipiMezzo, pmaList]);
 
   if (loadError) {
     return (
@@ -196,6 +210,19 @@ export function OpsMap({ eventi, mezzi, missioni = [], onSelect, readOnly = fals
           <MapPinned className="h-3.5 w-3.5 shrink-0" />
           Solo strade
         </button>
+        <button
+          type="button"
+          className={`pointer-events-auto ${viewToggleBtn} ${
+            viewMode === OPS_MAP_VIEW_SATELLITE
+              ? 'bg-sky-600 text-white shadow-sm'
+              : 'text-slate-600 hover:bg-slate-100'
+          }`}
+          aria-pressed={viewMode === OPS_MAP_VIEW_SATELLITE}
+          onClick={() => selectViewMode(OPS_MAP_VIEW_SATELLITE)}
+        >
+          <Satellite className="h-3.5 w-3.5 shrink-0" />
+          Satellite
+        </button>
       </div>
 
       <GoogleMap
@@ -208,14 +235,25 @@ export function OpsMap({ eventi, mezzi, missioni = [], onSelect, readOnly = fals
         {eventPositions.length > 0 && <FitEventBounds eventPositions={eventPositions} />}
       {markers.map((m) => {
         const key =
-          m.type === 'evento' ? `e-${m.data._docId}` : `z-${m.data.sigla ?? m.data._docId}`;
-        const label = m.type === 'evento' ? m.data.idEvento : (m.data.sigla ?? m.data._docId);
+          m.type === 'evento'
+            ? `e-${m.data._docId}`
+            : m.type === 'pma'
+              ? `pma-${m.data.id}`
+              : `z-${m.data.sigla ?? m.data._docId}`;
+        const label =
+          m.type === 'evento'
+            ? m.data.idEvento
+            : m.type === 'pma'
+              ? m.data.nome
+              : (m.data.sigla ?? m.data._docId);
         const title =
           m.type === 'mezzo' && m.usesGps
             ? `${label} · pos. GPS`
             : m.type === 'mezzo' && m.onMission
               ? `${label} · in missione`
-              : label;
+              : m.type === 'pma'
+                ? `PMA ${label}`
+                : label;
         return (
           <Marker
             key={key}

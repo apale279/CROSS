@@ -5,6 +5,12 @@ export function isMissioneAttiva(missione) {
   return s !== 'FINE MISSIONE' && s !== 'ANNULLATA';
 }
 
+/** Il mezzo è impegnato da questa missione (RIENTRO = mezzo libero, in ritorno vuoto). */
+export function missioneBloccaMezzo(missione) {
+  if (!isMissioneAttiva(missione)) return false;
+  return (missione.stato ?? '') !== 'RIENTRO';
+}
+
 /** Allinea sigle tipo BRAVO_1 / BRAVO1 (come in telegram mezzoResolve). */
 export function normalizeMezzoKey(sigla) {
   return String(sigla ?? '')
@@ -16,14 +22,14 @@ export function mezzoHaMissioneAttiva(sigla, missioni) {
   if (!sigla) return false;
   const nk = normalizeMezzoKey(sigla);
   return (missioni ?? []).some(
-    (m) => isMissioneAttiva(m) && m.mezzo && normalizeMezzoKey(m.mezzo) === nk,
+    (m) => missioneBloccaMezzo(m) && m.mezzo && normalizeMezzoKey(m.mezzo) === nk,
   );
 }
 
 export function mezziConMissioneAttiva(missioni) {
   const set = new Set();
   for (const m of missioni ?? []) {
-    if (isMissioneAttiva(m) && m.mezzo) {
+    if (missioneBloccaMezzo(m) && m.mezzo) {
       set.add(m.mezzo);
       set.add(normalizeMezzoKey(m.mezzo));
     }

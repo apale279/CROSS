@@ -1,4 +1,5 @@
 import { toDatetimeLocalValue } from './datetimeLocal';
+import { soreuFieldsFromPatient } from './soreuTrasporto';
 
 const DRAFT_KEYS_DIRTY_MERGE = new Set([
   'aperta',
@@ -15,6 +16,10 @@ const DRAFT_KEYS_DIRTY_MERGE = new Set([
   'pettorale',
   'telefono',
   'dataNascita',
+  'soreuOraMissione',
+  'soreuNumeroMissione',
+  'soreuAccompagnato',
+  'soreuCodice',
 ]);
 
 /**
@@ -37,6 +42,7 @@ export function patientDocToDraftFields(p) {
     pettorale: p.pettorale != null ? String(p.pettorale) : '',
     telefono: p.telefono ?? '',
     dataNascita: p.dataNascita ?? '',
+    ...soreuFieldsFromPatient(p),
   };
 }
 

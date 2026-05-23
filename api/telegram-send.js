@@ -66,12 +66,15 @@ export default async function handler(req, res) {
     }
 
     const text = formatMissionTelegramHtml(missione);
+    const mi = missione.missione ?? missione;
     const missionDocId = (missione.missionDocId ?? missione._docId ?? '').trim();
+    const stato = mi.stato ?? missione.stato ?? 'ALLERTARE';
+    const aperta = mi.aperta !== false && missione.aperta !== false;
     let replyMarkup;
-    if (missionDocId && missione.aperta !== false && !isStatoMissioneTerminale(missione.stato)) {
+    if (missionDocId && aperta && !isStatoMissioneTerminale(stato)) {
       const stati = await getStatiMissione(tenantId);
-      const next = nextStatoMissione(missione.stato ?? 'ALLERTARE', stati);
-      if (next !== missione.stato) {
+      const next = nextStatoMissione(stato, stati);
+      if (next !== stato) {
         replyMarkup = buildStatoAdvanceKeyboard(missionDocId, next);
       }
     }

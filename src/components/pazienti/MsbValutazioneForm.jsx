@@ -1,7 +1,9 @@
 import { DEFAULT_IMPOSTAZIONI } from '../../constants';
 import {
+  CUTE_OPTIONS,
   MR_OPTIONS,
   normalizeMsbDetails,
+  toggleCute,
   toggleMeccanica,
 } from '../../lib/msbValutazione';
 import { ColoreIndicator } from '../ui/ColoreIndicator';
@@ -9,6 +11,20 @@ import { FormField, inputClass, selectClass } from '../ui/FormField';
 import { ValutazioneMezzoButtons } from './ValutazioneMezzoButtons';
 
 const avpuOpts = ['A', 'V', 'P', 'U'];
+
+const chipBtn = (active) =>
+  `rounded-md border px-2 py-1 text-xs font-semibold uppercase ${
+    active
+      ? 'border-teal-600 bg-teal-100 text-teal-900'
+      : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
+  }`;
+
+function isMeccanicaActive(d, opt) {
+  const mr = d.meccanicaRespiratoria ?? [];
+  if (opt.absent) return mr.includes('ASSENTE');
+  if (!opt.path) return mr.includes('Eupnoico') && !mr.includes('ASSENTE');
+  return mr.includes(opt.key);
+}
 
 export function MsbValutazioneForm({ msbDetails, onPatch, mezziEventoSigle }) {
   const d = normalizeMsbDetails(msbDetails);
@@ -47,35 +63,23 @@ export function MsbValutazioneForm({ msbDetails, onPatch, mezziEventoSigle }) {
       <div>
         <p className="mb-1 text-xs font-medium text-slate-600">Meccanica respiratoria</p>
         <div className="flex flex-wrap gap-2">
-          {MR_OPTIONS.map((opt) => {
-            const active = opt.path
-              ? (d.meccanicaRespiratoria ?? []).includes(opt.key)
-              : (d.meccanicaRespiratoria ?? []).includes('Eupnoico');
-            return (
-              <button
-                key={opt.key}
-                type="button"
-                className={`rounded-md border px-2 py-1 text-xs font-semibold uppercase ${
-                  active
-                    ? 'border-teal-600 bg-teal-100 text-teal-900'
-                    : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
-                }`}
-                onClick={() =>
-                  onPatch({
-                    meccanicaRespiratoria: toggleMeccanica(
-                      d.meccanicaRespiratoria ?? [],
-                      opt.key,
-                    ),
-                  })
-                }
-              >
-                {opt.key}
-              </button>
-            );
-          })}
+          {MR_OPTIONS.map((opt) => (
+            <button
+              key={opt.key}
+              type="button"
+              className={chipBtn(isMeccanicaActive(d, opt))}
+              onClick={() =>
+                onPatch({
+                  meccanicaRespiratoria: toggleMeccanica(d.meccanicaRespiratoria ?? [], opt.key),
+                })
+              }
+            >
+              {opt.key}
+            </button>
+          ))}
         </div>
         <p className="mt-1 text-[10px] text-slate-500">
-          Eupnoico si esclude se selezioni una condizione patologica.
+          ASSENTE ed Eupnoico sono esclusivi con le condizioni patologiche.
         </p>
       </div>
 
@@ -104,6 +108,29 @@ export function MsbValutazioneForm({ msbDetails, onPatch, mezziEventoSigle }) {
             }
           />
         </FormField>
+      </div>
+
+      <div>
+        <p className="mb-1 text-xs font-medium text-slate-600">CUTE</p>
+        <div className="flex flex-wrap gap-2">
+          {CUTE_OPTIONS.map((key) => {
+            const active = (d.cute ?? []).includes(key);
+            return (
+              <button
+                key={key}
+                type="button"
+                className={chipBtn(active)}
+                onClick={() => onPatch({ cute: toggleCute(d.cute ?? [], key) })}
+              >
+                {key}
+              </button>
+            );
+          })}
+        </div>
+        <p className="mt-1 text-[10px] text-slate-500">Selezione multipla.</p>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2">
         <FormField label="FC">
           <input
             type="number"
@@ -126,6 +153,33 @@ export function MsbValutazioneForm({ msbDetails, onPatch, mezziEventoSigle }) {
             className={inputClass}
             value={d.paDia}
             onChange={(e) => onPatch({ paDia: Number(e.target.value) })}
+          />
+        </FormField>
+        <FormField label="Temperatura (°C)">
+          <input
+            type="number"
+            step="0.1"
+            min={30}
+            max={45}
+            className={inputClass}
+            value={d.temperatura}
+            onChange={(e) => onPatch({ temperatura: Number(e.target.value) })}
+          />
+        </FormField>
+        <FormField label="Glicemia (mg/dL)">
+          <input
+            type="number"
+            min={0}
+            max={800}
+            className={inputClass}
+            value={d.glicemia ?? ''}
+            placeholder="—"
+            onChange={(e) => {
+              const raw = e.target.value;
+              onPatch({
+                glicemia: raw === '' ? null : Number(raw),
+              });
+            }}
           />
         </FormField>
       </div>

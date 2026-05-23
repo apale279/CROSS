@@ -26,8 +26,12 @@ function buildEventoPayload(manifestationId, idEvento, idUnivoco, payload) {
     stato: true,
     indirizzo: payload.indirizzo ?? '',
     luogo_fisico: payload.luogo_fisico ?? '',
+    chiamante: payload.chiamante ?? '',
     tipoEvento: payload.tipoEvento ?? '',
     dettaglioEvento: payload.dettaglioEvento ?? '',
+    luogo: payload.luogo ?? '',
+    tipoLuogo: payload.tipoLuogo ?? '',
+    meteo: payload.meteo ?? '',
     colore: payload.colore ?? 'Bianco',
     noteEvento: payload.noteEvento ?? '',
   };
@@ -85,6 +89,15 @@ export async function patchEvento(manifestationId, docId, fields) {
   if (!docId || !fields || Object.keys(fields).length === 0) return;
   const docRef = doc(db, ...eventiPath(manifestationId), docId);
   await updateDoc(docRef, fields);
+}
+
+/** Chiusura manuale dopo fase operativa terminata (rimozione da dashboard). */
+export async function terminaEventoOperatore(manifestationId, eventoDocId) {
+  await patchEvento(manifestationId, eventoDocId, {
+    stato: false,
+    chiusuraIl: serverTimestamp(),
+    operativoTerminato: false,
+  });
 }
 
 /**

@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { DEFAULT_IMPOSTAZIONI } from '../constants';
+import { DEFAULT_IMPOSTAZIONI, ESITO_TRASPORTA } from '../constants';
 import { COLLECTIONS } from '../lib/firestorePaths';
 import { useManifestazioneCollection } from './useManifestazioneCollection';
 import {
@@ -7,6 +7,16 @@ import {
   pazientiPerEvento,
   eventoSenzaCoperturaMissione,
 } from '../lib/eventoLinks';
+
+function pazientiTrasportoPerMissione(pazienti, mis) {
+  if (!mis) return [];
+  return (pazienti ?? []).filter((p) => {
+    const sameEvento =
+      (mis.eventoIdUnivoco && p.eventoIdUnivoco === mis.eventoIdUnivoco) ||
+      p.eventoCorrelato === mis.eventoCorrelato;
+    return sameEvento && p.mezzo === mis.mezzo && p.esito === ESITO_TRASPORTA;
+  });
+}
 
 export function useOperativoDashboardData() {
   const { data: eventi, loading: loadingE } = useManifestazioneCollection(COLLECTIONS.eventi);
@@ -23,6 +33,14 @@ export function useOperativoDashboardData() {
     }
     return m;
   }, [eventiAperti, pazienti]);
+
+  const pazientiTrasportoByMissione = useMemo(() => {
+    const m = new Map();
+    for (const mis of missioni) {
+      m.set(mis._docId, pazientiTrasportoPerMissione(pazienti, mis));
+    }
+    return m;
+  }, [missioni, pazienti]);
 
   const missioniAperte = useMemo(() => missioni.filter((m) => m.aperta !== false), [missioni]);
 
@@ -43,14 +61,21 @@ export function useOperativoDashboardData() {
     const usedMissionIds = new Set();
     const blocks = [];
 
-    for (const ev of eventiAperti) {
+    const eventiOrdinati = [...eventiAperti].sort(
+      (a, b) => (b.apertura?.toMillis?.() ?? 0) - (a.apertura?.toMillis?.() ?? 0),
+    );
+
+    for (const ev of eventiOrdinati) {
       const missions = sortMissioni(missioniPerEvento(missioniAperte, ev));
       missions.forEach((m) => usedMissionIds.add(m._docId));
       blocks.push({
         key: `ev-${ev._docId}`,
         ev,
         missions,
-        orfano: ev.stato !== false && eventoSenzaCoperturaMissione(missioni, ev),
+        orfano:
+          ev.stato !== false &&
+          ev.operativoTerminato !== true &&
+          eventoSenzaCoperturaMissione(missioni, ev),
       });
     }
 
@@ -59,11 +84,6 @@ export function useOperativoDashboardData() {
       blocks.push({ key: 'orphan-missions', ev: null, missions: orphans, orfano: false });
     }
 
-    const blockTime = (b) => {
-      if (b.missions.length) return b.missions[0]?.apertura?.toMillis?.() ?? 0;
-      return b.ev?.apertura?.toMillis?.() ?? 0;
-    };
-    blocks.sort((a, b) => blockTime(b) - blockTime(a));
     return blocks;
   }, [eventiAperti, missioniAperte, missioni]);
 
@@ -93,6 +113,8 @@ export function useOperativoDashboardData() {
     operativoBlocks,
     operativoStats,
     pazientiCountByEvento,
+    pazientiTrasportoByMissione,
+    pazienti,
     loading,
     stati,
   };

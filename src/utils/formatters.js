@@ -9,6 +9,17 @@ export function formatDate(ts) {
   });
 }
 
+/** Solo ora (dashboard eventi/missioni). */
+export function formatTimeOnly(ts) {
+  if (!ts) return '—';
+  const date = ts?.toDate ? ts.toDate() : new Date(ts);
+  if (Number.isNaN(date.getTime())) return '—';
+  return date.toLocaleTimeString('it-IT', {
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
 export function formatTimestamp(ts) {
   if (!ts) return '—';
   const date = ts?.toDate ? ts.toDate() : new Date(ts);

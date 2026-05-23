@@ -22,6 +22,7 @@ import { FullscreenPanel } from '../components/dashboard/FullscreenPanel';
 import { MezzoScheda } from '../components/mezzi/MezzoScheda';
 import { MissioneScheda } from '../components/missioni/MissioneScheda';
 import { Modal } from '../components/ui/Modal';
+import { PmaMapModal } from '../components/impostazioni/PmaMapModal';
 import { DiarioImportantTicker } from '../components/diario/DiarioImportantTicker';
 import { DiarioNotaModal } from '../components/diario/DiarioNotaModal';
 import { useDiarioNotaActions } from '../hooks/useDiarioNotaActions';
@@ -46,6 +47,7 @@ export default function DashboardPage() {
     operativoBlocks,
     operativoStats,
     pazientiCountByEvento,
+    pazientiTrasportoByMissione,
     loading,
     stati,
   } = useOperativoDashboardData();
@@ -134,7 +136,8 @@ export default function DashboardPage() {
       loading={loading}
       blocks={operativoBlocks}
       pazientiCountByEvento={pazientiCountByEvento}
-      eventi={eventiAperti}
+      pazientiTrasportoByMissione={pazientiTrasportoByMissione}
+      eventi={eventi}
       telegramEnabled={telegramEnabled}
       onOpenEvento={openEventoScheda}
       onOpenMissione={(mis) => setModal({ type: 'missione', data: mis })}
@@ -268,9 +271,11 @@ export default function DashboardPage() {
           eventi={eventiAperti}
           mezzi={mezzi}
           missioni={missioni}
+          pmaList={impostazioni.pma ?? []}
           onSelect={(payload) => {
             if (payload.type === 'evento') openEventoScheda(payload.data);
             if (payload.type === 'mezzo') setModal({ type: 'mezzo', data: payload.data });
+            if (payload.type === 'pma') setModal({ type: 'pma', data: payload.data });
           }}
         />
       </FloatingPanel>
@@ -291,6 +296,12 @@ export default function DashboardPage() {
             }
             onDeleted={() => setModal(null)}
           />
+        </Modal>
+      )}
+
+      {modal?.type === 'pma' && (
+        <Modal title={`PMA ${modal.data.nome ?? ''}`} onClose={() => setModal(null)} wide>
+          <PmaMapModal pma={modal.data} onClose={() => setModal(null)} />
         </Modal>
       )}
 

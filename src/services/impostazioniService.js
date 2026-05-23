@@ -44,6 +44,23 @@ export async function saveDettaglioTipoEvento(manifestationId, tipo, list) {
   await updateDoc(docRef, patch);
 }
 
+/** Aggiorna solo una voce di dettagliPerTipoLuogo senza riscrivere l'intero oggetto. */
+export async function saveDettaglioTipoLuogo(manifestationId, tipo, list) {
+  if (!tipo) return;
+  const docRef = impostazioniDocRef(manifestationId);
+  const snap = await getDoc(docRef);
+  const patch = { [`dettagliPerTipoLuogo.${tipo}`]: list };
+  if (!snap.exists()) {
+    await setDoc(
+      docRef,
+      { manifestationId, dettagliPerTipoLuogo: { [tipo]: list } },
+      { merge: true },
+    );
+    return;
+  }
+  await updateDoc(docRef, patch);
+}
+
 /** @deprecated usa saveImpostazioniField */
 export async function updateImpostazioniDocument(manifestationId, partialFields) {
   const keys = Object.keys(partialFields ?? {});

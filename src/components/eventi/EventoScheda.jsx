@@ -1,9 +1,17 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { serverTimestamp } from 'firebase/firestore';
 import { Plus } from 'lucide-react';
 import { DEFAULT_IMPOSTAZIONI } from '../../constants';
 import { useImpostazioni } from '../../hooks/useImpostazioni';
 import { useManifestazioneId } from '../../context/ManifestazioneContext';
-import { closeEventoForzato, createEvento, deleteEvento, patchEvento } from '../../services/eventiService';
+import {
+  closeEventoForzato,
+  createEvento,
+  deleteEvento,
+  patchEvento,
+  terminaEventoOperatore,
+} from '../../services/eventiService';
+import { mezzoHaMissioneAttiva } from '../../lib/mezzoMissione';
 import { EVENTO_TIPO_CHIUSURA } from '../../lib/missionEccezioni';
 import { missioniPerEvento, pazientiPerEvento } from '../../lib/eventoLinks';
 import { shouldAutoCloseEvento } from '../../utils/eventoAutoClose';
@@ -24,8 +32,12 @@ import {
 import { EventoDettaglioForm } from './EventoDettaglioForm';
 
 const emptyValues = () => ({
+  chiamante: '',
   tipoEvento: DEFAULT_IMPOSTAZIONI.tipiEvento[0],
   dettaglioEvento: '',
+  luogo: '',
+  tipoLuogo: '',
+  meteo: '',
   colore: 'Bianco',
   indirizzo: '',
   luogo_fisico: '',
@@ -61,6 +73,7 @@ export function EventoScheda({
   const [chiusuraStandDown, setChiusuraStandDown] = useState(false);
   const [showCloseForm, setShowCloseForm] = useState(false);
   const [closing, setClosing] = useState(false);
+  const [terminating, setTerminating] = useState(false);
   const appliedInitialTabRef = useRef(false);
 
   useEffect(() => {
@@ -74,8 +87,12 @@ export function EventoScheda({
       return;
     }
     setDraft({
+      chiamante: evento.chiamante ?? '',
       tipoEvento: evento.tipoEvento ?? '',
       dettaglioEvento: evento.dettaglioEvento ?? '',
+      luogo: evento.luogo ?? '',
+      tipoLuogo: evento.tipoLuogo ?? '',
+      meteo: evento.meteo ?? '',
       colore: evento.colore ?? 'Bianco',
       indirizzo: evento.indirizzo ?? '',
       luogo_fisico: evento.luogo_fisico ?? '',
@@ -102,14 +119,22 @@ export function EventoScheda({
     [pazienti, evento],
   );
   const mezziDisponibili = mezzi.filter(
-    (m) => (m.statoMezzo ?? 'Disponibile') === 'Disponibile',
+    (m) =>
+      (m.statoMezzo ?? 'Disponibile') === 'Disponibile' &&
+      !mezzoHaMissioneAttiva(m.sigla ?? m._docId, allMissioni ?? missioni),
   );
   const eventoAperto = isCreate || evento.stato !== false;
+  const eventoTerminato = !isCreate && evento.operativoTerminato === true && evento.stato !== false;
+  const eventoModificabile = eventoAperto && !eventoTerminato;
 
   useEffect(() => {
     if (readOnly || isCreate || !evento?._docId || evento.stato === false) return;
+    if (evento.operativoTerminato === true) return;
     if (!shouldAutoCloseEvento(missioniEvento)) return;
-    patchEvento(manifestazioneId, evento._docId, { stato: false });
+    patchEvento(manifestazioneId, evento._docId, {
+      operativoTerminato: true,
+      operativoTerminatoIl: serverTimestamp(),
+    });
   }, [readOnly, isCreate, evento, missioniEvento, manifestazioneId]);
 
   const patch = (fields) => {
@@ -154,6 +179,7 @@ export function EventoScheda({
           eventoCorrelato: evento.idEvento,
           mezzo: missioneForm.mezzo,
           pazienteAutopresentato: missioneForm.pazienteAutopresentato,
+          coloreEvento: evento.colore,
         },
         allMissioni,
         mezzo,
@@ -232,10 +258,14 @@ export function EventoScheda({
           </span>
           <span
             className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${
-              eventoAperto ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-600'
+              eventoTerminato
+                ? 'bg-amber-100 text-amber-900'
+                : eventoAperto
+                  ? 'bg-emerald-100 text-emerald-800'
+                  : 'bg-slate-200 text-slate-600'
             }`}
           >
-            {eventoAperto ? 'Aperto' : 'Chiuso'}
+            {eventoTerminato ? 'Terminato' : eventoAperto ? 'Aperto' : 'Chiuso'}
           </span>
           <span className="text-xs text-slate-500">
             {formatTimestamp(evento.apertura)}
@@ -285,7 +315,7 @@ export function EventoScheda({
             onPatch={patch}
             onCommitLocation={commitLocation}
             readOnlyId={evento?.idEvento}
-            readOnly={readOnly}
+            readOnly={readOnly || eventoTerminato}
           />
           {isCreate && (
             <div className="mt-4">
@@ -304,7 +334,7 @@ export function EventoScheda({
 
       {!isCreate && tab === 'missioni' && (
         <div className="space-y-3">
-          {!readOnly && eventoAperto && (
+          {!readOnly && eventoModificabile && (
             <button
               type="button"
               className={`${btnPrimary} flex items-center gap-2`}
@@ -314,7 +344,7 @@ export function EventoScheda({
               Nuova missione
             </button>
           )}
-          {!readOnly && showMissioneForm && eventoAperto && (
+          {!readOnly && showMissioneForm && eventoModificabile && (
             <form
               onSubmit={handleNuovaMissione}
               className="rounded-lg border border-violet-200 bg-violet-50/50 p-4"
@@ -424,7 +454,7 @@ export function EventoScheda({
 
       {!isCreate && tab === 'pazienti' && (
         <div className="space-y-3">
-          {!readOnly && eventoAperto && (
+          {!readOnly && eventoModificabile && (
             <button
               type="button"
               className={`${btnPrimary} flex items-center gap-2`}
@@ -508,8 +538,33 @@ export function EventoScheda({
       )}
 
       {!isCreate && !readOnly && (
-        <div className="mt-6 border-t border-slate-200 pt-4">
-          {eventoAperto ? (
+        <div className="mt-6 flex flex-wrap items-end justify-between gap-3 border-t border-slate-200 pt-4">
+          {eventoTerminato ? (
+            <button
+              type="button"
+              className={`${btnPrimary} ml-auto`}
+              disabled={terminating}
+              onClick={async () => {
+                if (
+                  !window.confirm(
+                    `Archiviare l'evento ${evento.idEvento}? Non sarà più visibile in dashboard.`,
+                  )
+                ) {
+                  return;
+                }
+                setTerminating(true);
+                try {
+                  await terminaEventoOperatore(manifestazioneId, evento._docId);
+                } catch (err) {
+                  alert('Errore: ' + err.message);
+                } finally {
+                  setTerminating(false);
+                }
+              }}
+            >
+              {terminating ? 'Chiusura…' : 'Termina evento'}
+            </button>
+          ) : eventoAperto ? (
             <>
               {!showCloseForm ? (
                 <button

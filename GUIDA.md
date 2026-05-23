@@ -53,6 +53,8 @@ CROSS è la centrale operativa web per coordinare eventi, missioni, mezzi e pazi
 
 Gli account non si auto-registrano: l’amministratore li crea in **Firebase Console → Authentication**.
 
+L’URL può includere l’ID manifestazione (`/manifestazione/{id}/…`) se l’ambiente ne richiede più di uno.
+
 ### Sessione web
 
 - La sessione resta attiva sul dispositivo fino a **Logout** (menu in alto).
@@ -202,7 +204,7 @@ Aggiornamento da: centrale (Dashboard, scheda), Telegram (equipaggio), eccezioni
 ### Notifiche Telegram
 
 - Invio manuale con **Invia su Telegram**.
-- Dopo cambio stato dalla centrale può partire notifica automatica con pulsante avanzamento (se bot attivo).
+- Ogni **cambio stato dalla centrale** (Dashboard, scheda missione, eccezioni) invia in background una **notifica Telegram** all’equipaggio del mezzo, con pulsante per lo stato successivo se la missione è ancora aperta (bot attivo).
 
 ---
 
@@ -210,9 +212,12 @@ Aggiornamento da: centrale (Dashboard, scheda), Telegram (equipaggio), eccezioni
 
 Pagina **Pazienti** — anagrafica e stato sanitario.
 
-- Collegamento a **evento** e **mezzo**.
+- Collegamento a **evento** e **mezzo** (missioni dell’evento).
 - **Esito** (Trasporta, Non trasporta, Rifiuto trasporto, …) e **stato** (ATTESA, TRASPORTO, ARRIVATO H).
-- Scheda con dati clinici operativi secondo configurazione.
+- Dati anagrafici, note, ospedale di destinazione (da lista in Impostazioni).
+- **Valutazione MSB** — modulo clinico operativo (parametri, codice colore evento collegabile alla missione).
+- **Registro partecipanti** — ricerca per **pettorale** se importato da Excel in Impostazioni.
+- Più **valutazioni soccorso** per paziente, con timestamp.
 
 Con missione in **ARRIVATO H**, i pazienti in trasporto sullo stesso evento/mezzo possono aggiornarsi automaticamente.
 
@@ -264,10 +269,12 @@ Sei schede.
 
 ### 10.1 Impostazioni eventi
 
-- Tipi evento e dettagli per tipo
-- Colori evento
-- Stati missione (ordine del flusso)
-- Opzioni collegate agli eventi
+- **Tipi evento** (chip modificabili)
+- **Dettagli per tipo** — elenco dettagli associato a ciascun tipo (es. sotto-tipologie trauma/malore)
+
+I **colori evento** (Bianco, Verde, Giallo, Rosso) e il **flusso stati missione** sono quelli standard dell’app (vedi [§16](#16-glossario-stati-missione)); non si modificano da questa scheda.
+
+**Import massivo (amministratore):** da Excel con `npm run import:impostazioni-eventi` (vedi script in repository).
 
 ### 10.2 INFO LUOGO
 
@@ -294,7 +301,7 @@ Sei schede.
 |-----------|-----|
 | **TRACKING GPS** | ON: equipaggio può inviare GPS; mappa operativa usa posizione reale in missione. OFF: azzera posizioni GPS salvate; solo stazionamento |
 | **Equipaggio loggato (bot)** | Elenco mezzi assegnati su Telegram; destinatari di «Invia a tutti» dal diario |
-| **Password bot** | Password prima della scelta mezzo. Al cambio: tutti disconnessi → `/cambiapassword` e `/start` |
+| **Password bot** | Password prima della scelta mezzo (min. 4 caratteri). Al salvataggio: incremento **revisione** e disconnessione equipaggi → `/cambiapassword` e `/start`. Opzione **rimuovi password** (accesso bot senza password) |
 | **Forza logout** | Disconnette tutti i Telegram dai mezzi (messaggi restano sui telefoni) |
 | **Logout globale e pulizia** | Fine manifestazione: cancella messaggi missione, resetta chat bot, doppia conferma. **Non** slogga l’app web |
 
@@ -305,7 +312,13 @@ Il bot deve essere **Attivo** in Dashboard per invii e comandi.
 - Carica **PDF** su Cloudinary (pulsante o URL manuale)
 - Salvataggio in `guida_pdf_url` — abilita link **Guida** nel menu
 
-**Caricamento da terminale (amministratore):**
+**Rigenerare il PDF da Markdown (sviluppo):**
+
+```bash
+npm run generate:guida-pdf
+```
+
+**Pubblicare su Cloudinary + Firestore (amministratore):**
 
 ```bash
 node --env-file=.env.local scripts/upload-guida-pdf.mjs
@@ -337,7 +350,7 @@ CROSS distingue tre concetti — **non si sovrascrivono**:
 ### Equipaggio Telegram
 
 - Dopo scelta mezzo (se mezzo **non** in piantina): richiesta consenso GPS.
-- Dopo avanzamento stato: può inviare posizione (tasto o live location).
+- Dopo avanzamento stato: può inviare posizione con il tasto **Invia posizione GPS** o condividere la **posizione in tempo reale** su Telegram (aggiornamenti ricevuti anche quando il messaggio GPS viene modificato).
 - Comando **`/gps`** — gestione consenso e invio posizione.
 
 ---
@@ -346,10 +359,11 @@ CROSS distingue tre concetti — **non si sovrascrivono**:
 
 Per postazioni multi-schermo dalla Dashboard:
 
-1. Su ogni pannello (Eventi/missioni, Mezzi, Mappa) usare il pulsante **apri su monitor esterno** (pop-out).
-2. Si apre una finestra dedicata (`/kiosk/eventi`, `/kiosk/mezzi`, `/kiosk/mappa`).
-3. Se la finestra viene chiusa, il pannello torna come **icona** nella barra dock in Dashboard — clic per ripristinare.
-4. **Reset vista** ripristina anche i pannelli kiosk.
+1. Su ogni pannello (Eventi/missioni, Mezzi, Mappa) usare l’icona **apri su monitor esterno** (freccia in alto a destra del pannello).
+2. Si apre una finestra dedicata (`/kiosk/eventi`, `/kiosk/mezzi`, `/kiosk/mappa`) in **sola lettura** — ideale per tabelloni senza rischio modifiche accidentali.
+3. Nella finestra esterna: pulsante **riduci a icona** per chiudere la finestra e lasciare il pannello come icona sulla barra dock in Dashboard.
+4. Se la finestra viene chiusa senza riduzione, il pannello torna comunque come **icona** dock — clic per ripristinare nel layout principale.
+5. **Reset vista** ripristina anche i pannelli kiosk.
 
 Utile per: tabellone eventi su un monitor, mappa su un altro, stato mezzi su un terzo.
 
@@ -420,9 +434,10 @@ Solo i dispositivi registrati sul **mezzo corretto** ricevono i messaggi di quel
 
 ### Sessione web (operatori)
 
-- Ogni login genera `active_session_token` sul profilo.
-- **Logout globale** amministrativo (se previsto nel flusso) può revocare sessioni remote.
-- Elenco sessioni attive: **Impostazioni → Utenti**.
+- Ogni login genera un token di sessione sul profilo (`active_session_token`).
+- Se il token sul server non coincide più con quello del dispositivo, l’app esegue **logout automatico** (revoca sessione).
+- Elenco sessioni attive: **Impostazioni → Utenti** (nome, email, ultima pagina visitata).
+- Il **Logout globale Telegram** (§10.5) **non** disconnette gli operatori web.
 
 ### Sessione Telegram (equipaggio)
 

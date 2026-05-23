@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { Link, NavLink, useLocation } from 'react-router-dom';
 import { useTenantContext } from '../../context/TenantContext';
 import { useAuth } from '../../context/AuthContext';
-import { useManifestazione } from '../../hooks/useManifestazione';
 import { useImpostazioni } from '../../hooks/useImpostazioni';
 import { useEventoScheda } from '../../context/EventoSchedaContext';
 import { useFirestoreSync } from '../../context/FirestoreSyncContext';
@@ -36,7 +35,6 @@ export function AppHeader() {
   const { pathname } = useLocation();
   const { tenantId } = useTenantContext();
   const { user, profile, logout } = useAuth();
-  const { manifestazione } = useManifestazione();
   const { impostazioni } = useImpostazioni();
   const guidaPdfUrl = (impostazioni.guida_pdf_url ?? '').trim();
   const { openNuovoEvento } = useEventoScheda();
@@ -59,11 +57,9 @@ export function AppHeader() {
     <header className="flex shrink-0 flex-wrap items-center gap-2 border-b border-slate-300 bg-white px-4 py-2">
       <Link to="/" className="flex items-center gap-2">
         <AppLogo className="h-9 w-auto" />
+        <span className="text-sm font-bold uppercase tracking-wide text-slate-800">CROSS</span>
       </Link>
-      <div className="flex items-center gap-2">
-        {manifestazione?.nome && (
-          <span className="text-sm font-bold uppercase text-slate-800">{manifestazione.nome}</span>
-        )}
+      <div className="flex flex-wrap items-center gap-2">
         <span
           className={`h-2.5 w-2.5 shrink-0 rounded-full ${
             online ? 'bg-emerald-500' : 'bg-red-500'
@@ -73,23 +69,40 @@ export function AppHeader() {
         <span className="font-mono text-xs text-slate-500" title="Ultima sincronizzazione">
           {syncLabel}
         </span>
+        {isDashboard && (
+          <>
+            <button type="button" onClick={openNuovoEvento} className={navActiveClass}>
+              + Evento
+            </button>
+            <button
+              type="button"
+              className={navButtonClass}
+              onClick={() => {
+                resetDashboardLayout(tenantId);
+                kioskPopOut?.resetAllPanels();
+              }}
+            >
+              Reset vista
+            </button>
+          </>
+        )}
       </div>
 
       <nav className="ml-auto flex flex-wrap items-center gap-2">
         {user && (
           <div className="mr-1 flex max-w-[200px] flex-col items-end text-right">
-            <span className="truncate text-xs font-bold text-slate-800" title={profile?.nome ?? user.displayName ?? ''}>
-              {profile?.nome || user.displayName || 'Utente'}
+            <span
+              className="truncate font-mono text-xs font-bold text-slate-800"
+              title={profile?.nomeUtente ? `@${profile.nomeUtente}` : profile?.nome ?? ''}
+            >
+              {profile?.nomeUtente
+                ? `@${profile.nomeUtente}`
+                : profile?.nome || user.displayName || '—'}
             </span>
-            {profile?.nomeUtente && (
-              <span className="truncate font-mono text-[10px] text-slate-500">@{profile.nomeUtente}</span>
+            {profile?.nomeUtente && profile?.nome && (
+              <span className="truncate text-[10px] text-slate-500">{profile.nome}</span>
             )}
           </div>
-        )}
-        {isDashboard && (
-          <button type="button" onClick={openNuovoEvento} className={navActiveClass}>
-            Nuovo evento
-          </button>
         )}
         <NavLink to="/" end className={navClass}>
           Dashboard
@@ -123,18 +136,6 @@ export function AppHeader() {
         <NavLink to="/impostazioni" className={navClass}>
           Impostazioni
         </NavLink>
-        {isDashboard && (
-          <button
-            type="button"
-            className={navButtonClass}
-            onClick={() => {
-              resetDashboardLayout(tenantId);
-              kioskPopOut?.resetAllPanels();
-            }}
-          >
-            Reset vista
-          </button>
-        )}
         <button
           type="button"
           className={navButtonClass}

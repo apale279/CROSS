@@ -11,11 +11,13 @@ import {
 } from '../services/impostazioniService';
 
 function defaultForField(fieldKey) {
-  if (fieldKey === 'dettagliPerTipoEvento') return {};
+  if (fieldKey === 'dettagliPerTipoEvento' || fieldKey === 'dettagliPerTipoLuogo') return {};
+  if (fieldKey === 'pma' || fieldKey === 'stazionamenti') return [];
   if (fieldKey === 'mappaDashboardDefault' || fieldKey === 'piantina_url' || fieldKey === 'guida_pdf_url') {
     return null;
   }
-  if (fieldKey === 'luogo_fisico') return '';
+  if (fieldKey === 'luogo_fisico' || fieldKey === 'pmappManifestazioneId') return '';
+  if (fieldKey === 'pmappIntegrationEnabled') return false;
   return DEFAULT_IMPOSTAZIONI[fieldKey] ?? null;
 }
 

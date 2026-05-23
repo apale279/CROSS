@@ -15,6 +15,7 @@ import {
 import { db } from '../firebaseConfig';
 import { ESITO_TRASPORTA } from '../constants';
 import { normalizeMsbDetails } from '../lib/msbValutazione';
+import { normalizeMsaDetails } from '../lib/msaValutazione';
 import { applyMissioneArrivatoH } from '../lib/pazienteRules';
 import { missioniPath, pazientiPath, pazienteValutazioniSoccorsoPathSegments } from '../lib/firestorePaths';
 import { newIdUnivoco } from '../lib/ids';
@@ -88,9 +89,16 @@ function payloadValutazioneRow(v) {
   };
   if (base.tipo === 'MSB') {
     base.msbDetails = normalizeMsbDetails(v.msbDetails);
+    base.msaDetails = null;
     return base;
   }
-  return { ...base, msbDetails: null, mezzo: v.mezzo ?? '' };
+  const msa = normalizeMsaDetails(v.msaDetails);
+  return {
+    ...base,
+    msbDetails: null,
+    msaDetails: msa,
+    mezzo: v.mezzo ?? msa.mezzoMsa ?? '',
+  };
 }
 
 export async function createPaziente(manifestationId, payload, existingPazienti) {
@@ -130,6 +138,10 @@ export async function createPaziente(manifestationId, payload, existingPazienti)
     eta: payload.eta ?? null,
     sesso: payload.sesso ?? '',
     notePaziente: payload.notePaziente ?? '',
+    soreuOraMissione: payload.soreuOraMissione ?? null,
+    soreuNumeroMissione: payload.soreuNumeroMissione ?? '',
+    soreuAccompagnato: payload.soreuAccompagnato ?? ['NO'],
+    soreuCodice: payload.soreuCodice ?? '',
   });
 
   for (const v of vals) {
