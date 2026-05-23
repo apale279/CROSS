@@ -8,6 +8,7 @@ import { useFirestoreSync } from '../../context/FirestoreSyncContext';
 import { resetDashboardLayout } from '../../lib/dashboardLayout';
 import { useKioskPopOutContextOptional } from '../../context/KioskPopOutContext';
 import { AppLogo } from '../brand/AppLogo';
+import { usePmaAccess } from '../../hooks/usePmaAccess';
 
 const navClass = ({ isActive }) =>
   `rounded border px-3 py-2 text-sm font-bold uppercase tracking-wide ${
@@ -40,7 +41,9 @@ export function AppHeader() {
   const { openNuovoEvento } = useEventoScheda();
   const { online, lastSyncAt, error } = useFirestoreSync();
   const kioskPopOut = useKioskPopOutContextOptional();
+  const { fullCentrale, scopeId, accessiblePma } = usePmaAccess();
   const [syncLabel, setSyncLabel] = useState('—');
+  const pmaOnly = Boolean(scopeId);
 
   useEffect(() => {
     const tick = () => setSyncLabel(formatSyncTime(lastSyncAt));
@@ -55,7 +58,7 @@ export function AppHeader() {
 
   return (
     <header className="flex shrink-0 flex-wrap items-center gap-2 border-b border-slate-300 bg-white px-4 py-2">
-      <Link to="/" className="flex items-center gap-2">
+      <Link to={pmaOnly ? `/pma/${encodeURIComponent(scopeId)}` : '/'} className="flex items-center gap-2">
         <AppLogo className="h-9 w-auto" />
         <span className="text-sm font-bold uppercase tracking-wide text-slate-800">CROSS</span>
       </Link>
@@ -69,7 +72,7 @@ export function AppHeader() {
         <span className="font-mono text-xs text-slate-500" title="Ultima sincronizzazione">
           {syncLabel}
         </span>
-        {isDashboard && (
+        {isDashboard && fullCentrale && (
           <>
             <button type="button" onClick={openNuovoEvento} className={navActiveClass}>
               + Evento
@@ -104,38 +107,56 @@ export function AppHeader() {
             )}
           </div>
         )}
-        <NavLink to="/" end className={navClass}>
-          Dashboard
-        </NavLink>
-        <NavLink to="/diario" className={navClass}>
-          Diario
-        </NavLink>
-        <NavLink to="/eventi" className={navClass}>
-          Eventi
-        </NavLink>
-        <NavLink to="/missioni" className={navClass}>
-          Missioni
-        </NavLink>
-        <NavLink to="/pazienti" className={navClass}>
-          Pazienti
-        </NavLink>
-        <NavLink to="/mezzi" className={navClass}>
-          Mezzi
-        </NavLink>
-        {guidaPdfUrl && (
-          <a
-            href={guidaPdfUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={navButtonClass}
-            title="Apri guida operativa (PDF)"
-          >
-            Guida
-          </a>
+        {pmaOnly ? (
+          <>
+            <NavLink
+              to={`/pma/${encodeURIComponent(scopeId)}`}
+              className={navClass}
+            >
+              {accessiblePma[0]?.nome ?? 'PMA'}
+            </NavLink>
+          </>
+        ) : (
+          <>
+            <NavLink to="/" end className={navClass}>
+              Dashboard
+            </NavLink>
+            <NavLink to="/diario" className={navClass}>
+              Diario
+            </NavLink>
+            <NavLink to="/eventi" className={navClass}>
+              Eventi
+            </NavLink>
+            <NavLink to="/missioni" className={navClass}>
+              Missioni
+            </NavLink>
+            <NavLink to="/pazienti" className={navClass}>
+              Pazienti
+            </NavLink>
+            <NavLink to="/mezzi" className={navClass}>
+              Mezzi
+            </NavLink>
+            {guidaPdfUrl && (
+              <a
+                href={guidaPdfUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={navButtonClass}
+                title="Apri guida operativa (PDF)"
+              >
+                Guida
+              </a>
+            )}
+            <NavLink to="/impostazioni" className={navClass}>
+              Impostazioni
+            </NavLink>
+            {accessiblePma.length > 0 && (
+              <NavLink to="/pma" className={navClass}>
+                Vista PMA
+              </NavLink>
+            )}
+          </>
         )}
-        <NavLink to="/impostazioni" className={navClass}>
-          Impostazioni
-        </NavLink>
         <button
           type="button"
           className={navButtonClass}

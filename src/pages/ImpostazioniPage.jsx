@@ -15,7 +15,8 @@ import { TelegramForceLogoutPanel } from '../components/impostazioni/TelegramFor
 import { TelegramGpsTrackingToggle } from '../components/impostazioni/TelegramGpsTrackingToggle';
 import { TelegramLoggedUsersPanel } from '../components/impostazioni/TelegramLoggedUsersPanel';
 import { ActiveUsersPanel } from '../components/impostazioni/ActiveUsersPanel';
-import { PmappIntegrationPanel } from '../components/impostazioni/PmappIntegrationPanel';
+import { UserAccountsEditor } from '../components/impostazioni/UserAccountsEditor';
+import { PmaClinicaImpostazioniPanel } from '../components/impostazioni/PmaClinicaImpostazioniPanel';
 
 const ALTRE_LISTE = {
   listaOspedali: 'Lista ospedali',
@@ -54,6 +55,9 @@ export default function ImpostazioniPage() {
         <button type="button" className={tabClass(tab === 'guida')} onClick={() => setTab('guida')}>
           Guida
         </button>
+        <button type="button" className={tabClass(tab === 'pma')} onClick={() => setTab('pma')}>
+          Impostazioni PMA
+        </button>
       </nav>
 
       {tab === 'eventi' && <ImpostazioniEventiPanel />}
@@ -62,7 +66,14 @@ export default function ImpostazioniPage() {
 
       {tab === 'guida' && <GuidaPdfPanel />}
 
-      {tab === 'utenti' && <ActiveUsersPanel />}
+      {tab === 'pma' && <PmaClinicaImpostazioniPanel />}
+
+      {tab === 'utenti' && (
+        <div className="grid gap-4">
+          <UserAccountsEditor />
+          <ActiveUsersPanel />
+        </div>
+      )}
 
       {tab === 'telegram' && (
         <div className="grid gap-4">
@@ -76,7 +87,6 @@ export default function ImpostazioniPage() {
 
       {tab === 'altro' && (
         <div className="grid gap-4">
-          <PmappIntegrationPanel />
           <TipiMezzoEditor />
           {Object.entries(ALTRE_LISTE).map(([key, label]) => (
             <ListEditorField key={key} fieldKey={key} label={label} />

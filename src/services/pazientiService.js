@@ -16,7 +16,9 @@ import { db } from '../firebaseConfig';
 import { ESITO_TRASPORTA } from '../constants';
 import { normalizeMsbDetails } from '../lib/msbValutazione';
 import { normalizeMsaDetails } from '../lib/msaValutazione';
-import { applyMissioneArrivatoH } from '../lib/pazienteRules';
+import { TIPO_PZ } from '../lib/pmaModule';
+import { patchPazienteArrivatoHConPma } from './pazientePmaMissionSync';
+import { initPmaSchedaIfMissing } from '../pma/lib/pazientePmaPatch';
 import { missioniPath, pazientiPath, pazienteValutazioniSoccorsoPathSegments } from '../lib/firestorePaths';
 import { newIdUnivoco } from '../lib/ids';
 import { nextProgressiveId } from './idGenerator';
@@ -122,6 +124,10 @@ export async function createPaziente(manifestationId, payload, existingPazienti)
     esito: payload.esito ?? '',
     esitoAltro: payload.esitoAltro ?? '',
     ospedaleDestinazione: payload.ospedaleDestinazione ?? '',
+    destinazionePmaId: payload.destinazionePmaId ?? '',
+    pmaId: payload.pmaId ?? payload.destinazionePmaId ?? '',
+    tipoPz: payload.tipoPz ?? TIPO_PZ.CENTRALE,
+    statoPzPma: payload.statoPzPma ?? null,
     stato: payload.stato ?? 'ATTESA',
     mezzo: payload.mezzo ?? '',
     idMissione: payload.idMissione ?? '',
@@ -236,8 +242,13 @@ export async function syncPazientiArrivatoH(manifestationId, missione) {
       p.eventoCorrelato === missione.eventoCorrelato;
     /* Stesso mezzo + evento: ogni passeggero in «Trasporta» viene portato ad ARRIVATO H. */
     if (!sameEvento || p.mezzo !== missione.mezzo || p.esito !== ESITO_TRASPORTA) return;
-    const patch = applyMissioneArrivatoH(p);
-    if (patch) tasks.push(patchPaziente(manifestationId, docSnap.id, patch));
+    const result = patchPazienteArrivatoHConPma(p);
+    if (result?.patch) {
+      tasks.push(patchPaziente(manifestationId, docSnap.id, result.patch));
+      if (result.initPmaScheda) {
+        tasks.push(initPmaSchedaIfMissing(manifestationId, docSnap.id));
+      }
+    }
   });
 
   await Promise.all(tasks);

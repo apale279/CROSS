@@ -3,7 +3,6 @@ import { getAdminDb } from './firebaseAdmin.js';
 import { impostazioniDocRef } from './telegramFirestore.js';
 import { buildStatoChangeFields } from './missionStoricoStati.js';
 import { isStatoMissioneTerminale, nextStatoMissione } from './missionStati.js';
-import { syncPmappOnDirettoH } from './pmappSyncDirettoH.js';
 
 const DEFAULT_STATI_MISSIONE = [
   'ALLERTARE',
@@ -178,14 +177,6 @@ export async function advanceMissioneStato(tenantId, missionDocId, expectedMezzo
     missione.eventoIdUnivoco,
     missione.eventoCorrelato,
   );
-
-  if (nuovo === 'DIRETTO H') {
-    try {
-      await syncPmappOnDirettoH(tenantId, missionDocId);
-    } catch (e) {
-      console.warn('[advanceMissioneStato pmapp]', e.message ?? e);
-    }
-  }
 
   return {
     ok: true,

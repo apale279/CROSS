@@ -1,0 +1,40 @@
+﻿import type { Paziente } from '@pma/types/paziente'
+import type { UserRank } from '@pma/types/userProfile'
+import { schedaTabCartellaAllows, schedaTabDimissioneAllows, schedaTabInvioPsAllows } from '@pma/lib/rankMatrix'
+
+export type SchedaPazienteTabId = 'generale' | 'anagrafica' | 'cartella' | 'dimissione' | 'invio_ps'
+
+const BASE_TABS: { id: SchedaPazienteTabId; label: string }[] = [
+  { id: 'generale', label: 'Generale' },
+  { id: 'anagrafica', label: 'Anagrafica' },
+  { id: 'cartella', label: 'Cartella clinica' },
+  { id: 'dimissione', label: 'Dimissione' },
+]
+
+/**
+ * Tab visibili sulla scheda: la sezione Invio PS compare solo con esito `invio_ps`.
+ * Esclude tab in base al rank (matrice Rank.xlsx / `rankMatrix`).
+ * Dimissione e Invio PS: solo Centrale o Medico.
+ */
+export function schedaPazienteTabsFor(
+  p: Pick<Paziente, 'dimissione_esito'>,
+  rank: UserRank,
+): {
+  id: SchedaPazienteTabId
+  label: string
+}[] {
+  let tabs: { id: SchedaPazienteTabId; label: string }[] = [...BASE_TABS]
+  if (p.dimissione_esito === 'invio_ps') {
+    tabs = [...tabs, { id: 'invio_ps', label: 'Invio PS' }]
+  }
+  tabs = tabs.filter((t) => {
+    if (t.id === 'dimissione' || t.id === 'invio_ps') {
+      if (rank !== 'Centrale' && rank !== 'Medico') return false
+    }
+    if (t.id === 'cartella') return schedaTabCartellaAllows(rank, 'READ')
+    if (t.id === 'dimissione') return schedaTabDimissioneAllows(rank, 'READ')
+    if (t.id === 'invio_ps') return schedaTabInvioPsAllows(rank, 'READ')
+    return true
+  })
+  return tabs
+}

@@ -17,7 +17,14 @@ import { emptyMsaDetails, normalizeMsaDetails } from '../../lib/msaValutazione';
 import { MsaValutazioneForm } from './MsaValutazioneForm';
 import { normalizeValutazioniSoccorso } from '../../lib/pazienteValutazioniSoccorso';
 import { mergePatientDraftFromServer, patientDocToDraftFields } from '../../lib/pazienteDraftMerge';
-import { listaDestinazioniOspedale } from '../../lib/destinazioniOspedale';
+import {
+  listaOspedaliDestinazione,
+  listaPmaImpostazioni,
+  resolveDestinazionePaziente,
+  findPmaById,
+} from '../../lib/destinazioniOspedale';
+import { TIPO_PZ } from '../../lib/pmaModule';
+import { PmaPazientePanel } from './PmaPazientePanel';
 import {
   pazientiPath,
   pazienteValutazioniSoccorsoPathSegments,
@@ -56,6 +63,7 @@ function emptyDraft() {
     esito: '',
     esitoAltro: '',
     ospedaleDestinazione: '',
+    destinazionePmaId: '',
     stato: 'ATTESA',
     mezzo: '',
     nome: '',
@@ -92,10 +100,8 @@ export function PazienteScheda({
   const { registryPartecipanti } = useRegistryPartecipanti(
     impostazioni?.registryPartecipanti ?? [],
   );
-  const ospedali = useMemo(
-    () => listaDestinazioniOspedale(impostazioni),
-    [impostazioni],
-  );
+  const ospedali = useMemo(() => listaOspedaliDestinazione(impostazioni), [impostazioni]);
+  const pmaDestinazioni = useMemo(() => listaPmaImpostazioni(impostazioni), [impostazioni]);
   const mezziEvento = useMemo(() => mezziMissioniEvento(missioniEvento), [missioniEvento]);
 
   const [serverPatient, setServerPatient] = useState(
@@ -120,6 +126,11 @@ export function PazienteScheda({
 
   const [valuationRows, setValuationRows] = useState([]);
   const [saving, setSaving] = useState(false);
+
+  const pmaDestNome = useMemo(() => {
+    const id = displayPatient?.destinazionePmaId ?? draft.destinazionePmaId;
+    return findPmaById(impostazioni, id)?.nome ?? null;
+  }, [displayPatient?.destinazionePmaId, draft.destinazionePmaId, impostazioni]);
 
   /** Snapshot diretto sul documento paziente → merge preservando campi dirty. */
   useEffect(() => {
@@ -366,6 +377,10 @@ export function PazienteScheda({
           esito: draft.esito,
           esitoAltro: showAltro ? draft.esitoAltro : '',
           ospedaleDestinazione: trasporta ? draft.ospedaleDestinazione : '',
+          destinazionePmaId: trasporta ? draft.destinazionePmaId ?? '' : '',
+          pmaId: trasporta ? draft.destinazionePmaId ?? '' : '',
+          tipoPz: TIPO_PZ.CENTRALE,
+          statoPzPma: null,
           ...(trasporta ? soreuFieldsForFirestore(draft) : {}),
           stato: draft.stato,
           mezzo: trasporta ? draft.mezzo : '',
@@ -717,25 +732,34 @@ export function PazienteScheda({
                   className={selectClass}
                   value={draft.ospedaleDestinazione}
                   onChange={(e) => {
-                    touchDirty('ospedaleDestinazione');
-                    const ospedaleDestinazione = e.target.value;
+                    const dest = resolveDestinazionePaziente(e.target.value, impostazioni);
                     const soreuInit =
-                      ospedaleDestinazione && !draft.soreuOraMissione
+                      dest.ospedaleDestinazione && !draft.soreuOraMissione
                         ? { soreuOraMissione: defaultSoreuOraMissione() }
                         : {};
-                    setDraft((d) => ({ ...d, ospedaleDestinazione, ...soreuInit }));
-                    void patchPatientFields(
-                      { ospedaleDestinazione, ...soreuInit },
-                      ['ospedaleDestinazione', ...(Object.keys(soreuInit).length ? ['soreuOraMissione'] : [])],
+                    const patch = { ...dest, ...soreuInit };
+                    ['ospedaleDestinazione', 'destinazionePmaId', ...Object.keys(soreuInit)].forEach(
+                      touchDirty,
                     );
+                    setDraft((d) => ({ ...d, ...patch }));
+                    void patchPatientFields(patch, Object.keys(patch));
                   }}
                 >
                   <option value="">—</option>
                   {ospedali.map((h) => (
-                    <option key={h} value={h}>
+                    <option key={`osp-${h}`} value={h}>
                       {h}
                     </option>
                   ))}
+                  {pmaDestinazioni.length > 0 && (
+                    <optgroup label="PMA">
+                      {pmaDestinazioni.map((p) => (
+                        <option key={`pma-${p.id}`} value={p.nome}>
+                          PMA — {p.nome}
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
                 </select>
               </FormField>
               {draft.ospedaleDestinazione && (
@@ -757,6 +781,7 @@ export function PazienteScheda({
                   ))}
                 </select>
               </FormField>
+              <PmaPazientePanel paziente={displayPatient ?? draft} pmaNome={pmaDestNome} />
             </>
           )}
           {!trasporta && draft.esito && (

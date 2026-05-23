@@ -97,8 +97,9 @@ export function PmaEditor() {
         </button>
       </div>
       <p className="mb-3 text-xs text-slate-500">
-        Ogni PMA può avere indirizzo o coordinate GPS (come uno stazionamento). In mappa operativa
-        compare con l&apos;icona tenda.
+        Ogni PMA ha un ID univoco (root di accesso): usalo per assegnare operatori con vista limitata.
+        In mappa operativa compare con l&apos;icona tenda; in scheda paziente compare in fondo alle
+        destinazioni ospedale.
       </p>
 
       {list.length === 0 ? (
@@ -134,6 +135,11 @@ export function PmaEditor() {
           ))}
         </ul>
       )}
+
+      <p className="mt-4 text-xs text-slate-500">
+        Per assegnare operatori ai PMA (tipo accesso, rank, password) usa il tab{' '}
+        <strong className="text-slate-700">Utenti → Account operatori</strong>.
+      </p>
 
       <div className="mt-3">
         <SaveFeedback message={feedback} onClear={() => setFeedback('')} />

@@ -16,8 +16,8 @@ function defaultForField(fieldKey) {
   if (fieldKey === 'mappaDashboardDefault' || fieldKey === 'piantina_url' || fieldKey === 'guida_pdf_url') {
     return null;
   }
-  if (fieldKey === 'luogo_fisico' || fieldKey === 'pmappManifestazioneId') return '';
-  if (fieldKey === 'pmappIntegrationEnabled') return false;
+  if (fieldKey === 'luogo_fisico') return '';
+  if (fieldKey === 'pmaClinica') return DEFAULT_IMPOSTAZIONI.pmaClinica;
   return DEFAULT_IMPOSTAZIONI[fieldKey] ?? null;
 }
 

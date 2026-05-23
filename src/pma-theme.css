@@ -1,0 +1,649 @@
+/* ============================================================
+   PMA MANAGER — Design System completo
+   Versione: 2.0 — include form + dashboard centrale
+
+   Come importare (una volta sola, in src/index.css):
+   @import './pma-theme.css';
+   ============================================================ */
+
+
+/* ════════════════════════════════════════════════
+   TOKEN TIPOGRAFICI — cambiano per breakpoint
+   ════════════════════════════════════════════════ */
+:root {
+  /* Base = smartphone */
+  --pma-label-size:   12px;
+  --pma-value-size:   15px;
+  --pma-small-size:   11px;
+  --pma-section-size: 10px;
+
+  --pma-field-pad-v:  10px;
+  --pma-field-pad-h:  12px;
+  --pma-touch-min:    44px;
+  --pma-pill-pad-v:   8px;
+}
+
+@media (min-width: 481px) {
+  /* Tablet */
+  :root {
+    --pma-label-size:   12px;
+    --pma-value-size:   14px;
+    --pma-field-pad-v:  8px;
+    --pma-touch-min:    40px;
+    --pma-pill-pad-v:   5px;
+  }
+}
+
+@media (min-width: 1025px) {
+  /* Desktop */
+  :root {
+    --pma-label-size:   11px;
+    --pma-value-size:   13px;
+    --pma-field-pad-v:  6px;
+    --pma-touch-min:    32px;
+    --pma-pill-pad-v:   3px;
+  }
+}
+
+
+/* ════════════════════════════════════════════════
+   COLORI SEMANTICI — codice colore triage
+   ════════════════════════════════════════════════ */
+:root {
+  --pma-verde-bg:      #f0fdf4;
+  --pma-verde-border:  #86efac;
+  --pma-verde-text:    #15803d;
+  --pma-verde-active:  #16a34a;
+
+  --pma-giallo-bg:     #fefce8;
+  --pma-giallo-border: #fde047;
+  --pma-giallo-text:   #854d0e;
+  --pma-giallo-active: #ca8a04;
+
+  --pma-rosso-bg:      #fef2f2;
+  --pma-rosso-border:  #fca5a5;
+  --pma-rosso-text:    #991b1b;
+  --pma-rosso-active:  #dc2626;
+
+  --pma-bianco-bg:     #f8fafc;
+  --pma-bianco-border: #94a3b8;
+  --pma-bianco-text:   #475569;
+  --pma-bianco-active: #475569;
+}
+
+
+/* ════════════════════════════════════════════════
+   APP BAR — striscia nera in cima a ogni pagina
+   ════════════════════════════════════════════════ */
+.pma-bar {
+  background: #1a1a2e;
+  color: #e8e8f8;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 14px;
+  font-size: 12px;
+}
+
+/*
+ * Header operativo (striscia in alto): un colore scuro per RANK.
+ * No rosso / verde / giallo (codici triage). Testo chiaro → sfondi molto scuri.
+ */
+.pma-operative-rank-bg[data-operative-rank="Superadmin"] {
+  background: #0b0b0f !important;
+  color: #f1f5f9;
+}
+/* Blu comando (distinto dal “blu scheda” generico) */
+.pma-operative-rank-bg[data-operative-rank="Centrale"] {
+  background: #15396e !important;
+  color: #e8e8f8;
+}
+/* Ardesia blu — clinico */
+.pma-operative-rank-bg[data-operative-rank="Medico"] {
+  background: #243548 !important;
+  color: #e8e8f8;
+}
+/* Indaco profondo */
+.pma-operative-rank-bg[data-operative-rank="Infermiere"] {
+  background: #2d2659 !important;
+  color: #e8e8f8;
+}
+/* Terra / bronzo scuro (no giallo) */
+.pma-operative-rank-bg[data-operative-rank="Soccorritore"] {
+  background: #3d3428 !important;
+  color: #e8e8f8;
+}
+/* Prugna scuro (no rosso triage) */
+.pma-operative-rank-bg[data-operative-rank="Triage"] {
+  background: #4a2848 !important;
+  color: #e8e8f8;
+}
+.pma-operative-rank-bg[data-operative-rank="—"],
+.pma-operative-rank-bg:not([data-operative-rank]) {
+  background: #1a1a2e !important;
+  color: #e8e8f8;
+}
+.pma-bar__title {
+  font-weight: 500;
+  font-size: 13px;
+}
+/** Titolo / ID pagina (scheda paziente, ecc.) — alias semantico di `__title`. */
+.pma-bar__id {
+  font-weight: 500;
+  font-size: 13px;
+  color: #e8e8f8;
+}
+.pma-bar__badge {
+  border-radius: 3px;
+  padding: 2px 7px;
+  font-size: 11px;
+  font-weight: 500;
+}
+.pma-bar__badge--role  { background: #2563eb; color: #fff; }
+.pma-bar__badge--open  { background: #166534; color: #bbf7d0; }
+.pma-bar__badge--closed{ background: #44403c; color: #d6d3d1; }
+.pma-bar__right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 11px;
+  color: #9090b8;
+}
+.pma-bar__right a {
+  color: #9090b8;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.pma-bar__sdot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+}
+.pma-bar__sdot--verde  { background: #22c55e; }
+.pma-bar__sdot--giallo { background: #eab308; }
+.pma-bar__sdot--rosso  { background: #ef4444; }
+.pma-bar__sdot--bianco { background: #94a3b8; }
+
+/* CTA compatte nell’header globale (evita sovrapposizioni) */
+.pma-shell-header-actions :is(button, a) {
+  font-size: 10px;
+  line-height: 1.1;
+  min-height: 28px;
+  padding: 4px 8px;
+}
+@media (min-width: 640px) {
+  .pma-shell-header-actions :is(button, a) {
+    font-size: 11px;
+    min-height: 30px;
+    padding: 5px 10px;
+  }
+}
+
+
+/* ════════════════════════════════════════════════
+   TAB NAVIGAZIONE — Generale / Anagrafica / etc.
+   Su mobile: 2x2. Su tablet+: riga singola.
+   ════════════════════════════════════════════════ */
+.pma-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  border-bottom: 0.5px solid #e2e8f0;
+  background: #fff;
+  padding: 0 4px;
+}
+.pma-tab {
+  flex: 1 1 50%;
+  padding: 8px 6px;
+  font-size: 13px;
+  text-align: center;
+  color: #64748b;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  white-space: nowrap;
+  user-select: none;
+}
+.pma-tab--active {
+  color: #2563eb;
+  border-bottom-color: #2563eb;
+  font-weight: 500;
+}
+@media (min-width: 481px) {
+  .pma-tab { flex: 1 1 auto; }
+}
+@media (min-width: 1025px) {
+  .pma-tabs { padding: 0 14px; }
+  .pma-tab  { font-size: 12px; padding: 6px 12px; }
+}
+
+
+/* ════════════════════════════════════════════════
+   INTESTAZIONE SEZIONE
+   ════════════════════════════════════════════════ */
+.pma-section-hdr {
+  font-size: var(--pma-section-size);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #94a3b8;
+  padding: 5px var(--pma-field-pad-h);
+  border-bottom: 0.5px solid #e2e8f0;
+}
+
+
+/* ════════════════════════════════════════════════
+   CAMPO FORM — label + input/select/valore
+   ════════════════════════════════════════════════ */
+.pma-field {
+  padding: var(--pma-field-pad-v) var(--pma-field-pad-h);
+  border-bottom: 0.5px solid #e2e8f0;
+}
+.pma-field--br     { border-right: 0.5px solid #e2e8f0; }
+.pma-field--no-bb  { border-bottom: none; }
+
+.pma-field__label {
+  /* Stessa scala del testo nei campi; grassetto per distinguere dal valore digitato */
+  font-size: var(--pma-value-size);
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 3px;
+  display: block;
+}
+.pma-field__value {
+  font-size: var(--pma-value-size);
+  color: #0f172a;
+}
+.pma-field__value--muted { color: #94a3b8; }
+
+.pma-field input,
+.pma-field select,
+.pma-field textarea {
+  width: 100%;
+  font-size: var(--pma-value-size);
+  color: #0f172a;
+  padding: 4px 8px;
+  border: 0.5px solid #cbd5e1;
+  border-radius: 5px;
+  background: #f8fafc;
+  min-height: var(--pma-touch-min);
+  box-sizing: border-box;
+}
+.pma-field textarea {
+  resize: vertical;
+  min-height: calc(var(--pma-touch-min) * 2);
+}
+
+
+/* ════════════════════════════════════════════════
+   GRIGLIE FORM
+   ════════════════════════════════════════════════ */
+.pma-row        { display: grid; grid-template-columns: 1fr; }
+.pma-row--2     { display: grid; grid-template-columns: 1fr; }
+.pma-row--3     { display: grid; grid-template-columns: 1fr; }
+.pma-row--1-1-2 { display: grid; grid-template-columns: 1fr; }
+
+@media (min-width: 481px) {
+  .pma-row--2     { grid-template-columns: 1fr 1fr; }
+}
+@media (min-width: 1025px) {
+  .pma-row--3     { grid-template-columns: 1fr 1fr 1fr; }
+  .pma-row--1-1-2 { grid-template-columns: 1fr 1fr 2fr; }
+}
+
+
+/* ════════════════════════════════════════════════
+   PILL — Codice colore e Stato paziente
+   Su mobile: griglia 2x2. Su tablet+: riga.
+   ════════════════════════════════════════════════ */
+.pma-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.pma-pills--grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+@media (min-width: 481px) {
+  .pma-pills--grid { display: flex; flex-wrap: wrap; }
+}
+
+.pma-pill {
+  border-radius: 30px;
+  cursor: pointer;
+  font-size: calc(var(--pma-value-size) - 1px);
+  padding: var(--pma-pill-pad-v) 14px;
+  text-align: center;
+  min-height: var(--pma-touch-min);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  user-select: none;
+}
+@media (max-width: 480px) {
+  .pma-pill { width: 100%; padding-left: 0; padding-right: 0; }
+}
+
+/* Off = non selezionato */
+.pma-pill--bianco-off { background: var(--pma-bianco-bg); border-color: var(--pma-bianco-border); color: var(--pma-bianco-text); }
+.pma-pill--verde-off  { background: var(--pma-verde-bg);  border-color: var(--pma-verde-border);  color: var(--pma-verde-text);  }
+.pma-pill--giallo-off { background: var(--pma-giallo-bg); border-color: var(--pma-giallo-border); color: var(--pma-giallo-text); }
+.pma-pill--rosso-off  { background: var(--pma-rosso-bg);  border-color: var(--pma-rosso-border);  color: var(--pma-rosso-text);  }
+
+/* On = selezionato */
+.pma-pill--bianco-on { background: var(--pma-bianco-active); border-color: var(--pma-bianco-active); color: #fff; font-weight: 500; }
+.pma-pill--verde-on  { background: var(--pma-verde-active);  border-color: var(--pma-verde-active);  color: #fff; font-weight: 500; }
+.pma-pill--giallo-on { background: var(--pma-giallo-active); border-color: var(--pma-giallo-active); color: #fff; font-weight: 500; }
+.pma-pill--rosso-on  { background: var(--pma-rosso-active);  border-color: var(--pma-rosso-active);  color: #fff; font-weight: 500; }
+
+/* Stato paziente */
+.pma-pill--stato-off { background: #f1f5f9; border-color: #cbd5e1; color: #475569; }
+.pma-pill--stato-on  { background: #16a34a; border-color: #16a34a; color: #fff; font-weight: 500; }
+.pma-pill--stato-err { background: var(--pma-rosso-bg); border-color: var(--pma-rosso-border); color: var(--pma-rosso-text); }
+
+
+/* ════════════════════════════════════════════════
+   DASHBOARD CENTRALE
+   ════════════════════════════════════════════════ */
+
+/* Riga selezione PMA (sotto la app bar) */
+.pma-sel-row {
+  background: #fff;
+  border-bottom: 0.5px solid #e2e8f0;
+  padding: 8px 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.pma-sel-row__label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #94a3b8;
+  margin-bottom: 1px;
+}
+.pma-sel-row__select {
+  font-size: 15px;
+  font-weight: 500;
+  border: none;
+  background: transparent;
+  color: #0f172a;
+  cursor: pointer;
+  padding: 0;
+}
+.pma-sel-row__loc {
+  font-size: 12px;
+  color: #64748b;
+}
+.pma-sel-row__btn {
+  margin-left: auto;
+  border-radius: 9999px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #64748b;
+  padding: 7px 16px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.pma-sel-row__btn:hover {
+  background: #f8fafc;
+  color: #475569;
+  border-color: #94a3b8;
+}
+
+/* Contenitore principale della dashboard */
+.pma-dashboard {
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: #f8fafc;
+  min-height: calc(100vh - 90px);
+}
+
+/* Griglia 3 card metriche — diventa 1 colonna su mobile */
+.pma-metrics-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+@media (min-width: 481px) {
+  .pma-metrics-grid { grid-template-columns: 1fr 1fr; }
+}
+@media (min-width: 1025px) {
+  .pma-metrics-grid { grid-template-columns: 1fr 1fr 1fr; }
+}
+
+/* Card generica */
+.pma-card {
+  background: #fff;
+  border: 0.5px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 12px 14px;
+}
+.pma-card__hdr {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #94a3b8;
+  margin-bottom: 8px;
+}
+
+/* Numero grande (es. "7 in carico") */
+.pma-big-num {
+  font-size: 32px;
+  font-weight: 500;
+  line-height: 1;
+  color: #0f172a;
+}
+.pma-big-num__sub {
+  font-size: 12px;
+  color: #64748b;
+  margin-top: 3px;
+}
+
+/* Pallini colorati del triage (B V G R) */
+.pma-color-dots {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+  align-items: center;
+}
+.pma-dot {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 500;
+  color: #fff;
+  flex-shrink: 0;
+}
+.pma-dot--b { background: #64748b; }
+.pma-dot--v { background: #16a34a; }
+.pma-dot--g { background: #ca8a04; }
+.pma-dot--r { background: #dc2626; }
+
+/* Flusso ingresso (In arrivo / In attesa) */
+.pma-flow-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 4px;
+}
+.pma-flow-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 7px 10px;
+  border-radius: 7px;
+  background: #f8fafc;
+  border: 0.5px solid #e2e8f0;
+}
+.pma-flow-item__label {
+  font-size: 13px;
+  color: #475569;
+}
+.pma-flow-item__val {
+  font-size: 20px;
+  font-weight: 500;
+  color: #0f172a;
+}
+.pma-flow-item__val--alert { color: #dc2626; }
+
+/* Barra letti */
+.pma-bed__nums {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 5px;
+}
+.pma-bed__big {
+  font-size: 24px;
+  font-weight: 500;
+  color: #0f172a;
+}
+.pma-bed__tot {
+  font-size: 13px;
+  color: #64748b;
+}
+.pma-bed__pct {
+  font-size: 11px;
+  color: #64748b;
+}
+.pma-bed__track {
+  height: 8px;
+  background: #f1f5f9;
+  border-radius: 4px;
+  overflow: hidden;
+}
+.pma-bed__fill {
+  height: 100%;
+  border-radius: 4px;
+  background: #2563eb;
+}
+.pma-bed__fill--warn { background: #ca8a04; }
+.pma-bed__fill--crit { background: #dc2626; }
+.pma-bed__sub {
+  font-size: 11px;
+  color: #64748b;
+  margin-top: 4px;
+}
+
+/* Pulsante NUOVO PAZIENTE */
+.pma-new-btn {
+  background: #16a34a;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 14px;
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  width: 100%;
+  letter-spacing: 0.01em;
+}
+.pma-new-btn:active { opacity: 0.9; }
+
+/* Griglia inferiore: attivi | dimessi */
+.pma-bottom-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+@media (min-width: 1025px) {
+  .pma-bottom-grid { grid-template-columns: 1fr 1fr; }
+}
+
+/* Lista pazienti attivi */
+.pma-patient-list {
+  display: flex;
+  flex-direction: column;
+}
+.pma-patient-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0;
+  border-bottom: 0.5px solid #e2e8f0;
+}
+.pma-patient-item:last-child { border-bottom: none; }
+.pma-patient-item__id {
+  font-size: 12px;
+  font-weight: 500;
+  color: #0f172a;
+  min-width: 38px;
+}
+.pma-patient-item__name {
+  font-size: 13px;
+  flex: 1;
+  color: #0f172a;
+}
+.pma-patient-item__name--muted { color: #94a3b8; }
+.pma-patient-item__color {
+  font-size: 11px;
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+.pma-patient-item__color--v { background: #f0fdf4; color: #15803d; }
+.pma-patient-item__color--b { background: #f1f5f9; color: #475569; }
+.pma-patient-item__color--g { background: #fefce8; color: #854d0e; }
+.pma-patient-item__color--r { background: #fef2f2; color: #991b1b; }
+.pma-patient-item__time {
+  font-size: 11px;
+  color: #94a3b8;
+  min-width: 38px;
+  text-align: right;
+}
+
+/* Ricerca dimessi */
+.pma-search {
+  width: 100%;
+  border: 0.5px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 13px;
+  background: #f8fafc;
+  color: #0f172a;
+  margin-bottom: 10px;
+  box-sizing: border-box;
+}
+
+/* Tabella dimessi */
+.pma-dim-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.pma-dim-table th {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #94a3b8;
+  padding: 0 0 5px;
+  text-align: left;
+  border-bottom: 0.5px solid #e2e8f0;
+}
+.pma-dim-table td {
+  padding: 7px 0;
+  border-bottom: 0.5px solid #e2e8f0;
+  color: #0f172a;
+  vertical-align: middle;
+}
+.pma-dim-table tr:last-child td { border-bottom: none; }
+.pma-dim-table__link {
+  color: #2563eb;
+  cursor: pointer;
+  font-size: 12px;
+}

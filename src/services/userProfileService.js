@@ -15,14 +15,14 @@ export async function createUserProfile(manifestationId, uid, { nome, nomeUtente
   });
 }
 
-export async function saveUserProfile(manifestationId, uid, { nome, nomeUtente }) {
-  await setDoc(
-    userProfileDocRef(manifestationId, uid),
-    {
-      nome: nome?.trim() ?? '',
-      nomeUtente: nomeUtente?.trim() ?? '',
-      aggiornatoIl: serverTimestamp(),
-    },
-    { merge: true },
-  );
+export async function saveUserProfile(manifestationId, uid, { nome, nomeUtente, pmaScopeId }) {
+  const payload = {
+    nome: nome?.trim() ?? '',
+    nomeUtente: nomeUtente?.trim() ?? '',
+    aggiornatoIl: serverTimestamp(),
+  };
+  if (pmaScopeId !== undefined) {
+    payload.pmaScopeId = String(pmaScopeId ?? '').trim();
+  }
+  await setDoc(userProfileDocRef(manifestationId, uid), payload, { merge: true });
 }

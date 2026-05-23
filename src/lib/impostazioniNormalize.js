@@ -53,6 +53,17 @@ export function normalizeImpostazioni(data) {
     mappaDashboardDefault = null;
   }
 
+  const defaultPma = DEFAULT_IMPOSTAZIONI.pmaClinica ?? {};
+  const rawPma = merged.pmaClinica && typeof merged.pmaClinica === 'object' ? merged.pmaClinica : {};
+  const pmaClinica = {
+    ...defaultPma,
+    ...rawPma,
+    dettaglio_eo_rapido: {
+      ...(defaultPma.dettaglio_eo_rapido ?? {}),
+      ...(rawPma.dettaglio_eo_rapido ?? {}),
+    },
+  };
+
   return {
     ...merged,
     dettagliPerTipoEvento: dettagliPerTipo,
@@ -60,6 +71,7 @@ export function normalizeImpostazioni(data) {
     dettagliPerTipoLuogo,
     mappaDashboardDefault,
     tipiMezzo: normalizeTipiMezzo(merged.tipiMezzo),
+    pmaClinica,
   };
 }
 

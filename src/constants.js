@@ -65,10 +65,18 @@ export const DEFAULT_IMPOSTAZIONI = {
   telegramGpsTrackingEnabled: true,
   /** Incrementato a ogni cambio password bot; i client Telegram devono allinearsi. */
   telegramPasswordEpoch: 0,
-  /** Integrazione PMApp (collezione root `pazienti`, invio PS su DIRETTO H). */
-  pmappIntegrationEnabled: false,
-  /** ID documento manifestazione in PMApp (`manifestazioni/{id}` lato PMApp). */
-  pmappManifestazioneId: '',
+  /** Liste cliniche e testi legali per modulo PMA interno. */
+  pmaClinica: {
+    prestazioni: [],
+    farmaci: [],
+    dettaglio_eo_rapido: {},
+    dettaglio_eo_rapido_default: '',
+    preset_dimissione: [],
+    preset_farmaci: [],
+    consenso_generico_cure: '',
+    consenso_privacy: '',
+    rifiuto_invio_ps: '',
+  },
 };
 
 export const ESITI_PAZIENTE = [

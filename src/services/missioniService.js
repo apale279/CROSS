@@ -22,7 +22,7 @@ import { ESITO_MISSIONE_DEFAULT } from '../lib/missioneEsito';
 import { MISSIONE_ECCEZIONE_MOTIVO, MEZZO_STATO_AVARIA_SINISTRO } from '../lib/missionEccezioni';
 import { patchPaziente } from './pazientiService';
 import { syncPazientiArrivatoH } from './pazientiService';
-import { notifyPmappDirettoHFromCentrale } from './pmappIntegrationService';
+import { syncPazientiPmaOnDirettoH } from './pazientePmaMissionSync';
 import { notifyTelegramStatoFromCentrale } from './telegramService';
 
 function formatEquipaggio(equipaggio) {
@@ -185,7 +185,13 @@ export async function patchMissione(manifestationId, docId, fields, mezzoSigla) 
   if (fields.stato != null) {
     notifyTelegramStatoFromCentrale(manifestationId, docId);
     if (fields.stato === 'DIRETTO H') {
-      notifyPmappDirettoHFromCentrale(manifestationId, docId);
+      const misSnap = await getDoc(docRef);
+      if (misSnap.exists()) {
+        await syncPazientiPmaOnDirettoH(manifestationId, {
+          _docId: misSnap.id,
+          ...misSnap.data(),
+        });
+      }
     }
   }
 }

@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 import { AppDataShell } from './components/routing/AppDataShell';
 import { LegacyManifestazioneRedirect } from './components/routing/LegacyManifestazioneRedirect';
 import { RequireAuth } from './components/auth/RequireAuth';
+import { PmaAccessRouter } from './components/auth/PmaAccessRouter';
 import { DashboardLayout } from './components/layout/DashboardLayout';
 import { KioskLayout } from './components/layout/KioskLayout';
 import DashboardPage from './pages/DashboardPage';
@@ -15,6 +16,9 @@ import ImpostazioniPage from './pages/ImpostazioniPage';
 import PazientiPage from './pages/PazientiPage';
 import DiarioPage from './pages/DiarioPage';
 import LoginPage from './pages/LoginPage';
+import PmaSelectPage from './pages/PmaSelectPage';
+import PmaDeskPage from './pages/PmaDeskPage';
+import PmaPazientePage from './pages/PmaPazientePage';
 
 export default function App() {
   return (
@@ -26,14 +30,22 @@ export default function App() {
       <Route path="/login" element={<LoginPage />} />
       <Route element={<RequireAuth />}>
         <Route element={<AppDataShell />}>
-          <Route element={<DashboardLayout />}>
-            <Route index element={<DashboardPage />} />
-            <Route path="diario" element={<DiarioPage />} />
-            <Route path="eventi" element={<EventiPage />} />
-            <Route path="mezzi" element={<MezziPage />} />
-            <Route path="missioni" element={<MissioniPage />} />
-            <Route path="pazienti" element={<PazientiPage />} />
-            <Route path="impostazioni" element={<ImpostazioniPage />} />
+          <Route element={<PmaAccessRouter />}>
+            <Route
+              path="pma/:pmaId/paziente/:pazienteDocId"
+              element={<PmaPazientePage />}
+            />
+            <Route element={<DashboardLayout />}>
+              <Route index element={<DashboardPage />} />
+              <Route path="diario" element={<DiarioPage />} />
+              <Route path="eventi" element={<EventiPage />} />
+              <Route path="mezzi" element={<MezziPage />} />
+              <Route path="missioni" element={<MissioniPage />} />
+              <Route path="pazienti" element={<PazientiPage />} />
+              <Route path="impostazioni" element={<ImpostazioniPage />} />
+              <Route path="pma" element={<PmaSelectPage />} />
+              <Route path="pma/:pmaId" element={<PmaDeskPage />} />
+            </Route>
           </Route>
           <Route element={<KioskLayout />}>
             <Route path="kiosk/eventi" element={<KioskEventiPage />} />

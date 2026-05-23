@@ -1,15 +1,30 @@
-/** Opzioni menu «Ospedale destinazione»: lista ospedali + nomi PMA (senza duplicati). */
-export function listaDestinazioniOspedale(impostazioni) {
-  const fromList = (impostazioni?.listaOspedali ?? [])
-    .map((s) => String(s).trim())
-    .filter(Boolean);
-  const fromPma = (impostazioni?.pma ?? [])
-    .map((p) => String(p?.nome ?? '').trim())
-    .filter(Boolean);
+import {
+  listaOspedaliDestinazione as listaOspedali,
+  listaPmaImpostazioni,
+  findPmaById,
+  findPmaByNome,
+  resolveDestinazionePaziente,
+  pazienteHaDestinazionePma,
+} from './pmaModule';
 
+export {
+  listaOspedali as listaOspedaliDestinazione,
+  listaPmaImpostazioni,
+  findPmaById,
+  findPmaByNome,
+  resolveDestinazionePaziente,
+  pazienteHaDestinazionePma,
+};
+
+/** @deprecated Usare listaOspedaliDestinazione + listaPmaImpostazioni */
+export function listaDestinazioniOspedale(impostazioni) {
+  const names = [
+    ...listaOspedali(impostazioni),
+    ...listaPmaImpostazioni(impostazioni).map((p) => p.nome),
+  ];
   const seen = new Set();
   const out = [];
-  for (const name of [...fromList, ...fromPma]) {
+  for (const name of names) {
     const key = name.toLowerCase();
     if (seen.has(key)) continue;
     seen.add(key);
