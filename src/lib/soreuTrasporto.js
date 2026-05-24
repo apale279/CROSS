@@ -1,4 +1,6 @@
 import { Timestamp } from 'firebase/firestore';
+import { ESITO_TRASPORTA } from '../constants';
+import { findPmaByNome, pazienteHaDestinazionePma } from './pmaModule';
 
 export const SOREU_ACCOMPAGNATO_OPTS = ['NO', 'MEDICO', 'INFERMIERE'];
 export const SOREU_CODICE_OPTS = ['B', 'V', 'G', 'R'];
@@ -68,4 +70,14 @@ export function emptySoreuFirestoreClear() {
     soreuAccompagnato: ['NO'],
     soreuCodice: '',
   };
+}
+
+/** SOREU solo per trasporto verso ospedale, non verso PMA. */
+export function destinazioneRichiedeSoreu(paziente, impostazioni) {
+  if (!paziente || paziente.esito !== ESITO_TRASPORTA) return false;
+  if (pazienteHaDestinazionePma(paziente)) return false;
+  const dest = String(paziente.ospedaleDestinazione ?? '').trim();
+  if (!dest) return false;
+  if (findPmaByNome(impostazioni, dest)) return false;
+  return true;
 }

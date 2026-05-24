@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { EO_CLINICAL_TABS } from '../../pma/lib/multilineList';
 import { parseLinesToValues, firstEoRapidoDefaultFromDrafts } from '../../pma/lib/multilineList';
+import { defaultEoLabelForColumn } from '../../pma/lib/eoQuickSelection';
 import { useImpostazioniField } from '../../hooks/useImpostazioniField';
 import { btnPrimary, btnSecondary } from '../ui/FormField';
 import { SaveFeedback } from './SaveFeedback';
@@ -55,21 +56,28 @@ export function PmaClinicaImpostazioniPanel() {
     [saveField],
   );
 
-  const buildBase = () => ({
-    ...(pmaClinica ?? {}),
-    prestazioni: parseLinesToValues(prestazioniDraft),
-    farmaci: parseLinesToValues(farmaciDraft),
-    dettaglio_eo_rapido: Object.fromEntries(
+  const buildBase = () => {
+    const eoByTab = Object.fromEntries(
       EO_CLINICAL_TABS.map((tab) => [tab, parseLinesToValues(eoDraft[tab] ?? '')]),
-    ),
-    dettaglio_eo_rapido_default:
-      firstEoRapidoDefaultFromDrafts(eoDraft) ?? pmaClinica?.dettaglio_eo_rapido_default ?? '',
-    consenso_generico_cure: consensoCure,
-    consenso_privacy: consensoPrivacy,
-    rifiuto_invio_ps: rifiutoPs,
-    preset_dimissione: presetDimissione,
-    preset_farmaci: pmaClinica?.preset_farmaci ?? [],
-  });
+    );
+    const generaleLabels = eoByTab.GENERALE ?? [];
+    return {
+      ...(pmaClinica ?? {}),
+      prestazioni: parseLinesToValues(prestazioniDraft),
+      farmaci: parseLinesToValues(farmaciDraft),
+      dettaglio_eo_rapido: eoByTab,
+      dettaglio_eo_rapido_default:
+        defaultEoLabelForColumn(generaleLabels) ||
+        firstEoRapidoDefaultFromDrafts(eoDraft) ||
+        pmaClinica?.dettaglio_eo_rapido_default ||
+        '',
+      consenso_generico_cure: consensoCure,
+      consenso_privacy: consensoPrivacy,
+      rifiuto_invio_ps: rifiutoPs,
+      preset_dimissione: presetDimissione,
+      preset_farmaci: pmaClinica?.preset_farmaci ?? [],
+    };
+  };
 
   if (loading) {
     return <p className="text-sm text-slate-500">Caricamento impostazioni PMA…</p>;

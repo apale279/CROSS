@@ -28,7 +28,7 @@ import {
   firestoreFieldForEoTab,
   resolveEoColumnsForDisplay,
 } from '@pma/lib/eoPazienteFields'
-import { isNessunaEoOptionLabel, firstEoDefaultLabelFromLabels } from '@pma/lib/eoQuickSelection'
+import { isNessunaEoOptionLabel, defaultEoLabelForColumn } from '@pma/lib/eoQuickSelection'
 import type {
   FarmacoSomministrato,
   FarmacoVia,
@@ -40,6 +40,7 @@ import type { UserProfile } from '@pma/types/userProfile'
 import { QuickExamField } from './QuickExamField'
 import { LesioniBodyMap } from './LesioniBodyMap'
 import { PmaFieldGuard } from '../PmaFieldGuard'
+import { PmaCodiceColoreField } from './PmaCodiceColoreField'
 
 function allergieVerificaButtonClass(selected: boolean, k: AllergieVerificaStato): string {
   const base =
@@ -707,7 +708,7 @@ export function CartellaClinicaSection({
       const group = eoQuickGroups.find((g) => g.title === tab)
       const labels = (group?.labels ?? []).map((x) => x.trim()).filter(Boolean)
       if (labels.length === 0 || col.length > 0) continue
-      const defLabel = firstEoDefaultLabelFromLabels(labels)
+      const defLabel = defaultEoLabelForColumn(labels)
       if (!defLabel) continue
       patch[field] = [defLabel]
     }
@@ -1035,6 +1036,18 @@ export function CartellaClinicaSection({
       {!embedded ? <div className="pma-section-hdr">Sezione 3 — Cartella clinica</div> : null}
 
       <div className={embedded ? 'mt-3 space-y-0' : 'mt-3 space-y-0 border-t border-slate-100 pt-3'}>
+        {embedded ? (
+          <div className="mb-4 space-y-3 border-b border-slate-200 pb-4">
+            <PmaFieldGuard fieldKey="codice_colore">
+              <PmaCodiceColoreField
+                compact
+                value={p.codice_colore}
+                canEdit={schedaClinicalEdit}
+                onChange={(c) => void write({ codice_colore: c })}
+              />
+            </PmaFieldGuard>
+          </div>
+        ) : null}
         <div className="border-b border-slate-200 bg-slate-50/80 px-3 py-2 text-sm font-bold text-slate-900 sm:px-3">
           Valutazione e anamnesi
         </div>

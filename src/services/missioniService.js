@@ -11,15 +11,16 @@ import {
   where,
 } from 'firebase/firestore';
 import { db } from '../firebaseConfig';
-import { missioniPath, pazientiPath } from '../lib/firestorePaths';
+import { missioniPath } from '../lib/firestorePaths';
 import { newIdUnivoco } from '../lib/ids';
-import { nextProgressiveId } from './idGenerator';
+import { allocateProgressiveId } from './progressiveIdService';
 import { patchMezzo } from './mezziService';
 import { tryAutoCloseEventoForMissione } from './eventoAutoCloseService';
-import { DEFAULT_IMPOSTAZIONI, ESITO_TRASPORTA } from '../constants';
+import { DEFAULT_IMPOSTAZIONI } from '../constants';
 import { pickGravestColore, normalizeCodiceColore } from '../lib/codiciColore';
 import { ESITO_MISSIONE_DEFAULT } from '../lib/missioneEsito';
 import { MISSIONE_ECCEZIONE_MOTIVO, MEZZO_STATO_AVARIA_SINISTRO } from '../lib/missionEccezioni';
+import { fetchPazientiTrasportoOnMezzo, pazienteSameEventoAsMissione } from '../lib/pazientiTrasportoQuery';
 import { patchPaziente } from './pazientiService';
 import { syncPazientiArrivatoH } from './pazientiService';
 import { syncPazientiPmaOnDirettoH } from './pazientePmaMissionSync';
@@ -45,7 +46,13 @@ function formatEquipaggio(equipaggio) {
 }
 
 export async function createMissione(manifestationId, payload, existingMissioni, mezzo) {
-  const idMissione = nextProgressiveId('M', existingMissioni, 'idMissione');
+  const idMissione = await allocateProgressiveId(
+    manifestationId,
+    'M',
+    'missioni',
+    existingMissioni,
+    'idMissione',
+  );
   const idUnivoco = newIdUnivoco();
   const autopresentato = !!payload.pazienteAutopresentato;
   const forzato = payload.statoInizialeForzato;
@@ -104,21 +111,15 @@ async function findMissioneDocForPaziente(manifestationId, paziente) {
   return null;
 }
 
-function pazienteMatchesMissione(p, missione) {
-  const sameEvento =
-    (missione.eventoIdUnivoco && p.eventoIdUnivoco === missione.eventoIdUnivoco) ||
-    p.eventoCorrelato === missione.eventoCorrelato;
-  return sameEvento && p.mezzo === missione.mezzo && p.esito === ESITO_TRASPORTA;
-}
-
 /** Ricalcola codice colore trasporto dai pazienti in trasporto sul mezzo (se non impostato manualmente). */
 export async function refreshMissioneCodiceColoreTrasporto(manifestationId, missionDocId, missione) {
   if (!missionDocId || !missione || missione.codiceColoreTrasportoManuale === true) return;
-  const pazientiSnap = await getDocs(collection(db, ...pazientiPath(manifestationId)));
+  const candidati = missione.mezzo
+    ? await fetchPazientiTrasportoOnMezzo(manifestationId, missione.mezzo)
+    : [];
   const colori = [];
-  for (const d of pazientiSnap.docs) {
-    const p = d.data();
-    if (!pazienteMatchesMissione(p, missione)) continue;
+  for (const p of candidati) {
+    if (!pazienteSameEventoAsMissione(p, missione)) continue;
     const c = p.codiceColoreSanitario ?? p.codiceColore;
     if (c && COLORI_VALIDI.has(c)) colori.push(c);
   }

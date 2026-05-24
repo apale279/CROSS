@@ -31,6 +31,8 @@ type Props = {
   presetDimissione?: PresetDimissioneVoce[]
   /** Elenco prestazioni manifestazione: stesso ordine della cartella clinica nel PDF. */
   prestazioniManifestazioneLista?: string[]
+  /** Dopo dimissione confermata (es. torna alla dashboard PMA). */
+  onDimesso?: () => void
 }
 
 /**
@@ -52,6 +54,7 @@ export function DimissioneSection({
   rifiutoInvioPs = '',
   presetDimissione = [],
   prestazioniManifestazioneLista = [],
+  onDimesso,
 }: Props) {
   const dimissioneEdit = canEditDimissioneTab && canEditScheda
   const canChiudiDimetti = Boolean(canEditScheda && user && user.rank === 'Medico')
@@ -105,6 +108,7 @@ export function DimissioneSection({
         dimissione_firma_medico_url: deleteField(),
       })
       setDimettiOpen(false)
+      onDimesso?.()
     } finally {
       setDimettiBusy(false)
     }
@@ -459,7 +463,7 @@ export function DimissioneSection({
         </div>
 
         {canChiudiDimetti ? (
-          <div className="flex w-full justify-center border-t border-slate-200 bg-gradient-to-b from-slate-50 to-white px-4 py-12">
+          <div className="flex w-full justify-center border-t border-slate-200 bg-gradient-to-b from-slate-50 to-white px-4 py-8">
             <button
               type="button"
               onClick={() => setDimettiOpen(true)}
@@ -469,6 +473,27 @@ export function DimissioneSection({
             </button>
           </div>
         ) : null}
+
+        <div className="border-t-2 border-violet-200 bg-violet-50/40 px-4 py-8">
+          <p className="mb-3 text-center text-xs font-bold uppercase tracking-wide text-violet-900">
+            Stampa referto
+          </p>
+          {pdfErr ? (
+            <p className="mb-2 text-center text-sm text-red-700" role="alert">
+              {pdfErr}
+            </p>
+          ) : null}
+          <div className="flex justify-center">
+            <button
+              type="button"
+              disabled={pdfBusy}
+              onClick={() => void handleDownloadPdf()}
+              className="pma-theme-skip inline-flex h-12 w-full max-w-lg items-center justify-center rounded-xl border-2 border-violet-800 bg-violet-700 px-8 text-sm font-bold uppercase tracking-wide text-white shadow-lg hover:bg-violet-800 disabled:opacity-50"
+            >
+              {pdfBusy ? 'Generazione PDF…' : 'STAMPA PDF'}
+            </button>
+          </div>
+        </div>
       </div>
 
       {dimettiOpen ? (

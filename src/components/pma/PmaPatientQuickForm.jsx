@@ -1,22 +1,102 @@
 import { useState } from 'react';
 import { Timestamp } from 'firebase/firestore';
-import { btnPrimary, btnSecondary, FormField, inputClass } from '../ui/FormField';
+import { useRegistryPartecipanti } from '../../hooks/useRegistryPartecipanti';
+import { cercaPerPettorale, etaDaDataNascita } from '../../lib/excelPartecipanti';
+import { STATO_PZ_PMA } from '../../lib/pmaModule';
+import { btnPrimary, btnSecondary, FormField, selectClass } from '../ui/FormField';
+import { PazienteAnagraficaFields } from '../pazienti/PazienteAnagraficaFields';
+import { PazienteTipoEventoFields } from '../pazienti/PazienteTipoEventoFields';
 import { createPazientePmaAutopresentato } from '../../services/pmaPazientiService';
+import { PmaCodiceColoreField } from '../../pma/components/scheda-paziente/PmaCodiceColoreField';
 
-export function PmaPatientQuickForm({ manifestationId, pma, allPazienti, onCreated, onCancel }) {
+function parseEtaDraft(s) {
+  if (s === '' || s == null) return null;
+  const n = Number(s);
+  return Number.isFinite(n) ? n : null;
+}
+
+const STATI_AUTO_PMA = [
+  { value: STATO_PZ_PMA.IN_ATTESA, label: 'In attesa (fuori tenda)' },
+  { value: STATO_PZ_PMA.IN_CARICO, label: 'In carico (in tenda)' },
+];
+
+export function PmaPatientQuickForm({
+  manifestationId,
+  pma,
+  impostazioni,
+  allPazienti,
+  onCreated,
+  onCancel,
+}) {
+  const { registryPartecipanti } = useRegistryPartecipanti(
+    impostazioni?.registryPartecipanti ?? [],
+  );
   const [saving, setSaving] = useState(false);
   const [draft, setDraft] = useState({
     nome: '',
     cognome: '',
     pettorale: '',
     telefono: '',
+    dataNascita: '',
+    eta: '',
+    sesso: '',
     notePaziente: '',
+    tipoEvento: '',
+    dettaglioEvento: '',
+    codiceColore: '',
+    statoPzPma: STATO_PZ_PMA.IN_ATTESA,
   });
+
+  const patchDraft = (key, value) => setDraft((d) => ({ ...d, [key]: value }));
+
+  const cercaPettoraleInElenco = () => {
+    const hit = cercaPerPettorale(registryPartecipanti, draft.pettorale);
+    if (!hit) {
+      alert(
+        'Pettorale non trovato. Carica l’Excel partecipanti in Impostazioni (tab Mezzi e strutture).',
+      );
+      return;
+    }
+    const etaNum = etaDaDataNascita(hit.dataNascita);
+    setDraft((d) => ({
+      ...d,
+      nome: hit.nome ?? '',
+      cognome: hit.cognome ?? '',
+      telefono: hit.telefono ?? '',
+      dataNascita: hit.dataNascita ?? '',
+      eta: etaNum != null ? String(etaNum) : '',
+      pettorale: String(hit.pettorale),
+    }));
+  };
+
+  const inCarico = draft.statoPzPma === STATO_PZ_PMA.IN_CARICO;
 
   const submit = async (e) => {
     e.preventDefault();
+    if (!draft.tipoEvento.trim()) {
+      alert('Indica il tipo evento (motivo della presentazione).');
+      return;
+    }
+    if (!draft.dettaglioEvento.trim()) {
+      alert('Indica il dettaglio evento.');
+      return;
+    }
+    if (!draft.codiceColore) {
+      alert('Seleziona il codice colore.');
+      return;
+    }
+
     setSaving(true);
     try {
+      const pmaSchedaSeed = {
+        tipo_evento: draft.tipoEvento.trim(),
+        dettaglio_evento: draft.dettaglioEvento.trim(),
+        codice_colore: draft.codiceColore,
+      };
+      if (inCarico) {
+        pmaSchedaSeed.ingresso_carico_at = Timestamp.now();
+      }
+
       const result = await createPazientePmaAutopresentato(
         manifestationId,
         pma.id,
@@ -29,8 +109,13 @@ export function PmaPatientQuickForm({ manifestationId, pma, allPazienti, onCreat
               ? Number(draft.pettorale)
               : null,
           telefono: draft.telefono.trim(),
+          dataNascita: draft.dataNascita.trim(),
+          eta: parseEtaDraft(draft.eta),
+          sesso: draft.sesso.trim(),
           notePaziente: draft.notePaziente.trim(),
           apertura: Timestamp.now(),
+          statoPzPma: draft.statoPzPma,
+          pmaSchedaSeed,
         },
         allPazienti,
       );
@@ -43,51 +128,57 @@ export function PmaPatientQuickForm({ manifestationId, pma, allPazienti, onCreat
   };
 
   return (
-    <form onSubmit={(e) => void submit(e)} className="space-y-3 rounded-lg border border-violet-200 bg-violet-50/30 p-4">
-      <p className="text-xs font-bold uppercase text-violet-900">Nuovo paziente autopresentato</p>
-      <div className="grid gap-3 sm:grid-cols-2">
-        <FormField label="Nome">
-          <input
-            className={inputClass}
-            value={draft.nome}
-            onChange={(e) => setDraft((d) => ({ ...d, nome: e.target.value }))}
-          />
-        </FormField>
-        <FormField label="Cognome">
-          <input
-            className={inputClass}
-            value={draft.cognome}
-            onChange={(e) => setDraft((d) => ({ ...d, cognome: e.target.value }))}
-          />
-        </FormField>
-        <FormField label="Pettorale">
-          <input
-            type="number"
-            min={1}
-            className={inputClass}
-            value={draft.pettorale}
-            onChange={(e) => setDraft((d) => ({ ...d, pettorale: e.target.value }))}
-          />
-        </FormField>
-        <FormField label="Telefono">
-          <input
-            className={inputClass}
-            value={draft.telefono}
-            onChange={(e) => setDraft((d) => ({ ...d, telefono: e.target.value }))}
-          />
-        </FormField>
-      </div>
-      <FormField label="Note">
-        <textarea
-          className={inputClass}
-          rows={2}
-          value={draft.notePaziente}
-          onChange={(e) => setDraft((d) => ({ ...d, notePaziente: e.target.value }))}
-        />
+    <form onSubmit={(e) => void submit(e)} className="space-y-4">
+      <FormField label="Stato PMA">
+        <select
+          className={selectClass}
+          value={draft.statoPzPma}
+          onChange={(e) => patchDraft('statoPzPma', e.target.value)}
+        >
+          {STATI_AUTO_PMA.map((s) => (
+            <option key={s.value} value={s.value}>
+              {s.label}
+            </option>
+          ))}
+        </select>
       </FormField>
-      <div className="flex flex-wrap gap-2">
+
+      <PmaCodiceColoreField
+        compact
+        value={draft.codiceColore}
+        canEdit
+        onChange={(c) => patchDraft('codiceColore', c)}
+      />
+      {!draft.codiceColore && (
+        <p className="text-xs text-amber-800">Codice colore obbligatorio — seleziona un valore.</p>
+      )}
+
+      <div>
+        <p className="mb-2 text-xs font-bold uppercase text-slate-600">Anagrafica</p>
+        <PazienteAnagraficaFields
+          draft={draft}
+          registryAvailable={registryPartecipanti.length > 0}
+          onSearchPettorale={cercaPettoraleInElenco}
+          onChange={patchDraft}
+        />
+      </div>
+
+      <div className="border-t border-slate-200 pt-3">
+        <p className="mb-2 text-xs font-bold uppercase text-slate-600">
+          Motivo presentazione (obbligatorio)
+        </p>
+        <PazienteTipoEventoFields
+          impostazioni={impostazioni}
+          tipoEvento={draft.tipoEvento}
+          dettaglioEvento={draft.dettaglioEvento}
+          required
+          onChange={(partial) => setDraft((d) => ({ ...d, ...partial }))}
+        />
+      </div>
+
+      <div className="flex flex-wrap gap-2 border-t border-slate-200 pt-3">
         <button type="submit" className={btnPrimary} disabled={saving}>
-          {saving ? 'Salvataggio…' : 'Crea paziente PMA'}
+          {saving ? 'Salvataggio…' : inCarico ? 'Crea e apri scheda' : 'Crea paziente'}
         </button>
         {onCancel && (
           <button type="button" className={btnSecondary} onClick={onCancel}>

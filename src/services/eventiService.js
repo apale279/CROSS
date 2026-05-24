@@ -7,6 +7,7 @@ import {
   getDocs,
   serverTimestamp,
   updateDoc,
+  writeBatch,
 } from 'firebase/firestore';
 import { db } from '../firebaseConfig';
 import { eventiPath, missioniPath, pazientiPath } from '../lib/firestorePaths';
@@ -14,8 +15,24 @@ import { deletePazienteCascade } from './pazientiService';
 import { buildStatoChangeFields } from '../lib/missionStoricoStati';
 import { isMissioneTerminata } from '../utils/eventoAutoClose';
 import { newIdUnivoco } from '../lib/ids';
-import { nextProgressiveId } from './idGenerator';
+import { allocateProgressiveId } from './progressiveIdService';
 import { patchMissione } from './missioniService';
+
+async function flushBatchDeletes(refs) {
+  if (!refs.length) return;
+  let batch = writeBatch(db);
+  let ops = 0;
+  for (const ref of refs) {
+    batch.delete(ref);
+    ops += 1;
+    if (ops >= 450) {
+      await batch.commit();
+      batch = writeBatch(db);
+      ops = 0;
+    }
+  }
+  if (ops > 0) await batch.commit();
+}
 
 function buildEventoPayload(manifestationId, idEvento, idUnivoco, payload) {
   const data = {
@@ -68,14 +85,21 @@ async function deleteRecordiCollegati(manifestationId, idUnivoco, idEvento) {
     return p.eventoCorrelato === idEvento;
   });
 
-  await Promise.all([
-    ...delMissioni.map((d) => deleteDoc(d.ref)),
-    ...delPazienti.map((d) => deletePazienteCascade(manifestationId, d.id)),
-  ]);
+  await flushBatchDeletes(delMissioni.map((d) => d.ref));
+
+  for (const d of delPazienti) {
+    await deletePazienteCascade(manifestationId, d.id);
+  }
 }
 
 export async function createEvento(manifestationId, payload, existingEventi) {
-  const idEvento = nextProgressiveId('E', existingEventi, 'idEvento');
+  const idEvento = await allocateProgressiveId(
+    manifestationId,
+    'E',
+    'eventi',
+    existingEventi,
+    'idEvento',
+  );
   const idUnivoco = newIdUnivoco();
   const colRef = collection(db, ...eventiPath(manifestationId));
   const docRef = await addDoc(
@@ -96,7 +120,6 @@ export async function terminaEventoOperatore(manifestationId, eventoDocId) {
   await patchEvento(manifestationId, eventoDocId, {
     stato: false,
     chiusuraIl: serverTimestamp(),
-    operativoTerminato: false,
   });
 }
 

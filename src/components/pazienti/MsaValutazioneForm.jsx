@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Timestamp } from 'firebase/firestore';
 import { ChevronDown, ChevronRight, Plus, Trash2 } from 'lucide-react';
 import { DEFAULT_IMPOSTAZIONI } from '../../constants';
@@ -49,10 +49,23 @@ export function MsaValutazioneForm({
   mezziEventoSigle,
   onPatchDetails,
   onPatchCreatoIl,
+  valuationId,
 }) {
   const d = normalizeMsaDetails(msaDetails);
   const acc = normalizeMsaAcc(d.acc);
   const [accOpen, setAccOpen] = useState(false);
+  const persistedRef = useRef(false);
+
+  useEffect(() => {
+    persistedRef.current = false;
+  }, [valuationId]);
+
+  useEffect(() => {
+    if (!valuationId || persistedRef.current) return;
+    persistedRef.current = true;
+    onPatchDetails(normalizeMsaDetails(msaDetails));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [valuationId]);
 
   const patchAcc = (partial) => {
     onPatchDetails({ acc: { ...acc, ...partial } });

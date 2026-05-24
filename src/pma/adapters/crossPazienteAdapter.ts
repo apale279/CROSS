@@ -1,6 +1,6 @@
 import { Timestamp } from 'firebase/firestore';
 import { TIPO_PZ, STATO_PZ_PMA } from '../../lib/pmaModule';
-import { parsePazienteStatoFromFirestore, type Paziente } from '@pma/types/paziente';
+import type { Paziente } from '@pma/types/paziente';
 import { normalizePmaScheda, EMPTY_PMA_SCHEDA } from '@pma/lib/pmaSchedaDefaults';
 import { parseParametriVitali, parseFarmaci, parseRivalutazioni } from '@pma/lib/parseCartellaClinica';
 
@@ -21,9 +21,11 @@ const CENTRALE_PATCH_KEYS = new Set([
 
 function mapStatoPma(statoPzPma, tipoPz, aperta) {
   if (statoPzPma === STATO_PZ_PMA.IN_ARRIVO) return 'in_arrivo';
+  if (statoPzPma === STATO_PZ_PMA.IN_ATTESA) return 'in_attesa';
   if (statoPzPma === STATO_PZ_PMA.IN_CARICO) return 'in_carico';
+  if (statoPzPma === STATO_PZ_PMA.DIMESSO) return 'dimesso';
   if (!aperta && tipoPz === TIPO_PZ.PMA) return 'dimesso';
-  return parsePazienteStatoFromFirestore('in_carico');
+  return 'in_attesa';
 }
 
 function tsOrNow(v) {
@@ -105,10 +107,18 @@ export function splitPazientePatch(patch) {
   const top = {};
   const scheda = {};
   for (const [k, v] of Object.entries(normalizePazientePatchInput(patch))) {
-    if (CENTRALE_PATCH_KEYS.has(k)) {
+    if (k === 'aperto') {
+      top.aperta = v;
+    } else if (k === 'statoPzPma' || k === 'stato_pz_pma') {
+      top.statoPzPma = v;
+    } else if (CENTRALE_PATCH_KEYS.has(k)) {
       if (k === 'data_nascita') top.dataNascita = v;
       else if (k === 'note_centrale') top.notePaziente = v;
       else top[k] = v;
+    } else if (k === 'stato' && v === 'dimesso') {
+      scheda.dimesso_at = patch.dimesso_at ?? scheda.dimesso_at;
+      top.statoPzPma = STATO_PZ_PMA.DIMESSO;
+      top.aperta = false;
     } else if (PMA_SCHEDA_KEYS.has(k) || k.startsWith('EO_') || k.startsWith('invio_ps_') || k.startsWith('dimissione_') || k.startsWith('affidatario_') || k.startsWith('firma_')) {
       scheda[k] = v;
     } else if (k === 'codice_colore' || k === 'breve_descrizione' || k === 'tipo_evento' || k === 'dettaglio_evento') {
@@ -121,8 +131,12 @@ export function splitPazientePatch(patch) {
   return out;
 }
 
-export function canEditPmaScheda(pazienteView) {
-  return pazienteView.stato === 'in_carico';
+export function canEditPmaScheda(pazienteView, rawDoc?: { statoPzPma?: string | null }) {
+  return rawDoc?.statoPzPma === STATO_PZ_PMA.IN_CARICO;
+}
+
+export function isPmaSchedaReadonly(rawDoc?: { statoPzPma?: string | null }) {
+  return rawDoc?.statoPzPma === STATO_PZ_PMA.DIMESSO;
 }
 
 export function canEditPmaAnagrafica(doc) {

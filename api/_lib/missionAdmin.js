@@ -3,6 +3,12 @@ import { getAdminDb } from './firebaseAdmin.js';
 import { impostazioniDocRef } from './telegramFirestore.js';
 import { buildStatoChangeFields } from './missionStoricoStati.js';
 import { isStatoMissioneTerminale, nextStatoMissione } from './missionStati.js';
+import {
+  buildArrivatoHPatchAdmin,
+  EMPTY_PMA_SCHEDA,
+  pazienteMatchesMissioneTrasporto,
+  seedFromPazienteEvento,
+} from './pazienteMissionPmaAdmin.js';
 
 const DEFAULT_STATI_MISSIONE = [
   'ALLERTARE',
@@ -16,7 +22,6 @@ const DEFAULT_STATI_MISSIONE = [
   'ANNULLATA',
 ];
 
-const ESITO_TRASPORTA = 'Trasporta';
 const MEZZO_STATO_AVARIA_SINISTRO = 'Non operativo (avaria/sinistro)';
 
 function missioniCol(tenantId) {
@@ -66,27 +71,88 @@ async function patchMezzoAdmin(tenantId, sigla, fields) {
   await mezziCol(tenantId).doc(sigla).set(fields, { merge: true });
 }
 
+async function findEventoForPazienteAdmin(tenantId, paziente) {
+  if (paziente.eventoIdUnivoco) {
+    const snap = await eventiCol(tenantId).where('idUnivoco', '==', paziente.eventoIdUnivoco).limit(1).get();
+    if (!snap.empty) return snap.docs[0].data();
+  }
+  if (paziente.eventoCorrelato) {
+    const snap = await eventiCol(tenantId).where('idEvento', '==', paziente.eventoCorrelato).limit(1).get();
+    if (!snap.empty) return snap.docs[0].data();
+  }
+  return null;
+}
+
+async function fetchPazientiTrasportoOnMezzoAdmin(tenantId, mezzo) {
+  const snap = await pazientiCol(tenantId)
+    .where('mezzo', '==', mezzo)
+    .where('esito', '==', 'Trasporta')
+    .get();
+  return snap.docs.map((d) => ({ _docId: d.id, ...d.data() }));
+}
+
+async function findEventoForMissioneAdmin(tenantId, missione) {
+  if (missione?.eventoIdUnivoco) {
+    const snap = await eventiCol(tenantId)
+      .where('idUnivoco', '==', missione.eventoIdUnivoco)
+      .limit(1)
+      .get();
+    if (!snap.empty) return snap.docs[0].data();
+  }
+  if (missione?.eventoCorrelato) {
+    const snap = await eventiCol(tenantId)
+      .where('idEvento', '==', missione.eventoCorrelato)
+      .limit(1)
+      .get();
+    if (!snap.empty) return snap.docs[0].data();
+  }
+  return null;
+}
+
 async function syncPazientiArrivatoHAdmin(tenantId, missione) {
   if (!missione?.mezzo) return;
-  const snap = await pazientiCol(tenantId).get();
-  const batch = getAdminDb().batch();
-  let ops = 0;
+  const candidati = await fetchPazientiTrasportoOnMezzoAdmin(tenantId, missione.mezzo);
+  const evento = await findEventoForMissioneAdmin(tenantId, missione);
 
-  for (const docSnap of snap.docs) {
-    const p = docSnap.data();
-    const sameEvento =
-      (missione.eventoIdUnivoco && p.eventoIdUnivoco === missione.eventoIdUnivoco) ||
-      p.eventoCorrelato === missione.eventoCorrelato;
-    if (!sameEvento || p.mezzo !== missione.mezzo || p.esito !== ESITO_TRASPORTA) continue;
+  for (const p of candidati) {
+    if (!pazienteMatchesMissioneTrasporto(p, missione)) continue;
     if (p.stato === 'ARRIVATO H') continue;
-    batch.update(docSnap.ref, {
-      stato: 'ARRIVATO H',
-      arrivatoHAt: FieldValue.serverTimestamp(),
-    });
-    ops += 1;
-  }
 
-  if (ops > 0) await batch.commit();
+    const patch = buildArrivatoHPatchAdmin(p, evento);
+    if (!patch) continue;
+
+    await pazientiCol(tenantId).doc(p._docId).update(patch);
+  }
+}
+
+async function syncPazientiPmaOnDirettoHAdmin(tenantId, missione) {
+  if (!missione?.mezzo) return;
+  const candidati = await fetchPazientiTrasportoOnMezzoAdmin(tenantId, missione.mezzo);
+
+  for (const p of candidati) {
+    if (!pazienteMatchesMissioneTrasporto(p, missione)) continue;
+    if (!String(p.destinazionePmaId ?? '').trim()) continue;
+
+    const patch = {
+      tipoPz: p.tipoPz ?? 'CENTRALE',
+      pmaId: p.pmaId ?? p.destinazionePmaId ?? '',
+      statoPzPma: 'IN ARRIVO',
+    };
+    await pazientiCol(tenantId).doc(p._docId).update(patch);
+
+    if (!p.pmaScheda) {
+      const evento = await findEventoForPazienteAdmin(tenantId, p);
+      await pazientiCol(tenantId).doc(p._docId).set(
+        {
+          pmaScheda: {
+            ...EMPTY_PMA_SCHEDA,
+            ...seedFromPazienteEvento(p, evento),
+          },
+        },
+        { merge: true },
+      );
+    }
+  }
 }
 
 function isMissioneTerminata(m) {
@@ -156,6 +222,9 @@ export async function advanceMissioneStato(tenantId, missionDocId, expectedMezzo
 
   if (nuovo === 'ARRIVATO H') {
     await syncPazientiArrivatoHAdmin(tenantId, missioneAggiornata);
+  }
+  if (nuovo === 'DIRETTO H') {
+    await syncPazientiPmaOnDirettoHAdmin(tenantId, missioneAggiornata);
   }
   if (nuovo === 'RIENTRO' || nuovo === 'FINE MISSIONE') {
     await patchMezzoAdmin(tenantId, expectedMezzo, { statoMezzo: 'Disponibile' });

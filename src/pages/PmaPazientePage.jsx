@@ -5,7 +5,7 @@ import { usePmaAccess } from '../hooks/usePmaAccess';
 import { findPmaById } from '../lib/pmaModule';
 import { PmaSchedaShell } from '../pma/components/PmaSchedaShell';
 
-/** Pagina PMA a tutto schermo (cartella clinica + dimissioni). */
+/** Pagina PMA a tutto schermo (anagrafica, dati centrale, cartella, dimissioni). */
 export default function PmaPazientePage() {
   const { pmaId, pazienteDocId } = useParams();
   const navigate = useNavigate();

@@ -89,3 +89,6 @@ export const ESITI_PAZIENTE = [
 ];
 
 export const STATI_PAZIENTE = ['ATTESA', 'TRASPORTO', 'ARRIVATO H'];
+
+/** Stato centrale per pazienti autopresentati al PMA (non usano il flusso missione/trasporto). */
+export const STATO_PAZIENTE_PMA = 'PMA';

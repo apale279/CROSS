@@ -50,10 +50,21 @@ export function nessunaEoOptionDisabled(
   return false
 }
 
-/** Primo valore della colonna = default (“normale”). Lista già ordinata dalla manifestazione. */
+/** Opzione default EO per colonna: preferisce «NELLA NORMA» se presente in lista. */
+export function isNellaNormaEoOptionLabel(label: string): boolean {
+  return label.trim().toUpperCase() === 'NELLA NORMA';
+}
+
+export function defaultEoLabelForColumn(labels: readonly string[]): string {
+  const normalized = normalizeEoQuickLabels([...labels]);
+  const nellaNorma = normalized.find(isNellaNormaEoOptionLabel);
+  if (nellaNorma) return nellaNorma;
+  return normalized[0] ?? '';
+}
+
+/** @deprecated Usare {@link defaultEoLabelForColumn}. */
 export function firstEoDefaultLabelFromLabels(labels: readonly string[]): string {
-  const n = normalizeEoQuickLabels([...labels])
-  return n[0] ?? ''
+  return defaultEoLabelForColumn(labels);
 }
 
 /**

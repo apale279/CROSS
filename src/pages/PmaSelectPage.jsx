@@ -1,6 +1,5 @@
-import { Link } from 'react-router-dom';
+import { Link, Navigate } from 'react-router-dom';
 import { usePmaAccess } from '../hooks/usePmaAccess';
-import { btnPrimary } from '../components/ui/FormField';
 
 export default function PmaSelectPage() {
   const { accessiblePma, loading, scopeId } = usePmaAccess();
@@ -9,17 +8,9 @@ export default function PmaSelectPage() {
     return <p className="p-8 text-sm text-slate-500">Caricamento PMA…</p>;
   }
 
-  if (scopeId && accessiblePma.length === 1) {
-    return (
-      <div className="mx-auto max-w-lg p-8 text-center">
-        <Link
-          to={`/pma/${encodeURIComponent(scopeId)}`}
-          className={btnPrimary}
-        >
-          Apri {accessiblePma[0].nome}
-        </Link>
-      </div>
-    );
+  if (accessiblePma.length === 1) {
+    const only = accessiblePma[0];
+    return <Navigate to={`/pma/${encodeURIComponent(only.id)}`} replace />;
   }
 
   return (

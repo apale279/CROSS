@@ -5,6 +5,8 @@ import { findEvento, missioniPerEvento } from '../lib/eventoLinks';
 import { formatTimestamp } from '../utils/formatters';
 import { Modal } from '../components/ui/Modal';
 import { PazienteScheda } from '../components/pazienti/PazienteScheda';
+import { PazientePmaBadges } from '../components/pazienti/PazientePmaBadges';
+import { displayEventoPazienteInLista, displayStatoPazienteInLista } from '../lib/pmaModule';
 
 const thClass =
   'bg-slate-100 px-4 py-3 text-left text-xs font-bold uppercase text-slate-600';
@@ -20,6 +22,7 @@ function PazientiTable({ rows, eventi, onRow, emptyLabel }) {
             <th className={thClass}>Cognome / nome</th>
             <th className={thClass}>Evento</th>
             <th className={thClass}>Stato</th>
+            <th className={thClass}>PMA</th>
             <th className={thClass}>Esito</th>
             <th className={thClass}>Apertura</th>
           </tr>
@@ -27,14 +30,14 @@ function PazientiTable({ rows, eventi, onRow, emptyLabel }) {
         <tbody>
           {rows.length === 0 ? (
             <tr>
-              <td colSpan={6} className={`${tdClass} text-slate-500`}>
+              <td colSpan={7} className={`${tdClass} text-slate-500`}>
                 {emptyLabel}
               </td>
             </tr>
           ) : (
             rows.map((row) => {
               const ev = findEvento(eventi, row.eventoIdUnivoco ?? row.eventoCorrelato);
-              const label = ev?.idEvento ?? row.eventoCorrelato ?? '—';
+              const label = displayEventoPazienteInLista(row, ev);
               return (
                 <tr
                   key={row._docId}
@@ -46,7 +49,10 @@ function PazientiTable({ rows, eventi, onRow, emptyLabel }) {
                     {[row.cognome, row.nome].filter(Boolean).join(' ') || '—'}
                   </td>
                   <td className={`${tdClass} font-mono`}>{label}</td>
-                  <td className={tdClass}>{row.stato ?? '—'}</td>
+                  <td className={tdClass}>{displayStatoPazienteInLista(row)}</td>
+                  <td className={tdClass}>
+                    <PazientePmaBadges paziente={row} />
+                  </td>
                   <td className={`${tdClass} max-w-[140px] truncate`}>{row.esito || '—'}</td>
                   <td className={tdClass}>{formatTimestamp(row.apertura)}</td>
                 </tr>
@@ -108,7 +114,11 @@ export default function PazientiPage() {
             />
           </section>
           <section>
-            <h3 className="mb-3 text-sm font-bold uppercase text-slate-600">Chiusi</h3>
+            <h3 className="mb-1 text-sm font-bold uppercase text-slate-600">Chiusi</h3>
+            <p className="mb-3 text-xs text-slate-500">
+              Chiusi per la centrale (missione conclusa). I pazienti inviati al PMA possono restare
+              attivi in tenda: controllare la colonna PMA o lo stato «PMA: …».
+            </p>
             <PazientiTable
               rows={chiusi}
               eventi={eventi}

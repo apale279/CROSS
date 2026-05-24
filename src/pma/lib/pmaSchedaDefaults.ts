@@ -39,6 +39,7 @@ export const EMPTY_PMA_SCHEDA = {
   invio_ps_note: '',
   infermiere_rif: '',
   medico_rif: '',
+  ingresso_carico_at: null,
 };
 
 export function normalizePmaScheda(raw) {

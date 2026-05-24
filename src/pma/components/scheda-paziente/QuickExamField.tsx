@@ -1,6 +1,6 @@
-ï»¿import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { EO_CLINICAL_TABS, type EoTabKey } from '@pma/lib/multilineList'
-import { nessunaEoOptionDisabled, toggleEoQuickFirstDefaultExclusive, toggleEoQuickSelection } from '@pma/lib/eoQuickSelection'
+import { nessunaEoOptionDisabled, toggleEoQuickFirstDefaultExclusive, toggleEoQuickSelection, defaultEoLabelForColumn } from '@pma/lib/eoQuickSelection'
 import { EO_OPZIONI_RAPIDE } from '@pma/types/cartellaClinica'
 
 export type EoQuickGroup = { title: string; labels: readonly string[] }
@@ -9,13 +9,10 @@ type PropsGrouped = {
   note: string
   disabled?: boolean
   gruppiRapidi: readonly EoQuickGroup[]
-  /** Selezioni per colonna (campi Firestore `EO_*` / tab clinica). */
   selectedByTab: Record<EoTabKey, string[]>
   onColumnSelectionChange: (tab: EoTabKey, next: string[]) => void
   onNoteBlur: (text: string) => void
-  /** Infermiere smartphone: apre opzioni EO in popup verticale. */
   infermiereMobileEOPopup?: boolean
-  /** Non usare in modalitÃ  flat. */
   opzioniRapide?: undefined
   selected?: undefined
   onSelectionChange?: undefined
@@ -41,11 +38,7 @@ function isGroupedMode(p: QuickExamFieldProps): p is PropsGrouped {
   return Boolean(p.gruppiRapidi?.length && p.selectedByTab && p.onColumnSelectionChange)
 }
 
-/**
- * Esame obiettivo: chip per opzioni rapide + note testuali (Sez. 4.1).
- * Con `gruppiRapidi`: una colonna = una tab clinica; la selezione Ã¨ indipendente per colonna (no conflitti tra omonimi).
- * I default per colonna (primo valore per lista manifestazione) sono gestiti dal genitore con snapshot Firestore.
- */
+/** EO rapido: tabella con intestazione per categoria e valori multiselect sotto. Default «NELLA NORMA». */
 export function QuickExamField(props: QuickExamFieldProps) {
   const grouped = isGroupedMode(props)
   const { note, disabled, onNoteBlur } = props
@@ -89,56 +82,72 @@ export function QuickExamField(props: QuickExamFieldProps) {
   if (grouped) {
     const { gruppiRapidi, selectedByTab, onColumnSelectionChange, infermiereMobileEOPopup } = props
 
+    const renderColumnButtons = (g: EoQuickGroup, tab: EoTabKey, keySuffix: string) => {
+      const colSelected = selectedByTab[tab] ?? []
+      const set = new Set(colSelected)
+      const defaultLabel = defaultEoLabelForColumn(g.labels)
+      if (g.labels.length === 0) {
+        return <span className="px-1 py-2 text-center text-xs text-slate-400">—</span>
+      }
+      return g.labels.map((label) => {
+        const on = set.has(label)
+        const chipDisabled = nessunaEoOptionDisabled(disabled, colSelected, label)
+        return (
+          <button
+            key={`${g.title}-${label}${keySuffix}`}
+            type="button"
+            disabled={chipDisabled}
+            onClick={() => {
+              onColumnSelectionChange(
+                tab,
+                toggleEoQuickFirstDefaultExclusive(colSelected, label, defaultLabel),
+              )
+            }}
+            className={`pma-theme-skip ${chipColumn(on)}`}
+          >
+            {label}
+          </button>
+        )
+      })
+    }
+
     const eoGrid = (
-      <div
-        className="mt-2 flex snap-x snap-mandatory gap-2 overflow-x-auto pb-1 [-webkit-overflow-scrolling:touch] md:grid md:snap-none md:grid-cols-3 md:overflow-x-visible md:pb-0 xl:grid-cols-6"
-        role="group"
-        aria-label="Opzioni rapide esame obiettivo per categoria"
-      >
-        {gruppiRapidi.map((g) => {
-          const tab = g.title as EoTabKey
-          if (!EO_CLINICAL_TABS.includes(tab)) {
-            return null
-          }
-          const colSelected = selectedByTab[tab] ?? []
-          const set = new Set(colSelected)
-          const firstDef = g.labels[0] ?? ''
-          return (
-            <div
-              key={g.title}
-              className="flex min-w-[10.25rem] shrink-0 snap-start flex-col rounded-md border border-slate-200 bg-slate-100/80 shadow-sm md:min-w-0"
-            >
-              <div className="border-b border-slate-200 bg-slate-50 px-2 py-1.5 text-center">
-                <div className="text-xs font-semibold uppercase tracking-wider text-slate-500">{g.title}</div>
-              </div>
-              <div className="flex max-h-[min(40vh,16rem)] flex-col gap-1 overflow-y-auto overscroll-y-contain p-1.5 md:max-h-[min(50vh,22rem)]">
-                {g.labels.length === 0 ? (
-                  <span className="px-1 py-2 text-center text-sm font-medium text-slate-400">Nessuna voce</span>
-                ) : null}
-                {g.labels.map((label) => {
-                  const on = set.has(label)
-                  const chipDisabled = nessunaEoOptionDisabled(disabled, colSelected, label)
-                  return (
-                    <button
-                      key={`${g.title}-${label}`}
-                      type="button"
-                      disabled={chipDisabled}
-                      onClick={() => {
-                        onColumnSelectionChange(
-                          tab,
-                          toggleEoQuickFirstDefaultExclusive(colSelected, label, firstDef),
-                        )
-                      }}
-                      className={`pma-theme-skip ${chipColumn(on)}`}
-                    >
-                      {label}
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
-          )
-        })}
+      <div className="mt-2 overflow-x-auto">
+        <table
+          className="min-w-full border-collapse text-sm"
+          role="grid"
+          aria-label="Opzioni rapide esame obiettivo per categoria"
+        >
+          <thead>
+            <tr>
+              {gruppiRapidi.map((g) => {
+                const tab = g.title as EoTabKey
+                if (!EO_CLINICAL_TABS.includes(tab)) return null
+                return (
+                  <th
+                    key={`h-${g.title}`}
+                    className="border border-slate-200 bg-slate-100 px-2 py-1.5 text-center text-[10px] font-bold uppercase tracking-wide text-slate-600"
+                  >
+                    {g.title}
+                  </th>
+                )
+              })}
+            </tr>
+          </thead>
+          <tbody>
+            <tr className="align-top">
+              {gruppiRapidi.map((g) => {
+                const tab = g.title as EoTabKey
+                if (!EO_CLINICAL_TABS.includes(tab)) return null
+                return (
+                  <td key={`c-${g.title}`} className="border border-slate-200 bg-white p-1.5 align-top">
+                    <div className="flex flex-col gap-1">{renderColumnButtons(g, tab, '')}</div>
+                  </td>
+                )
+              })}
+            </tr>
+          </tbody>
+        </table>
       </div>
     )
 
@@ -147,34 +156,10 @@ export function QuickExamField(props: QuickExamFieldProps) {
         {gruppiRapidi.map((g) => {
           const tab = g.title as EoTabKey
           if (!EO_CLINICAL_TABS.includes(tab)) return null
-          const colSelected = selectedByTab[tab] ?? []
-          const set = new Set(colSelected)
-          const firstDef = g.labels[0] ?? ''
           return (
             <div key={g.title} className="rounded-lg border border-slate-200 bg-slate-50 p-2">
               <div className="text-xs font-bold uppercase tracking-wide text-slate-600">{g.title}</div>
-              <div className="mt-2 flex flex-col gap-1.5">
-                {g.labels.map((label) => {
-                  const on = set.has(label)
-                  const chipDisabled = nessunaEoOptionDisabled(disabled, colSelected, label)
-                  return (
-                    <button
-                      key={`${g.title}-${label}-m`}
-                      type="button"
-                      disabled={chipDisabled}
-                      onClick={() => {
-                        onColumnSelectionChange(
-                          tab,
-                          toggleEoQuickFirstDefaultExclusive(colSelected, label, firstDef),
-                        )
-                      }}
-                      className={`pma-theme-skip ${chipColumn(on)}`}
-                    >
-                      {label}
-                    </button>
-                  )
-                })}
-              </div>
+              <div className="mt-2 flex flex-col gap-1.5">{renderColumnButtons(g, tab, '-m')}</div>
             </div>
           )
         })}
@@ -192,7 +177,7 @@ export function QuickExamField(props: QuickExamFieldProps) {
                 className="w-full max-w-md border border-slate-300 bg-white px-4 py-3 text-left text-sm font-semibold text-slate-800 shadow-sm"
                 onClick={() => setEoOpen(true)}
               >
-                Apri opzioni rapide EOâ€¦
+                Apri opzioni rapide EO…
               </button>
               {eoOpen ? (
                 <div
@@ -276,3 +261,4 @@ export function QuickExamField(props: QuickExamFieldProps) {
     </div>
   )
 }
+

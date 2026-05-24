@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { DEFAULT_IMPOSTAZIONI } from '../../constants';
 import {
   CUTE_OPTIONS,
@@ -26,8 +27,21 @@ function isMeccanicaActive(d, opt) {
   return mr.includes(opt.key);
 }
 
-export function MsbValutazioneForm({ msbDetails, onPatch, mezziEventoSigle }) {
+export function MsbValutazioneForm({ msbDetails, onPatch, mezziEventoSigle, valuationId }) {
   const d = normalizeMsbDetails(msbDetails);
+  const persistedRef = useRef(false);
+
+  useEffect(() => {
+    persistedRef.current = false;
+  }, [valuationId]);
+
+  /** Persiste i default precompilati senza attendere un cambio campo. */
+  useEffect(() => {
+    if (!valuationId || persistedRef.current) return;
+    persistedRef.current = true;
+    onPatch(normalizeMsbDetails(msbDetails));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- snapshot una tantum per valutazione
+  }, [valuationId]);
 
   return (
     <div className="space-y-3 border-l-2 border-teal-300 pl-3">

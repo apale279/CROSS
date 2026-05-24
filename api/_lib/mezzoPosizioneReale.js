@@ -1,5 +1,6 @@
 import { FieldValue } from 'firebase-admin/firestore';
 import { getAdminDb } from './firebaseAdmin.js';
+import { isValidGpsCoordinate } from './gpsValidate.js';
 import { resolveMezzoSiglaForTelegram } from './mezzoResolve.js';
 import { isTelegramGpsTrackingEnabled } from './telegramFirestore.js';
 
@@ -23,7 +24,7 @@ export async function updateMezzoPosizioneReale(tenantId, siglaRaw, lat, lng, me
   }
 
   const s = await resolveMezzoSiglaForTelegram(tenantId, String(siglaRaw ?? '').trim());
-  if (!s || !Number.isFinite(lat) || !Number.isFinite(lng)) {
+  if (!s || !isValidGpsCoordinate(lat, lng)) {
     throw new Error('Sigla o coordinate non valide');
   }
 

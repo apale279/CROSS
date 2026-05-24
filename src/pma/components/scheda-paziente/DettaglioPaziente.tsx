@@ -18,12 +18,42 @@ export type DettaglioPazienteProps = {
   onTabChange: (tab: SchedaPazienteTabId) => void
   saveError: ReactNode
   panels: Record<SchedaPazienteTabId, ReactNode>
+  fillHeight?: boolean
+  variant?: 'pma' | 'cross'
+  /** Etichetta stato PMA Firestore (`statoPzPma`). */
+  statoPmaLabel?: string | null
+  /** Etichetta stato centrale (`stato` / missione). */
+  statoCentraleLabel?: string | null
+  /** Se true: badge «chiuso centrale» invece di confondere con apertura scheda PMA. */
+  chiusoCentrale?: boolean
 }
 
-export function DettaglioPaziente({ p, tabs, activeTab, onTabChange, saveError, panels }: DettaglioPazienteProps) {
+export function DettaglioPaziente({
+  p,
+  tabs,
+  activeTab,
+  onTabChange,
+  saveError,
+  panels,
+  fillHeight = false,
+  variant = 'pma',
+  statoPmaLabel = null,
+  statoCentraleLabel = null,
+  chiusoCentrale = false,
+}: DettaglioPazienteProps) {
+  const cross = variant === 'cross'
+  const haStatoPma = Boolean(statoPmaLabel)
+  const haStatoCentrale = Boolean(statoCentraleLabel)
+
   return (
-    <div className="flex w-full min-w-0 flex-col bg-white">
-      <div className="border-b border-slate-200 bg-white py-2">
+    <div
+      className={
+        fillHeight
+          ? 'flex h-full min-h-0 w-full min-w-0 flex-col bg-white'
+          : 'flex w-full min-w-0 flex-col bg-white'
+      }
+    >
+      <div className="shrink-0 border-b border-slate-200 bg-white py-2">
         <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-2 px-3 sm:px-4">
           <div className="flex flex-wrap items-center gap-2">
             <span
@@ -31,19 +61,66 @@ export function DettaglioPaziente({ p, tabs, activeTab, onTabChange, saveError, 
               aria-label={`Codice colore ${CODICE_COLORE_LABEL[p.codice_colore]}`}
             />
             <span className="text-sm font-medium text-slate-800">
-              {CODICE_COLORE_LABEL[p.codice_colore]} · {PAZIENTE_STATO_LABEL[p.stato]}
+              {CODICE_COLORE_LABEL[p.codice_colore]}
+              {haStatoPma && (
+                <>
+                  {' '}
+                  · PMA: <strong>{statoPmaLabel}</strong>
+                </>
+              )}
+              {haStatoCentrale && (
+                <>
+                  {' '}
+                  · Centrale: <strong>{statoCentraleLabel}</strong>
+                </>
+              )}
+              {!haStatoPma && !haStatoCentrale && (
+                <> · {PAZIENTE_STATO_LABEL[p.stato]}</>
+              )}
             </span>
-            <span
-              className={`pma-bar__badge ${p.aperto ? 'pma-bar__badge--open' : 'pma-bar__badge--closed'}`}
-            >
-              {p.aperto ? 'Aperta' : 'Chiusa'}
-            </span>
+            {chiusoCentrale ? (
+              <span className="rounded bg-slate-200 px-2 py-0.5 text-xs font-semibold text-slate-700">
+                Chiuso centrale
+              </span>
+            ) : haStatoPma ? (
+              <span
+                className={
+                  cross
+                    ? `rounded px-2 py-0.5 text-xs font-semibold ${
+                        p.aperto ? 'bg-emerald-100 text-emerald-900' : 'bg-slate-200 text-slate-700'
+                      }`
+                    : `pma-bar__badge ${p.aperto ? 'pma-bar__badge--open' : 'pma-bar__badge--closed'}`
+                }
+              >
+                {p.aperto ? (cross ? 'Scheda PMA attiva' : 'Aperta') : cross ? 'Scheda PMA chiusa' : 'Chiusa'}
+              </span>
+            ) : (
+              <span
+                className={
+                  cross
+                    ? `rounded px-2 py-0.5 text-xs font-semibold ${
+                        p.aperto ? 'bg-emerald-100 text-emerald-900' : 'bg-slate-200 text-slate-700'
+                      }`
+                    : `pma-bar__badge ${p.aperto ? 'pma-bar__badge--open' : 'pma-bar__badge--closed'}`
+                }
+              >
+                {p.aperto ? (cross ? 'Scheda aperta' : 'Aperta') : cross ? 'Scheda chiusa' : 'Chiusa'}
+              </span>
+            )}
           </div>
           <code className="font-mono text-sm font-medium text-slate-700">{p.id_paziente_visibile}</code>
         </div>
       </div>
 
-      <nav className="pma-tabs" aria-label="Sezioni scheda paziente" role="tablist">
+      <nav
+        className={
+          cross
+            ? 'flex shrink-0 flex-wrap gap-1 border-b border-slate-200 bg-white px-3 sm:px-4'
+            : 'pma-tabs shrink-0'
+        }
+        aria-label="Sezioni scheda paziente"
+        role="tablist"
+      >
         {tabs.map((tab) => {
           const selected = activeTab === tab.id
           return (
@@ -56,7 +133,15 @@ export function DettaglioPaziente({ p, tabs, activeTab, onTabChange, saveError, 
               id={`scheda-tab-${tab.id}`}
               tabIndex={selected ? 0 : -1}
               onClick={() => onTabChange(tab.id)}
-              className={`pma-theme-skip pma-tab ${selected ? 'pma-tab--active' : ''}`}
+              className={
+                cross
+                  ? `rounded-t-lg px-4 py-2 text-xs font-bold uppercase ${
+                      selected
+                        ? 'border-b-2 border-sky-600 text-sky-700'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`
+                  : `pma-theme-skip pma-tab ${selected ? 'pma-tab--active' : ''}`
+              }
             >
               {tab.label}
             </button>
@@ -64,23 +149,31 @@ export function DettaglioPaziente({ p, tabs, activeTab, onTabChange, saveError, 
         })}
       </nav>
 
-      <div className="mx-auto w-full max-w-5xl flex-1 pt-3">
+      <div
+        className={
+          fillHeight
+            ? 'mx-auto flex min-h-0 w-full max-w-5xl flex-1 flex-col overflow-hidden pt-3'
+            : 'mx-auto w-full max-w-5xl flex-1 pt-3'
+        }
+      >
         {saveError}
-        {tabs.map((tab) => {
-          const visible = activeTab === tab.id
-          return (
-            <div
-              key={tab.id}
-              id={`scheda-panel-${tab.id}`}
-              role="tabpanel"
-              aria-labelledby={`scheda-tab-${tab.id}`}
-              hidden={!visible}
-              className={visible ? 'block min-h-0' : 'hidden'}
-            >
-              {panels[tab.id]}
-            </div>
-          )
-        })}
+        <div className={fillHeight ? 'min-h-0 flex-1 overflow-y-auto px-3 pb-8 sm:px-4' : undefined}>
+          {tabs.map((tab) => {
+            const visible = activeTab === tab.id
+            return (
+              <div
+                key={tab.id}
+                id={`scheda-panel-${tab.id}`}
+                role="tabpanel"
+                aria-labelledby={`scheda-tab-${tab.id}`}
+                hidden={!visible}
+                className={visible ? 'block min-h-0' : 'hidden'}
+              >
+                {panels[tab.id]}
+              </div>
+            )
+          })}
+        </div>
       </div>
     </div>
   )

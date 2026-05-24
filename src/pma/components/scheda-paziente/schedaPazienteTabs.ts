@@ -2,7 +2,29 @@
 import type { UserRank } from '@pma/types/userProfile'
 import { schedaTabCartellaAllows, schedaTabDimissioneAllows, schedaTabInvioPsAllows } from '@pma/lib/rankMatrix'
 
-export type SchedaPazienteTabId = 'generale' | 'anagrafica' | 'cartella' | 'dimissione' | 'invio_ps'
+export type SchedaPazienteTabId =
+  | 'generale'
+  | 'anagrafica'
+  | 'dati_centrale'
+  | 'cartella'
+  | 'dimissione'
+  | 'invio_ps'
+
+/** Tab vista PMA a schermo intero (dashboard tenda). */
+export const PMA_SHELL_TABS: { id: SchedaPazienteTabId; label: string }[] = [
+  { id: 'anagrafica', label: 'Anagrafica' },
+  { id: 'dati_centrale', label: 'Dati centrale' },
+  { id: 'cartella', label: 'Cartella clinica' },
+  { id: 'dimissione', label: 'Dimissioni' },
+]
+
+/** Autopresentati: nessun dato da centrale → tab nascosto. */
+export function pmaShellTabsFor(isAutopresentato: boolean) {
+  if (isAutopresentato) {
+    return PMA_SHELL_TABS.filter((t) => t.id !== 'dati_centrale')
+  }
+  return PMA_SHELL_TABS
+}
 
 const BASE_TABS: { id: SchedaPazienteTabId; label: string }[] = [
   { id: 'generale', label: 'Generale' },

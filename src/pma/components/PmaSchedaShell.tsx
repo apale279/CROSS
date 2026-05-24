@@ -1,33 +1,27 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { doc, onSnapshot } from 'firebase/firestore';
-import { useAuth } from '../../context/AuthContext';
-import { useImpostazioni } from '../../hooks/useImpostazioni';
-import { useManifestazioneId } from '../../context/ManifestazioneContext';
-import { pazientiPath } from '../../lib/firestorePaths';
-import { patchPazientePmaGranular } from '../lib/pazientePmaPatch';
-import { STATO_PZ_PMA } from '../../lib/pmaModule';
-import { db } from '../cross/firebase';
-import {
-  crossDocToPazienteView,
-  canEditPmaScheda,
-  canEditPmaAnagrafica,
-} from '../adapters/crossPazienteAdapter';
-import { usePmaClinicaListe } from '../hooks/usePmaClinicaListe';
-import type { UserProfile } from '../types/userProfile';
-import { DettaglioPaziente } from './scheda-paziente/DettaglioPaziente';
-import { CartellaClinicaSection } from './scheda-paziente/CartellaClinicaSection';
-import { DimissioneSection } from './scheda-paziente/DimissioneSection';
-import { PmaAnagraficaSection } from './PmaAnagraficaSection';
-import { PmaFieldPresenceProvider } from '../context/PmaFieldPresenceContext';
-import { normalizePmaRank } from '../../lib/userAccess';
+import { useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { COLLECTIONS } from '../../lib/firestorePaths';
+import { useManifestazioneCollection } from '../../hooks/useManifestazioneCollection';
+import { findEvento, missioniPerEvento } from '../../lib/eventoLinks';
+import { canViewPmaScheda, pmaIdPerPaziente } from '../../lib/pmaModule';
+import { usePazienteDocument } from '../../hooks/usePazienteDocument';
+import { PazienteModuloPma } from '../../components/pazienti/moduli/PazienteModuloPma';
+import { VISTA_SCHEDA } from '../../lib/pazienteSchedaModuli';
+import type { SchedaPazienteTabId } from './scheda-paziente/schedaPazienteTabs';
 
-type TabId = 'anagrafica' | 'cartella' | 'dimissione';
-
-const TABS: { id: TabId; label: string }[] = [
-  { id: 'anagrafica', label: 'Anagrafica' },
-  { id: 'cartella', label: 'Cartella clinica' },
-  { id: 'dimissione', label: 'Dimissione' },
+const SHELL_TAB_IDS: SchedaPazienteTabId[] = [
+  'anagrafica',
+  'dati_centrale',
+  'cartella',
+  'dimissione',
 ];
+
+function parseShellTab(raw: string | null): SchedaPazienteTabId {
+  if (raw && SHELL_TAB_IDS.includes(raw as SchedaPazienteTabId)) {
+    return raw as SchedaPazienteTabId;
+  }
+  return 'cartella';
+}
 
 type Props = {
   pazienteDocId: string;
@@ -36,161 +30,93 @@ type Props = {
   onClose: () => void;
 };
 
+/** Vista PMA a schermo intero: tab anagrafica / dati centrale / cartella / dimissioni (default cartella). */
 export function PmaSchedaShell({ pazienteDocId, pmaId, pmaNome, onClose }: Props) {
-  const manifestationId = useManifestazioneId();
-  const { profile, user } = useAuth();
-  const { impostazioni } = useImpostazioni();
-  const liste = usePmaClinicaListe();
-  const [rawDoc, setRawDoc] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<TabId>('cartella');
-  const [saveError, setSaveError] = useState(null);
+  const [searchParams] = useSearchParams();
+  const initialTab = parseShellTab(searchParams.get('tab'));
+  const { data: eventi } = useManifestazioneCollection(COLLECTIONS.eventi);
+  const { data: missioni } = useManifestazioneCollection(COLLECTIONS.missioni);
+  const { rawDoc, loading } = usePazienteDocument(pazienteDocId);
 
-  useEffect(() => {
-    if (!manifestationId || !pazienteDocId) return undefined;
-    const ref = doc(db, ...pazientiPath(manifestationId), pazienteDocId);
-    const unsub = onSnapshot(ref, (snap) => {
-      if (!snap.exists()) {
-        setRawDoc(null);
-      } else {
-        setRawDoc({ _docId: snap.id, ...snap.data() });
-      }
-      setLoading(false);
-    });
-    return () => unsub();
-  }, [manifestationId, pazienteDocId]);
+  const evento = useMemo(
+    () => (rawDoc ? findEvento(eventi, rawDoc.eventoIdUnivoco ?? rawDoc.eventoCorrelato) : null),
+    [rawDoc, eventi],
+  );
 
-  const p = useMemo(() => {
-    if (!rawDoc) return null;
-    return crossDocToPazienteView(rawDoc, manifestationId, pmaId);
-  }, [rawDoc, manifestationId, pmaId]);
-
-  const canEdit = p ? canEditPmaScheda(p) : false;
-  const centraleReadonly = rawDoc ? !canEditPmaAnagrafica(rawDoc) : true;
-
-  const pmaUser: UserProfile | null = user
-    ? {
-        uid: user.uid,
-        nome: profile?.nome ?? user.displayName ?? '',
-        nomeUtente: profile?.nomeUtente ?? '',
-        rank: normalizePmaRank(profile?.pmaRank),
-      }
-    : null;
-
-  const write = useCallback(
-    async (patch: Record<string, unknown>) => {
-      if (!manifestationId || !pazienteDocId) return;
-      setSaveError(null);
-      try {
-        await patchPazientePmaGranular(manifestationId, pazienteDocId, patch);
-      } catch (err) {
-        setSaveError(err instanceof Error ? err.message : 'Errore salvataggio');
-        throw err;
-      }
-    },
-    [manifestationId, pazienteDocId],
+  const missioniEvento = useMemo(
+    () => (evento ? missioniPerEvento(missioni, evento) : []),
+    [missioni, evento],
   );
 
   if (loading) {
     return <p className="p-8 text-center text-sm text-slate-500">Caricamento scheda…</p>;
   }
 
-  if (!p || !rawDoc) {
+  if (!rawDoc) {
     return (
       <div className="p-8 text-center text-sm text-slate-600">
         Paziente non trovato.
-        <button type="button" className="ml-2 text-violet-700 underline" onClick={onClose}>
+        <button type="button" className="ml-2 text-sky-700 underline" onClick={onClose}>
           Torna al PMA
         </button>
       </div>
     );
   }
 
-  if (p.stato !== 'in_carico' && rawDoc.statoPzPma !== STATO_PZ_PMA.IN_CARICO) {
+  if (!canViewPmaScheda(rawDoc)) {
     return (
       <div className="p-8 text-center text-sm text-amber-900">
-        La pagina PMA è disponibile solo per pazienti <strong>in carico</strong>.
-        <button type="button" className="ml-2 text-violet-700 underline" onClick={onClose}>
+        Modulo PMA non attivo per questo paziente.
+        <button type="button" className="ml-2 text-sky-700 underline" onClick={onClose}>
           Torna al PMA
         </button>
       </div>
     );
   }
 
-  const manifestazioneNome = impostazioni?.nomeManifestazione ?? 'Manifestazione';
-
-  const panels = {
-    anagrafica: (
-      <PmaAnagraficaSection
-        p={p}
-        canEdit={canEdit}
-        centraleReadonly={centraleReadonly}
-        write={write}
-      />
-    ),
-    cartella: (
-      <CartellaClinicaSection
-        pazienteId={pazienteDocId}
-        p={p}
-        canEdit={canEdit}
-        write={write}
-        user={pmaUser}
-        embedded
-      />
-    ),
-    dimissione: (
-      <DimissioneSection
-        p={p}
-        user={pmaUser}
-        isMedico
-        canEditDimissioneTab={canEdit}
-        canEditScheda={canEdit}
-        write={write}
-        reportManifestazioneNome={manifestazioneNome}
-        reportPmaNome={pmaNome}
-        consensoGenericoCure={liste.consensoGenericoCure}
-        consensoPrivacy={liste.consensoPrivacy}
-        rifiutoInvioPs={liste.rifiutoInvioPs}
-        presetDimissione={liste.presetDimissione}
-        prestazioniManifestazioneLista={liste.prestazioni}
-      />
-    ),
-  };
+  const pazientePmaId = pmaIdPerPaziente(rawDoc);
+  if (pazientePmaId && pazientePmaId !== pmaId) {
+    return (
+      <div className="p-8 text-center text-sm text-amber-900">
+        Questo paziente appartiene a un altro PMA.
+        <button type="button" className="ml-2 text-sky-700 underline" onClick={onClose}>
+          Torna al PMA
+        </button>
+      </div>
+    );
+  }
 
   return (
-    <PmaFieldPresenceProvider manifestationId={manifestationId} pazienteDocId={pazienteDocId}>
     <div className="flex min-h-0 flex-1 flex-col bg-white">
-      <header className="flex shrink-0 items-center justify-between gap-3 border-b border-violet-200 bg-violet-950 px-4 py-3 text-white">
-        <div>
+      <header className="flex shrink-0 items-center justify-between gap-3 border-b border-slate-300 bg-slate-50 px-4 py-2">
+        <div className="min-w-0">
           <button
             type="button"
-            className="text-xs font-medium text-violet-200 hover:text-white"
+            className="text-xs font-medium text-sky-700 hover:underline"
             onClick={onClose}
           >
             ← {pmaNome}
           </button>
-          <h1 className="text-lg font-bold">{p.id_paziente_visibile}</h1>
+          <h1 className="font-mono text-xl font-bold text-teal-800">{rawDoc.idPaziente}</h1>
         </div>
-        <span className="rounded bg-violet-800 px-2 py-1 text-xs font-bold uppercase">PMA</span>
+        <span className="shrink-0 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-bold uppercase text-slate-800">
+          Scheda paziente
+        </span>
       </header>
 
-      <div className="min-h-0 flex-1 overflow-y-auto">
-        <DettaglioPaziente
-          p={p}
-          tabs={TABS}
-          activeTab={activeTab}
-          onTabChange={setActiveTab}
-          saveError={
-            saveError ? (
-              <p className="mb-2 rounded bg-red-50 px-3 py-2 text-sm text-red-800" role="alert">
-                {saveError}
-              </p>
-            ) : null
-          }
-          panels={panels}
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+        <PazienteModuloPma
+          patientDocId={pazienteDocId}
+          pmaId={pmaId}
+          eventi={eventi}
+          evento={evento}
+          missioniEvento={missioniEvento}
+          vistaScheda={VISTA_SCHEDA.PMA}
+          defaultTab="cartella"
+          initialTab={initialTab}
+          onDimesso={onClose}
         />
       </div>
     </div>
-    </PmaFieldPresenceProvider>
   );
 }

@@ -1,3 +1,5 @@
+import { STATO_PAZIENTE_PMA } from '../constants';
+import { isPazienteOriginePma } from './pmaModule';
 import { toDatetimeLocalValue } from './datetimeLocal';
 import { soreuFieldsFromPatient } from './soreuTrasporto';
 
@@ -34,7 +36,7 @@ export function patientDocToDraftFields(p) {
     esitoAltro: p.esitoAltro ?? '',
     ospedaleDestinazione: p.ospedaleDestinazione ?? '',
     destinazionePmaId: p.destinazionePmaId ?? '',
-    stato: p.stato ?? 'ATTESA',
+    stato: isPazienteOriginePma(p) ? (p.stato ?? STATO_PAZIENTE_PMA) : (p.stato ?? 'ATTESA'),
     mezzo: p.mezzo ?? '',
     nome: p.nome ?? '',
     cognome: p.cognome ?? '',

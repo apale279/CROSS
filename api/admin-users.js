@@ -1,4 +1,5 @@
 import { getAdminAuth, getAdminDb } from './_lib/firebaseAdmin.js';
+import { createAuthUserWithEmailReclaim, deleteAuthUserCompletely } from './_lib/adminUserLifecycle.js';
 import { requireTenant } from './_lib/resolveTenant.js';
 import { verifyFirebaseUser } from './_lib/verifyFirebaseUser.js';
 import { requireWebAdmin } from './_lib/requireWebAdmin.js';
@@ -34,7 +35,7 @@ async function listUsers(tenantId) {
       const au = await auth.getUser(docSnap.id);
       email = au.email ?? email;
     } catch {
-      /* profilo senza auth */
+      /* profilo senza account Auth (uid orfano) */
     }
     rows.push({
       uid: docSnap.id,
@@ -71,10 +72,14 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: 'Seleziona un PMA per utenti PMA.' });
       }
 
-      const userRecord = await getAdminAuth().createUser({
+      const userRecord = await createAuthUserWithEmailReclaim({
         email: b.email,
         password: b.password,
         displayName: b.nome || b.nomeUtente || undefined,
+        hasProfileInTenant: async (uid) => {
+          const prof = await profileRef(tenantId, uid).get();
+          return prof.exists;
+        },
       });
 
       await profileRef(tenantId, userRecord.uid).set({
@@ -95,25 +100,41 @@ export default async function handler(req, res) {
       if (!uid) return res.status(400).json({ error: 'uid obbligatorio' });
 
       const b = normalizeBody(req.body ?? {});
+      if (b.accessType === 'PMA' && !b.pmaScopeId) {
+        return res.status(400).json({ error: 'Seleziona un PMA per utenti PMA.' });
+      }
+
+      const auth = getAdminAuth();
       const authUpdate = {};
       if (b.email) authUpdate.email = b.email;
       if (b.password && b.password.length >= 6) authUpdate.password = b.password;
-      if (Object.keys(authUpdate).length) {
-        await getAdminAuth().updateUser(uid, authUpdate);
+      if (b.nome || b.nomeUtente) {
+        authUpdate.displayName = b.nome || b.nomeUtente;
+      }
+      if (Object.keys(authUpdate).length > 0) {
+        try {
+          await auth.updateUser(uid, authUpdate);
+        } catch (err) {
+          if (err.code === 'auth/email-already-exists') {
+            return res.status(409).json({
+              error: 'Email già usata da un altro account Firebase.',
+            });
+          }
+          throw err;
+        }
       }
 
-      await profileRef(tenantId, uid).set(
-        {
-          email: b.email || undefined,
-          nome: b.nome,
-          nomeUtente: b.nomeUtente,
-          accessType: b.accessType,
-          pmaRank: b.pmaRank,
-          pmaScopeId: b.pmaScopeId,
-          aggiornatoIl: new Date(),
-        },
-        { merge: true },
-      );
+      const profilePatch = {
+        nome: b.nome,
+        nomeUtente: b.nomeUtente,
+        accessType: b.accessType,
+        pmaRank: b.pmaRank,
+        pmaScopeId: b.pmaScopeId,
+        aggiornatoIl: new Date(),
+      };
+      if (b.email) profilePatch.email = b.email;
+
+      await profileRef(tenantId, uid).set(profilePatch, { merge: true });
 
       return res.status(200).json({ ok: true });
     }
@@ -124,9 +145,15 @@ export default async function handler(req, res) {
       if (uid === decoded.uid) {
         return res.status(400).json({ error: 'Non puoi eliminare il tuo account.' });
       }
-      await getAdminAuth().deleteUser(uid);
-      await profileRef(tenantId, uid).delete();
-      return res.status(200).json({ ok: true });
+
+      await deleteAuthUserCompletely(uid);
+      try {
+        await profileRef(tenantId, uid).delete();
+      } catch (err) {
+        console.warn('[admin-users] delete profile', uid, err.message);
+      }
+
+      return res.status(200).json({ ok: true, authDeleted: true });
     }
 
     res.setHeader('Allow', 'GET, POST, PATCH, DELETE');

@@ -1,5 +1,6 @@
 ﻿/**
- * Liste demo (Impostazioni_IMP / FARMACI_IMP) finché non collegate a Firestore manifestazione.
+ * Liste demo usate solo al seed iniziale su Firestore (`seedPmaClinicaImpostazioni`).
+ * A runtime le liste arrivano da `impostazioni.pmaClinica`.
  */
 export const PRESTAZIONI_LISTA_DEFAULT: string[] = [
   'ECG',

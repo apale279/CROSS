@@ -65,13 +65,14 @@ export function mergeSchedaArrayById(serverArr, clientArr) {
 }
 
 /** Inizializza `pmaScheda` solo se assente (path puntati, senza sovrascrivere). */
-export async function initPmaSchedaIfMissing(manifestationId, docId) {
+export async function initPmaSchedaIfMissing(manifestationId, docId, seed = null) {
   const docRef = doc(db, ...pazientiPath(manifestationId), docId);
+  const merged = { ...EMPTY_PMA_SCHEDA, ...(seed && typeof seed === 'object' ? seed : {}) };
   await runTransaction(db, async (transaction) => {
     const snap = await transaction.get(docRef);
     if (!snap.exists() || snap.data().pmaScheda) return;
     const initFields = {};
-    for (const [key, value] of Object.entries(EMPTY_PMA_SCHEDA)) {
+    for (const [key, value] of Object.entries(merged)) {
       initFields[`${PMA_SCHEDA_PREFIX}${key}`] = value;
     }
     transaction.update(docRef, initFields);

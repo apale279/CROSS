@@ -9,6 +9,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../firebaseConfig';
 import { DEFAULT_IMPOSTAZIONI } from '../constants';
+import { seedPmaClinicaImpostazioni } from '../lib/pmaClinicaImpostazioniSeed';
 import { impostazioniPath, manifestazioniCollection } from '../lib/firestorePaths';
 
 function toTimestamp(dateStr) {
@@ -28,6 +29,7 @@ export async function createManifestazione({ nome, dataInizio, luogo }) {
   });
   await setDoc(doc(db, ...impostazioniPath(docRef.id)), {
     ...DEFAULT_IMPOSTAZIONI,
+    pmaClinica: seedPmaClinicaImpostazioni(),
     manifestationId: docRef.id,
   });
   return docRef.id;

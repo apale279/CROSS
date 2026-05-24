@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useManifestazioneId } from '../../context/ManifestazioneContext';
 import { useImpostazioni } from '../../hooks/useImpostazioni';
 import { listaPmaImpostazioni } from '../../lib/pmaModule';
@@ -26,6 +26,7 @@ export function UserAccountsEditor() {
   const manifestationId = useManifestazioneId();
   const { impostazioni } = useImpostazioni();
   const pmaList = listaPmaImpostazioni(impostazioni);
+  const formRef = useRef(null);
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -51,23 +52,36 @@ export function UserAccountsEditor() {
     void load();
   }, [load]);
 
+  const scrollToForm = () => {
+    requestAnimationFrame(() => {
+      formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  };
+
   const openNew = () => {
     setEditing(false);
     setForm(emptyForm());
+    setError(null);
+    scrollToForm();
   };
 
   const openEdit = (row) => {
     setEditing(true);
+    setError(null);
     setForm({
-      uid: row.uid,
+      uid: row.uid ?? '',
       email: row.email ?? '',
       password: '',
       nome: row.nome ?? '',
       nomeUtente: row.nomeUtente ?? '',
-      accessType: row.accessType === ACCESS_TYPE.PMA ? ACCESS_TYPE.PMA : ACCESS_TYPE.CENTRALE,
+      accessType:
+        String(row.accessType ?? '').toUpperCase() === ACCESS_TYPE.PMA
+          ? ACCESS_TYPE.PMA
+          : ACCESS_TYPE.CENTRALE,
       pmaRank: row.pmaRank || PMA_RANK.MEDICO,
       pmaScopeId: row.pmaScopeId ?? '',
     });
+    scrollToForm();
   };
 
   const submit = async (e) => {
@@ -76,8 +90,30 @@ export function UserAccountsEditor() {
     setError(null);
     try {
       if (editing) {
-        await updateAdminUser(manifestationId, { ...form, password: form.password || undefined });
+        if (!form.uid) {
+          throw new Error('UID utente mancante: ricarica la pagina e riprova.');
+        }
+        if (form.accessType === ACCESS_TYPE.PMA && !form.pmaScopeId) {
+          throw new Error('Seleziona un PMA per utenti con accesso PMA.');
+        }
+        await updateAdminUser(manifestationId, {
+          uid: form.uid,
+          email: form.email,
+          nome: form.nome,
+          nomeUtente: form.nomeUtente,
+          accessType: form.accessType,
+          pmaRank: form.pmaRank,
+          pmaScopeId: form.pmaScopeId,
+          password: form.password?.trim() ? form.password : undefined,
+        });
       } else {
+        if (!form.email?.trim()) throw new Error('Email obbligatoria.');
+        if (!form.password || form.password.length < 6) {
+          throw new Error('Password obbligatoria (minimo 6 caratteri).');
+        }
+        if (form.accessType === ACCESS_TYPE.PMA && !form.pmaScopeId) {
+          throw new Error('Seleziona un PMA per utenti con accesso PMA.');
+        }
         await createAdminUser(manifestationId, form);
       }
       setForm(emptyForm());
@@ -90,13 +126,25 @@ export function UserAccountsEditor() {
     }
   };
 
-  const onDelete = async (uid) => {
-    if (!window.confirm('Eliminare questo utente? L’accesso Firebase Auth verrà revocato.')) return;
+  const onDelete = async (row) => {
+    const label = row.email || row.nome || row.uid;
+    if (
+      !window.confirm(
+        `Eliminare l'account "${label}"?\n\nVerranno rimossi il profilo Firestore e l'utente Firebase Authentication (l'email potrà essere riutilizzata).`,
+      )
+    ) {
+      return;
+    }
+    setError(null);
     try {
-      await deleteAdminUser(manifestationId, uid);
+      await deleteAdminUser(manifestationId, row.uid);
+      if (editing && form.uid === row.uid) {
+        setForm(emptyForm());
+        setEditing(false);
+      }
       await load();
     } catch (err) {
-      alert(err.message ?? 'Eliminazione fallita');
+      setError(err.message ?? 'Eliminazione fallita');
     }
   };
 
@@ -106,12 +154,18 @@ export function UserAccountsEditor() {
         <div>
           <h3 className="text-lg font-semibold text-slate-900">Account operatori</h3>
           <p className="mt-1 text-sm text-slate-600">
-            Crea e gestisci accessi web: centrale (dashboard completa) o PMA (vista tendone + rank).
+            Gestione account web tramite Firebase Authentication e profili in Firestore
+            (autorizzazioni centrale / PMA).
           </p>
         </div>
-        <button type="button" className={btnSecondary} onClick={() => void load()}>
-          Aggiorna
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button type="button" className={btnSecondary} onClick={openNew}>
+            Nuovo utente
+          </button>
+          <button type="button" className={btnSecondary} onClick={() => void load()}>
+            Aggiorna
+          </button>
+        </div>
       </div>
 
       {error && (
@@ -120,16 +174,90 @@ export function UserAccountsEditor() {
         </p>
       )}
 
-      <form onSubmit={(e) => void submit(e)} className="mb-6 rounded-lg border border-violet-100 bg-violet-50/40 p-4">
-        <h4 className="mb-3 text-sm font-bold uppercase text-violet-900">
+      {loading && <p className="mb-4 text-sm text-slate-500">Caricamento…</p>}
+
+      {!loading && rows.length > 0 && (
+        <div className="mb-6 overflow-hidden rounded-lg border border-slate-200">
+          <table className="w-full border-collapse text-sm">
+            <thead>
+              <tr className="bg-slate-50 text-left text-xs font-bold uppercase text-slate-600">
+                <th className="px-3 py-2">Nome</th>
+                <th className="px-3 py-2">Email</th>
+                <th className="px-3 py-2">Tipo</th>
+                <th className="px-3 py-2">PMA / Rank</th>
+                <th className="px-3 py-2 text-right">Azioni</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr
+                  key={r.uid}
+                  className={`border-t border-slate-100 ${
+                    editing && form.uid === r.uid ? 'bg-violet-50' : ''
+                  }`}
+                >
+                  <td className="px-3 py-2 font-medium">
+                    {r.nome || '—'}
+                    {r.nomeUtente && (
+                      <span className="ml-1 font-mono text-xs text-slate-500">@{r.nomeUtente}</span>
+                    )}
+                  </td>
+                  <td className="px-3 py-2 text-slate-700">{r.email || '—'}</td>
+                  <td className="px-3 py-2">{r.accessType}</td>
+                  <td className="px-3 py-2 text-xs text-slate-600">
+                    {String(r.accessType).toUpperCase() === ACCESS_TYPE.PMA
+                      ? `${pmaList.find((p) => p.id === r.pmaScopeId)?.nome ?? (r.pmaScopeId || '—')} · ${PMA_RANK_LABEL[r.pmaRank] ?? (r.pmaRank || '—')}`
+                      : '—'}
+                  </td>
+                  <td className="px-3 py-2 text-right whitespace-nowrap">
+                    <button
+                      type="button"
+                      className="rounded px-2 py-1 font-semibold text-violet-800 hover:bg-violet-100"
+                      onClick={() => openEdit(r)}
+                    >
+                      Modifica
+                    </button>
+                    <button
+                      type="button"
+                      className="ml-1 rounded px-2 py-1 font-semibold text-red-800 hover:bg-red-100"
+                      onClick={() => void onDelete(r)}
+                    >
+                      Elimina
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {!loading && rows.length === 0 && (
+        <p className="mb-4 text-sm text-slate-500">Nessun utente registrato.</p>
+      )}
+
+      <form
+        ref={formRef}
+        onSubmit={(e) => void submit(e)}
+        className={`rounded-lg border p-4 ${
+          editing
+            ? 'border-violet-400 bg-violet-50 ring-2 ring-violet-200'
+            : 'border-violet-100 bg-violet-50/40'
+        }`}
+      >
+        <h4 className="mb-1 text-sm font-bold uppercase text-violet-900">
           {editing ? 'Modifica utente' : 'Nuovo utente'}
         </h4>
+        {editing && (
+          <p className="mb-3 font-mono text-xs text-slate-500">UID: {form.uid}</p>
+        )}
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="block text-xs font-bold text-slate-700">
             Email
             <input
               type="email"
-              required
+              required={!editing}
+              autoComplete="off"
               className={`${inputClass} mt-1`}
               value={form.email}
               onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
@@ -139,10 +267,11 @@ export function UserAccountsEditor() {
             Password {editing && '(vuoto = invariata)'}
             <input
               type="password"
+              autoComplete="new-password"
               className={`${inputClass} mt-1`}
               value={form.password}
               required={!editing}
-              minLength={6}
+              minLength={editing ? undefined : 6}
               onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
             />
           </label>
@@ -163,14 +292,14 @@ export function UserAccountsEditor() {
             />
           </label>
           <label className="block text-xs font-bold text-slate-700">
-            Tipo accesso
+            Tipo accesso (Firestore)
             <select
               className={`${selectClass} mt-1`}
               value={form.accessType}
               onChange={(e) => setForm((f) => ({ ...f, accessType: e.target.value }))}
             >
-              <option value={ACCESS_TYPE.CENTRALE}>Centrale</option>
-              <option value={ACCESS_TYPE.PMA}>PMA</option>
+              <option value={ACCESS_TYPE.CENTRALE}>Centrale — dashboard completa</option>
+              <option value={ACCESS_TYPE.PMA}>PMA — vista tendone</option>
             </select>
           </label>
           {form.accessType === ACCESS_TYPE.PMA && (
@@ -219,63 +348,6 @@ export function UserAccountsEditor() {
           )}
         </div>
       </form>
-
-      {loading && <p className="text-sm text-slate-500">Caricamento…</p>}
-
-      {!loading && rows.length === 0 && (
-        <p className="text-sm text-slate-500">Nessun utente registrato.</p>
-      )}
-
-      {!loading && rows.length > 0 && (
-        <div className="overflow-hidden rounded-lg border border-slate-200">
-          <table className="w-full border-collapse text-sm">
-            <thead>
-              <tr className="bg-slate-50 text-left text-xs font-bold uppercase text-slate-600">
-                <th className="px-3 py-2">Nome</th>
-                <th className="px-3 py-2">Email</th>
-                <th className="px-3 py-2">Tipo</th>
-                <th className="px-3 py-2">PMA / Rank</th>
-                <th className="px-3 py-2" />
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((r) => (
-                <tr key={r.uid} className="border-t border-slate-100">
-                  <td className="px-3 py-2 font-medium">
-                    {r.nome || '—'}
-                    {r.nomeUtente && (
-                      <span className="ml-1 font-mono text-xs text-slate-500">@{r.nomeUtente}</span>
-                    )}
-                  </td>
-                  <td className="px-3 py-2 text-slate-700">{r.email || '—'}</td>
-                  <td className="px-3 py-2">{r.accessType}</td>
-                  <td className="px-3 py-2 text-xs text-slate-600">
-                    {r.accessType === ACCESS_TYPE.PMA
-                      ? `${pmaList.find((p) => p.id === r.pmaScopeId)?.nome ?? r.pmaScopeId} · ${PMA_RANK_LABEL[r.pmaRank] ?? r.pmaRank}`
-                      : '—'}
-                  </td>
-                  <td className="px-3 py-2 text-right">
-                    <button
-                      type="button"
-                      className="text-violet-700 hover:underline"
-                      onClick={() => openEdit(r)}
-                    >
-                      Modifica
-                    </button>
-                    <button
-                      type="button"
-                      className="ml-2 text-red-700 hover:underline"
-                      onClick={() => void onDelete(r.uid)}
-                    >
-                      Elimina
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
     </section>
   );
 }

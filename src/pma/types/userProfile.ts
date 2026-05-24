@@ -1,3 +1,5 @@
+export type { UserRank } from '../lib/rankMatrix';
+
 /** Profilo minimo per componenti scheda PMA portati da PMApp. */
 export type UserProfile = {
   uid?: string;
