@@ -29,19 +29,25 @@ export function payloadValutazioneRow(v) {
 export function newValutazioneSoccorsoItem(tipo) {
   const id = crypto.randomUUID();
   if (tipo === 'MSA') {
-    return payloadValutazioneRow({
+    return {
       id,
-      tipo: 'MSA',
-      testo: '',
-      msaDetails: normalizeMsaDetails(null),
-      creatoIl: Timestamp.now(),
-    });
+      ...payloadValutazioneRow({
+        id,
+        tipo: 'MSA',
+        testo: '',
+        msaDetails: normalizeMsaDetails(null),
+        creatoIl: Timestamp.now(),
+      }),
+    };
   }
-  return payloadValutazioneRow({
+  return {
     id,
-    tipo: 'MSB',
-    testo: '',
-    msbDetails: normalizeMsbDetails(null),
-    creatoIl: Timestamp.now(),
-  });
+    ...payloadValutazioneRow({
+      id,
+      tipo: 'MSB',
+      testo: '',
+      msbDetails: normalizeMsbDetails(null),
+      creatoIl: Timestamp.now(),
+    }),
+  };
 }

@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { Send, Star } from 'lucide-react';
+import { Send, Star, FileText } from 'lucide-react';
 import { Modal } from '../ui/Modal';
 import { DiarioNotaForm } from './DiarioNotaForm';
 import { btnDanger, btnPrimary, btnSecondary } from '../ui/FormField';
 import { formatTimestamp } from '../../utils/formatters';
 import { confirmDelete } from '../../utils/confirmDelete';
+import { PdfPreviewModal } from '../../pma/components/scheda-paziente/PdfPreviewModal';
 
 export function DiarioNotaModal({
   nota,
@@ -19,6 +20,7 @@ export function DiarioNotaModal({
   broadcasting = false,
 }) {
   const [editing, setEditing] = useState(mode === 'edit' || mode === 'create');
+  const [pdfPreviewUrl, setPdfPreviewUrl] = useState(null);
 
   if (!nota && mode !== 'create') return null;
 
@@ -60,6 +62,16 @@ export function DiarioNotaModal({
           <div className="whitespace-pre-wrap rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-800">
             {nota.testo || '—'}
           </div>
+          {nota.pdfUrl ? (
+            <button
+              type="button"
+              className={`${btnSecondary} inline-flex items-center gap-1.5`}
+              onClick={() => setPdfPreviewUrl(nota.pdfUrl)}
+            >
+              <FileText className="h-4 w-4" aria-hidden />
+              Anteprima PDF{nota.pdfFilename ? `: ${nota.pdfFilename}` : ''}
+            </button>
+          ) : null}
           <div className="flex flex-wrap gap-2">
             <button type="button" className={btnPrimary} onClick={() => setEditing(true)}>
               Modifica
@@ -105,6 +117,14 @@ export function DiarioNotaModal({
           </div>
         </div>
       )}
+      {pdfPreviewUrl ? (
+        <PdfPreviewModal
+          url={pdfPreviewUrl}
+          title="Allegato PDF"
+          filename={nota?.pdfFilename ?? undefined}
+          onClose={() => setPdfPreviewUrl(null)}
+        />
+      ) : null}
     </Modal>
   );
 }

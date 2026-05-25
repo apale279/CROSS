@@ -53,6 +53,14 @@ export function EventoSchedaProvider({ children }) {
   const openEventoScheda = useCallback(
     (eventoOrId) => {
       if (!eventoOrId) return;
+      if (typeof eventoOrId === 'object') {
+        const live =
+          eventi.find((e) => e._docId === eventoOrId._docId) ??
+          findEvento(eventi, eventoOrId.idUnivoco ?? eventoOrId.idEvento) ??
+          eventoOrId;
+        setModal({ evento: live });
+        return;
+      }
       const found = findEvento(eventi, eventoOrId);
       if (found) setModal({ evento: found });
     },

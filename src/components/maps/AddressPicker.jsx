@@ -385,8 +385,9 @@ export function AddressPicker({ indirizzo, coordinate, onCommit, mapAreaHint }) 
         </div>
       )}
 
-      {mapsApiReady && (
+      {mapsApiReady ? (
         <LocationMap
+          alwaysShow
           coordinate={mapCoord}
           onLocationChange={mapPick ? commit : undefined}
           height="280px"
@@ -395,6 +396,14 @@ export function AddressPicker({ indirizzo, coordinate, onCommit, mapAreaHint }) 
           showPickButton={false}
           pickMode={mapPick}
         />
+      ) : mapsLoadError ? (
+        <p className="rounded border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-800">
+          Mappa non disponibile: {mapsLoadError.message ?? 'errore caricamento Google Maps'}
+        </p>
+      ) : (
+        <p className="rounded border border-slate-200 bg-white px-3 py-2 text-xs text-slate-600">
+          Caricamento mappa…
+        </p>
       )}
 
       {mapPick && (

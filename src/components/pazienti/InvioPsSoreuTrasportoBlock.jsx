@@ -1,0 +1,219 @@
+import { useMemo, useState } from 'react';
+import { useManifestazioneCollection } from '../../hooks/useManifestazioneCollection';
+import { COLLECTIONS } from '../../lib/firestorePaths';
+import { invioPsSoreuFieldsFromScheda } from '../../lib/invioPsSoreu';
+import { missionePmaInvioPsApertaPerPaziente } from '../../lib/pmaInvioPsMission';
+import { isStatoMissioneRientroOLiberato, mezzoHaMissioneAttiva, missioniAperteSuMezzo } from '../../lib/mezzoMissione';
+import { MEZZO_STATO_DISPONIBILE } from '../../lib/mezzoStati';
+import { createTrasportoInvioPsDaPma } from '../../services/pmaInvioPsTrasportoService';
+import { SoreuTrasportoFields } from './SoreuTrasportoFields';
+import { FormField, btnPrimary, btnSecondary, selectClass } from '../ui/FormField';
+
+/**
+ * Dati missione SOREU per invio PS (118) + comando CREA TRASPORTO.
+ * Utilizzabile anche su paziente dimesso: non modifica il paziente al click trasporto.
+ */
+export function InvioPsSoreuTrasportoBlock({
+  manifestationId,
+  paziente,
+  pma,
+  onWriteSoreu,
+  onOpenEvento,
+  onOpenMissione,
+  onOpenPazienteRiferimento,
+}) {
+  const { data: mezzi } = useManifestazioneCollection(COLLECTIONS.mezzi);
+  const { data: eventi } = useManifestazioneCollection(COLLECTIONS.eventi);
+  const { data: missioni } = useManifestazioneCollection(COLLECTIONS.missioni);
+
+  const [mezzoSel, setMezzoSel] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [created, setCreated] = useState(null);
+  const [error, setError] = useState(null);
+
+  const soreuValues = useMemo(
+    () => invioPsSoreuFieldsFromScheda(paziente?.pmaScheda ?? {}),
+    [paziente?.pmaScheda],
+  );
+
+  const trasportoEsistente = useMemo(
+    () => missionePmaInvioPsApertaPerPaziente(missioni, paziente?._docId),
+    [missioni, paziente?._docId],
+  );
+
+  const mezziDisponibili = useMemo(
+    () =>
+      (mezzi ?? []).filter((m) => {
+        const sigla = m.sigla ?? m._docId;
+        if ((m.statoMezzo ?? MEZZO_STATO_DISPONIBILE) !== MEZZO_STATO_DISPONIBILE) return false;
+        if (mezzoHaMissioneAttiva(sigla, missioni ?? [])) return false;
+        return true;
+      }),
+    [mezzi, missioni],
+  );
+
+  const mezzoInRientroLabel = useMemo(() => {
+    if (!mezzoSel) return null;
+    const open = missioniAperteSuMezzo(missioni, mezzoSel).filter((m) =>
+      isStatoMissioneRientroOLiberato(m.stato),
+    );
+    if (open.length === 0) return null;
+    const m = open[0];
+    return `Mezzo in «${m.stato}» su missione ${m.idMissione ?? '—'}: alla creazione verrà chiesta conferma chiusura.`;
+  }, [mezzoSel, missioni]);
+
+  if (!paziente || paziente?.pmaScheda?.dimissione_esito !== 'invio_ps') return null;
+
+  const handleCreaTrasporto = async () => {
+    if (!mezzoSel || !manifestationId || !pma) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const mezzoDoc = mezzi.find((m) => (m.sigla ?? m._docId) === mezzoSel);
+      const result = await createTrasportoInvioPsDaPma(
+        manifestationId,
+        {
+          paziente,
+          pma,
+          mezzo: mezzoSel,
+          mezzoDoc,
+          eventi: eventi ?? [],
+          missioni: missioni ?? [],
+        },
+        { confirmFn: (msg) => window.confirm(msg) },
+      );
+      setCreated(result);
+    } catch (err) {
+      setError(err?.message ?? String(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="space-y-4 border-t border-violet-200 pt-4">
+      <p className="text-xs font-bold uppercase text-violet-900">
+        Invio in PS — dati missione SOREU (118)
+      </p>
+      <SoreuTrasportoFields
+        values={soreuValues}
+        onPatch={(partial) => void onWriteSoreu?.(partial)}
+      />
+
+      <div className="rounded-lg border border-slate-300 bg-white p-3">
+        <p className="mb-2 text-xs font-bold uppercase text-slate-700">Trasporto PMA → ospedale</p>
+        <p className="mb-3 text-xs text-slate-600">
+          Crea un evento/missione scollegati dal paziente (già dimesso). I dati anagrafici restano
+          solo come riferimento sulla missione.
+        </p>
+
+        {created ? (
+          <div className="space-y-2 text-sm">
+            <p className="font-medium text-teal-800">
+              Trasporto creato: evento {created.evento.idEvento} · missione{' '}
+              {created.missione.idMissione}
+            </p>
+            <p className="text-xs text-slate-600">
+              Il paziente dimesso resta scollegato: compare solo come riferimento sulla missione.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {onOpenEvento && (
+                <button
+                  type="button"
+                  className={btnSecondary}
+                  onClick={() => onOpenEvento(created.evento)}
+                >
+                  Apri evento
+                </button>
+              )}
+              {onOpenMissione && (
+                <button
+                  type="button"
+                  className={btnSecondary}
+                  onClick={() => onOpenMissione(created.missione)}
+                >
+                  Apri missione
+                </button>
+              )}
+              {onOpenPazienteRiferimento && (
+                <button
+                  type="button"
+                  className={btnSecondary}
+                  onClick={() => onOpenPazienteRiferimento(paziente)}
+                >
+                  Apri scheda paziente
+                </button>
+              )}
+            </div>
+          </div>
+        ) : trasportoEsistente ? (
+          <div className="space-y-2 text-sm">
+            <p className="text-amber-900">
+              Trasporto già aperto: missione{' '}
+              <strong>{trasportoEsistente.idMissione ?? '—'}</strong> (evento{' '}
+              {trasportoEsistente.eventoCorrelato ?? '—'}).
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {onOpenMissione && (
+                <button
+                  type="button"
+                  className={btnSecondary}
+                  onClick={() =>
+                    onOpenMissione({
+                      _docId: trasportoEsistente._docId,
+                      idMissione: trasportoEsistente.idMissione,
+                      idUnivoco: trasportoEsistente.idUnivoco,
+                    })
+                  }
+                >
+                  Apri missione trasporto
+                </button>
+              )}
+            </div>
+          </div>
+        ) : (
+          <>
+            <FormField label="Mezzo disponibile">
+              <select
+                className={selectClass}
+                value={mezzoSel}
+                disabled={busy}
+                onChange={(e) => setMezzoSel(e.target.value)}
+              >
+                <option value="">—</option>
+                {mezziDisponibili.map((m) => {
+                  const sigla = m.sigla ?? m._docId;
+                  return (
+                    <option key={sigla} value={sigla}>
+                      {sigla}
+                      {m.tipo ? ` — ${m.tipo}` : ''}
+                    </option>
+                  );
+                })}
+              </select>
+            </FormField>
+            {mezzoInRientroLabel && (
+              <p className="mt-1 text-xs text-amber-800">{mezzoInRientroLabel}</p>
+            )}
+            {mezziDisponibili.length === 0 && (
+              <p className="mt-1 text-xs text-amber-800">Nessun mezzo disponibile al momento.</p>
+            )}
+            {error && (
+              <p className="mt-2 text-xs text-red-700" role="alert">
+                {error}
+              </p>
+            )}
+            <button
+              type="button"
+              className={`${btnPrimary} mt-3`}
+              disabled={busy || !mezzoSel}
+              onClick={() => void handleCreaTrasporto()}
+            >
+              {busy ? 'Creazione…' : 'CREA TRASPORTO'}
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}

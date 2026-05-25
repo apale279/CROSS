@@ -1,10 +1,11 @@
 import { Timestamp } from 'firebase/firestore';
 import { applyMissioneArrivatoH } from '../lib/pazienteRules';
-import { STATO_PZ_PMA, TIPO_PZ } from '../lib/pmaModule';
+import { normalizeStatoPzPma, STATO_PZ_PMA, TIPO_PZ } from '../lib/pmaModule';
 import {
   fetchPazientiTrasportoOnMezzo,
   pazienteSameEventoAsMissione,
 } from '../lib/pazientiTrasportoQuery';
+import { pazienteEsclusoDaSyncMissione } from '../lib/pmaInvioPsMission';
 import { patchPaziente } from './pazientiService';
 import { initPmaSchedaIfMissing, patchPazientePmaGranular } from '../pma/lib/pazientePmaPatch';
 
@@ -46,6 +47,57 @@ function pazienteCollegatoAMissione(p, missione) {
   );
 }
 
+const STATI_MISSIONE_PMA_SYNC = new Set(['DIRETTO H', 'ARRIVATO H', 'RIENTRO']);
+
+/**
+ * Destinazione PMA impostata/tardiva mentre la missione è già in viaggio o conclusa:
+ * allinea statoPzPma (IN ARRIVO o in carico se ARRIVATO H).
+ */
+export async function syncPmaStatoOnDestinazionePaziente(
+  manifestationId,
+  paziente,
+  missione,
+  evento = null,
+) {
+  if (!manifestationId || !paziente?._docId) return;
+  if (!String(paziente.destinazionePmaId ?? '').trim()) return;
+  if (!missione || missione.aperta === false) return;
+  if (!pazienteSameEventoAsMissione(paziente, missione)) return;
+
+  const ms = String(missione.stato ?? '');
+  if (!STATI_MISSIONE_PMA_SYNC.has(ms)) return;
+
+  const cur = normalizeStatoPzPma(paziente.statoPzPma);
+  if (cur === STATO_PZ_PMA.DIMESSO) return;
+
+  if (ms === 'ARRIVATO H') {
+    if (paziente.stato === 'ARRIVATO H' && cur === STATO_PZ_PMA.IN_CARICO) return;
+    const result = patchPazienteArrivatoHConPma(paziente, evento);
+    if (!result?.patch) return;
+    await patchPaziente(manifestationId, paziente._docId, result.patch);
+    if (result.initPmaScheda) {
+      await initPmaSchedaIfMissing(manifestationId, paziente._docId, result.pmaSchedaSeed);
+    }
+    if (result.markIngressoCarico) {
+      await patchPazientePmaGranular(manifestationId, paziente._docId, {
+        ingresso_carico_at: Timestamp.now(),
+      });
+    }
+    return;
+  }
+
+  if (cur === STATO_PZ_PMA.IN_CARICO || cur === STATO_PZ_PMA.IN_ARRIVO) return;
+
+  await patchPaziente(manifestationId, paziente._docId, {
+    tipoPz: paziente.tipoPz ?? TIPO_PZ.CENTRALE,
+    pmaId: paziente.pmaId ?? paziente.destinazionePmaId,
+    statoPzPma: STATO_PZ_PMA.IN_ARRIVO,
+  });
+  if (!paziente.pmaScheda) {
+    await ensurePmaSchedaOnDestinazione(manifestationId, paziente._docId, paziente, evento);
+  }
+}
+
 /** Mezzo in DIRETTO H → pazienti verso quel PMA in «IN ARRIVO» (vista PMA). */
 export async function syncPazientiPmaOnDirettoH(manifestationId, missione) {
   if (!missione?.mezzo) return { updated: 0 };
@@ -53,6 +105,7 @@ export async function syncPazientiPmaOnDirettoH(manifestationId, missione) {
   const tasks = [];
 
   for (const p of candidati) {
+    if (pazienteEsclusoDaSyncMissione(p)) continue;
     if (!pazienteCollegatoAMissione(p, missione)) continue;
     tasks.push(
       patchPaziente(manifestationId, p._docId, {
@@ -70,7 +123,7 @@ export async function syncPazientiPmaOnDirettoH(manifestationId, missione) {
   return { updated: tasks.length };
 }
 
-/** Estensione sync ARRIVATO H: chiusura missione centrale + «in carico» PMA se destinazione tenda. */
+/** ARRIVATO H + destinazione PMA: chiusura centrale e «in carico» in tenda. */
 export function patchPazienteArrivatoHConPma(paziente, evento = null) {
   const patch = applyMissioneArrivatoH(paziente);
   if (!patch) return null;

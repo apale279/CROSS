@@ -5,10 +5,12 @@ export function isMissioneAttiva(missione) {
   return s !== 'FINE MISSIONE' && s !== 'ANNULLATA';
 }
 
-/** Il mezzo è impegnato da questa missione (RIENTRO = mezzo libero, in ritorno vuoto). */
+/** Il mezzo è impegnato da questa missione (RIENTRO / ARRIVATO H = mezzo libero per nuovo ingaggio). */
 export function missioneBloccaMezzo(missione) {
   if (!isMissioneAttiva(missione)) return false;
-  return (missione.stato ?? '') !== 'RIENTRO';
+  const s = missione.stato ?? '';
+  if (s === 'RIENTRO' || s === 'ARRIVATO H') return false;
+  return true;
 }
 
 /** Allinea sigle tipo BRAVO_1 / BRAVO1 (come in telegram mezzoResolve). */
@@ -50,4 +52,19 @@ export function mezzoIsOnMissioneAttiva(mezzo, mezziConMissione) {
   if (siglaInMezziMissione(sigla, mezziConMissione)) return true;
   const docId = String(mezzo?._docId ?? '').trim();
   return Boolean(docId && siglaInMezziMissione(docId, mezziConMissione));
+}
+
+/** Missioni ancora aperte sulla stessa sigla mezzo. */
+export function missioniAperteSuMezzo(missioni, mezzoSigla) {
+  const nk = normalizeMezzoKey(mezzoSigla);
+  if (!nk) return [];
+  return (missioni ?? []).filter(
+    (m) => isMissioneAttiva(m) && m.mezzo && normalizeMezzoKey(m.mezzo) === nk,
+  );
+}
+
+/** Stati in cui il mezzo è selezionabile per nuovo ingaggio (missione precedente resta aperta/visibile). */
+export function isStatoMissioneRientroOLiberato(stato) {
+  const s = String(stato ?? '').trim();
+  return s === 'RIENTRO' || s === 'ARRIVATO H';
 }

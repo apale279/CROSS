@@ -7,10 +7,13 @@
   type ChangeEvent,
   type ReactNode,
 } from 'react'
-import { arrayUnion, Timestamp } from 'firebase/firestore'
+import { Timestamp } from 'firebase/firestore'
 import { orderedPrestazioniLabels } from '@pma/lib/prestazioniDisplay'
 import { datetimeLocalToTimestamp, toDatetimeLocal } from '@pma/lib/schedaDatetimeLocal'
 import { registerPmaFarmacoUsato } from '@pma/lib/registerPmaFarmacoUsato'
+import { defaultFarmaciConsumatiCatalog } from '@pma/lib/farmaciCatalogoSeed'
+import { FarmacoNomeDoseFields } from './FarmacoNomeDoseFields'
+import { btnPrimary, btnSecondary } from '@pma/cross/uiTokens'
 import { db } from '@pma/cross/firebase'
 import { cloudinaryUnsignedUpload } from '@pma/lib/cloudinaryUnsignedUpload'
 import { useManifestazioneListeCliniche } from '@pma/hooks/usePmaClinicaListe'
@@ -28,7 +31,9 @@ import {
   firestoreFieldForEoTab,
   resolveEoColumnsForDisplay,
 } from '@pma/lib/eoPazienteFields'
-import { isNessunaEoOptionLabel, defaultEoLabelForColumn } from '@pma/lib/eoQuickSelection'
+import { defaultEoLabelForColumn, eoColumnMergePatchPayload } from '@pma/lib/eoQuickSelection'
+import { canInsertFarmaci, type UserRank } from '@pma/lib/rankMatrix'
+import { ensurePmaSchedaEoDefaultsIfEmpty } from '@pma/lib/pazientePmaPatch'
 import type {
   FarmacoSomministrato,
   FarmacoVia,
@@ -402,41 +407,6 @@ const FARM_CELL =
 /** Stessa scala/stile degli input PV in riga: farmaco → dose → via → orario → utente. */
 const FARM_IN_ROW = `${PV_IN_ROW} text-left text-sm font-semibold normal-case`
 
-function EoInfermiereQuickSummary({
-  groups,
-  selectedByTab,
-  defaultQuickLabel,
-}: {
-  groups: readonly { title: string; labels: readonly string[] }[]
-  selectedByTab: Record<EoTabKey, string[]>
-  defaultQuickLabel: string | null
-}) {
-  const chips = useMemo(() => {
-    const dflt = (defaultQuickLabel ?? '').trim()
-    const out: string[] = []
-    for (const g of groups) {
-      const tab = g.title as EoTabKey
-      if (!EO_CLINICAL_TABS.includes(tab)) continue
-      const sel = [...(selectedByTab[tab] ?? [])].map((x) => x.trim()).filter(Boolean)
-      if (sel.length === 0) continue
-      if (sel.every((s) => isNessunaEoOptionLabel(s))) continue
-      if (sel.length === 1 && dflt && sel[0] === dflt) continue
-      out.push(`${g.title} · ${sel.join(', ')}`)
-    }
-    return out
-  }, [groups, selectedByTab, defaultQuickLabel])
-  if (chips.length === 0) return null
-  return (
-    <div className="mt-2 flex flex-wrap gap-1.5 text-sm font-medium leading-snug text-slate-800">
-      {chips.map((c) => (
-        <span key={c} className="max-w-full rounded border border-slate-200 bg-white px-1.5 py-1">
-          {c}
-        </span>
-      ))}
-    </div>
-  )
-}
-
 function FarmacoRow({
   row,
   canEditFarmaci,
@@ -659,12 +629,30 @@ export function CartellaClinicaSection({
 }: CartellaClinicaSectionProps) {
   const {
     prestazioni: prestazioniLista,
-    farmaci: farmaciLista,
+    farmaciCatalogo: farmaciCatalogoRaw,
     eoQuickGroups,
     eoQuickDefaultLabel,
     presetFarmaci: presetFarmaciPacks,
     loading: manifestListeLoading,
   } = useManifestazioneListeCliniche(p.id_manifestazione)
+
+  const farmaciCatalogo = useMemo(() => {
+    if (farmaciCatalogoRaw.length > 0) return farmaciCatalogoRaw
+    return defaultFarmaciConsumatiCatalog()
+  }, [farmaciCatalogoRaw])
+
+  const registerFarmacoInImpostazioni = useCallback(
+    async (nome: string, dose: string, via: FarmacoVia) => {
+      try {
+        if (db && p.id_manifestazione) {
+          await registerPmaFarmacoUsato(db, p.id_manifestazione, { nome, dose, via })
+        }
+      } catch {
+        /* best-effort catalogo consumati */
+      }
+    },
+    [p.id_manifestazione],
+  )
 
   const gruppiEoUi = useMemo(
     () => eoQuickGroups.map((g) => ({ title: g.title, labels: g.labels as readonly string[] })),
@@ -690,18 +678,12 @@ export function CartellaClinicaSection({
     return o
   }, [eoResolved, eoQuickGroups])
 
-  const eoQuickKeySuffix = useMemo(
-    () =>
-      `${EO_CLINICAL_TABS.map((t) => eoSelectedByTab[t].join('\u0001')).join('\u0002')}\u0003${eoQuickGroups.map((g) => g.title + g.labels.join(',')).join('|')}\u0003${eoQuickDefaultLabel ?? ''}`,
-    [eoSelectedByTab, eoQuickGroups, eoQuickDefaultLabel],
-  )
-
-  /** Colonna EO vuota (o solo valori non più in lista) → salva il primo valore manifestazione come default. */
+  /** Colonna EO vuota in UI → default «NELLA NORMA» solo se ancora vuota sul server (multi-operatore). */
   useEffect(() => {
     if (!canEdit || hideClinicalBlocks) return
     if (manifestListeLoading) return
 
-    const patch: Record<string, unknown> = {}
+    const entries: { field: string; defLabel: string }[] = []
     for (const tab of EO_CLINICAL_TABS) {
       const field = firestoreFieldForEoTab(tab)
       const col = eoSelectedByTab[tab] ?? []
@@ -710,29 +692,35 @@ export function CartellaClinicaSection({
       if (labels.length === 0 || col.length > 0) continue
       const defLabel = defaultEoLabelForColumn(labels)
       if (!defLabel) continue
-      patch[field] = [defLabel]
+      entries.push({ field, defLabel })
     }
-    if (Object.keys(patch).length === 0) return
-    void write(patch)
+    if (entries.length === 0) return
+    void ensurePmaSchedaEoDefaultsIfEmpty(p.id_manifestazione, pazienteId, entries)
   }, [
     canEdit,
     hideClinicalBlocks,
     manifestListeLoading,
     eoQuickGroups,
     eoSelectedByTab,
-    write,
-    p.id,
+    p.id_manifestazione,
+    pazienteId,
   ])
 
   const patchEoColumn = useCallback(
-    (tab: EoTabKey, next: string[]) => {
-      void write({ [firestoreFieldForEoTab(tab)]: next } as Record<string, unknown>)
+    (tab: EoTabKey, baseAtOpen: string[], draft: string[]) => {
+      const field = firestoreFieldForEoTab(tab)
+      const group = eoQuickGroups.find((g) => g.title === tab)
+      const labels = group?.labels ?? []
+      void write({
+        [field]: eoColumnMergePatchPayload(baseAtOpen, draft, labels),
+      } as Record<string, unknown>)
     },
-    [write],
+    [write, eoQuickGroups],
   )
 
-  const canEditFarmaci =
-    canEdit && user && (user.rank === 'Medico' || user.rank === 'Infermiere')
+  const canEditFarmaci = Boolean(
+    canEdit && user && canInsertFarmaci((user.rank ?? 'Soccorritore') as UserRank),
+  )
 
   const bloccoVerificaAllergie = Boolean(canEdit && !p.allergie_verifica)
   const schedaClinicalEdit = Boolean(canEdit && !bloccoVerificaAllergie)
@@ -790,7 +778,6 @@ export function CartellaClinicaSection({
   const [farmDose, setFarmDose] = useState('')
   const [farmVia, setFarmVia] = useState<FarmacoVia>('EV')
   const [farmTs, setFarmTs] = useState(() => toDatetimeLocal(Timestamp.now()))
-  const farmDatalistId = `farmaci-elenco-${pazienteId}`
 
   const [pvModalOpen, setPvModalOpen] = useState(false)
   const [pvDraft, setPvDraft] = useState<ParametroVitaleRilevazione | null>(null)
@@ -832,7 +819,7 @@ export function CartellaClinicaSection({
       ...pvDraft,
       id: crypto.randomUUID(),
     }
-    await write({ parametri_vitali: arrayUnion(nuovo) })
+    await write({ parametri_vitali: [...(p.parametri_vitali ?? []), nuovo] })
     closePvModal()
   }, [schedaClinicalEdit, pvDraft, write, closePvModal])
 
@@ -857,6 +844,7 @@ export function CartellaClinicaSection({
         registrato_at: ts,
       }
       await write({ farmaci: p.farmaci.map((f) => (f.id === farmModalEditId ? next : f)) })
+      await registerFarmacoInImpostazioni(nome, farmModalDose.trim(), farmModalVia)
     } else {
       const nuovo: FarmacoSomministrato = {
         id: crypto.randomUUID(),
@@ -866,12 +854,8 @@ export function CartellaClinicaSection({
         registrato_at: ts,
         inserito_da_nome: ins,
       }
-      await write({ farmaci: arrayUnion(nuovo) })
-      try {
-        if (db && p.id_pma) await registerPmaFarmacoUsato(db, p.id_pma, nome)
-      } catch {
-        /* best-effort consumo PMA */
-      }
+      await write({ farmaci: [...(p.farmaci ?? []), nuovo] })
+      await registerFarmacoInImpostazioni(nome, farmModalDose.trim(), farmModalVia)
     }
     setFarmModalOpen(false)
     setFarmModalEditId(null)
@@ -915,7 +899,7 @@ export function CartellaClinicaSection({
       temperatura: null,
       nrs: null,
     }
-    await write({ parametri_vitali: arrayUnion(nuovo) })
+    await write({ parametri_vitali: [...(p.parametri_vitali ?? []), nuovo] })
   }
 
   async function aggiungiFarmaco() {
@@ -932,12 +916,8 @@ export function CartellaClinicaSection({
       registrato_at: ts,
       inserito_da_nome: ins,
     }
-    await write({ farmaci: arrayUnion(nuovo) })
-    try {
-      if (db && p.id_pma) await registerPmaFarmacoUsato(db, p.id_pma, nome)
-    } catch {
-      /* best-effort consumo PMA */
-    }
+    await write({ farmaci: [...(p.farmaci ?? []), nuovo] })
+    await registerFarmacoInImpostazioni(nome, farmDose.trim(), farmVia)
     setFarmDose('')
     setFarmNomeInput('')
     setFarmTs(toDatetimeLocal(Timestamp.now()))
@@ -963,15 +943,9 @@ export function CartellaClinicaSection({
       })
     }
     if (nuovi.length === 0) return
-    await write({ farmaci: arrayUnion(...nuovi) })
-    try {
-      if (db && p.id_pma) {
-        for (const n of nuovi) {
-          await registerPmaFarmacoUsato(db, p.id_pma, n.nome)
-        }
-      }
-    } catch {
-      /* best-effort consumo PMA */
+    await write({ farmaci: [...(p.farmaci ?? []), ...nuovi] })
+    for (const n of nuovi) {
+      await registerFarmacoInImpostazioni(n.nome, n.dose, n.via)
     }
   }
 
@@ -980,13 +954,16 @@ export function CartellaClinicaSection({
     const t = rivDraft.trim()
     if (!t) return
     await write({
-      rivalutazioni: arrayUnion({
-        id: crypto.randomUUID(),
-        testo: t,
-        creato_at: Timestamp.now(),
-        firma_uid: user.uid,
-        firma_nome: user.nome,
-      }),
+      rivalutazioni: [
+        ...(p.rivalutazioni ?? []),
+        {
+          id: crypto.randomUUID(),
+          testo: t,
+          creato_at: Timestamp.now(),
+          firma_uid: user.uid,
+          firma_nome: user.nome,
+        },
+      ],
     })
     setRivDraft('')
   }
@@ -1134,22 +1111,14 @@ export function CartellaClinicaSection({
                   <div className="pma-card__hdr">Esame obiettivo (EO)</div>
                   <div className="border-t border-slate-100 bg-slate-50/80 p-2">
                     <QuickExamField
-                      key={`qe-${pazienteId}-${p.eo_note}\0${eoQuickKeySuffix}`}
+                      key={`qe-${pazienteId}`}
                       note={p.eo_note}
                       disabled={!schedaClinicalEdit}
                       gruppiRapidi={gruppiEoUi}
                       selectedByTab={eoSelectedByTab}
                       onColumnSelectionChange={patchEoColumn}
                       onNoteBlur={(text) => void write({ eo_note: text })}
-                      infermiereMobileEOPopup={infermiereSm}
                     />
-                    {infermiereSm ? (
-                      <EoInfermiereQuickSummary
-                        groups={gruppiEoUi}
-                        selectedByTab={eoSelectedByTab}
-                        defaultQuickLabel={eoQuickDefaultLabel}
-                      />
-                    ) : null}
                   </div>
                 </PmaFieldGuard>
                 <PmaFieldGuard fieldKey="lesioni" className="pma-card mt-3 overflow-hidden">
@@ -1177,7 +1146,7 @@ export function CartellaClinicaSection({
             <button
               type="button"
               onClick={() => (infermiereSm ? openPvModal() : void aggiungiPv())}
-              className="mt-2 inline-flex h-10 items-center justify-center rounded-md border border-slate-800 bg-slate-900 px-4 text-sm font-bold uppercase text-white hover:bg-slate-800"
+              className={`${btnPrimary} mt-2 inline-flex h-10 items-center justify-center`}
             >
               Aggiungi parametri
             </button>
@@ -1322,7 +1291,7 @@ export function CartellaClinicaSection({
               disabled={!schedaClinicalEdit || ecgUploadBusy}
               title="Carica foto ECG su Cloudinary e collega alla scheda"
               onClick={() => ecgFileInputRef.current?.click()}
-              className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-md border border-slate-300 bg-white px-2.5 text-xs font-bold uppercase tracking-wide text-slate-800 shadow-sm hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+              className={`${btnSecondary} inline-flex h-9 shrink-0 items-center gap-1.5 disabled:cursor-not-allowed disabled:opacity-50`}
             >
               <svg width="18" height="14" viewBox="0 0 24 18" fill="none" aria-hidden className="shrink-0 text-red-600">
                 <path
@@ -1460,7 +1429,57 @@ export function CartellaClinicaSection({
               </div>
             ) : null}
 
-            {farmaciEdit ? <datalist id={farmDatalistId}>{farmaciLista.map((n) => <option key={n} value={n} />)}</datalist> : null}
+            {farmaciEdit && !infermiereSm ? (
+              <div className="mt-4 rounded-lg border border-dashed border-slate-300 bg-slate-50/80 p-3">
+                <div className="grid max-w-3xl gap-3 sm:grid-cols-2">
+                  <div className="sm:col-span-2">
+                    <FarmacoNomeDoseFields
+                      catalog={farmaciCatalogo}
+                      nome={farmNomeInput}
+                      dose={farmDose}
+                      onNomeChange={setFarmNomeInput}
+                      onDoseChange={setFarmDose}
+                      inputClassName={PV_INPUT}
+                    />
+                  </div>
+                  <label className="block text-xs">
+                    <span className="font-semibold uppercase tracking-wider text-slate-500">Via</span>
+                    <select
+                      value={farmVia}
+                      onChange={(e) => {
+                        const v = e.target.value
+                        if (isFarmacoVia(v)) setFarmVia(v)
+                      }}
+                      className={`${PV_INPUT} mt-1 w-full`}
+                      aria-label="Via somministrazione"
+                    >
+                      {FARMACO_VIE.map((via) => (
+                        <option key={via} value={via}>
+                          {FARMACO_VIA_LABEL[via]}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="block text-xs">
+                    <span className="font-semibold uppercase tracking-wider text-slate-500">Orario</span>
+                    <input
+                      type="datetime-local"
+                      value={farmTs}
+                      onChange={(e) => setFarmTs(e.target.value)}
+                      className={`${PV_INPUT} mt-1 w-full`}
+                      aria-label="Orario somministrazione"
+                    />
+                  </label>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => void aggiungiFarmaco()}
+                  className={`${btnPrimary} mt-3`}
+                >
+                  Aggiungi farmaco
+                </button>
+              </div>
+            ) : null}
 
             {farmaciEdit && infermiereSm ? (
               <button
@@ -1468,78 +1487,12 @@ export function CartellaClinicaSection({
                 onClick={openFarmModal}
                 title="Aggiungi farmaco"
                 aria-label="Aggiungi farmaco"
-                className="mt-4 inline-flex h-10 w-full max-w-md items-center justify-center rounded-md border border-slate-800 bg-slate-900 text-white hover:bg-slate-800"
+                className={`${btnPrimary} mt-4 inline-flex h-10 w-full max-w-md items-center justify-center`}
               >
                 <span className="text-2xl font-light leading-none" aria-hidden>
                   +
                 </span>
               </button>
-            ) : null}
-
-            {farmaciEdit && !infermiereSm ? (
-              <div className="mt-4 rounded-lg border border-dashed border-slate-300 bg-slate-50/80 p-3">
-                <div className="max-w-full overflow-x-auto [-webkit-overflow-scrolling:touch]">
-                  <div className="flex w-max min-w-full flex-wrap items-end gap-2 sm:flex-nowrap">
-                    <label className="block min-w-[10rem] max-w-[min(100%,20rem)] shrink-0 sm:min-w-[12rem] sm:max-w-[14rem]">
-                      <span className="sr-only">Farmaco</span>
-                      <input
-                        type="text"
-                        list={farmDatalistId}
-                        value={farmNomeInput}
-                        onChange={(e) => setFarmNomeInput(e.target.value)}
-                        autoComplete="off"
-                        className={PV_INPUT}
-                        aria-label="Farmaco"
-                      />
-                    </label>
-                    <label className="block min-w-[4.5rem] shrink-0">
-                      <span className="sr-only">Dose</span>
-                      <input
-                        type="text"
-                        value={farmDose}
-                        onChange={(e) => setFarmDose(e.target.value)}
-                        className={PV_INPUT}
-                        aria-label="Dose"
-                      />
-                    </label>
-                    <label className="block min-w-[3.75rem] shrink-0">
-                      <span className="sr-only">Via</span>
-                      <select
-                        value={farmVia}
-                        onChange={(e) => {
-                          const v = e.target.value
-                          if (isFarmacoVia(v)) setFarmVia(v)
-                        }}
-                        className={PV_INPUT}
-                        aria-label="Via somministrazione"
-                      >
-                        {FARMACO_VIE.map((via) => (
-                          <option key={via} value={via}>
-                            {FARMACO_VIA_LABEL[via]}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <label className="block min-w-[10.5rem] shrink-0">
-                      <span className="sr-only">Orario</span>
-                      <input
-                        type="datetime-local"
-                        value={farmTs}
-                        onChange={(e) => setFarmTs(e.target.value)}
-                        className={PV_INPUT}
-                        aria-label="Orario somministrazione"
-                      />
-                    </label>
-                    <button
-                      type="button"
-                      onClick={() => void aggiungiFarmaco()}
-                      className="shrink-0 rounded-md bg-slate-900 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-800 sm:mb-px"
-                    >
-                      Aggiungi
-                    </button>
-                  </div>
-                </div>
-              </div>
             ) : null}
           </div>
           </PmaFieldGuard>
@@ -1592,7 +1545,7 @@ export function CartellaClinicaSection({
                   type="button"
                   disabled={!schedaClinicalEdit}
                   onClick={() => void savePvDraft()}
-                  className="flex-1 rounded-md bg-slate-900 py-2.5 text-sm font-bold uppercase text-white hover:bg-slate-800 disabled:opacity-40"
+                  className={`${btnPrimary} flex-1 disabled:opacity-40`}
                 >
                   Salva rilevazione
                 </button>
@@ -1683,27 +1636,14 @@ export function CartellaClinicaSection({
                 </button>
               </div>
               <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-3">
-                <label className="block text-xs">
-                  <span className="font-semibold uppercase tracking-wider text-slate-500">Nome</span>
-                  <input
-                    type="text"
-                    list={farmDatalistId}
-                    value={farmModalNome}
-                    onChange={(e) => setFarmModalNome(e.target.value)}
-                    autoComplete="off"
-                    className={`${PV_INPUT} mt-1 min-h-[2.75rem] text-base`}
-                    placeholder="Farmaco…"
-                  />
-                </label>
-                <label className="block text-xs">
-                  <span className="font-semibold uppercase tracking-wider text-slate-500">Dose</span>
-                  <input
-                    type="text"
-                    value={farmModalDose}
-                    onChange={(e) => setFarmModalDose(e.target.value)}
-                    className={`${PV_INPUT} mt-1 min-h-[2.75rem] text-base`}
-                  />
-                </label>
+                <FarmacoNomeDoseFields
+                  catalog={farmaciCatalogo}
+                  nome={farmModalNome}
+                  dose={farmModalDose}
+                  onNomeChange={setFarmModalNome}
+                  onDoseChange={setFarmModalDose}
+                  inputClassName={PV_INPUT}
+                />
                 <label className="block text-xs">
                   <span className="font-semibold uppercase tracking-wider text-slate-500">Via</span>
                   <select
@@ -1746,7 +1686,7 @@ export function CartellaClinicaSection({
                   type="button"
                   disabled={!farmModalNome.trim()}
                   onClick={() => void salvaFarmacoModal()}
-                  className="flex-1 rounded-md bg-slate-900 py-2.5 text-sm font-bold uppercase text-white hover:bg-slate-800 disabled:opacity-40"
+                  className={`${btnPrimary} flex-1 disabled:opacity-40`}
                 >
                   {farmModalEditId ? 'Salva' : 'Aggiungi'}
                 </button>
@@ -1804,7 +1744,7 @@ export function CartellaClinicaSection({
                 type="button"
                 disabled={!rivDraft.trim()}
                 onClick={() => void aggiungiRivalutazione()}
-                className="mt-3 rounded-md bg-slate-900 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-40"
+                className={`${btnPrimary} mt-3 disabled:opacity-40`}
               >
                 Aggiungi rivalutazione
               </button>

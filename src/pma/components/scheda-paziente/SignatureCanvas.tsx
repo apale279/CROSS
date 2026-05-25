@@ -1,4 +1,5 @@
 ﻿import { useCallback, useEffect, useRef, useState } from 'react'
+import { btnPrimary, btnSecondary } from '@pma/cross/uiTokens'
 
 type Props = {
   disabled?: boolean
@@ -328,7 +329,7 @@ export function SignatureCanvas({
           type="button"
           disabled={busy}
           onClick={() => void save()}
-          className="rounded-md bg-slate-900 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-50"
+          className={`${btnPrimary} disabled:opacity-50`}
         >
           {busy ? 'Salvataggio…' : 'Salva firma'}
         </button>

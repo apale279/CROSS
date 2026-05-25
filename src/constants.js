@@ -69,6 +69,7 @@ export const DEFAULT_IMPOSTAZIONI = {
   pmaClinica: {
     prestazioni: [],
     farmaci: [],
+    farmaci_consumati: [],
     dettaglio_eo_rapido: {},
     dettaglio_eo_rapido_default: '',
     preset_dimissione: [],

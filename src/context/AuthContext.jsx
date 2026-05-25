@@ -7,7 +7,7 @@ import {
   useState,
 } from 'react';
 import { onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, onSnapshot } from 'firebase/firestore';
 import { auth, db } from '../firebaseConfig';
 import { COLLECTIONS } from '../lib/firestorePaths';
 import { useTenantContext } from './TenantContext';
@@ -21,6 +21,7 @@ export function AuthProvider({ children }) {
   const { tenantId } = useTenantContext();
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
+  const [profileLoading, setProfileLoading] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -34,25 +35,28 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     if (!user || !tenantId) {
       setProfile(null);
+      setProfileLoading(false);
       return undefined;
     }
-    let cancelled = false;
-    (async () => {
-      const snap = await getDoc(
-        doc(db, COLLECTIONS.manifestazioni, tenantId, 'userProfiles', user.uid),
-      );
-      if (cancelled) return;
-      if (snap.exists()) {
-        setProfile(snap.data());
-      } else {
-        setProfile({
-          nome: user.displayName ?? '',
-          nomeUtente: '',
-        });
-      }
-    })();
+    setProfileLoading(true);
+    const ref = doc(db, COLLECTIONS.manifestazioni, tenantId, 'userProfiles', user.uid);
+    const unsub = onSnapshot(
+      ref,
+      (snap) => {
+        if (snap.exists()) {
+          setProfile(snap.data());
+        } else {
+          setProfile(null);
+        }
+        setProfileLoading(false);
+      },
+      () => {
+        setProfile(null);
+        setProfileLoading(false);
+      },
+    );
     return () => {
-      cancelled = true;
+      unsub();
     };
   }, [user, tenantId]);
 
@@ -81,11 +85,21 @@ export function AuthProvider({ children }) {
     [tenantId, user, profile],
   );
 
+  const refreshProfile = useCallback(async () => {
+    if (!user || !tenantId) return null;
+    const snap = await getDoc(
+      doc(db, COLLECTIONS.manifestazioni, tenantId, 'userProfiles', user.uid),
+    );
+    const next = snap.exists() ? snap.data() : null;
+    setProfile(next);
+    return next;
+  }, [user, tenantId]);
+
   const login = useCallback(
     async ({ email, password }) => {
       if (!tenantId) throw new Error('Manifestazione non disponibile.');
       const emailNorm = String(email ?? '').trim();
-      if (!emailNorm) throw new Error('Inserisci l\'indirizzo email.');
+      if (!emailNorm) throw new Error("Inserisci l'indirizzo email.");
       const cred = await signInWithEmailAndPassword(auth, emailNorm, password);
       const sessionToken = await ensureUserSessionToken(tenantId, cred.user.uid);
       writeStoredUserSessionToken(tenantId, cred.user.uid, sessionToken);
@@ -93,12 +107,13 @@ export function AuthProvider({ children }) {
       const profSnap = await getDoc(
         doc(db, COLLECTIONS.manifestazioni, tenantId, 'userProfiles', cred.user.uid),
       );
-      const prof = profSnap.exists() ? profSnap.data() : {};
+      const prof = profSnap.exists() ? profSnap.data() : null;
+      setProfile(prof);
 
       await logUserActivity(tenantId, {
         uid: cred.user.uid,
-        nomeUtente: prof.nomeUtente ?? null,
-        nome: prof.nome ?? cred.user.displayName ?? null,
+        nomeUtente: prof?.nomeUtente ?? null,
+        nome: prof?.nome ?? cred.user.displayName ?? null,
         type: 'LOGIN',
         detail: null,
         path:
@@ -138,12 +153,14 @@ export function AuthProvider({ children }) {
     () => ({
       user,
       profile,
+      profileLoading,
       loading,
       login,
       logout,
       logActivity,
+      refreshProfile,
     }),
-    [user, profile, loading, login, logout, logActivity],
+    [user, profile, profileLoading, loading, login, logout, logActivity, refreshProfile],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

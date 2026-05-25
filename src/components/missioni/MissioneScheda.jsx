@@ -29,8 +29,12 @@ import {
   selectClass,
 } from '../ui/FormField';
 import { MissioneEccezioniPanel } from './MissioneEccezioniPanel';
+import { MissionePazientiTrasportoSection } from './MissionePazientiTrasportoSection';
+import { MissionePazienteRiferimentoSection } from './MissionePazienteRiferimentoSection';
+import { MissionePmaInvioPsBadge } from './MissionePmaInvioPsBadge';
 import { useImpostazioni } from '../../hooks/useImpostazioni';
 import { MissioneTelegramSendButton } from '../telegram/MissioneTelegramSendButton';
+import { pazientiTrasportoPerMissione } from '../../lib/pazientiTrasportoQuery';
 
 export function MissioneScheda({
   missione,
@@ -38,7 +42,9 @@ export function MissioneScheda({
   mezzi,
   allMissioni,
   existingEventi,
+  pazienti = [],
   onOpenEvento,
+  onOpenPaziente,
   readOnly = false,
 }) {
   const manifestationId = useManifestazioneId();
@@ -57,6 +63,11 @@ export function MissioneScheda({
   const mezzo = useMemo(
     () => mezzi.find((m) => (m.sigla ?? m._docId) === missione.mezzo),
     [mezzi, missione.mezzo],
+  );
+
+  const pazientiTrasporto = useMemo(
+    () => pazientiTrasportoPerMissione(pazienti, missione),
+    [pazienti, missione],
   );
 
   const tratte = useMemo(
@@ -160,6 +171,7 @@ export function MissioneScheda({
       <div className="space-y-4 text-sm">
         <div className="flex flex-wrap items-center gap-3 border-b border-slate-200 pb-3">
           <span className="font-mono text-xl font-bold text-slate-900">{missione.idMissione}</span>
+          <MissionePmaInvioPsBadge missione={missione} className="text-xs" />
           <span
             className={`rounded border px-2 py-0.5 text-xs font-bold uppercase ${statoMissioneBadgeClass(missione.stato)}`}
           >
@@ -174,6 +186,14 @@ export function MissioneScheda({
           <Row label="Aperta" value={missione.aperta !== false ? 'Sì' : 'No'} />
           <Row label="Equipaggio" value={missione.equipaggio || '—'} />
         </dl>
+        <MissionePazienteRiferimentoSection
+          riferimento={missione.pazienteRiferimento}
+          onOpenPaziente={onOpenPaziente}
+        />
+        <MissionePazientiTrasportoSection
+          pazienti={pazientiTrasporto}
+          onOpenPaziente={onOpenPaziente}
+        />
         {(missione.noteMissione ?? '').trim() ? (
           <section className="rounded border border-slate-200 bg-slate-50 p-3">
             <p className="text-xs font-bold uppercase text-slate-600">Note missione</p>
@@ -255,6 +275,7 @@ export function MissioneScheda({
     <div className="space-y-4 text-sm">
       <div className="flex flex-wrap items-center gap-3 border-b border-slate-200 pb-3">
         <span className="font-mono text-xl font-bold text-slate-900">{missione.idMissione}</span>
+        <MissionePmaInvioPsBadge missione={missione} className="text-xs" />
         <span
           className={`rounded border px-2 py-0.5 text-xs font-bold uppercase ${statoMissioneBadgeClass(missione.stato)}`}
         >
@@ -270,6 +291,15 @@ export function MissioneScheda({
         <Row label="Aperta" value={missione.aperta !== false ? 'Sì' : 'No'} />
         <Row label="Equipaggio" value={missione.equipaggio || '—'} />
       </dl>
+
+      <MissionePazienteRiferimentoSection
+        riferimento={missione.pazienteRiferimento}
+        onOpenPaziente={onOpenPaziente}
+      />
+      <MissionePazientiTrasportoSection
+        pazienti={pazientiTrasporto}
+        onOpenPaziente={onOpenPaziente}
+      />
 
       <section className="rounded border border-slate-200 bg-slate-50 p-3">
         <p className="mb-3 text-xs font-bold uppercase text-slate-600">Codici colore</p>

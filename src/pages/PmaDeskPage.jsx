@@ -6,9 +6,10 @@ import { usePmaAccess } from '../hooks/usePmaAccess';
 import { findEvento } from '../lib/eventoLinks';
 import {
   findPmaById,
+  pazienteDimessoInPmaDesk,
   pazienteVisibileInPmaDesk,
+  pazientiCodiceMinorePerPma,
   STATO_PZ_PMA,
-  TIPO_PZ,
 } from '../lib/pmaModule';
 import { useImpostazioni } from '../hooks/useImpostazioni';
 import { useManifestazioneId } from '../context/ManifestazioneContext';
@@ -16,8 +17,14 @@ import { Modal } from '../components/ui/Modal';
 import { PmaPatientQuickForm } from '../components/pma/PmaPatientQuickForm';
 import { PmaPatientReadonlyCard } from '../components/pma/PmaPatientReadonlyCard';
 import { PmaInCaricoCard } from '../components/pma/PmaInCaricoCard';
+import { PmaCodiciMinoriPanel } from '../components/pma/PmaCodiciMinoriPanel';
 import { btnPrimary, btnSecondary } from '../components/ui/FormField';
 import { prendiInCaricoPma } from '../services/pmaStatoService';
+import {
+  createPazienteCodiceMinore,
+  deletePazienteCodiceMinore,
+  updatePazienteCodiceMinore,
+} from '../services/pmaCodiceMinoreService';
 
 function openPazientePath(pmaId, docId) {
   return `/pma/${encodeURIComponent(pmaId)}/paziente/${encodeURIComponent(docId)}?tab=cartella`;
@@ -33,11 +40,32 @@ export default function PmaDeskPage() {
   const { data: pazienti, loading } = useManifestazioneCollection(COLLECTIONS.pazienti);
   const { data: eventi } = useManifestazioneCollection(COLLECTIONS.eventi);
   const [showCreate, setShowCreate] = useState(false);
+  const [showCodiciMinori, setShowCodiciMinori] = useState(false);
   const [busyId, setBusyId] = useState(null);
+  const [codiciBusy, setCodiciBusy] = useState(false);
 
   const pma = useMemo(
     () => findPmaById(impostazioni, decodedId),
     [impostazioni, decodedId],
+  );
+
+  const codiciMinori = useMemo(
+    () => (pma ? pazientiCodiceMinorePerPma(pazienti, pma.id) : []),
+    [pazienti, pma],
+  );
+  const [showDimessi, setShowDimessi] = useState(false);
+  const dimessi = useMemo(
+    () =>
+      pma
+        ? [...pazienti]
+            .filter((p) => pazienteDimessoInPmaDesk(p, pma.id))
+            .sort((a, b) => {
+              const ta = a.pmaScheda?.dimesso_at?.toMillis?.() ?? a.apertura?.toMillis?.() ?? 0;
+              const tb = b.pmaScheda?.dimesso_at?.toMillis?.() ?? b.apertura?.toMillis?.() ?? 0;
+              return tb - ta;
+            })
+        : [],
+    [pazienti, pma],
   );
 
   if (!pma) {
@@ -91,9 +119,14 @@ export default function PmaDeskPage() {
           <h1 className="text-2xl font-bold text-slate-900">{pma.nome}</h1>
           <p className="font-mono text-xs text-slate-500">Posto medico avanzato — dashboard operativa</p>
         </div>
-        <button type="button" className={btnSecondary} onClick={() => setShowCreate(true)}>
-          + Paziente autopresentato
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button type="button" className={btnSecondary} onClick={() => setShowCodiciMinori(true)}>
+            Tabella codici minori
+          </button>
+          <button type="button" className={btnSecondary} onClick={() => setShowCreate(true)}>
+            + Paziente autopresentato
+          </button>
+        </div>
       </div>
 
       {showCreate && (
@@ -109,6 +142,54 @@ export default function PmaDeskPage() {
               if (id) navigate(openPazientePath(pma.id, id));
             }}
             onCancel={() => setShowCreate(false)}
+          />
+        </Modal>
+      )}
+
+      {showCodiciMinori && (
+        <Modal title="Tabella codici minori" wide onClose={() => setShowCodiciMinori(false)}>
+          <PmaCodiciMinoriPanel
+            rows={codiciMinori}
+            busy={codiciBusy}
+            onCreate={async (payload) => {
+              setCodiciBusy(true);
+              try {
+                await createPazienteCodiceMinore(
+                  manifestationId,
+                  pma.id,
+                  pma.nome,
+                  payload,
+                  pazienti,
+                );
+              } catch (err) {
+                alert(err?.message ?? 'Errore creazione');
+                throw err;
+              } finally {
+                setCodiciBusy(false);
+              }
+            }}
+            onUpdate={async (docId, payload) => {
+              setCodiciBusy(true);
+              try {
+                await updatePazienteCodiceMinore(manifestationId, docId, payload);
+              } catch (err) {
+                alert(err?.message ?? 'Errore aggiornamento');
+                throw err;
+              } finally {
+                setCodiciBusy(false);
+              }
+            }}
+            onDelete={async (docId) => {
+              setCodiciBusy(true);
+              try {
+                await deletePazienteCodiceMinore(manifestationId, docId);
+              } catch (err) {
+                alert(err?.message ?? 'Errore eliminazione');
+                throw err;
+              } finally {
+                setCodiciBusy(false);
+              }
+            }}
           />
         </Modal>
       )}
@@ -208,6 +289,41 @@ export default function PmaDeskPage() {
             )}
           </main>
         </div>
+      )}
+
+      {!loading && dimessi.length > 0 && (
+        <section className="mt-6 rounded-lg border border-slate-300 bg-white">
+          <button
+            type="button"
+            className="flex w-full items-center justify-between px-4 py-3 text-left text-sm font-bold uppercase text-slate-700 hover:bg-slate-50"
+            onClick={() => setShowDimessi((v) => !v)}
+          >
+            <span>Dimessi ({dimessi.length})</span>
+            <span className="text-xs font-normal normal-case text-slate-500">
+              {showDimessi ? 'Nascondi' : 'Mostra scheda in sola visione'}
+            </span>
+          </button>
+          {showDimessi && (
+            <ul className="grid gap-2 border-t border-slate-200 p-3 sm:grid-cols-2 lg:grid-cols-3">
+              {dimessi.map((p) => (
+                <li key={p._docId}>
+                  <PmaPatientReadonlyCard
+                    paziente={p}
+                    footer={
+                      <button
+                        type="button"
+                        className={`${btnSecondary} mt-2 w-full text-xs`}
+                        onClick={() => navigate(openPazientePath(pma.id, p._docId))}
+                      >
+                        Apri scheda
+                      </button>
+                    }
+                  />
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
       )}
     </div>
   );

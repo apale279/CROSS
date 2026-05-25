@@ -17,6 +17,8 @@ export async function createNotaDiario(manifestationId, payload) {
     testo: (payload.testo ?? '').trim(),
     aperta: true,
     importante: !!payload.importante,
+    pdfUrl: (payload.pdfUrl ?? '').trim() || null,
+    pdfFilename: (payload.pdfFilename ?? '').trim() || null,
     creatoIl: serverTimestamp(),
     aggiornatoIl: serverTimestamp(),
   });

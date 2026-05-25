@@ -3,6 +3,10 @@ import { db } from '../cross/firebase';
 import { pazientiPath } from '../../lib/firestorePaths';
 import { normalizePazientePatchInput, splitPazientePatch } from '../adapters/crossPazienteAdapter';
 import { EMPTY_PMA_SCHEDA } from './pmaSchedaDefaults';
+import {
+  isEoColumnMergePatchPayload,
+  mergeEoQuickColumnSelection,
+} from './eoQuickSelection';
 
 const PMA_SCHEDA_PREFIX = 'pmaScheda.';
 
@@ -64,6 +68,32 @@ export function mergeSchedaArrayById(serverArr, clientArr) {
   return client.length ? client : server;
 }
 
+/** Imposta default EO solo se la colonna è ancora vuota sul server (multi-operatore). */
+export async function ensurePmaSchedaEoDefaultsIfEmpty(manifestationId, docId, entries) {
+  if (!manifestationId || !docId || !entries?.length) return;
+
+  const docRef = doc(db, ...pazientiPath(manifestationId), docId);
+  await runTransaction(db, async (transaction) => {
+    const snap = await transaction.get(docRef);
+    if (!snap.exists()) return;
+    const scheda = snap.data().pmaScheda ?? {};
+    const updates = {};
+
+    for (const { field, defLabel } of entries) {
+      const label = String(defLabel ?? '').trim();
+      if (!label) continue;
+      const raw = scheda[field];
+      const current = Array.isArray(raw) ? raw.map((x) => String(x).trim()).filter(Boolean) : [];
+      if (current.length > 0) continue;
+      updates[`${PMA_SCHEDA_PREFIX}${field}`] = [label];
+    }
+
+    if (Object.keys(updates).length > 0) {
+      transaction.update(docRef, updates);
+    }
+  });
+}
+
 /** Inizializza `pmaScheda` solo se assente (path puntati, senza sovrascrivere). */
 export async function initPmaSchedaIfMissing(manifestationId, docId, seed = null) {
   const docRef = doc(db, ...pazientiPath(manifestationId), docId);
@@ -118,6 +148,7 @@ export async function patchPazientePmaGranular(manifestationId, docId, patch) {
   }
   const direct = {};
   const arrayTxn = [];
+  const eoMergeTxn = [];
 
   for (const [path, value] of Object.entries(fields)) {
     if (!path.startsWith(PMA_SCHEDA_PREFIX)) {
@@ -125,7 +156,9 @@ export async function patchPazientePmaGranular(manifestationId, docId, patch) {
       continue;
     }
     const field = path.slice(PMA_SCHEDA_PREFIX.length);
-    if (PMA_SCHEDA_ARRAY_FIELDS.has(field) && !isFirestoreFieldValue(value)) {
+    if (isEoColumnMergePatchPayload(value)) {
+      eoMergeTxn.push({ field, payload: value });
+    } else if (PMA_SCHEDA_ARRAY_FIELDS.has(field) && !isFirestoreFieldValue(value)) {
       arrayTxn.push({ field, value });
     } else {
       direct[path] = value;
@@ -136,6 +169,22 @@ export async function patchPazientePmaGranular(manifestationId, docId, patch) {
 
   if (Object.keys(direct).length > 0) {
     await updateDoc(docRef, direct);
+  }
+
+  for (const { field, payload } of eoMergeTxn) {
+    await runTransaction(db, async (transaction) => {
+      const snap = await transaction.get(docRef);
+      if (!snap.exists()) return;
+      const raw = snap.data().pmaScheda?.[field];
+      const server = Array.isArray(raw) ? raw : [];
+      const merged = mergeEoQuickColumnSelection(
+        server,
+        payload.baseAtOpen ?? [],
+        payload.draft ?? [],
+        payload.columnLabels ?? [],
+      );
+      transaction.update(docRef, { [`pmaScheda.${field}`]: merged });
+    });
   }
 
   for (const { field, value } of arrayTxn) {

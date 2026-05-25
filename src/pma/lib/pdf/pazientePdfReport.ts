@@ -11,8 +11,7 @@ import {
 import { DIMISSIONE_ESITO_LABEL } from '@pma/types/dimissione'
 import { FARMACO_VIA_LABEL } from '@pma/types/cartellaClinica'
 import { buildLesioniPngDataUrl } from './lesioniFigurePng'
-import { resolveEoColumnsForDisplay, EO_PAZIENTE_FIRESTORE_FIELDS } from '../eoPazienteFields'
-import { EO_CLINICAL_TABS } from '../multilineList'
+import { resolveEoColumnsForDisplay, formatEoColumnsForPdf } from '../eoPazienteFields'
 import { defaultEoQuickGroupRows } from '../eoQuickDefaults'
 import { orderedPrestazioniLabels, prestazioniRowsOfFour } from '../prestazioniDisplay'
 
@@ -60,6 +59,15 @@ function tsItDate(ts: Timestamp | null | undefined): string {
 async function normalizeImageSrcForPdf(src: string): Promise<string | null> {
   const s = src.trim()
   if (!s) return null
+  if (s.startsWith('data:image/svg+xml') || s.startsWith('<svg')) {
+    try {
+      const { rasterizeFirmaDataUrlToPng, svgMarkupToDataUrl } = await import('../signatureSvg')
+      const dataUrl = s.startsWith('<svg') ? svgMarkupToDataUrl(s) : s
+      return await rasterizeFirmaDataUrlToPng(dataUrl)
+    } catch {
+      return null
+    }
+  }
   if (s.startsWith('data:image')) {
     const comma = s.indexOf(',')
     if (comma === -1) return null
@@ -379,42 +387,12 @@ export async function buildPazientePdfBlob(p: Paziente, ctx: PazientePdfContext)
   writeParagraph('APR', p.apr)
   writeParagraph('Allergie', p.allergie)
   writeParagraph('APP', p.app)
-  writeParagraph('EO — note', p.eo_note)
+  writeParagraph('Note esame obiettivo', p.eo_note)
   const eoCols = resolveEoColumnsForDisplay(p, defaultEoQuickGroupRows())
-  doc.setFont('helvetica', 'normal')
-  doc.setFontSize(7)
-  let eoBodyMaxLines = 1
-  const eoCellWForEst = Math.max(4, textW / EO_CLINICAL_TABS.length - 1.5)
-  for (const field of EO_PAZIENTE_FIRESTORE_FIELDS) {
-    const arr = eoCols[field] ?? []
-    const cellText = arr.length ? arr.join('\n') : '—'
-    eoBodyMaxLines = Math.max(eoBodyMaxLines, doc.splitTextToSize(cellText, eoCellWForEst).length)
+  const eoRiepilogo = formatEoColumnsForPdf(eoCols)
+  if (eoRiepilogo !== '—') {
+    writeParagraph('EO rapido', eoRiepilogo)
   }
-  const eoTableMm = 8 + eoBodyMaxLines * 3 + 5
-  ensureSectionFits(titleLineHeightMm(9) + eoTableMm)
-  writeTitle('EO — selezione rapida', 9, 0)
-  const eoCellW = textW / EO_CLINICAL_TABS.length
-  const eoColStyles: Record<number, { cellWidth: number }> = {}
-  for (let i = 0; i < EO_CLINICAL_TABS.length; i++) {
-    eoColStyles[i] = { cellWidth: eoCellW }
-  }
-  autoTable(doc, {
-    startY: y,
-    head: [EO_CLINICAL_TABS.map((t) => t)],
-    body: [
-      EO_PAZIENTE_FIRESTORE_FIELDS.map((field) => {
-        const arr = eoCols[field] ?? []
-        return arr.length ? arr.join('\n') : '—'
-      }),
-    ],
-    margin: { left: M, right: M },
-    tableWidth: textW,
-    styles: { fontSize: 7, cellPadding: 1, overflow: 'linebreak', valign: 'top' },
-    headStyles: { fillColor: [51, 65, 85], fontSize: 7, halign: 'center' },
-    columnStyles: eoColStyles,
-    ...TABLE_KEEP_ON_PAGE,
-  })
-  y = afterAutoTableY(doc, y)
 
   // Parametri vitali
   const pvBody = [...p.parametri_vitali]

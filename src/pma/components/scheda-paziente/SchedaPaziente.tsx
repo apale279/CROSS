@@ -363,7 +363,8 @@ export function SchedaPaziente({ pazienteId }: Props) {
   const isMedicoRank = user?.rank === 'Medico'
 
   useEffect(() => {
-    if (!db || !p?.aperto || !user) return
+    if (!db || p?.stato !== 'in_carico' || !user) return
+    if (user.rank !== 'Infermiere' && user.rank !== 'Medico') return
     const ref = staffSoftRefFromUser(user)
     if (!ref) return
     const patch: Record<string, unknown> = {}
@@ -387,7 +388,7 @@ export function SchedaPaziente({ pazienteId }: Props) {
   }, [
     pazienteId,
     p?.id,
-    p?.aperto,
+    p?.stato,
     p?.infermiere_rif,
     p?.medico_rif,
     user,

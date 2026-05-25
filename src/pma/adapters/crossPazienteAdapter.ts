@@ -109,6 +109,8 @@ export function splitPazientePatch(patch) {
   for (const [k, v] of Object.entries(normalizePazientePatchInput(patch))) {
     if (k === 'aperto') {
       top.aperta = v;
+    } else if (k === 'schedaModificaForzata') {
+      top.schedaModificaForzata = v;
     } else if (k === 'statoPzPma' || k === 'stato_pz_pma') {
       top.statoPzPma = v;
     } else if (CENTRALE_PATCH_KEYS.has(k)) {
@@ -131,11 +133,13 @@ export function splitPazientePatch(patch) {
   return out;
 }
 
-export function canEditPmaScheda(pazienteView, rawDoc?: { statoPzPma?: string | null }) {
+export function canEditPmaScheda(pazienteView, rawDoc?: { statoPzPma?: string | null; schedaModificaForzata?: boolean }) {
+  if (rawDoc?.schedaModificaForzata === true) return true;
   return rawDoc?.statoPzPma === STATO_PZ_PMA.IN_CARICO;
 }
 
-export function isPmaSchedaReadonly(rawDoc?: { statoPzPma?: string | null }) {
+export function isPmaSchedaReadonly(rawDoc?: { statoPzPma?: string | null; schedaModificaForzata?: boolean }) {
+  if (rawDoc?.schedaModificaForzata === true) return false;
   return rawDoc?.statoPzPma === STATO_PZ_PMA.DIMESSO;
 }
 

@@ -1,8 +1,9 @@
 import { useMemo } from 'react';
 import { useImpostazioni } from '../../hooks/useImpostazioni';
-import { EO_CLINICAL_TABS } from '@pma/lib/multilineList';
-import { defaultEoLabelForColumn, normalizeEoQuickLabels, isNessunaEoOptionLabel } from '@pma/lib/eoQuickSelection';
+import { defaultEoLabelForColumn } from '@pma/lib/eoQuickSelection';
+import { structuredEoQuickGroupRows } from '@pma/lib/eoStructuredDefaults';
 import { parsePresetFarmaciFromFirestore } from '@pma/types/manifestazioneImpostazioni';
+import { parseFarmaciCatalogoFromFirestore } from '@pma/types/farmaciCatalogo';
 import { sortStringsIt } from '@pma/lib/sortLocaleIt';
 
 function asStringArray(v: unknown): string[] | null {
@@ -10,49 +11,33 @@ function asStringArray(v: unknown): string[] | null {
   return v.map((x) => String(x ?? '').trim()).filter(Boolean);
 }
 
-/** Solo dati Firestore: nessun fallback da costanti in memoria. */
-function buildEoQuickGroups(pmaClinica: Record<string, unknown> | null | undefined) {
-  const raw = pmaClinica?.dettaglio_eo_rapido;
-  if (!raw || typeof raw !== 'object') {
-    return EO_CLINICAL_TABS.map((title) => ({ title, labels: [] as readonly string[] }));
-  }
-  return EO_CLINICAL_TABS.map((title) => {
-    const arr = asStringArray((raw as Record<string, unknown>)[title]);
-    return { title, labels: normalizeEoQuickLabels(arr ?? []) };
-  });
+/** Liste EO da modello strutturato (Excel importato in codice), non da impostazioni. */
+function buildEoQuickGroups() {
+  return structuredEoQuickGroupRows();
 }
 
-function eoQuickDefaultFromImpostazioni(
-  pmaClinica: Record<string, unknown> | null | undefined,
-  groups: { title: string; labels: readonly string[] }[],
-) {
-  const rawDef = pmaClinica?.dettaglio_eo_rapido_default;
-  if (typeof rawDef === 'string' && rawDef.trim() && !isNessunaEoOptionLabel(rawDef.trim())) {
-    return rawDef.trim();
-  }
-  for (const g of groups) {
-    const d = defaultEoLabelForColumn(g.labels);
-    if (d) return d;
-  }
-  return null;
-}
-
-/** Liste cliniche da `impostazioni.pmaClinica` (Firestore). */
+/** Liste cliniche: prestazioni/farmaci da Firestore; EO rapido da codice. */
 export function usePmaClinicaListe() {
   const { impostazioni, loading } = useImpostazioni();
   const pmaClinica = (impostazioni?.pmaClinica ?? {}) as Record<string, unknown>;
 
   return useMemo(() => {
     const prestazioni = sortStringsIt(asStringArray(pmaClinica.prestazioni) ?? []);
-    const farmaci = sortStringsIt(asStringArray(pmaClinica.farmaci) ?? []);
-    const eoQuickGroups = buildEoQuickGroups(pmaClinica);
+    const farmaciCatalogo = parseFarmaciCatalogoFromFirestore(
+      pmaClinica.farmaci_consumati ?? pmaClinica.farmaci,
+    );
+    const farmaci = sortStringsIt(farmaciCatalogo.map((f) => f.nome));
+    const eoQuickGroups = buildEoQuickGroups();
     const eoQuickLabels = eoQuickGroups.flatMap((g) => g.labels);
-    const eoQuickDefaultLabel = eoQuickDefaultFromImpostazioni(pmaClinica, eoQuickGroups);
+    const eoQuickDefaultLabel =
+      defaultEoLabelForColumn(eoQuickGroups.find((g) => g.title === 'GENERALE')?.labels ?? []) ||
+      'NELLA NORMA';
     const presetFarmaci = parsePresetFarmaciFromFirestore(pmaClinica.preset_farmaci);
 
     return {
       prestazioni,
       farmaci,
+      farmaciCatalogo,
       tipoEventoList: [],
       dettaglioEventoPerTipo: {},
       eoQuickLabels,

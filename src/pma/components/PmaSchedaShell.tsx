@@ -114,7 +114,6 @@ export function PmaSchedaShell({ pazienteDocId, pmaId, pmaNome, onClose }: Props
           vistaScheda={VISTA_SCHEDA.PMA}
           defaultTab="cartella"
           initialTab={initialTab}
-          onDimesso={onClose}
         />
       </div>
     </div>

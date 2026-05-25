@@ -18,6 +18,12 @@ export const PMA_SHELL_TABS: { id: SchedaPazienteTabId; label: string }[] = [
   { id: 'dimissione', label: 'Dimissioni' },
 ]
 
+/** Solo cartella + dimissione (vista centrale, sezione PMA collassabile). */
+export const PMA_CLINICAL_SHELL_TABS: { id: SchedaPazienteTabId; label: string }[] = [
+  { id: 'cartella', label: 'Cartella clinica' },
+  { id: 'dimissione', label: 'Dimissioni' },
+]
+
 /** Autopresentati: nessun dato da centrale → tab nascosto. */
 export function pmaShellTabsFor(isAutopresentato: boolean) {
   if (isAutopresentato) {
@@ -35,8 +41,8 @@ const BASE_TABS: { id: SchedaPazienteTabId; label: string }[] = [
 
 /**
  * Tab visibili sulla scheda: la sezione Invio PS compare solo con esito `invio_ps`.
- * Esclude tab in base al rank (matrice Rank.xlsx / `rankMatrix`).
- * Dimissione e Invio PS: solo Centrale o Medico.
+ * Esclude tab in base al rank (matrice `rankMatrix`).
+ * Dimissione: Infermiere/Soccorritore in sola lettura. Invio PS: Centrale/Medico.
  */
 export function schedaPazienteTabsFor(
   p: Pick<Paziente, 'dimissione_esito'>,
@@ -50,9 +56,6 @@ export function schedaPazienteTabsFor(
     tabs = [...tabs, { id: 'invio_ps', label: 'Invio PS' }]
   }
   tabs = tabs.filter((t) => {
-    if (t.id === 'dimissione' || t.id === 'invio_ps') {
-      if (rank !== 'Centrale' && rank !== 'Medico') return false
-    }
     if (t.id === 'cartella') return schedaTabCartellaAllows(rank, 'READ')
     if (t.id === 'dimissione') return schedaTabDimissioneAllows(rank, 'READ')
     if (t.id === 'invio_ps') return schedaTabInvioPsAllows(rank, 'READ')

@@ -15,12 +15,12 @@ export function parseLinesToValues(text: string): string[] {
   return out
 }
 
-/** Ordine v4: GENERALE come prima categoria, poi apparato. */
+/** Ordine colonne EO rapido in cartella clinica (allineato al modello strutturato). */
 export const EO_CLINICAL_TABS = [
   'GENERALE',
   'NEUROLOGICO',
-  'CUTE',
   'TORACE',
+  'CUTE',
   'ADDOME',
   'CAPO/COLLO',
 ] as const

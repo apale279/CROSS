@@ -1,7 +1,9 @@
 import {
   isPazienteOriginePma,
+  normalizeStatoPzPma,
   pazienteHaDestinazionePma,
   pazienteHaSchedaPma,
+  STATO_PZ_PMA,
 } from './pmaModule';
 
 /**
@@ -62,9 +64,10 @@ export function pmaIdDaPaziente(paziente) {
   return String(paziente?.pmaId ?? paziente?.destinazionePmaId ?? '').trim();
 }
 
-/** Scheda unificata 4 tab in vista centrale quando il paziente ha modulo PMA attivo. */
+/** Scheda unificata PMA in centrale solo quando il flusso PMA è partito (sync mezzo). */
 export function usaSchedaUnificataPma(paziente) {
   if (!paziente) return false;
-  const moduli = moduliSchedaPaziente(paziente);
-  return Boolean(moduli.pmaClinica && pmaIdDaPaziente(paziente));
+  if (!pmaIdDaPaziente(paziente)) return false;
+  const stato = normalizeStatoPzPma(paziente.statoPzPma);
+  return stato != null && stato !== STATO_PZ_PMA.DIMESSO;
 }

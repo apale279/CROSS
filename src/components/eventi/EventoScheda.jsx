@@ -125,7 +125,10 @@ export function EventoScheda({
   );
   const eventoAperto = isCreate || evento.stato !== false;
   const eventoTerminato = !isCreate && evento.operativoTerminato === true && evento.stato !== false;
+  /** Dettaglio evento e nuove missioni solo in fase operativa attiva. */
   const eventoModificabile = eventoAperto && !eventoTerminato;
+  /** Pazienti registrabili finché l'evento non è chiuso/archiviato (anche se operativo terminato). */
+  const eventoAccettaNuoviPazienti = eventoAperto;
 
   useEffect(() => {
     if (readOnly || isCreate || !evento?._docId || evento.stato === false) return;
@@ -454,7 +457,13 @@ export function EventoScheda({
 
       {!isCreate && tab === 'pazienti' && (
         <div className="space-y-3">
-          {!readOnly && eventoModificabile && (
+          {eventoTerminato && eventoAccettaNuoviPazienti && (
+            <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-950">
+              Fase operativa conclusa: puoi ancora registrare pazienti fino alla chiusura definitiva
+              dell&apos;evento.
+            </p>
+          )}
+          {!readOnly && eventoAccettaNuoviPazienti && (
             <button
               type="button"
               className={`${btnPrimary} flex items-center gap-2`}

@@ -1,9 +1,16 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../context/AuthContext';
+import { useEventoScheda } from '../../../context/EventoSchedaContext';
 import { useImpostazioni } from '../../../hooks/useImpostazioni';
 import { usePazienteDocument } from '../../../hooks/usePazienteDocument';
-import { findPmaById, isPazienteOriginePma, STATO_PZ_PMA, statoPzPmaLabel } from '../../../lib/pmaModule';
+import { findPmaById, isPazienteOriginePma, pazientePmaChiuso, STATO_PZ_PMA, statoPzPmaLabel } from '../../../lib/pmaModule';
 import { chiusuraCentraleLabel, isChiusoCentrale, statoCentraleLabel } from '../../../lib/pazienteStati';
+import { isSchedaInSolaVisione } from '../../../lib/schedaSolaVisione';
+import { invioPsSoreuPatchForScheda, invioPsSoreuFieldsFromScheda } from '../../../lib/invioPsSoreu';
+import { patchPaziente } from '../../../services/pazientiService';
+import { InvioPsSoreuTrasportoBlock } from '../InvioPsSoreuTrasportoBlock';
+import { SchedaUnlockBar } from '../SchedaUnlockBar';
 import { isVistaCentrale, isVistaPma, moduliSchedaPaziente, VISTA_SCHEDA } from '../../../lib/pazienteSchedaModuli';
 import { canEditPmaScheda, crossDocToPazienteView, isPmaSchedaReadonly } from '../../../pma/adapters/crossPazienteAdapter';
 import { patchPazientePmaGranular } from '../../../pma/lib/pazientePmaPatch';
@@ -12,7 +19,9 @@ import { PazienteAnagraficaPmaTab } from '../PazienteAnagraficaPmaTab';
 import { DettaglioPaziente } from '../../../pma/components/scheda-paziente/DettaglioPaziente';
 import { CartellaClinicaSection } from '../../../pma/components/scheda-paziente/CartellaClinicaSection';
 import { DimissioneSection } from '../../../pma/components/scheda-paziente/DimissioneSection';
-import { pmaShellTabsFor } from '../../../pma/components/scheda-paziente/schedaPazienteTabs';
+import { pmaShellTabsFor, PMA_CLINICAL_SHELL_TABS } from '../../../pma/components/scheda-paziente/schedaPazienteTabs';
+import { staffSoftRefFromUser } from '../../../pma/lib/staffSoftRef';
+import { schedaTabDimissioneAllows } from '../../../pma/lib/rankMatrix';
 import { PmaFieldPresenceProvider } from '../../../pma/context/PmaFieldPresenceContext';
 import { PazienteModuloCentrale } from './PazienteModuloCentrale';
 import { PmaPazientePanel } from '../PmaPazientePanel';
@@ -32,15 +41,19 @@ export function PazienteModuloPma({
   evento = null,
   vistaScheda,
   contesto,
-  onDimesso,
   defaultTab = 'cartella',
   initialTab,
   anagraficaPanel = null,
   datiCentralePanel = null,
+  /** Solo cartella/dimissione (es. sezione PMA collassabile in vista centrale). */
+  clinicalOnly = false,
+  hidePmaPanel = false,
 }) {
   const resolvedVista = vistaScheda ?? contesto ?? VISTA_SCHEDA.CENTRALE;
   const vistaPma = isVistaPma(resolvedVista);
   const vistaCentrale = isVistaCentrale(resolvedVista);
+  const navigate = useNavigate();
+  const { openEventoScheda } = useEventoScheda();
 
   const { profile, user } = useAuth();
   const { impostazioni } = useImpostazioni();
@@ -77,7 +90,10 @@ export function PazienteModuloPma({
   const canEditPma =
     vistaPma && p && rawDoc ? canEditPmaScheda(p, rawDoc) && !schedaReadonly : false;
   const isAutopresentato = rawDoc ? isPazienteOriginePma(rawDoc) : false;
-  const shellTabs = useMemo(() => pmaShellTabsFor(isAutopresentato), [isAutopresentato]);
+  const shellTabs = useMemo(
+    () => (clinicalOnly ? PMA_CLINICAL_SHELL_TABS : pmaShellTabsFor(isAutopresentato)),
+    [clinicalOnly, isAutopresentato],
+  );
   const canEditStatoPma = vistaPma && isAutopresentato && !schedaReadonly;
   const canEditAnagraficaAutopresentato = vistaPma && isAutopresentato && !schedaReadonly;
 
@@ -86,7 +102,10 @@ export function PazienteModuloPma({
         uid: user.uid,
         nome: profile?.nome ?? user.displayName ?? '',
         nomeUtente: profile?.nomeUtente ?? '',
-        rank: normalizePmaRank(profile?.pmaRank),
+        rank: profile?.pmaRank ? normalizePmaRank(profile.pmaRank) : null,
+        firma_medico_base64: profile?.firma_medico_base64 ?? null,
+        firma_medico_svg: profile?.firma_medico_svg ?? null,
+        firmaUrl: profile?.firmaUrl ?? null,
       }
     : null;
 
@@ -115,6 +134,40 @@ export function PazienteModuloPma({
       setActiveTab('anagrafica');
     }
   }, [isAutopresentato, activeTab]);
+
+  useEffect(() => {
+    if (clinicalOnly && activeTab !== 'cartella' && activeTab !== 'dimissione') {
+      setActiveTab('cartella');
+    }
+  }, [clinicalOnly, activeTab]);
+
+  useEffect(() => {
+    if (!pmaUser || !rawDoc || !manifestationId || !patientDocId) return;
+    if (rawDoc.statoPzPma !== STATO_PZ_PMA.IN_CARICO) return;
+    const rank = profile?.pmaRank ? normalizePmaRank(profile.pmaRank) : null;
+    if (rank !== 'Medico' && rank !== 'Infermiere') return;
+    const ref = staffSoftRefFromUser(pmaUser);
+    if (!ref) return;
+    const patch = {};
+    if (rank === 'Infermiere' && !String(p?.infermiere_rif ?? '').trim()) {
+      patch.infermiere_rif = ref;
+    }
+    if (rank === 'Medico' && !String(p?.medico_rif ?? '').trim()) {
+      patch.medico_rif = ref;
+    }
+    if (Object.keys(patch).length === 0) return;
+    void patchPazientePmaGranular(manifestationId, patientDocId, patch).catch((err) => {
+      console.warn('Aggiornamento riferimento staff PMA non riuscito:', err);
+    });
+  }, [
+    pmaUser,
+    profile?.pmaRank,
+    rawDoc?.statoPzPma,
+    p?.infermiere_rif,
+    p?.medico_rif,
+    manifestationId,
+    patientDocId,
+  ]);
 
   if (loading) {
     return <p className="text-sm text-slate-500">Caricamento modulo PMA…</p>;
@@ -190,6 +243,10 @@ export function PazienteModuloPma({
     </p>
   );
 
+  const canEditDimissioneTab = Boolean(
+    canEditPma && pmaUser && schedaTabDimissioneAllows(pmaUser.rank, 'UPDATE'),
+  );
+
   const shellPanels = {
     anagrafica: anagraficaPanel ?? defaultAnagrafica,
     dati_centrale: datiCentralePanel ?? defaultDatiCentrale,
@@ -204,38 +261,93 @@ export function PazienteModuloPma({
       />
     ),
     dimissione: (
-      <DimissioneSection
-        p={p}
-        user={pmaUser}
-        isMedico
-        canEditDimissioneTab={canEditPma}
-        canEditScheda={canEditPma}
-        write={write}
-        onDimesso={vistaPma ? onDimesso : undefined}
-        reportManifestazioneNome={manifestazioneNome}
-        reportPmaNome={pmaNome}
-        consensoGenericoCure={liste.consensoGenericoCure}
-        consensoPrivacy={liste.consensoPrivacy}
-        rifiutoInvioPs={liste.rifiutoInvioPs}
-        presetDimissione={liste.presetDimissione}
-        prestazioniManifestazioneLista={liste.prestazioni}
-      />
+      <>
+        <DimissioneSection
+          p={p}
+          user={pmaUser}
+          isMedico={pmaUser?.rank === 'Medico'}
+          canEditDimissioneTab={canEditDimissioneTab}
+          canEditScheda={canEditPma}
+          write={write}
+          reportManifestazioneNome={manifestazioneNome}
+          reportPmaNome={pmaNome}
+          consensoGenericoCure={liste.consensoGenericoCure}
+          consensoPrivacy={liste.consensoPrivacy}
+          rifiutoInvioPs={liste.rifiutoInvioPs}
+          presetDimissione={liste.presetDimissione}
+          prestazioniManifestazioneLista={liste.prestazioni}
+        />
+        <InvioPsSoreuTrasportoBlock
+          manifestationId={manifestationId}
+          paziente={rawDoc}
+          pma={pma}
+          onWriteSoreu={async (partial) => {
+            if (!manifestationId || !patientDocId) return;
+            const merged = {
+              ...invioPsSoreuFieldsFromScheda(rawDoc.pmaScheda ?? {}),
+              ...partial,
+            };
+            await patchPazientePmaGranular(
+              manifestationId,
+              patientDocId,
+              invioPsSoreuPatchForScheda(merged),
+            );
+          }}
+          onOpenEvento={(ev) => {
+            const full = eventi.find((e) => e._docId === ev._docId) ?? ev;
+            openEventoScheda(full);
+          }}
+          onOpenMissione={(mis) => {
+            navigate(`/missioni?open=${encodeURIComponent(mis._docId)}`);
+          }}
+          onOpenPazienteRiferimento={(p) => {
+            if (vistaPma) {
+              setActiveTab('dimissione');
+              return;
+            }
+            navigate(`/pazienti?open=${encodeURIComponent(p._docId ?? patientDocId)}`);
+          }}
+        />
+      </>
     ),
   };
 
   const inner = (
     <div className={vistaPma ? 'flex min-h-0 flex-1 flex-col' : 'space-y-4'}>
-      {vistaCentrale && (
+      {vistaCentrale && !clinicalOnly && (
         <p className="text-xs font-bold uppercase text-slate-600">Modulo PMA</p>
       )}
 
-      <PmaPazientePanel paziente={rawDoc} pmaNome={pmaNome} compact={vistaPma} />
+      {!hidePmaPanel && (
+        <PmaPazientePanel paziente={rawDoc} pmaNome={pmaNome} compact={vistaPma} />
+      )}
+
+      <dl className="grid gap-2 text-sm sm:grid-cols-2">
+        <div>
+          <dt className="text-xs font-medium text-slate-500">Medico di riferimento</dt>
+          <dd className="font-semibold text-slate-800">{p.medico_rif?.trim() || '—'}</dd>
+        </div>
+        <div>
+          <dt className="text-xs font-medium text-slate-500">Infermiere di riferimento</dt>
+          <dd className="font-semibold text-slate-800">{p.infermiere_rif?.trim() || '—'}</dd>
+        </div>
+      </dl>
 
       {schedaReadonly && (
         <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900">
           Paziente dimesso — scheda in sola lettura.
         </p>
       )}
+
+      <SchedaUnlockBar
+        paziente={rawDoc}
+        onToggleModifica={async (forced) => {
+          if (!manifestationId || !patientDocId) return;
+          await patchPaziente(manifestationId, patientDocId, {
+            schedaModificaForzata: forced,
+          });
+        }}
+      />
 
       {vistaCentrale && !canEditPma && rawDoc.statoPzPma !== STATO_PZ_PMA.IN_CARICO && (
         <p className="text-xs text-slate-600">

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Maximize2 } from 'lucide-react';
 import { COLLECTIONS } from '../lib/firestorePaths';
 import { useManifestazioneCollection } from '../hooks/useManifestazioneCollection';
@@ -35,6 +36,7 @@ import {
 } from '../lib/dashboardLayout';
 
 export default function DashboardPage() {
+  const navigate = useNavigate();
   const manifestationId = useManifestazioneId();
   const { impostazioni } = useImpostazioni();
   const telegramEnabled = impostazioni?.telegramBotEnabled === true;
@@ -48,6 +50,7 @@ export default function DashboardPage() {
     operativoStats,
     pazientiCountByEvento,
     pazientiTrasportoByMissione,
+    pazienti,
     loading,
     stati,
   } = useOperativoDashboardData();
@@ -318,9 +321,14 @@ export default function DashboardPage() {
             mezzi={mezzi}
             allMissioni={missioni}
             existingEventi={eventi}
+            pazienti={pazienti}
             onOpenEvento={(ev) => {
               setModal(null);
               openEventoScheda(ev);
+            }}
+            onOpenPaziente={(p) => {
+              setModal(null);
+              navigate(`/pazienti?open=${encodeURIComponent(p._docId)}`);
             }}
           />
         </Modal>

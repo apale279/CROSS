@@ -1,6 +1,7 @@
 import {
   STATO_PZ_PMA,
   TIPO_PZ,
+  isPazienteCodiceMinore,
   normalizeStatoPzPma,
   pazienteHaDestinazionePma,
   pazienteHaSchedaPma,
@@ -8,6 +9,14 @@ import {
 } from '../../lib/pmaModule';
 
 export function PazientePmaBadges({ paziente }) {
+  if (isPazienteCodiceMinore(paziente)) {
+    return (
+      <span className="rounded bg-teal-100 px-2 py-0.5 text-[10px] font-bold uppercase text-teal-900">
+        Codice minore
+      </span>
+    );
+  }
+
   if (!pazienteHaSchedaPma(paziente)) return null;
 
   const isAutopresentato = paziente.tipoPz === TIPO_PZ.PMA;

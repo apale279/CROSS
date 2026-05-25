@@ -17,7 +17,7 @@ const emptyForm = () => ({
   password: '',
   nome: '',
   nomeUtente: '',
-  accessType: ACCESS_TYPE.CENTRALE,
+  accessType: ACCESS_TYPE.PMA,
   pmaRank: PMA_RANK.MEDICO,
   pmaScopeId: '',
 });
@@ -291,16 +291,19 @@ export function UserAccountsEditor() {
               onChange={(e) => setForm((f) => ({ ...f, nomeUtente: e.target.value }))}
             />
           </label>
-          <label className="block text-xs font-bold text-slate-700">
-            Tipo accesso (Firestore)
+          <label className="block text-xs font-bold text-slate-700 sm:col-span-2">
+            Tipo accesso
             <select
               className={`${selectClass} mt-1`}
               value={form.accessType}
               onChange={(e) => setForm((f) => ({ ...f, accessType: e.target.value }))}
             >
-              <option value={ACCESS_TYPE.CENTRALE}>Centrale — dashboard completa</option>
-              <option value={ACCESS_TYPE.PMA}>PMA — vista tendone</option>
+              <option value={ACCESS_TYPE.PMA}>PMA — solo PMA, Pazienti, Diario</option>
+              <option value={ACCESS_TYPE.CENTRALE}>Centrale — vede tutto (dashboard completa)</option>
             </select>
+            <span className="mt-1 block text-[11px] font-normal text-slate-500">
+              Medico / Infermiere / Soccorritore in tenda: scegli <strong>PMA</strong> e assegna il PMA.
+            </span>
           </label>
           {form.accessType === ACCESS_TYPE.PMA && (
             <>

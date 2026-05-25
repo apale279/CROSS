@@ -1,9 +1,10 @@
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { usePmaAccess } from '../../hooks/usePmaAccess';
+import { isPathAllowedForPmaOperator } from '../../lib/userAccess';
 
-/** Operatori con `pmaScopeId` vedono solo le rotte /pma. */
+/** Operatori PMA: solo /pma, /pazienti, /diario, /account. Centrale: accesso completo. */
 export function PmaAccessRouter() {
-  const { scopeId, fullCentrale, loading, accessiblePma } = usePmaAccess();
+  const { scopeId, loading, accessiblePma, restrictedNav } = usePmaAccess();
   const location = useLocation();
 
   if (loading) {
@@ -14,11 +15,18 @@ export function PmaAccessRouter() {
     );
   }
 
-  if (scopeId && !location.pathname.startsWith('/pma')) {
-    return <Navigate to={`/pma/${encodeURIComponent(scopeId)}`} replace />;
+  if (restrictedNav && !isPathAllowedForPmaOperator(location.pathname)) {
+    if (scopeId) {
+      return <Navigate to={`/pma/${encodeURIComponent(scopeId)}`} replace />;
+    }
+    return (
+      <div className="mx-auto max-w-lg p-8 text-center text-sm text-slate-600">
+        Profilo operatore PMA incompleto o PMA non assegnato. Contatta la centrale.
+      </div>
+    );
   }
 
-  if (!fullCentrale && location.pathname.startsWith('/pma') && accessiblePma.length === 0) {
+  if (restrictedNav && location.pathname.startsWith('/pma') && accessiblePma.length === 0) {
     return (
       <div className="mx-auto max-w-lg p-8 text-center text-sm text-slate-600">
         Nessun PMA assegnato al tuo profilo. Contatta la centrale.

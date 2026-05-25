@@ -55,6 +55,7 @@ import {
   deleteValutazioneSoccorsoDoc,
   transitionPazienteArrivatoHTransaction,
 } from '../../services/pazientiService';
+import { patchMissioneCodiceColoreFromPaziente } from '../../services/missioniService';
 import { formatTimestamp } from '../../utils/formatters';
 import { FormField, btnPrimary, btnSecondary, inputClass, selectClass } from '../ui/FormField';
 import { MsbValutazioneForm } from './MsbValutazioneForm';
@@ -202,6 +203,19 @@ export function PazienteScheda({
     void transitionPazienteArrivatoHTransaction(manifestationId, patientDocId, evento);
   }, [missioniEvento, displayPatient, isCreate, manifestationId, patientDocId, evento]);
 
+  const patchPatientFields = useCallback(
+    async (fields, dirtyKeysToClear = []) => {
+      if (!fields || Object.keys(fields).length === 0) return;
+      if (isCreate) {
+        setDraft((d) => ({ ...d, ...fields }));
+        return;
+      }
+      await patchPaziente(manifestationId, patientDocId, fields);
+      dirtyKeysToClear.forEach((k) => dirtyPatientFieldsRef.current.delete(k));
+    },
+    [isCreate, manifestationId, patientDocId],
+  );
+
   const applyDestinazioneChange = useCallback(
     async (nomeSelezionato) => {
       if (displayPatient && !isTrasportoCentraleModificabile(displayPatient)) return;
@@ -244,19 +258,6 @@ export function PazienteScheda({
       setDraft((d) => ({ ...d, creatoLocal: toDatetimeLocalValue(new Date()) }));
     }
   }, [isCreate, draft.creatoLocal]);
-
-  const patchPatientFields = useCallback(
-    async (fields, dirtyKeysToClear = []) => {
-      if (!fields || Object.keys(fields).length === 0) return;
-      if (isCreate) {
-        setDraft((d) => ({ ...d, ...fields }));
-        return;
-      }
-      await patchPaziente(manifestationId, patientDocId, fields);
-      dirtyKeysToClear.forEach((k) => dirtyPatientFieldsRef.current.delete(k));
-    },
-    [isCreate, manifestationId, patientDocId],
-  );
 
   const isOriginePma = !isCreate && isPazienteOriginePma(displayPatient);
   const moduli = !isCreate && displayPatient ? moduliSchedaPaziente(displayPatient) : null;
@@ -419,6 +420,10 @@ export function PazienteScheda({
   };
 
   const handleCreate = async () => {
+    if (!evento?.idEvento && !evento?.idUnivoco) {
+      alert('Evento non valido: chiudi e riapri la scheda evento.');
+      return;
+    }
     setSaving(true);
     try {
       const creato = fromDatetimeLocalValue(draft.creatoLocal);
@@ -426,8 +431,8 @@ export function PazienteScheda({
       await createPaziente(
         manifestationId,
         {
-          eventoIdUnivoco: evento.idUnivoco,
-          eventoCorrelato: evento.idEvento,
+          eventoIdUnivoco: evento.idUnivoco ?? '',
+          eventoCorrelato: evento.idEvento ?? '',
           aperta: draft.aperta,
           apertura: creato ? Timestamp.fromDate(creato) : undefined,
           esito: draft.esito,
@@ -600,7 +605,7 @@ export function PazienteScheda({
       <div className="space-y-4 p-1">
         <dl className="grid gap-3 md:grid-cols-2">
           <FormField label="Evento correlato">
-            <p className="font-mono font-semibold text-slate-800">{evento.idEvento}</p>
+            <p className="font-mono font-semibold text-slate-800">{evento?.idEvento ?? '—'}</p>
           </FormField>
           {displayPatient?.idMissione && (
             <FormField label="ID missione">
@@ -881,7 +886,7 @@ export function PazienteScheda({
       {!isOriginePma && (
       <dl className="grid gap-3 md:grid-cols-2">
         <FormField label="Evento correlato">
-          <p className="font-mono font-semibold text-slate-800">{evento.idEvento}</p>
+          <p className="font-mono font-semibold text-slate-800">{evento?.idEvento ?? '—'}</p>
         </FormField>
         {!isCreate && displayPatient?.idMissione && (
           <FormField label="ID missione">
@@ -977,7 +982,7 @@ export function PazienteScheda({
         />
       </div>
 
-      {!isOriginePma && moduli?.esitoTrasporto && (
+      {!isOriginePma && (isCreate || moduli?.esitoTrasporto) && (
       <div className="border-t border-slate-200 pt-3">
         <p className="mb-2 text-xs font-bold uppercase text-slate-600">Esito e trasporto</p>
         {!trasportoModificabile && (

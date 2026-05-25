@@ -5,8 +5,8 @@ import { parseEoQuick } from './parseCartellaClinica'
 export const EO_PAZIENTE_FIRESTORE_FIELDS = [
   'EO_GENERALE',
   'EO_NEUROLOGICO',
-  'EO_CUTE',
   'EO_TORACE',
+  'EO_CUTE',
   'EO_ADDOME',
   'EO_CAPO_COLLO',
 ] as const
@@ -104,15 +104,33 @@ export function mergeLegacyEoQuickIntoColumns(
   return cols
 }
 
+export type EoRiepilogoRow = { tab: EoTabKey; values: string[]; line: string }
+
+/** Righe «TIPO: voce1, voce2» per riepilogo UI/PDF (solo aree con almeno una voce). */
+export function buildEoRiepilogoLinesFromSelectedByTab(
+  selectedByTab: Partial<Record<EoTabKey, string[]>>,
+): EoRiepilogoRow[] {
+  const rows: EoRiepilogoRow[] = []
+  for (const tab of EO_CLINICAL_TABS) {
+    const values = (selectedByTab[tab] ?? []).map((x) => String(x).trim()).filter(Boolean)
+    if (values.length === 0) continue
+    rows.push({ tab, values, line: `${tab}: ${values.join(', ')}` })
+  }
+  return rows
+}
+
+export function buildEoRiepilogoLinesFromColumns(
+  cols: Record<EoPazienteFirestoreField, string[]>,
+): EoRiepilogoRow[] {
+  const byTab = {} as Partial<Record<EoTabKey, string[]>>
+  for (let i = 0; i < EO_CLINICAL_TABS.length; i++) {
+    byTab[EO_CLINICAL_TABS[i]] = cols[EO_PAZIENTE_FIRESTORE_FIELDS[i]] ?? []
+  }
+  return buildEoRiepilogoLinesFromSelectedByTab(byTab)
+}
+
 /** Testo PDF / riepilogo: ordine per area clinica. */
 export function formatEoColumnsForPdf(cols: Record<EoPazienteFirestoreField, string[]>): string {
-  const parts: string[] = []
-  for (let i = 0; i < EO_CLINICAL_TABS.length; i++) {
-    const tab = EO_CLINICAL_TABS[i]
-    const field = EO_PAZIENTE_FIRESTORE_FIELDS[i]
-    const arr = cols[field] ?? []
-    if (arr.length === 0) continue
-    parts.push(`${tab}: ${arr.join(', ')}`)
-  }
-  return parts.length ? parts.join(' · ') : '—'
+  const lines = buildEoRiepilogoLinesFromColumns(cols)
+  return lines.length ? lines.map((r) => r.line).join('\n') : '—'
 }

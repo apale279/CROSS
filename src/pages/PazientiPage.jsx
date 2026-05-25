@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { COLLECTIONS } from '../lib/firestorePaths';
 import { useManifestazioneCollection } from '../hooks/useManifestazioneCollection';
 import { findEvento, missioniPerEvento } from '../lib/eventoLinks';
@@ -6,7 +7,12 @@ import { formatTimestamp } from '../utils/formatters';
 import { Modal } from '../components/ui/Modal';
 import { PazienteScheda } from '../components/pazienti/PazienteScheda';
 import { PazientePmaBadges } from '../components/pazienti/PazientePmaBadges';
-import { displayEventoPazienteInLista, displayStatoPazienteInLista } from '../lib/pmaModule';
+import { displayEventoPazienteInLista, isPazienteCodiceMinore } from '../lib/pmaModule';
+import {
+  displayStatoPazienteInLista,
+  pazienteInElencoAperti,
+  pazienteInElencoChiusi,
+} from '../lib/pazienteStati';
 
 const thClass =
   'bg-slate-100 px-4 py-3 text-left text-xs font-bold uppercase text-slate-600';
@@ -46,7 +52,9 @@ function PazientiTable({ rows, eventi, onRow, emptyLabel }) {
                 >
                   <td className={`${tdClass} font-mono font-bold`}>{row.idPaziente}</td>
                   <td className={tdClass}>
-                    {[row.cognome, row.nome].filter(Boolean).join(' ') || '—'}
+                    {isPazienteCodiceMinore(row)
+                      ? `Pettorale ${row.pettorale ?? '—'}`
+                      : [row.cognome, row.nome].filter(Boolean).join(' ') || '—'}
                   </td>
                   <td className={`${tdClass} font-mono`}>{label}</td>
                   <td className={tdClass}>{displayStatoPazienteInLista(row)}</td>
@@ -71,17 +79,24 @@ export default function PazientiPage() {
   const { data: missioni } = useManifestazioneCollection(COLLECTIONS.missioni);
 
   const aperti = useMemo(
-    () =>
-      [...pazienti].filter((p) => p.aperta !== false).sort(sortByApertura),
+    () => [...pazienti].filter(pazienteInElencoAperti).sort(sortByApertura),
     [pazienti],
   );
   const chiusi = useMemo(
-    () =>
-      [...pazienti].filter((p) => p.aperta === false).sort(sortByApertura),
+    () => [...pazienti].filter(pazienteInElencoChiusi).sort(sortByApertura),
     [pazienti],
   );
 
   const [selected, setSelected] = useState(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  useEffect(() => {
+    const openId = searchParams.get('open');
+    if (!openId || loadingP) return;
+    const p = pazienti.find((x) => x._docId === openId);
+    if (p) setSelected(p);
+    setSearchParams({}, { replace: true });
+  }, [searchParams, pazienti, loadingP, setSearchParams]);
 
   const eventoForPaziente = (p) => {
     const ev = findEvento(eventi, p.eventoIdUnivoco ?? p.eventoCorrelato);
@@ -116,8 +131,8 @@ export default function PazientiPage() {
           <section>
             <h3 className="mb-1 text-sm font-bold uppercase text-slate-600">Chiusi</h3>
             <p className="mb-3 text-xs text-slate-500">
-              Chiusi per la centrale (missione conclusa). I pazienti inviati al PMA possono restare
-              attivi in tenda: controllare la colonna PMA o lo stato «PMA: …».
+              Chiusi per centrale e PMA (dimissione completata). Chi è in tenda dopo ARRIVATO H
+              resta in «Aperti» finché non è dimesso dal PMA.
             </p>
             <PazientiTable
               rows={chiusi}

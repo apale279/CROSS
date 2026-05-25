@@ -5,6 +5,14 @@ function noteTime(nota) {
   return nota.aggiornatoIl?.toMillis?.() ?? nota.creatoIl?.toMillis?.() ?? 0;
 }
 
+function tickerLabel(nota) {
+  const titolo = String(nota.titolo ?? '').trim();
+  if (titolo) return titolo.length > 96 ? `${titolo.slice(0, 96)}…` : titolo;
+  const testo = String(nota.testo ?? '').trim().replace(/\s+/g, ' ');
+  if (!testo) return 'Senza titolo';
+  return testo.length > 96 ? `${testo.slice(0, 96)}…` : testo;
+}
+
 export function DiarioImportantTicker({ note, loading, onOpenNota }) {
   const importanti = useMemo(
     () =>
@@ -33,7 +41,7 @@ export function DiarioImportantTicker({ note, loading, onOpenNota }) {
           title={nota.testo ? String(nota.testo).slice(0, 200) : nota.titolo}
         >
           <Star className="h-3.5 w-3.5 shrink-0 fill-amber-500 text-amber-500" aria-hidden />
-          {nota.titolo || 'Senza titolo'}
+          {tickerLabel(nota)}
         </button>
       );
     });

@@ -1,4 +1,4 @@
-/** Matrice permessi scheda PMA (da Rank.xlsx / documento integrazione). */
+/** Matrice permessi scheda PMA e navigazione operatori tenda. */
 export type UserRank =
   | 'Superadmin'
   | 'Centrale'
@@ -16,13 +16,29 @@ const CARTELLA_READ: UserRank[] = [
   'Infermiere',
   'Soccorritore',
 ];
-const CARTELLA_UPDATE: UserRank[] = ['Superadmin', 'Medico', 'Infermiere', 'Soccorritore'];
+/** Cartella clinica: tutti i rank PMA possono modificare (con eccezioni puntuali, es. farmaci). */
+const CARTELLA_UPDATE: UserRank[] = [
+  'Superadmin',
+  'Centrale',
+  'Medico',
+  'Infermiere',
+  'Soccorritore',
+];
 
-const DIMISSIONE_READ: UserRank[] = ['Superadmin', 'Centrale', 'Medico'];
+/** Dimissione: Infermiere e Soccorritore solo lettura. */
+const DIMISSIONE_READ: UserRank[] = [
+  'Superadmin',
+  'Centrale',
+  'Medico',
+  'Infermiere',
+  'Soccorritore',
+];
 const DIMISSIONE_UPDATE: UserRank[] = ['Superadmin', 'Centrale', 'Medico'];
 
 const INVIO_PS_READ: UserRank[] = ['Superadmin', 'Centrale', 'Medico'];
 const INVIO_PS_UPDATE: UserRank[] = ['Superadmin', 'Centrale', 'Medico'];
+
+const FARMACI_INSERT: UserRank[] = ['Superadmin', 'Centrale', 'Medico', 'Infermiere'];
 
 function allows(rank: UserRank, allowed: UserRank[], action: MatrixAction): boolean {
   if (!allowed.includes(rank)) return false;
@@ -39,6 +55,11 @@ export function schedaTabDimissioneAllows(rank: UserRank, action: MatrixAction):
 
 export function schedaTabInvioPsAllows(rank: UserRank, action: MatrixAction): boolean {
   return allows(rank, action === 'READ' ? INVIO_PS_READ : INVIO_PS_UPDATE, action);
+}
+
+/** Inserimento / modifica farmaci in cartella: non consentito al Soccorritore. */
+export function canInsertFarmaci(rank: UserRank): boolean {
+  return FARMACI_INSERT.includes(rank);
 }
 
 /** Solo Centrale può impostare stato «in arrivo». */

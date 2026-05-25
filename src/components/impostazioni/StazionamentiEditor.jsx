@@ -7,10 +7,13 @@ import { Modal } from '../ui/Modal';
 import { FormField, btnPrimary, btnSecondary, inputClass } from '../ui/FormField';
 import { SaveFeedback } from './SaveFeedback';
 
+const TIPI_STAZIONAMENTO = ['PMA', 'Base operativa', 'Parcheggio', 'Postazione', 'Altro'];
+
 function newStazionamento() {
   return {
     id: crypto.randomUUID(),
     nome: '',
+    tipo_stazionamento: '',
     indirizzo: '',
     luogo_fisico: '',
     coordinate: null,
@@ -141,6 +144,25 @@ export function StazionamentiEditor() {
                 }
                 placeholder="es. PMA Centro"
               />
+            </FormField>
+            <FormField label="Tipo stazionamento">
+              <select
+                className={inputClass}
+                value={modal.draft.tipo_stazionamento ?? ''}
+                onChange={(e) =>
+                  setModal((m) => ({
+                    ...m,
+                    draft: { ...m.draft, tipo_stazionamento: e.target.value },
+                  }))
+                }
+              >
+                <option value="">—</option>
+                {TIPI_STAZIONAMENTO.map((t) => (
+                  <option key={t} value={t}>
+                    {t}
+                  </option>
+                ))}
+              </select>
             </FormField>
             <LuogoFisicoField
               value={modal.draft.luogo_fisico}

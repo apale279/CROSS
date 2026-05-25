@@ -1,0 +1,426 @@
+[
+  {
+    "nome": "Adrenalina (Epinefrina)",
+    "dosaggi": [
+      "Fiale 1 mg / 1 ml (e.v., i.m.)"
+    ],
+    "via": "EV"
+  },
+  {
+    "nome": "Atropina Solfato",
+    "dosaggi": [
+      "Fiale 0.5 mg / 1 ml o 1 mg / 1 ml (e.v.)"
+    ],
+    "via": "EV"
+  },
+  {
+    "nome": "Amiodarone",
+    "dosaggi": [
+      "Fiale 150 mg / 3 ml (e.v.)"
+    ],
+    "via": "EV"
+  },
+  {
+    "nome": "Magnesio Solfato",
+    "dosaggi": [
+      "Fiale 2 g / 10 ml (10% o 20%) (e.v.)"
+    ],
+    "via": "EV"
+  },
+  {
+    "nome": "Calcio Gluconato",
+    "dosaggi": [
+      "Fiale 10% 1 g / 10 ml (e.v.)"
+    ],
+    "via": "EV"
+  },
+  {
+    "nome": "Glucosio",
+    "dosaggi": [
+      "Flaconi 5%, 33% (10 g / 30 ml), 50% (e.v.)"
+    ],
+    "via": "EV"
+  },
+  {
+    "nome": "Glucagone",
+    "dosaggi": [
+      "Flaconcino 1 mg (i.m., s.c.)"
+    ],
+    "via": "EV"
+  },
+  {
+    "nome": "Naloxone",
+    "dosaggi": [
+      "Fiale 0.4 mg / 1 ml (e.v., i.m., i.n.)"
+    ],
+    "via": "EV"
+  },
+  {
+    "nome": "Flumazenil",
+    "dosaggi": [
+      "Fiale 0.5 mg / 5 ml o 1 mg / 10 ml (e.v.)"
+    ],
+    "via": "EV"
+  },
+  {
+    "nome": "Carbone Attivo",
+    "dosaggi": [
+      "Flacone 50 g sospensione orale"
+    ],
+    "via": "EV"
+  },
+  {
+    "nome": "Urapidil",
+    "dosaggi": [
+      "Fiale 50 mg / 10 ml (e.v.)"
+    ],
+    "via": "EV"
+  },
+  {
+    "nome": "Labetalolo",
+    "dosaggi": [
+      "Fiale 100 mg / 20 ml (e.v.)"
+    ],
+    "via": "EV"
+  },
+  {
+    "nome": "Furosemide",
+    "dosaggi": [
+      "Fiale 20 mg / 2 ml (e.v., i.m.)",
+      "Compresse 25 mg"
+    ],
+    "via": "EV"
+  },
+  {
+    "nome": "Nifedipina",
+    "dosaggi": [
+      "Compresse 10 mg",
+      "Gocce 20 mg/ml (os, sublinguale)"
+    ],
+    "via": "EV"
+  },
+  {
+    "nome": "Isosorbide Dinitrato",
+    "dosaggi": [
+      "Caramelle/Spray sublinguale 5 mg o 1.25 mg/erogazione"
+    ],
+    "via": "EV"
+  },
+  {
+    "nome": "Acido Acetilsalicilico (ASA)",
+    "dosaggi": [
+      "Compresse 300 mg, 500 mg (os, masticabile)",
+      "Fiale 500 mg (e.v.)"
+    ],
+    "via": "EV"
+  },
+  {
+    "nome": "Ticagrelor / Clopidogrel",
+    "dosaggi": [
+      "Compresse 90 mg (Ticagrelor) / 75 mg, 300 mg (Clopidogrel)"
+    ],
+    "via": "EV"
+  },
+  {
+    "nome": "Eparina Sodica",
+    "dosaggi": [
+      "Flaconi 5000 UI/ml o 25000 UI/5ml (e.v.)"
+    ],
+    "via": "EV"
+  },
+  {
+    "nome": "Enoxaparina",
+    "dosaggi": [
+      "Siringhe preriempite 4000 UI, 6000 UI, 8000 UI (s.c.)"
+    ],
+    "via": "EV"
+  },
+  {
+    "nome": "Paracetamolo",
+    "dosaggi": [
+      "Flaconi 1000 mg / 100 ml (e.v.)",
+      "Compresse 1000 mg (os)"
+    ],
+    "via": "EV"
+  },
+  {
+    "nome": "Ketorolac Trometamina",
+    "dosaggi": [
+      "Fiale 30 mg / 1 ml (e.v., i.m.)",
+      "Gocce 10 mg/ml (os)"
+    ],
+    "via": "EV"
+  },
+  {
+    "nome": "Ibuprofene",
+    "dosaggi": [
+      "Compresse 400 mg, 600 mg",
+      "Sospensione orale bambini"
+    ],
+    "via": "EV"
+  },
+  {
+    "nome": "Diclofenac Sodico",
+    "dosaggi": [
+      "Fiale 75 mg / 3 ml (i.m.)",
+      "Compresse 50 mg"
+    ],
+    "via": "EV"
+  },
+  {
+    "nome": "Tramadolo",
+    "dosaggi": [
+      "Fiale 100 mg / 2 ml (e.v., i.m.)",
+      "Gocce 100 mg/ml"
+    ],
+    "via": "EV"
+  },
+  {
+    "nome": "Morfina Cloridrato",
+    "dosaggi": [
+      "Fiale 10 mg / 1 ml (e.v., i.m., s.c.)"
+    ],
+    "via": "EV"
+  },
+  {
+    "nome": "Fentanil",
+    "dosaggi": [
+      "Fiale 100 mcg / 2 ml o 500 mcg / 10 ml (e.v., i.n.)"
+    ],
+    "via": "EV"
+  },
+  {
+    "nome": "Midazolam",
+    "dosaggi": [
+      "Fiale 5 mg / 1 ml o 15 mg / 3 ml (e.v., i.m., i.n.)"
+    ],
+    "via": "EV"
+  },
+  {
+    "nome": "Diazepam",
+    "dosaggi": [
+      "Fiale 10 mg / 2 ml (e.v.)",
+      "Gocce 5 mg/ml",
+      "Microclismi 5 mg, 10 mg"
+    ],
+    "via": "EV"
+  },
+  {
+    "nome": "Propofol",
+    "dosaggi": [
+      "Flaconi 1% (10 mg/ml) o 2% (20 mg/ml) (e.v.)"
+    ],
+    "via": "EV"
+  },
+  {
+    "nome": "Aloperidolo",
+    "dosaggi": [
+      "Fiale 2 mg / 1 ml",
+      "Gocce 2 mg/ml"
+    ],
+    "via": "EV"
+  },
+  {
+    "nome": "Betametasone",
+    "dosaggi": [
+      "Fiale 1.5 mg, 4 mg (e.v., i.m.)",
+      "Compresse effervescenti 1 mg"
+    ],
+    "via": "EV"
+  },
+  {
+    "nome": "Metilprednisolone",
+    "dosaggi": [
+      "Flaconcini 40 mg, 125 mg, 500 mg, 1000 mg (e.v.)"
+    ],
+    "via": "EV"
+  },
+  {
+    "nome": "Idrocortisone",
+    "dosaggi": [
+      "Flaconcini 100 mg, 500 mg (Flebocortid) (e.v.)"
+    ],
+    "via": "EV"
+  },
+  {
+    "nome": "Clorfenamina Maleato",
+    "dosaggi": [
+      "Fiale 10 mg / 1 ml (e.v., i.m.)"
+    ],
+    "via": "EV"
+  },
+  {
+    "nome": "Cetirizina / Ebastina",
+    "dosaggi": [
+      "Compresse 10 mg (os)"
+    ],
+    "via": "EV"
+  },
+  {
+    "nome": "Prometazina",
+    "dosaggi": [
+      "Fiale 50 mg / 2 ml (i.m.)"
+    ],
+    "via": "EV"
+  },
+  {
+    "nome": "Salbutamolo",
+    "dosaggi": [
+      "Soluzione da nebulizzare 5 mg/ml",
+      "Spray 100 mcg/erogazione"
+    ],
+    "via": "EV"
+  },
+  {
+    "nome": "Ipratropio Bromuro",
+    "dosaggi": [
+      "Soluzione da nebulizzare 0.25 mg/ml o 0.5 mg/ml"
+    ],
+    "via": "EV"
+  },
+  {
+    "nome": "Beclometasone / Flunisolide",
+    "dosaggi": [
+      "Fiale per aerosol (es. 0.8 mg / 2 ml)"
+    ],
+    "via": "EV"
+  },
+  {
+    "nome": "Metoclopramide",
+    "dosaggi": [
+      "Fiale 10 mg / 2 ml (e.v., i.m.)",
+      "Compresse 10 mg"
+    ],
+    "via": "EV"
+  },
+  {
+    "nome": "Ondansetron",
+    "dosaggi": [
+      "Fiale 4 mg / 2 ml, 8 mg / 4 ml (e.v.)"
+    ],
+    "via": "EV"
+  },
+  {
+    "nome": "Pantoprazolo / Omeprazolo",
+    "dosaggi": [
+      "Flaconcini 40 mg (e.v.)",
+      "Compresse 20 mg, 40 mg"
+    ],
+    "via": "EV"
+  },
+  {
+    "nome": "Scopolamina Butilbromuro",
+    "dosaggi": [
+      "Fiale 20 mg / 1 ml (e.v., i.m.)",
+      "Compresse 10 mg"
+    ],
+    "via": "EV"
+  },
+  {
+    "nome": "Loperamide",
+    "dosaggi": [
+      "Compresse 2 mg (os)"
+    ],
+    "via": "EV"
+  },
+  {
+    "nome": "Diosmectite / Saccaromices",
+    "dosaggi": [
+      "Bustine (os)"
+    ],
+    "via": "EV"
+  },
+  {
+    "nome": "Sodio Alginato / Magnesio Idrossido",
+    "dosaggi": [
+      "Sospensione orale / Compresse masticabili"
+    ],
+    "via": "EV"
+  },
+  {
+    "nome": "Amoxicillina + Acido Clavulanico",
+    "dosaggi": [
+      "Compresse 875/125 mg",
+      "Flaconi 1.2 g (1000+200 mg) (e.v.)"
+    ],
+    "via": "EV"
+  },
+  {
+    "nome": "Ceftriaxone",
+    "dosaggi": [
+      "Flaconcini 1 g, 2 g (e.v., i.m.)"
+    ],
+    "via": "EV"
+  },
+  {
+    "nome": "Azitromicina",
+    "dosaggi": [
+      "Compresse 500 mg"
+    ],
+    "via": "EV"
+  },
+  {
+    "nome": "Ciprofloxacina",
+    "dosaggi": [
+      "Compresse 500 mg"
+    ],
+    "via": "EV"
+  },
+  {
+    "nome": "Fosfomicina",
+    "dosaggi": [
+      "Bustine 3 g (os)"
+    ],
+    "via": "EV"
+  },
+  {
+    "nome": "Ossibuprocaina",
+    "dosaggi": [
+      "Collirio monodose (anestetico locale occhio)"
+    ],
+    "via": "EV"
+  },
+  {
+    "nome": "Tobramicina / Tetraciclina",
+    "dosaggi": [
+      "Collirio / Pomata oftalmica"
+    ],
+    "via": "EV"
+  },
+  {
+    "nome": "Sulfadiazina Argentica",
+    "dosaggi": [
+      "Crema 1% (per ustioni)"
+    ],
+    "via": "EV"
+  },
+  {
+    "nome": "Idrocortisone Crema",
+    "dosaggi": [
+      "Crema 0.5% - 1% (punture d'insetto, eritemi)"
+    ],
+    "via": "EV"
+  },
+  {
+    "nome": "Ghiaccio Istantaneo / Cloruro di Etile",
+    "dosaggi": [
+      "Spray criogeno"
+    ],
+    "via": "EV"
+  },
+  {
+    "nome": "Soluzione Fisiologica 0.9%",
+    "dosaggi": [
+      "Flaconi 100 ml, 250 ml, 500 ml",
+      "Fialette monodose per lavaggi"
+    ],
+    "via": "EV"
+  },
+  {
+    "nome": "Ringer Lattato / Soluzione Bilanciata",
+    "dosaggi": [
+      "Flaconi 500 ml, 1000 ml"
+    ],
+    "via": "EV"
+  }
+]

@@ -40,3 +40,10 @@ export function pazienteSameEventoAsMissione(paziente, missione) {
     paziente.eventoCorrelato === missione.eventoCorrelato
   );
 }
+
+export function pazientiTrasportoPerMissione(pazienti, mis) {
+  if (!mis) return [];
+  return (pazienti ?? []).filter(
+    (p) => pazienteSameEventoAsMissione(p, mis) && p.mezzo === mis.mezzo && p.esito === ESITO_TRASPORTA,
+  );
+}

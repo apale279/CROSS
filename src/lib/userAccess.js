@@ -1,6 +1,8 @@
 /** @typedef {'CENTRALE' | 'PMA'} AccessType */
 /** @typedef {'MEDICO' | 'INFERMIERE' | 'SOCCORRITORE'} PmaRankCode */
 
+import { isPmaOperatorProfile, userHasFullCentraleAccess } from './pmaModule';
+
 export const ACCESS_TYPE = {
   CENTRALE: 'CENTRALE',
   PMA: 'PMA',
@@ -18,14 +20,15 @@ export const PMA_RANK_LABEL = {
   [PMA_RANK.SOCCORRITORE]: 'Soccorritore',
 };
 
-/** Rank per componenti portati da PMApp (title case). */
+/** Rank per componenti PMA (title case). Restituisce null se non configurato (fail-closed sui permessi). */
 export function normalizePmaRank(value) {
   const v = String(value ?? '')
     .trim()
     .toUpperCase();
   if (v === PMA_RANK.INFERMIERE) return 'Infermiere';
   if (v === PMA_RANK.SOCCORRITORE) return 'Soccorritore';
-  return 'Medico';
+  if (v === PMA_RANK.MEDICO) return 'Medico';
+  return null;
 }
 
 export function normalizeAccessType(value) {
@@ -35,9 +38,23 @@ export function normalizeAccessType(value) {
   return v === ACCESS_TYPE.PMA ? ACCESS_TYPE.PMA : ACCESS_TYPE.CENTRALE;
 }
 
+/** Rotte accessibili agli operatori PMA (accessType PMA + pmaScopeId). */
+export const PMA_OPERATOR_NAV_PATHS = ['/pma', '/pazienti', '/diario', '/account'];
+
+export function isPathAllowedForPmaOperator(pathname) {
+  const path = String(pathname ?? '').split('?')[0];
+  return PMA_OPERATOR_NAV_PATHS.some((base) => path === base || path.startsWith(`${base}/`));
+}
+
 export function profileHasCentraleAccess(profile, isSuperAdmin) {
   if (isSuperAdmin) return true;
-  if (!profile) return true;
+  if (!profile) return false;
   if (normalizeAccessType(profile.accessType) === ACCESS_TYPE.CENTRALE) return true;
-  return !String(profile.pmaScopeId ?? '').trim() && !profile.accessType;
+  return userHasFullCentraleAccess(profile, false);
+}
+
+/** Operatore PMA con rank Medico (pagina Account / firma dimissione). */
+export function isPmaMedicoAccount(profile) {
+  if (!isPmaOperatorProfile(profile)) return false;
+  return normalizePmaRank(profile?.pmaRank) === 'Medico';
 }

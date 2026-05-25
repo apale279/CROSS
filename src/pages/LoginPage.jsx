@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Navigate, useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTenantContext } from '../context/TenantContext';
 import { TenantConfigMissing } from '../components/routing/TenantConfigMissing';
@@ -39,18 +39,35 @@ function validateEmail(value) {
 
 export default function LoginPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { tenantId, loading: tenantLoading } = useTenantContext();
-  const { user, login } = useAuth();
+  const { user, profile, profileLoading, loading: authLoading, login, logout } = useAuth();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
   const [error, setError] = useState(null);
 
-  if (tenantLoading) {
+  useEffect(() => {
+    if (authLoading || !user) return;
+    if (searchParams.get('logout') === '1' || searchParams.get('forceLogout') === '1') {
+      setLoggingOut(true);
+      void logout()
+        .catch((err) => {
+          setError(err?.message ?? 'Logout non riuscito.');
+        })
+        .finally(() => {
+          setLoggingOut(false);
+          navigate('/login', { replace: true });
+        });
+    }
+  }, [authLoading, user, searchParams, logout, navigate]);
+
+  if (tenantLoading || authLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-100">
-        <p className="text-sm text-slate-600">Caricamento ambiente…</p>
+        <p className="text-sm text-slate-600">Verifica sessione…</p>
       </div>
     );
   }
@@ -60,7 +77,86 @@ export default function LoginPage() {
   }
 
   if (user) {
-    return <Navigate to="/" replace />;
+    const accessLabel = profile?.accessType
+      ? String(profile.accessType).toUpperCase()
+      : profileLoading
+        ? '…'
+        : 'profilo non caricato';
+
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-b from-slate-100 to-slate-200 px-4 py-10">
+        <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8 shadow-lg">
+          <div className="flex flex-col items-center gap-2">
+            <AppLogo className="h-16 w-auto" />
+            <p className="text-sm font-semibold text-slate-800">Sessione già attiva</p>
+          </div>
+
+          <div className="mt-6 space-y-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+            <p>
+              Sei connesso come <strong>{user.email ?? 'utente'}</strong>
+              {profile?.nome ? (
+                <>
+                  {' '}
+                  (<span>{profile.nome}</span>)
+                </>
+              ) : null}
+              .
+            </p>
+            <p className="text-xs text-amber-900/80">
+              Tipo accesso: <strong>{accessLabel}</strong>
+              {profileLoading ? ' — aggiornamento profilo…' : null}
+            </p>
+            <p className="text-xs leading-relaxed text-amber-900/80">
+              Firebase mantiene la sessione su questo browser. Usa <strong>Forza logout</strong> per
+              disconnetterti e accedere con un altro account.
+            </p>
+          </div>
+
+          {error ? (
+            <p className="mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+              {error}
+            </p>
+          ) : null}
+
+          <div className="mt-6 flex flex-col gap-2 sm:flex-row">
+            <button
+              type="button"
+              disabled={loggingOut}
+              onClick={() => navigate('/', { replace: true })}
+              className="flex-1 rounded-lg bg-sky-600 py-2.5 text-sm font-bold uppercase tracking-wide text-white hover:bg-sky-700 disabled:opacity-60"
+            >
+              Continua alla dashboard
+            </button>
+            <button
+              type="button"
+              disabled={loggingOut}
+              onClick={() => {
+                setError(null);
+                setLoggingOut(true);
+                void logout()
+                  .then(() => navigate('/login', { replace: true }))
+                  .catch((err) => {
+                    setError(err?.message ?? 'Logout non riuscito.');
+                  })
+                  .finally(() => setLoggingOut(false));
+              }}
+              className="flex-1 rounded-lg border border-red-300 bg-red-50 py-2.5 text-sm font-bold uppercase tracking-wide text-red-900 hover:bg-red-100 disabled:opacity-60"
+            >
+              {loggingOut ? 'Disconnessione…' : 'Forza logout'}
+            </button>
+          </div>
+
+          {import.meta.env.DEV ? (
+            <p className="mt-4 text-center text-xs text-slate-500">
+              Scorciatoia dev:{' '}
+              <Link to="/login?forceLogout=1" className="font-medium text-sky-700 underline">
+                /login?forceLogout=1
+              </Link>
+            </p>
+          ) : null}
+        </div>
+      </div>
+    );
   }
 
   const onSubmit = async (e) => {

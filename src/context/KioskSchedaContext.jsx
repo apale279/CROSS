@@ -5,6 +5,8 @@ import { Modal } from '../components/ui/Modal';
 import { EventoScheda } from '../components/eventi/EventoScheda';
 import { MissioneScheda } from '../components/missioni/MissioneScheda';
 import { MezzoScheda } from '../components/mezzi/MezzoScheda';
+import { PazienteScheda } from '../components/pazienti/PazienteScheda';
+import { findEvento, missioniPerEvento } from '../lib/eventoLinks';
 
 const KioskSchedaContext = createContext(null);
 
@@ -14,6 +16,7 @@ export function KioskSchedaProvider({ children }) {
   const { data: pazienti } = useManifestazioneCollection(COLLECTIONS.pazienti);
   const { data: mezzi } = useManifestazioneCollection(COLLECTIONS.mezzi);
   const [modal, setModal] = useState(null);
+  const [pazienteModal, setPazienteModal] = useState(null);
 
   const closeModal = useCallback(() => setModal(null), []);
 
@@ -88,12 +91,44 @@ export function KioskSchedaProvider({ children }) {
               mezzi={mezzi}
               allMissioni={missioni}
               existingEventi={eventi}
+              pazienti={pazienti}
               onOpenEvento={openEvento}
+              onOpenPaziente={(p) => {
+                setPazienteModal(pazienti.find((x) => x._docId === p._docId) ?? p);
+              }}
             />
           )}
           {modal.type === 'mezzo' && mezzoLive && (
             <MezzoScheda readOnly mezzo={mezzoLive} />
           )}
+        </Modal>
+      )}
+      {pazienteModal && (
+        <Modal
+          title={`Paziente ${pazienteModal.idPaziente ?? ''} (sola lettura)`}
+          onClose={() => setPazienteModal(null)}
+          wide
+        >
+          <PazienteScheda
+            evento={
+              findEvento(eventi, pazienteModal.eventoIdUnivoco ?? pazienteModal.eventoCorrelato) ?? {
+                _docId: '',
+                idEvento: pazienteModal.eventoCorrelato || '?',
+                idUnivoco: pazienteModal.eventoIdUnivoco || '',
+                stato: false,
+              }
+            }
+            paziente={pazienti.find((p) => p._docId === pazienteModal._docId) ?? pazienteModal}
+            missioniEvento={missioniPerEvento(
+              missioni,
+              findEvento(eventi, pazienteModal.eventoIdUnivoco ?? pazienteModal.eventoCorrelato) ?? {
+                idEvento: pazienteModal.eventoCorrelato,
+              },
+            )}
+            allPazienti={pazienti}
+            onClose={() => setPazienteModal(null)}
+            onSaved={() => {}}
+          />
         </Modal>
       )}
     </KioskSchedaContext.Provider>

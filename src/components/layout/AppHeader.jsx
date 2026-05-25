@@ -9,6 +9,8 @@ import { resetDashboardLayout } from '../../lib/dashboardLayout';
 import { useKioskPopOutContextOptional } from '../../context/KioskPopOutContext';
 import { AppLogo } from '../brand/AppLogo';
 import { usePmaAccess } from '../../hooks/usePmaAccess';
+import { isPmaMedicoAccount } from '../../lib/userAccess';
+import { AccessDebugStrip } from './AccessDebugStrip';
 
 const navClass = ({ isActive }) =>
   `rounded border px-3 py-2 text-sm font-bold uppercase tracking-wide ${
@@ -41,9 +43,10 @@ export function AppHeader() {
   const { openNuovoEvento } = useEventoScheda();
   const { online, lastSyncAt, error } = useFirestoreSync();
   const kioskPopOut = useKioskPopOutContextOptional();
-  const { fullCentrale, scopeId, accessiblePma } = usePmaAccess();
+  const { fullCentrale, scopeId, restrictedNav, accessiblePma } = usePmaAccess();
   const [syncLabel, setSyncLabel] = useState('—');
-  const pmaOnly = Boolean(scopeId);
+  const pmaOnly = Boolean(restrictedNav);
+  const showMedicoAccount = Boolean(isPmaMedicoAccount(profile));
 
   useEffect(() => {
     const tick = () => setSyncLabel(formatSyncTime(lastSyncAt));
@@ -57,11 +60,21 @@ export function AppHeader() {
   const isDashboard = pathname === '/' || pathname === '';
 
   return (
-    <header className="flex shrink-0 flex-wrap items-center gap-2 border-b border-slate-300 bg-white px-4 py-2">
-      <Link to={pmaOnly ? `/pma/${encodeURIComponent(scopeId)}` : '/'} className="flex items-center gap-2">
+    <>
+      <AccessDebugStrip />
+      <header className="flex shrink-0 flex-wrap items-center gap-2 border-b border-slate-300 bg-white px-4 py-2">
+      <Link
+        to={pmaOnly ? (scopeId ? `/pma/${encodeURIComponent(scopeId)}` : '/pma') : '/'}
+        className="flex items-center gap-2"
+      >
         <AppLogo className="h-9 w-auto" />
         <span className="text-sm font-bold uppercase tracking-wide text-slate-800">CROSS</span>
       </Link>
+      {showMedicoAccount ? (
+        <NavLink to="/account" className={navClass}>
+          Account
+        </NavLink>
+      ) : null}
       <div className="flex flex-wrap items-center gap-2">
         <span
           className={`h-2.5 w-2.5 shrink-0 rounded-full ${
@@ -110,10 +123,16 @@ export function AppHeader() {
         {pmaOnly ? (
           <>
             <NavLink
-              to={`/pma/${encodeURIComponent(scopeId)}`}
+              to={scopeId ? `/pma/${encodeURIComponent(scopeId)}` : '/pma'}
               className={navClass}
             >
-              {accessiblePma[0]?.nome ?? 'PMA'}
+              PMA
+            </NavLink>
+            <NavLink to="/pazienti" className={navClass}>
+              Pazienti
+            </NavLink>
+            <NavLink to="/diario" className={navClass}>
+              Diario
             </NavLink>
           </>
         ) : (
@@ -167,5 +186,6 @@ export function AppHeader() {
         </button>
       </nav>
     </header>
+    </>
   );
 }

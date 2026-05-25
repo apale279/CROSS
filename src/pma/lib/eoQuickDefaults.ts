@@ -1,14 +1,8 @@
-﻿import { EO_CLINICAL_TABS } from './multilineList'
-import { EO_OPZIONI_RAPIDE } from '../types/cartellaClinica'
-import { normalizeEoQuickLabels } from './eoQuickSelection'
+﻿import { structuredEoQuickGroupRows } from './eoStructuredDefaults'
 
 export type EoQuickGroupRow = { title: string; labels: string[] }
 
-/** Stesso schema usato in impostazioni manifestazione / `useManifestazioneListeCliniche`. */
+/** Gruppi EO di fallback (PDF / manifestazione senza liste su Firestore). */
 export function defaultEoQuickGroupRows(): EoQuickGroupRow[] {
-  const fallback = [...EO_OPZIONI_RAPIDE]
-  return EO_CLINICAL_TABS.map((title, i) => ({
-    title,
-    labels: normalizeEoQuickLabels(i === 0 ? fallback : []),
-  }))
+  return structuredEoQuickGroupRows()
 }

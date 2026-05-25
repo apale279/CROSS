@@ -206,9 +206,9 @@
   user-select: none;
 }
 .pma-tab--active {
-  color: #2563eb;
-  border-bottom-color: #2563eb;
-  font-weight: 500;
+  color: #0369a1;
+  border-bottom-color: #0284c7;
+  font-weight: 600;
 }
 @media (min-width: 481px) {
   .pma-tab { flex: 1 1 auto; }
@@ -223,12 +223,14 @@
    INTESTAZIONE SEZIONE
    ════════════════════════════════════════════════ */
 .pma-section-hdr {
-  font-size: var(--pma-section-size);
+  font-size: 0.75rem;
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: #94a3b8;
-  padding: 5px var(--pma-field-pad-h);
-  border-bottom: 0.5px solid #e2e8f0;
+  letter-spacing: 0.05em;
+  color: #475569;
+  padding: 8px var(--pma-field-pad-h);
+  border-bottom: 1px solid #e2e8f0;
+  background: #f8fafc;
 }
 
 

@@ -9,8 +9,13 @@ import {
 } from '@pma/types/dimissione'
 import { SignatureCanvas } from './SignatureCanvas'
 import { PmaFieldGuard } from '../PmaFieldGuard'
-import { buildMailtoReportPaziente, defaultPdfFilename } from '@pma/lib/pdf/pazientePdfHelpers'
+import { defaultPdfFilename } from '@pma/lib/pdf/pazientePdfHelpers'
+import { createPdfObjectUrl, printPdfBlob, revokePdfObjectUrl, tryOpenPdfInNewTab } from '@pma/lib/pdf/pdfBlobActions'
+import { resolveMedicoFirmaPngSrc, resolveMedicoFirmaSrc } from '@pma/lib/medicoFirma'
+import { rasterizeFirmaDataUrlToPng } from '@pma/lib/signatureSvg'
+import { PdfPreviewModal } from './PdfPreviewModal'
 import type { PresetDimissioneVoce } from '@pma/types/manifestazioneImpostazioni'
+import { btnDanger, btnPrimary, btnSecondary } from '@pma/cross/uiTokens'
 
 type Props = {
   p: Paziente
@@ -31,14 +36,12 @@ type Props = {
   presetDimissione?: PresetDimissioneVoce[]
   /** Elenco prestazioni manifestazione: stesso ordine della cartella clinica nel PDF. */
   prestazioniManifestazioneLista?: string[]
-  /** Dopo dimissione confermata (es. torna alla dashboard PMA). */
-  onDimesso?: () => void
 }
 
 /**
- * Sezione 4 — Dimissione (SchedaPaziente v2, §5 MD).
- * Campi dimissione editabili da **Superadmin, Centrale o Medico** con scheda aperta (matrice Rank).
- * Chiusura definitiva (**Dimetti**) e stato **Dimesso**: solo **Medico** con scheda aperta (tab Dimissioni).
+ * Sezione 4 — Dimissione.
+ * Modifica: Superadmin, Centrale, Medico. Infermiere e Soccorritore: sola lettura.
+ * Chiusura definitiva (**Dimetti**): solo Medico con scheda aperta.
  */
 export function DimissioneSection({
   p,
@@ -54,7 +57,6 @@ export function DimissioneSection({
   rifiutoInvioPs = '',
   presetDimissione = [],
   prestazioniManifestazioneLista = [],
-  onDimesso,
 }: Props) {
   const dimissioneEdit = canEditDimissioneTab && canEditScheda
   const canChiudiDimetti = Boolean(canEditScheda && user && user.rank === 'Medico')
@@ -64,6 +66,13 @@ export function DimissioneSection({
   const [replaceFirma, setReplaceFirma] = useState(false)
   const [pdfBusy, setPdfBusy] = useState(false)
   const [pdfErr, setPdfErr] = useState<string | null>(null)
+  const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string | null>(null)
+  const [pdfPreviewFilename, setPdfPreviewFilename] = useState<string | null>(null)
+  const [pdfPreviewBlob, setPdfPreviewBlob] = useState<Blob | null>(null)
+
+  useEffect(() => {
+    return () => revokePdfObjectUrl(pdfPreviewUrl)
+  }, [pdfPreviewUrl])
 
   useEffect(() => {
     setNoteDraft(p.dimissione_note)
@@ -79,9 +88,7 @@ export function DimissioneSection({
   }
 
   const firmaMedicoProfilo =
-    isMedico && user
-      ? (user.firma_medico_base64?.trim() || user.firmaUrl?.trim() || null)
-      : null
+    isMedico && user ? resolveMedicoFirmaSrc(user) : null
   const firmaMedicoPreview = p.dimissione_firma_medico_base64 ?? firmaMedicoProfilo
 
   async function handleSaveFirmaPaziente(dataUrl: string) {
@@ -96,10 +103,11 @@ export function DimissioneSection({
     if (!canChiudiDimetti || !user || user.rank !== 'Medico') return
     setDimettiBusy(true)
     try {
-      const snap =
-        user.firma_medico_base64?.trim() ||
-        user.firmaUrl?.trim() ||
-        null
+      let snap = user.firma_medico_base64?.trim() || null
+      const src = resolveMedicoFirmaSrc(user)
+      if (!snap && src) {
+        snap = await rasterizeFirmaDataUrlToPng(src)
+      }
       await write({
         aperto: false,
         stato: 'dimesso',
@@ -108,28 +116,40 @@ export function DimissioneSection({
         dimissione_firma_medico_url: deleteField(),
       })
       setDimettiOpen(false)
-      onDimesso?.()
     } finally {
       setDimettiBusy(false)
     }
   }
 
-  async function handleDownloadPdf() {
+  async function buildCurrentPdfBlob() {
+    const { buildPazientePdfBlob } = await import('../../lib/pdf/pazientePdfReport')
+    return buildPazientePdfBlob(p, {
+      manifestazioneNome: reportManifestazioneNome,
+      pmaNome: reportPmaNome,
+      firmaMedicoProfiloDataUrl: resolveMedicoFirmaPngSrc(user) ?? firmaMedicoProfilo,
+      prestazioniManifestazioneLista,
+      ...pdfManifestazioneTesti,
+    })
+  }
+
+  function closePdfPreview() {
+    revokePdfObjectUrl(pdfPreviewUrl)
+    setPdfPreviewUrl(null)
+    setPdfPreviewFilename(null)
+    setPdfPreviewBlob(null)
+  }
+
+  async function handlePreviewPdf() {
     setPdfErr(null)
     setPdfBusy(true)
     try {
-      const [{ buildPazientePdfBlob }, { saveAs }] = await Promise.all([
-        import('../../lib/pdf/pazientePdfReport'),
-        import('file-saver'),
-      ])
-      const blob = await buildPazientePdfBlob(p, {
-        manifestazioneNome: reportManifestazioneNome,
-        pmaNome: reportPmaNome,
-        firmaMedicoProfiloDataUrl: firmaMedicoProfilo,
-        prestazioniManifestazioneLista,
-        ...pdfManifestazioneTesti,
-      })
-      saveAs(blob, defaultPdfFilename(p))
+      closePdfPreview()
+      const blob = await buildCurrentPdfBlob()
+      const fname = defaultPdfFilename(p)
+      const url = createPdfObjectUrl(blob)
+      setPdfPreviewBlob(blob)
+      setPdfPreviewFilename(fname)
+      setPdfPreviewUrl(url)
     } catch (e) {
       setPdfErr(e instanceof Error ? e.message : 'Generazione PDF non riuscita.')
     } finally {
@@ -137,40 +157,14 @@ export function DimissioneSection({
     }
   }
 
-  async function handleInviaEmailPdf() {
-    if (!dimissioneEdit) return
-    let to = p.email?.trim() ?? ''
-    if (!to) {
-      const entered = window.prompt(
-        'Email del destinatario non presente sulla scheda. Inserisci l’indirizzo email per aprire il messaggio.',
-      )
-      if (!entered?.trim()) return
-      to = entered.trim()
-    }
+  async function handlePrintPdf() {
     setPdfErr(null)
     setPdfBusy(true)
     try {
-      const [{ buildPazientePdfBlob }, { saveAs }] = await Promise.all([
-        import('../../lib/pdf/pazientePdfReport'),
-        import('file-saver'),
-      ])
-      const blob = await buildPazientePdfBlob(p, {
-        manifestazioneNome: reportManifestazioneNome,
-        pmaNome: reportPmaNome,
-        firmaMedicoProfiloDataUrl: firmaMedicoProfilo,
-        prestazioniManifestazioneLista,
-        ...pdfManifestazioneTesti,
-      })
-      const fname = defaultPdfFilename(p)
-      saveAs(blob, fname)
-      const mail = buildMailtoReportPaziente({
-        toEmail: to,
-        pazienteIdVisibile: p.id_paziente_visibile,
-        pdfFilename: fname,
-      })
-      window.location.assign(mail)
+      const blob = pdfPreviewBlob ?? (await buildCurrentPdfBlob())
+      await printPdfBlob(blob)
     } catch (e) {
-      setPdfErr(e instanceof Error ? e.message : 'Operazione non riuscita.')
+      setPdfErr(e instanceof Error ? e.message : 'Stampa PDF non riuscita.')
     } finally {
       setPdfBusy(false)
     }
@@ -193,6 +187,11 @@ export function DimissioneSection({
 
   return (
     <section className="min-w-0 overflow-hidden rounded-lg border border-slate-200 bg-white">
+      {canEditScheda && !canEditDimissioneTab ? (
+        <p className="border-b border-amber-100 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+          Dimissione in sola lettura per il tuo profilo operatore.
+        </p>
+      ) : null}
       <div className="flex flex-col gap-2 border-b border-slate-100 px-3 py-2 sm:flex-row sm:items-start sm:justify-end">
         {p.dimesso_at ? (
           <p className="shrink-0 text-xs text-slate-500">
@@ -203,7 +202,6 @@ export function DimissioneSection({
           </p>
         ) : null}
       </div>
-
 
       <div className="space-y-0">
         <PmaFieldGuard fieldKey="dimissione_esito" className="pma-row block">
@@ -418,83 +416,78 @@ export function DimissioneSection({
                 className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950"
                 role="status"
               >
-                {isMedico ? 'Firma non configurata' : 'Firma medico non disponibile (nessuna copia su scheda e profilo non applicabile a questa vista).'}
+                {isMedico
+                  ? 'Firma non configurata — apri Account in alto a sinistra per caricarla.'
+                  : 'Firma medico non disponibile (nessuna copia su scheda e profilo non applicabile a questa vista).'}
               </div>
             )}
           </div>
         </div>
 
-        <div className="border-t border-slate-200">
-          <div className="pma-section-hdr">Report PDF</div>
-          {pdfErr ? (
-            <p className="mt-2 text-sm text-red-700" role="alert">
-              {pdfErr}
-            </p>
-          ) : null}
-          <div className="flex flex-wrap items-center gap-2 px-3 pb-4">
-            <button
-              type="button"
-              disabled={pdfBusy}
-              onClick={() => void handleDownloadPdf()}
-              className="inline-flex h-10 items-center justify-center rounded-lg border border-slate-300 bg-white px-4 text-sm font-bold uppercase text-slate-800 shadow-sm hover:bg-slate-50 disabled:opacity-50"
-            >
-              {pdfBusy ? 'Generazione…' : 'Scarica PDF'}
-            </button>
-            {user?.rank === 'Medico' ? (
+        <div className="border-t border-slate-200 bg-gradient-to-b from-slate-50 to-white px-4 py-8">
+          {canChiudiDimetti ? (
+            <div className="mb-6 flex w-full justify-center">
               <button
                 type="button"
-                disabled={pdfBusy}
-                onClick={() => void handleInviaEmailPdf()}
-                className="inline-flex h-10 items-center justify-center rounded-lg bg-slate-800 px-4 text-sm font-bold uppercase text-white shadow-sm hover:bg-slate-900 disabled:opacity-50"
+                onClick={() => setDimettiOpen(true)}
+                className={`${btnDanger} w-full max-w-lg`}
               >
-                Invia via Email
+                Dimetti paziente
               </button>
-            ) : null}
-            {pdfBusy ? (
-              <span className="inline-flex items-center gap-2 text-xs text-slate-500">
-                <span
-                  className="h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-slate-700"
-                  aria-hidden
-                />
-                Elaborazione PDF…
-              </span>
-            ) : null}
-          </div>
-        </div>
+            </div>
+          ) : null}
 
-        {canChiudiDimetti ? (
-          <div className="flex w-full justify-center border-t border-slate-200 bg-gradient-to-b from-slate-50 to-white px-4 py-8">
-            <button
-              type="button"
-              onClick={() => setDimettiOpen(true)}
-              className="pma-theme-skip inline-flex h-12 w-full max-w-lg min-w-[14rem] items-center justify-center rounded-xl border-2 border-red-900 bg-red-600 px-8 text-sm font-bold uppercase tracking-wide text-white shadow-lg ring-2 ring-red-500/40 hover:bg-red-700"
-            >
-              DIMETTI PAZIENTE
-            </button>
-          </div>
-        ) : null}
-
-        <div className="border-t-2 border-violet-200 bg-violet-50/40 px-4 py-8">
-          <p className="mb-3 text-center text-xs font-bold uppercase tracking-wide text-violet-900">
-            Stampa referto
-          </p>
           {pdfErr ? (
-            <p className="mb-2 text-center text-sm text-red-700" role="alert">
+            <p className="mb-4 text-center text-sm text-red-700" role="alert">
               {pdfErr}
             </p>
           ) : null}
-          <div className="flex justify-center">
+
+          <div className="mx-auto flex max-w-2xl flex-col items-stretch justify-center gap-3 sm:flex-row">
             <button
               type="button"
               disabled={pdfBusy}
-              onClick={() => void handleDownloadPdf()}
-              className="pma-theme-skip inline-flex h-12 w-full max-w-lg items-center justify-center rounded-xl border-2 border-violet-800 bg-violet-700 px-8 text-sm font-bold uppercase tracking-wide text-white shadow-lg hover:bg-violet-800 disabled:opacity-50"
+              onClick={() => void handlePreviewPdf()}
+              className={`${btnSecondary} flex-1`}
             >
-              {pdfBusy ? 'Generazione PDF…' : 'STAMPA PDF'}
+              {pdfBusy ? 'Generazione…' : 'Apri PDF'}
+            </button>
+            <button
+              type="button"
+              disabled={pdfBusy}
+              onClick={() => void handlePrintPdf()}
+              className={`${btnPrimary} flex-1`}
+            >
+              {pdfBusy ? 'Generazione…' : 'Stampa PDF'}
             </button>
           </div>
+
+          {pdfBusy ? (
+            <p className="mt-3 flex items-center justify-center gap-2 text-xs text-slate-500">
+              <span
+                className="h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-slate-700"
+                aria-hidden
+              />
+              Elaborazione PDF…
+            </p>
+          ) : null}
         </div>
       </div>
+
+      {pdfPreviewUrl ? (
+        <PdfPreviewModal
+          url={pdfPreviewUrl}
+          filename={pdfPreviewFilename ?? undefined}
+          title={`Referto — ${p.id_paziente_visibile}`}
+          onClose={closePdfPreview}
+          onPrint={() => void handlePrintPdf()}
+          onOpenNewTab={() => {
+            if (pdfPreviewUrl && !tryOpenPdfInNewTab(pdfPreviewUrl)) {
+              setPdfErr('Popup bloccato: consenti le finestre per questo sito oppure usa l’anteprima integrata.')
+            }
+          }}
+        />
+      ) : null}
 
       {dimettiOpen ? (
         <div
@@ -509,14 +502,14 @@ export function DimissioneSection({
             </h3>
             <p className="mt-3 text-sm text-slate-600">
               Sei sicuro? Una volta dimesso, il paziente verrà chiuso e non sarà più possibile modificare i
-              dati.
+              dati. Resti sulla scheda in sola lettura.
             </p>
             <div className="mt-6 flex flex-wrap justify-end gap-2">
               <button
                 type="button"
                 disabled={dimettiBusy}
                 onClick={() => setDimettiOpen(false)}
-                className="inline-flex h-10 items-center justify-center rounded-md border border-slate-300 bg-white px-4 text-sm font-bold uppercase text-slate-800 hover:bg-slate-50 disabled:opacity-50"
+                className={btnSecondary}
               >
                 Annulla
               </button>
@@ -524,9 +517,9 @@ export function DimissioneSection({
                 type="button"
                 disabled={dimettiBusy}
                 onClick={() => void handleDimettiConfirm()}
-                className="inline-flex h-10 items-center justify-center rounded-md bg-red-700 px-4 text-sm font-bold uppercase text-white hover:bg-red-800 disabled:opacity-50"
+                className={btnDanger}
               >
-                {dimettiBusy ? 'Chiusura…' : 'Conferma e chiudi scheda'}
+                {dimettiBusy ? 'Chiusura…' : 'Conferma dimissione'}
               </button>
             </div>
           </div>

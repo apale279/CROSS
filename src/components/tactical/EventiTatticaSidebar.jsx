@@ -7,6 +7,7 @@ import { eventoOnTacticalBoard } from '../../lib/tacticalBoard';
 import { isMissioneAttiva } from '../../lib/mezzoMissione';
 import { NuovoEventoRapidoForm } from './NuovoEventoRapidoForm';
 import { EventoStatoRapidoButtons } from './EventoStatoRapidoButtons';
+import { MissionePmaInvioPsBadge } from '../missioni/MissionePmaInvioPsBadge';
 
 export const EVENTO_DRAG_MIME = 'text/x-cross-evento';
 
@@ -142,9 +143,12 @@ export function EventiTatticaSidebar({
                         key={mis._docId}
                         className="rounded border border-violet-100 bg-violet-50/40 px-1.5 py-1"
                       >
-                        <p className="font-mono text-[10px] font-semibold text-violet-800">
-                          {mis.idMissione} · {mis.mezzo}
-                          <span className="ml-1 font-normal text-violet-600">({mis.stato})</span>
+                        <p className="flex flex-wrap items-center gap-1 font-mono text-[10px] font-semibold text-violet-800">
+                          <span>
+                            {mis.idMissione} · {mis.mezzo}
+                            <span className="ml-1 font-normal text-violet-600">({mis.stato})</span>
+                          </span>
+                          <MissionePmaInvioPsBadge missione={mis} />
                         </p>
                         <EventoStatoRapidoButtons
                           missione={mis}

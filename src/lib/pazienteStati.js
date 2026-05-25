@@ -15,10 +15,11 @@
 
 import {
   isPazienteOriginePma,
-  normalizeStatoPzPma,
+  isPazienteCodiceMinore,
   pazienteHaDestinazionePma,
   pazienteHaSchedaPma,
-  STATO_PZ_PMA,
+  pazientePmaChiuso,
+  pazientePmaAperto,
   statoPzPmaLabel,
 } from './pmaModule';
 
@@ -33,16 +34,34 @@ export function isChiusoCentrale(paziente) {
 /** Ha ancora un percorso PMA attivo (non dimesso). */
 export function isAttivoPma(paziente) {
   if (!pazienteHaSchedaPma(paziente)) return false;
-  return paziente?.statoPzPma !== 'DIMESSO';
+  return pazientePmaAperto(paziente);
 }
 
-/** Esito/mezzo/destinazione centrale modificabili (prima di chiusura missione e ciclo PMA). */
+/**
+ * Elenco centrale «Chiusi»: missione/trasporto concluso e, se inviato al PMA, anche dimesso in tenda.
+ * Un centrale ARRIVATO H ma ancora in carico al PMA resta in «Aperti».
+ */
+export function pazienteInElencoChiusi(paziente) {
+  if (!paziente) return false;
+  if (isPazienteCodiceMinore(paziente) || isPazienteOriginePma(paziente)) {
+    return pazientePmaChiuso(paziente);
+  }
+  if (!isChiusoCentrale(paziente)) return false;
+  if (!pazienteHaDestinazionePma(paziente)) return true;
+  return pazientePmaChiuso(paziente);
+}
+
+/** Elenco centrale «Aperti» (complemento di {@link pazienteInElencoChiusi}). */
+export function pazienteInElencoAperti(paziente) {
+  return Boolean(paziente) && !pazienteInElencoChiusi(paziente);
+}
+
+/** Esito/mezzo/destinazione centrale modificabili fino a chiusura missione (ARRIVATO H). */
 export function isTrasportoCentraleModificabile(paziente) {
   if (!paziente) return true;
   if (isPazienteOriginePma(paziente)) return false;
   if (paziente.stato === 'ARRIVATO H') return false;
-  const pmaStato = normalizeStatoPzPma(paziente.statoPzPma);
-  if (pmaStato && pmaStato !== STATO_PZ_PMA.DIMESSO) return false;
+  if (paziente.aperta === false) return false;
   return true;
 }
 
@@ -66,6 +85,9 @@ export function chiusuraCentraleLabel(paziente) {
 
 /** Colonna «Stato» in elenco pazienti: centrale e, se PMA, anche stato tenda. */
 export function displayStatoPazienteInLista(paziente) {
+  if (isPazienteCodiceMinore(paziente)) {
+    return statoPzPmaLabel(paziente.statoPzPma) ?? 'Codice minore';
+  }
   if (isPazienteOriginePma(paziente)) {
     return statoPzPmaLabel(paziente.statoPzPma) ?? '—';
   }

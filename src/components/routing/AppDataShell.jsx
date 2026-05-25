@@ -1,6 +1,8 @@
 import { Outlet } from 'react-router-dom';
 import { FirestoreSyncProvider } from '../../context/FirestoreSyncContext';
 import { ManifestazioneDataProvider } from '../../context/ManifestazioneDataContext';
+import { EventoSchedaProvider } from '../../context/EventoSchedaContext';
+import { GoogleMapsProvider } from '../../context/GoogleMapsContext';
 import { useTenantContext } from '../../context/TenantContext';
 import { TenantConfigMissing } from './TenantConfigMissing';
 
@@ -20,11 +22,15 @@ function AppDataShellInner() {
   }
 
   return (
-    <FirestoreSyncProvider>
-      <ManifestazioneDataProvider>
-        <Outlet />
-      </ManifestazioneDataProvider>
-    </FirestoreSyncProvider>
+    <GoogleMapsProvider>
+      <FirestoreSyncProvider>
+        <ManifestazioneDataProvider>
+          <EventoSchedaProvider>
+            <Outlet />
+          </EventoSchedaProvider>
+        </ManifestazioneDataProvider>
+      </FirestoreSyncProvider>
+    </GoogleMapsProvider>
   );
 }
 

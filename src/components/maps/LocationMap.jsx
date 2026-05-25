@@ -26,6 +26,8 @@ export function LocationMap({
   fallbackCenterAddress,
   showSearch = false,
   defaultPickMode = false,
+  /** Sempre visibile (es. AddressPicker in modali). */
+  alwaysShow = false,
   pickMode: pickModeProp,
 }) {
   const containerRef = useRef(null);
@@ -86,7 +88,7 @@ export function LocationMap({
   const coord = parseCoordinate(coordinate);
   const coordKey = coord ? `${coord.lat},${coord.lng}` : '';
   const hint = fallbackCenterAddress?.trim();
-  const needsMap = Boolean(coord) || pickMode || Boolean(hint);
+  const needsMap = alwaysShow || Boolean(coord) || pickMode || Boolean(hint);
 
   useEffect(() => {
     if (!mapsApiReady || !needsMap) {
