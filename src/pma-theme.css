@@ -649,3 +649,61 @@
   cursor: pointer;
   font-size: 12px;
 }
+
+
+/* ════════════════════════════════════════════════
+   VISTA PMA MOBILE — solo scroll verticale
+   ════════════════════════════════════════════════ */
+.pma-viewport {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: clip;
+  overflow-wrap: break-word;
+  touch-action: pan-y;
+}
+
+@supports not (overflow: clip) {
+  .pma-viewport {
+    overflow-x: hidden;
+  }
+}
+
+.pma-viewport :is(img, video, canvas, iframe, svg, table, pre) {
+  max-width: 100%;
+}
+
+.pma-viewport input,
+.pma-viewport select,
+.pma-viewport textarea,
+.pma-viewport button {
+  max-width: 100%;
+}
+
+.pma-viewport .pma-field input,
+.pma-viewport .pma-field select,
+.pma-viewport .pma-field textarea {
+  width: 100%;
+}
+
+@media (max-width: 640px) {
+  .pma-viewport .pma-tab {
+    white-space: normal;
+    line-height: 1.25;
+    hyphens: auto;
+  }
+
+  .pma-viewport .pma-field--br {
+    border-right: none;
+  }
+
+  .pma-viewport .pma-prest-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .pma-viewport .pma-pv-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+}

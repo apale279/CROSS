@@ -33,6 +33,8 @@ import { nextStatoMissione } from '../utils/missionStati';
 import {
   DEFAULT_DASHBOARD_LAYOUT,
   loadDashboardLayout,
+  normalizeDashboardLayout,
+  PMA_W,
   saveDashboardLayout,
 } from '../lib/dashboardLayout';
 
@@ -100,7 +102,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     const onReset = () => {
-      setLayout({ ...DEFAULT_DASHBOARD_LAYOUT });
+      setLayout(normalizeDashboardLayout({ ...DEFAULT_DASHBOARD_LAYOUT }));
       setZOrder(['operativo', 'mezzi', 'mappa', 'pma']);
       setOperativoFullscreen(false);
       setDashboardView('operativo');
@@ -114,11 +116,17 @@ export default function DashboardPage() {
   }, [layout, manifestationId]);
 
   const updatePanel = useCallback((id, patch) => {
-    setLayout((prev) => ({ ...prev, [id]: { ...prev[id], ...patch } }));
+    setLayout((prev) => normalizeDashboardLayout({ ...prev, [id]: { ...prev[id], ...patch } }));
   }, []);
 
   const focusPanel = useCallback((id) => {
-    setZOrder((prev) => [...prev.filter((x) => x !== id), id]);
+    setZOrder((prev) => {
+      if (id === 'mappa' || id === 'pma') {
+        const rest = prev.filter((x) => x !== 'mappa' && x !== 'pma');
+        return [...rest, 'mappa', 'pma'];
+      }
+      return [...prev.filter((x) => x !== id), id];
+    });
   }, []);
 
   const zIndexFor = (id) => 10 + zOrder.indexOf(id);
@@ -269,9 +277,13 @@ export default function DashboardPage() {
         zIndex={zIndexFor('mappa')}
         onFocus={() => focusPanel('mappa')}
         onLayoutChange={(patch) => updatePanel('mappa', patch)}
+        layoutConstraints={{
+          maxW: 1 - (layout.mappa?.x ?? 0.5) - (layout.pma?.w ?? PMA_W),
+        }}
         headerActions={panelHeaderActions('mappa')}
       >
         <OpsMap
+          embedded
           eventi={eventiAperti}
           mezzi={mezzi}
           missioni={missioni}

@@ -36,7 +36,7 @@ export default function PmaPazientePage() {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-slate-100">
+    <div className="pma-viewport fixed inset-0 z-50 flex min-w-0 flex-col bg-slate-100">
       <PmaSchedaShell
         pazienteDocId={docId}
         pmaId={pma.id}

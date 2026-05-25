@@ -1,25 +1,57 @@
 export const DASHBOARD_LAYOUT_KEY = 'cross-dashboard-layout';
 
-const MAPPA_W = 1 / 3;
-const PMA_W = 1 / 6;
+export const MAPPA_W = 1 / 3;
+export const PMA_W = 1 / 6;
+const BOTTOM_ROW_X = 0.5;
 
 export const DEFAULT_DASHBOARD_LAYOUT = {
   operativo: { x: 0, y: 0, w: 1, h: 0.5 },
   mezzi: { x: 0, y: 0.5, w: 0.5, h: 0.5 },
-  mappa: { x: 0.5, y: 0.5, w: MAPPA_W, h: 0.5 },
-  pma: { x: 0.5 + MAPPA_W, y: 0.5, w: PMA_W, h: 0.5 },
+  mappa: { x: BOTTOM_ROW_X, y: 0.5, w: MAPPA_W, h: 0.5 },
+  pma: { x: BOTTOM_ROW_X + MAPPA_W, y: 0.5, w: PMA_W, h: 0.5 },
 };
+
+function clamp01(n, min = 0, max = 1) {
+  return Math.min(max, Math.max(min, n));
+}
+
+/** Mappa e PMA affiancati: la mappa non può coprire il pannello PMA. */
+export function normalizeDashboardLayout(layout) {
+  const next = { ...DEFAULT_DASHBOARD_LAYOUT, ...layout };
+  if (!next.pma) return ensurePmaPanelLayout(next);
+
+  const m = { ...DEFAULT_DASHBOARD_LAYOUT.mappa, ...next.mappa };
+  const p = { ...DEFAULT_DASHBOARD_LAYOUT.pma, ...next.pma };
+
+  m.x = clamp01(m.x ?? BOTTOM_ROW_X, 0, 1 - PMA_W);
+  m.y = clamp01(m.y ?? 0.5, 0, 1);
+  m.h = clamp01(m.h ?? 0.5, 0.1, 1 - m.y);
+
+  const maxMapW = Math.max(0.12, Math.min(MAPPA_W, 1 - m.x - PMA_W));
+  m.w = clamp01(m.w ?? MAPPA_W, 0.12, maxMapW);
+
+  p.x = m.x + m.w;
+  p.y = m.y;
+  p.w = PMA_W;
+  p.h = m.h;
+
+  if (p.x + p.w > 1.001) {
+    return { ...next, ...DEFAULT_DASHBOARD_LAYOUT };
+  }
+
+  return { ...next, mappa: m, pma: p };
+}
 
 /** Aggiunge pannello PMA e riduce mappa se il layout è precedente alla split mappa/PMA. */
 function ensurePmaPanelLayout(layout) {
   const next = { ...DEFAULT_DASHBOARD_LAYOUT, ...layout };
-  if (next.pma) return next;
+  if (next.pma) return normalizeDashboardLayout(next);
   const m = layout?.mappa ?? DEFAULT_DASHBOARD_LAYOUT.mappa;
-  return {
+  return normalizeDashboardLayout({
     ...next,
-    mappa: { x: m.x ?? 0.5, y: m.y ?? 0.5, w: MAPPA_W, h: m.h ?? 0.5 },
-    pma: { x: 0.5 + MAPPA_W, y: m.y ?? 0.5, w: PMA_W, h: m.h ?? 0.5 },
-  };
+    mappa: { x: m.x ?? BOTTOM_ROW_X, y: m.y ?? 0.5, w: MAPPA_W, h: m.h ?? 0.5 },
+    pma: { x: BOTTOM_ROW_X + MAPPA_W, y: m.y ?? 0.5, w: PMA_W, h: m.h ?? 0.5 },
+  });
 }
 
 /** Migra layout salvati con pannelli separati eventi/missioni. */
@@ -53,14 +85,17 @@ export function loadDashboardLayout(manifestationId) {
   try {
     const raw = localStorage.getItem(`${DASHBOARD_LAYOUT_KEY}-${manifestationId}`);
     if (!raw) return { ...DEFAULT_DASHBOARD_LAYOUT };
-    return migrateDashboardLayout(JSON.parse(raw));
+    return normalizeDashboardLayout(migrateDashboardLayout(JSON.parse(raw)));
   } catch {
     return { ...DEFAULT_DASHBOARD_LAYOUT };
   }
 }
 
 export function saveDashboardLayout(manifestationId, layout) {
-  localStorage.setItem(`${DASHBOARD_LAYOUT_KEY}-${manifestationId}`, JSON.stringify(layout));
+  localStorage.setItem(
+    `${DASHBOARD_LAYOUT_KEY}-${manifestationId}`,
+    JSON.stringify(normalizeDashboardLayout(layout)),
+  );
 }
 
 export function resetDashboardLayout(manifestationId) {

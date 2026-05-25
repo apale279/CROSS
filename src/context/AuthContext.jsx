@@ -14,6 +14,12 @@ import { useTenantContext } from './TenantContext';
 import { logUserActivity } from '../services/activityLogService';
 import { ensureUserSessionToken } from '../services/deviceSessionService';
 import { writeStoredUserSessionToken } from '../lib/deviceSession';
+import {
+  clearLastActivity,
+  clearSessionDeviceClass,
+  initSessionDeviceClass,
+  writeLastActivity,
+} from '../lib/inactivityLogout';
 
 const AuthContext = createContext(null);
 
@@ -103,6 +109,8 @@ export function AuthProvider({ children }) {
       const cred = await signInWithEmailAndPassword(auth, emailNorm, password);
       const sessionToken = await ensureUserSessionToken(tenantId, cred.user.uid);
       writeStoredUserSessionToken(tenantId, cred.user.uid, sessionToken);
+      initSessionDeviceClass();
+      writeLastActivity(tenantId, cred.user.uid);
 
       const profSnap = await getDoc(
         doc(db, COLLECTIONS.manifestazioni, tenantId, 'userProfiles', cred.user.uid),
@@ -145,7 +153,9 @@ export function AuthProvider({ children }) {
     }
     if (tenantId && user?.uid) {
       writeStoredUserSessionToken(tenantId, user.uid, null);
+      clearLastActivity(tenantId, user.uid);
     }
+    clearSessionDeviceClass();
     await signOut(auth);
   }, [tenantId, user, profile]);
 

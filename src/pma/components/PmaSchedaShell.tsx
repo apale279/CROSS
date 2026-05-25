@@ -87,7 +87,7 @@ export function PmaSchedaShell({ pazienteDocId, pmaId, pmaNome, onClose }: Props
   }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col bg-white">
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-x-clip bg-white">
       <header className="flex shrink-0 items-center justify-between gap-3 border-b border-slate-300 bg-slate-50 px-4 py-2">
         <div className="min-w-0">
           <button

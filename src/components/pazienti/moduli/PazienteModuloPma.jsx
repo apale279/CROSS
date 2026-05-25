@@ -313,7 +313,11 @@ export function PazienteModuloPma({
   };
 
   const inner = (
-    <div className={vistaPma ? 'flex min-h-0 flex-1 flex-col' : 'space-y-4'}>
+    <div
+      className={
+        vistaPma ? 'pma-viewport flex min-h-0 min-w-0 flex-1 flex-col overflow-x-clip' : 'space-y-4'
+      }
+    >
       {vistaCentrale && !clinicalOnly && (
         <p className="text-xs font-bold uppercase text-slate-600">Modulo PMA</p>
       )}

@@ -11,6 +11,7 @@ export function FloatingPanel({
   zIndex,
   onLayoutChange,
   onFocus,
+  layoutConstraints,
   children,
 }) {
   const containerRef = useRef(null);
@@ -39,10 +40,12 @@ export function FloatingPanel({
       } else {
         const dw = (e.clientX - startX) / rect.width;
         const dh = (e.clientY - startY) / rect.height;
+        const maxW = layoutConstraints?.maxW ?? 1 - orig.x;
+        const maxH = layoutConstraints?.maxH ?? 1 - orig.y;
         onLayoutChange({
           ...orig,
-          w: Math.min(1 - orig.x, Math.max(MIN_W / rect.width, orig.w + dw)),
-          h: Math.min(1 - orig.y, Math.max(MIN_H / rect.height, orig.h + dh)),
+          w: Math.min(maxW, Math.max(MIN_W / rect.width, orig.w + dw)),
+          h: Math.min(maxH, Math.max(MIN_H / rect.height, orig.h + dh)),
         });
       }
     };
@@ -59,7 +62,7 @@ export function FloatingPanel({
       window.removeEventListener('mousemove', onMove);
       window.removeEventListener('mouseup', onUp);
     };
-  }, [dragging, resizing, onLayoutChange]);
+  }, [dragging, resizing, onLayoutChange, layoutConstraints]);
 
   const startDrag = (e) => {
     if (e.target.closest('button')) return;

@@ -5,6 +5,15 @@ export function isMissionePmaInvioPs(missione) {
   return missione?.tipoTrasporto === TIPO_TRASPORTO_MISSIONE_PMA_INVIO_PS;
 }
 
+/** Ospedale PS/destinazione salvato sulla missione (o nel riferimento paziente). */
+export function ospedaleDestinazioneMissione(missione) {
+  if (!missione) return '';
+  return (
+    String(missione.ospedaleDestinazione ?? '').trim() ||
+    String(missione.pazienteRiferimento?.ospedaleDestinazione ?? '').trim()
+  );
+}
+
 /** Paziente dimesso: non deve mai essere riallineato da sync missione centrale. */
 export function pazienteEsclusoDaSyncMissione(paziente) {
   if (!paziente) return true;

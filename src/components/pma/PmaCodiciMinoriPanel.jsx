@@ -5,8 +5,11 @@ import { toDatetimeLocalValue, fromDatetimeLocalValue } from '../../lib/datetime
 import { formatTimestamp } from '../../utils/formatters';
 import { codiceMinoreFromPaziente } from '../../services/pmaCodiceMinoreService';
 
-const thClass = 'bg-slate-100 px-3 py-2 text-left text-xs font-bold uppercase text-slate-600';
-const tdClass = 'border-t border-slate-200 px-3 py-2 text-sm';
+const thClass =
+  'whitespace-nowrap bg-slate-100 px-3 py-2 text-left text-xs font-bold uppercase text-slate-600';
+const tdClass = 'whitespace-nowrap border-t border-slate-200 px-3 py-2 align-middle text-sm';
+const tdWrapClass =
+  'max-w-[14rem] truncate border-t border-slate-200 px-3 py-2 align-middle text-sm';
 const inputClass =
   'w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20';
 
@@ -170,7 +173,15 @@ export function PmaCodiciMinoriPanel({ rows, busy, onCreate, onUpdate, onDelete 
       ) : null}
 
       <div className="overflow-x-auto rounded border border-slate-300 bg-white">
-        <table className="min-w-full">
+        <table className="w-full min-w-[52rem] table-fixed border-collapse">
+          <colgroup>
+            <col className="w-[5rem]" />
+            <col className="w-[18%]" />
+            <col className="w-[26%]" />
+            <col className="w-[11rem]" />
+            <col className="w-[11rem]" />
+            <col className="w-[11.5rem]" />
+          </colgroup>
           <thead>
             <tr>
               <th className={thClass}>Pettorale</th>
@@ -178,13 +189,13 @@ export function PmaCodiciMinoriPanel({ rows, busy, onCreate, onUpdate, onDelete 
               <th className={thClass}>Trattamento</th>
               <th className={thClass}>Ora arrivo</th>
               <th className={thClass}>Ora fine</th>
-              <th className={thClass}>Azioni</th>
+              <th className={`${thClass} text-right`}>Azioni</th>
             </tr>
           </thead>
           <tbody>
             {sorted.length === 0 ? (
               <tr>
-                <td colSpan={6} className={`${tdClass} text-slate-500`}>
+                <td colSpan={6} className={`${tdClass} whitespace-normal text-slate-500`}>
                   Nessun codice minore registrato.
                 </td>
               </tr>
@@ -194,8 +205,10 @@ export function PmaCodiciMinoriPanel({ rows, busy, onCreate, onUpdate, onDelete 
                 return (
                   <tr key={row._docId} className="hover:bg-sky-50/50">
                     <td className={`${tdClass} font-mono font-bold`}>{row.pettorale ?? '—'}</td>
-                    <td className={tdClass}>{cm.motivoArrivo || '—'}</td>
-                    <td className={`${tdClass} max-w-[12rem] truncate`} title={cm.trattamento}>
+                    <td className={tdWrapClass} title={cm.motivoArrivo}>
+                      {cm.motivoArrivo || '—'}
+                    </td>
+                    <td className={tdWrapClass} title={cm.trattamento}>
                       {cm.trattamento || '—'}
                     </td>
                     <td className={`${tdClass} font-mono text-xs`}>
@@ -205,10 +218,10 @@ export function PmaCodiciMinoriPanel({ rows, busy, onCreate, onUpdate, onDelete 
                       {cm.oraFine ? formatTimestamp(cm.oraFine) : '—'}
                     </td>
                     <td className={tdClass}>
-                      <div className="flex flex-wrap gap-2">
+                      <div className="flex flex-nowrap items-center justify-end gap-2">
                         <button
                           type="button"
-                          className={btnSecondary}
+                          className={`${btnSecondary} shrink-0 whitespace-nowrap`}
                           disabled={busy}
                           onClick={() => startEdit(row)}
                         >
@@ -216,7 +229,7 @@ export function PmaCodiciMinoriPanel({ rows, busy, onCreate, onUpdate, onDelete 
                         </button>
                         <button
                           type="button"
-                          className={btnDanger}
+                          className={`${btnDanger} shrink-0 whitespace-nowrap`}
                           disabled={busy}
                           onClick={() => void handleDelete(row)}
                         >

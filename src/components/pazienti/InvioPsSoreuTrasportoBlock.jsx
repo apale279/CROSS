@@ -1,6 +1,8 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useManifestazioneCollection } from '../../hooks/useManifestazioneCollection';
+import { useImpostazioni } from '../../hooks/useImpostazioni';
 import { COLLECTIONS } from '../../lib/firestorePaths';
+import { listaOspedaliDestinazione } from '../../lib/destinazioniOspedale';
 import { invioPsSoreuFieldsFromScheda } from '../../lib/invioPsSoreu';
 import { missionePmaInvioPsApertaPerPaziente } from '../../lib/pmaInvioPsMission';
 import { isStatoMissioneRientroOLiberato, mezzoHaMissioneAttiva, missioniAperteSuMezzo } from '../../lib/mezzoMissione';
@@ -22,11 +24,15 @@ export function InvioPsSoreuTrasportoBlock({
   onOpenMissione,
   onOpenPazienteRiferimento,
 }) {
+  const { impostazioni } = useImpostazioni();
   const { data: mezzi } = useManifestazioneCollection(COLLECTIONS.mezzi);
   const { data: eventi } = useManifestazioneCollection(COLLECTIONS.eventi);
   const { data: missioni } = useManifestazioneCollection(COLLECTIONS.missioni);
 
+  const ospedali = useMemo(() => listaOspedaliDestinazione(impostazioni), [impostazioni]);
+
   const [mezzoSel, setMezzoSel] = useState('');
+  const [ospedaleSel, setOspedaleSel] = useState('');
   const [busy, setBusy] = useState(false);
   const [created, setCreated] = useState(null);
   const [error, setError] = useState(null);
@@ -35,6 +41,13 @@ export function InvioPsSoreuTrasportoBlock({
     () => invioPsSoreuFieldsFromScheda(paziente?.pmaScheda ?? {}),
     [paziente?.pmaScheda],
   );
+
+  useEffect(() => {
+    const pre =
+      String(paziente?.pmaScheda?.invio_ps_ospedale ?? paziente?.ospedaleDestinazione ?? '').trim();
+    if (!pre) return;
+    setOspedaleSel((cur) => (cur ? cur : pre));
+  }, [paziente?._docId, paziente?.pmaScheda?.invio_ps_ospedale, paziente?.ospedaleDestinazione]);
 
   const trasportoEsistente = useMemo(
     () => missionePmaInvioPsApertaPerPaziente(missioni, paziente?._docId),
@@ -65,7 +78,7 @@ export function InvioPsSoreuTrasportoBlock({
   if (!paziente || paziente?.pmaScheda?.dimissione_esito !== 'invio_ps') return null;
 
   const handleCreaTrasporto = async () => {
-    if (!mezzoSel || !manifestationId || !pma) return;
+    if (!mezzoSel || !ospedaleSel || !manifestationId || !pma) return;
     setBusy(true);
     setError(null);
     try {
@@ -77,6 +90,7 @@ export function InvioPsSoreuTrasportoBlock({
           pma,
           mezzo: mezzoSel,
           mezzoDoc,
+          ospedaleDestinazione: ospedaleSel,
           eventi: eventi ?? [],
           missioni: missioni ?? [],
         },
@@ -113,6 +127,11 @@ export function InvioPsSoreuTrasportoBlock({
               Trasporto creato: evento {created.evento.idEvento} · missione{' '}
               {created.missione.idMissione}
             </p>
+            {created.ospedaleDestinazione && (
+              <p className="text-sm text-teal-900">
+                Destinazione: <strong>{created.ospedaleDestinazione}</strong>
+              </p>
+            )}
             <p className="text-xs text-slate-600">
               Il paziente dimesso resta scollegato: compare solo come riferimento sulla missione.
             </p>
@@ -173,6 +192,30 @@ export function InvioPsSoreuTrasportoBlock({
           </div>
         ) : (
           <>
+            <FormField label="Ospedale destinazione">
+              <select
+                className={selectClass}
+                value={ospedaleSel}
+                disabled={busy}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setOspedaleSel(v);
+                  void onWriteSoreu?.({ invio_ps_ospedale: v });
+                }}
+              >
+                <option value="">—</option>
+                {ospedali.map((h) => (
+                  <option key={h} value={h}>
+                    {h}
+                  </option>
+                ))}
+              </select>
+            </FormField>
+            {ospedali.length === 0 && (
+              <p className="text-xs text-amber-800">
+                Nessun ospedale in impostazioni: aggiungili in Impostazioni → Lista ospedali.
+              </p>
+            )}
             <FormField label="Mezzo disponibile">
               <select
                 className={selectClass}
@@ -206,7 +249,7 @@ export function InvioPsSoreuTrasportoBlock({
             <button
               type="button"
               className={`${btnPrimary} mt-3`}
-              disabled={busy || !mezzoSel}
+              disabled={busy || !mezzoSel || !ospedaleSel}
               onClick={() => void handleCreaTrasporto()}
             >
               {busy ? 'Creazione…' : 'CREA TRASPORTO'}

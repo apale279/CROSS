@@ -23,11 +23,21 @@ function coloreDaCodiceTrasporto(codice) {
  */
 export async function createTrasportoInvioPsDaPma(
   manifestationId,
-  { paziente, pma, mezzo, mezzoDoc, eventi, missioni },
+  { paziente, pma, mezzo, mezzoDoc, ospedaleDestinazione, eventi, missioni },
   { confirmFn } = {},
 ) {
   if (!manifestationId || !paziente?._docId || !pma || !mezzo) {
     throw new Error('Dati insufficienti per creare il trasporto.');
+  }
+
+  const ospedale = String(
+    ospedaleDestinazione ??
+      paziente.pmaScheda?.invio_ps_ospedale ??
+      paziente.ospedaleDestinazione ??
+      '',
+  ).trim();
+  if (!ospedale) {
+    throw new Error('Seleziona l\'ospedale di destinazione.');
   }
 
   if (normalizeStatoPzPma(paziente.statoPzPma) !== STATO_PZ_PMA.DIMESSO) {
@@ -48,8 +58,6 @@ export async function createTrasportoInvioPsDaPma(
 
   const scheda = paziente.pmaScheda ?? {};
   const soreu = invioPsSoreuFieldsFromScheda(scheda);
-  const ospedale =
-    String(scheda.invio_ps_ospedale ?? paziente.ospedaleDestinazione ?? '').trim() || 'Ospedale';
   const noteLines = [
     `Trasporto PMA → PS — paziente ${paziente.idPaziente ?? ''} ${labelPaziente(paziente)}`.trim(),
     ospedale ? `Destinazione: ${ospedale}` : '',
@@ -82,6 +90,7 @@ export async function createTrasportoInvioPsDaPma(
       statoInizialeForzato: 'IN POSTO',
       codiceColoreMissione: coloreDaCodiceTrasporto(scheda.invio_ps_codice_trasporto),
       tipoTrasporto: TIPO_TRASPORTO_MISSIONE_PMA_INVIO_PS,
+      ospedaleDestinazione: ospedale,
       noteMissione: noteLines.join('\n'),
       pazienteRiferimento: {
         docId: paziente._docId,
@@ -106,12 +115,14 @@ export async function createTrasportoInvioPsDaPma(
   }
 
   return {
+    ospedaleDestinazione: ospedale,
     evento: { _docId: evento.docId, idEvento: evento.idEvento, idUnivoco: evento.idUnivoco },
     missione: {
       _docId: missione.docId,
       idMissione: missione.idMissione,
       idUnivoco: missione.idUnivoco,
       mezzo,
+      ospedaleDestinazione: ospedale,
       eventoIdUnivoco: evento.idUnivoco,
       eventoCorrelato: evento.idEvento,
     },

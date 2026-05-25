@@ -86,6 +86,7 @@ export async function createMissione(manifestationId, payload, existingMissioni,
   const coloreMissione = normalizeCodiceColore(
     payload.codiceColoreMissione ?? payload.coloreEvento ?? 'Bianco',
   );
+  const ospedaleDest = String(payload.ospedaleDestinazione ?? '').trim();
   const colRef = collection(db, ...missioniPath(manifestationId));
   const docRef = await addDoc(colRef, {
     manifestationId,
@@ -105,6 +106,9 @@ export async function createMissione(manifestationId, payload, existingMissioni,
     tratteMissione: [],
     codiceColoreMissione: coloreMissione,
     esitoMissione: ESITO_MISSIONE_DEFAULT,
+    ...(payload.tipoTrasporto ? { tipoTrasporto: payload.tipoTrasporto } : {}),
+    ...(payload.pazienteRiferimento ? { pazienteRiferimento: payload.pazienteRiferimento } : {}),
+    ...(ospedaleDest ? { ospedaleDestinazione: ospedaleDest } : {}),
   });
   await patchMezzo(manifestationId, payload.mezzo, { statoMezzo: 'Non disponibile' });
   return { docId: docRef.id, idMissione, idUnivoco };

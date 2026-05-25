@@ -372,7 +372,11 @@ function ParametriVitaliBlock({
             />
           ) : (
             <div
-              className="max-w-full overflow-x-auto whitespace-nowrap px-0.5 text-xs font-medium leading-tight text-slate-900"
+              className={
+                layout === 'stack'
+                  ? 'break-words px-0.5 text-xs font-medium leading-tight text-slate-900'
+                  : 'max-w-full overflow-x-auto whitespace-nowrap px-0.5 text-xs font-medium leading-tight text-slate-900'
+              }
               title={opNome}
             >
               {opNome}
@@ -392,7 +396,7 @@ function ParametriVitaliBlock({
         className={
           layout === 'stack'
             ? 'flex flex-col gap-2'
-            : 'flex min-w-0 flex-nowrap items-end gap-1.5 overflow-x-auto pb-0.5 [-webkit-overflow-scrolling:touch]'
+            : 'flex min-w-0 flex-wrap items-end gap-1.5 pb-0.5'
         }
       >
         {inner}
@@ -661,7 +665,7 @@ export function CartellaClinicaSection({
 
   const hideClinicalBlocks = user?.rank === 'Triage'
 
-  const infermiereSm = useInfermiereSmartphone(user)
+  const pmaMobile = useInfermiereSmartphone(user)
 
   const eoResolved = useMemo(() => resolveEoColumnsForDisplay(p, eoQuickGroups), [p, eoQuickGroups])
 
@@ -1145,43 +1149,62 @@ export function CartellaClinicaSection({
           {schedaClinicalEdit ? (
             <button
               type="button"
-              onClick={() => (infermiereSm ? openPvModal() : void aggiungiPv())}
+              onClick={() => (pmaMobile ? openPvModal() : void aggiungiPv())}
               className={`${btnPrimary} mt-2 inline-flex h-10 items-center justify-center`}
             >
               Aggiungi parametri
             </button>
           ) : null}
-          <div className="mt-2 overflow-x-auto rounded border border-slate-200 [-webkit-overflow-scrolling:touch]">
-            <table className="w-full min-w-[920px] border-collapse text-left text-sm">
-              <thead>
-                <tr className="border-b border-slate-200 bg-slate-100 text-[10px] font-bold uppercase tracking-wide text-slate-600">
-                  <th className="border border-slate-200 p-1">Data/ora</th>
-                  <th className="border border-slate-200 p-1">GCS</th>
-                  <th className="border border-slate-200 p-1">FR</th>
-                  <th className="border border-slate-200 p-1">SpO₂ aa</th>
-                  <th className="border border-slate-200 p-1">SpO₂ O₂</th>
-                  <th className="border border-slate-200 p-1">FC</th>
-                  <th className="border border-slate-200 p-1">PA sys</th>
-                  <th className="border border-slate-200 p-1">PA dia</th>
-                  <th className="border border-slate-200 p-1">T °C</th>
-                  <th className="border border-slate-200 p-1">NRS</th>
-                  <th className="border border-slate-200 p-1">Operatore</th>
-                </tr>
-              </thead>
-              <tbody>
-                {pvSorted.map((row) => (
+          {pmaMobile ? (
+            <div className="pma-pv-stack mt-2">
+              {pvSorted.length === 0 ? (
+                <p className="text-sm text-slate-500">Nessuna rilevazione registrata.</p>
+              ) : (
+                pvSorted.map((row) => (
                   <ParametriVitaliBlock
                     key={row.id}
                     row={row}
                     canEdit={schedaClinicalEdit}
                     onPatch={patchPv}
-                    layout="row"
-                    variant="tableRow"
+                    layout="stack"
+                    variant="block"
                   />
-                ))}
-              </tbody>
-            </table>
-          </div>
+                ))
+              )}
+            </div>
+          ) : (
+            <div className="mt-2 overflow-x-auto rounded border border-slate-200 [-webkit-overflow-scrolling:touch]">
+              <table className="w-full min-w-[920px] border-collapse text-left text-sm">
+                <thead>
+                  <tr className="border-b border-slate-200 bg-slate-100 text-[10px] font-bold uppercase tracking-wide text-slate-600">
+                    <th className="border border-slate-200 p-1">Data/ora</th>
+                    <th className="border border-slate-200 p-1">GCS</th>
+                    <th className="border border-slate-200 p-1">FR</th>
+                    <th className="border border-slate-200 p-1">SpO₂ aa</th>
+                    <th className="border border-slate-200 p-1">SpO₂ O₂</th>
+                    <th className="border border-slate-200 p-1">FC</th>
+                    <th className="border border-slate-200 p-1">PA sys</th>
+                    <th className="border border-slate-200 p-1">PA dia</th>
+                    <th className="border border-slate-200 p-1">T °C</th>
+                    <th className="border border-slate-200 p-1">NRS</th>
+                    <th className="border border-slate-200 p-1">Operatore</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pvSorted.map((row) => (
+                    <ParametriVitaliBlock
+                      key={row.id}
+                      row={row}
+                      canEdit={schedaClinicalEdit}
+                      onPatch={patchPv}
+                      layout="row"
+                      variant="tableRow"
+                    />
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
             </PmaFieldGuard>
 
@@ -1196,7 +1219,7 @@ export function CartellaClinicaSection({
                 <span className="pma-field__label">Prestazioni</span>
               </div>
             </div>
-            {infermiereSm ? (
+            {pmaMobile ? (
               <button
                 type="button"
                 disabled={!schedaClinicalEdit}
@@ -1259,7 +1282,7 @@ export function CartellaClinicaSection({
                 <p className="mt-1 text-xs text-slate-500">Nessuna prestazione selezionata.</p>
               ) : (
                 <ul
-                  className="mt-2 grid list-none grid-cols-4 gap-2 p-0"
+                  className="pma-prest-grid mt-2 grid list-none grid-cols-4 gap-2 p-0"
                   aria-label="Elenco prestazioni selezionate"
                 >
                   {prestazioniOrdinate.map((label) => (
@@ -1325,7 +1348,7 @@ export function CartellaClinicaSection({
 
           <PmaFieldGuard fieldKey="farmaci">
           <div className="mt-5">
-            {infermiereSm ? (
+            {pmaMobile ? (
               <div className="mt-2 overflow-x-auto rounded border border-slate-200">
                 <table className="w-full border-collapse text-left text-sm">
                   <thead>
@@ -1429,7 +1452,7 @@ export function CartellaClinicaSection({
               </div>
             ) : null}
 
-            {farmaciEdit && !infermiereSm ? (
+            {farmaciEdit && !pmaMobile ? (
               <div className="mt-4 rounded-lg border border-dashed border-slate-300 bg-slate-50/80 p-3">
                 <div className="grid max-w-3xl gap-3 sm:grid-cols-2">
                   <div className="sm:col-span-2">
@@ -1481,7 +1504,7 @@ export function CartellaClinicaSection({
               </div>
             ) : null}
 
-            {farmaciEdit && infermiereSm ? (
+            {farmaciEdit && pmaMobile ? (
               <button
                 type="button"
                 onClick={openFarmModal}
@@ -1499,7 +1522,7 @@ export function CartellaClinicaSection({
           </>
         ) : null}
 
-        {!hideClinicalBlocks && infermiereSm && pvModalOpen && pvDraft ? (
+        {!hideClinicalBlocks && pmaMobile && pvModalOpen && pvDraft ? (
           <div
             className="fixed inset-0 z-[80] flex items-end justify-center bg-slate-900/50 p-0 sm:items-center sm:p-4"
             role="presentation"
@@ -1554,7 +1577,7 @@ export function CartellaClinicaSection({
           </div>
         ) : null}
 
-        {!hideClinicalBlocks && infermiereSm && prestModalOpen ? (
+        {!hideClinicalBlocks && pmaMobile && prestModalOpen ? (
           <div
             className="fixed inset-0 z-[80] flex items-end justify-center bg-slate-900/50 p-0 sm:items-center sm:p-4"
             role="presentation"
@@ -1604,7 +1627,7 @@ export function CartellaClinicaSection({
           </div>
         ) : null}
 
-        {!hideClinicalBlocks && infermiereSm && farmModalOpen && farmaciEdit ? (
+        {!hideClinicalBlocks && pmaMobile && farmModalOpen && farmaciEdit ? (
           <div
             className="fixed inset-0 z-[80] flex items-end justify-center bg-slate-900/50 p-0 sm:items-center sm:p-4"
             role="presentation"

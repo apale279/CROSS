@@ -157,7 +157,13 @@ export function DettaglioPaziente({
         }
       >
         {saveError}
-        <div className={fillHeight ? 'min-h-0 flex-1 overflow-y-auto px-3 pb-8 sm:px-4' : undefined}>
+        <div
+          className={
+            fillHeight
+              ? 'min-h-0 min-w-0 flex-1 overflow-x-clip overflow-y-auto px-3 pb-8 sm:px-4'
+              : undefined
+          }
+        >
           {tabs.map((tab) => {
             const visible = activeTab === tab.id
             return (

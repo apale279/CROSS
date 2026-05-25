@@ -14,7 +14,7 @@ export default function PmaSelectPage() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl px-4 py-8">
+    <div className="pma-viewport mx-auto w-full min-w-0 max-w-2xl overflow-x-clip px-4 py-8">
       <h1 className="mb-2 text-2xl font-bold text-slate-900">Vista PMA</h1>
       <p className="mb-6 text-sm text-slate-600">
         Scegli il posto medico avanzato da gestire. Gli operatori con accesso limitato vedono solo il

@@ -13,15 +13,21 @@ export function StazionamentoImport({ stazionamenti, onImport }) {
             key={st.id}
             type="button"
             className={`${btnSecondary} text-sm`}
-            title={st.indirizzo || st.nome}
+            title={
+              [st.tipo_stazionamento, st.indirizzo].filter(Boolean).join(' · ') || st.nome
+            }
             onClick={() =>
               onImport({
                 indirizzo: st.indirizzo ?? '',
                 coordinate: st.coordinate ?? null,
+                luogo_fisico: st.luogo_fisico ?? '',
               })
             }
           >
             {st.nome}
+            {st.tipo_stazionamento ? (
+              <span className="ml-1 font-normal opacity-80">({st.tipo_stazionamento})</span>
+            ) : null}
           </button>
         ))}
       </div>

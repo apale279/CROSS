@@ -48,6 +48,7 @@ export default function LoginPage() {
   const [submitting, setSubmitting] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
   const [error, setError] = useState(null);
+  const inactiveLogout = searchParams.get('inactive') === '1';
 
   useEffect(() => {
     if (authLoading || !user) return;
@@ -193,6 +194,15 @@ export default function LoginPage() {
           <p className="text-sm text-slate-600">Accesso operativo</p>
         </div>
 
+        {inactiveLogout && (
+          <p
+            className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950"
+            role="status"
+          >
+            Sessione terminata per inattività. Accedi di nuovo per continuare.
+          </p>
+        )}
+
         <form className="mt-6 space-y-4" onSubmit={onSubmit}>
           <div>
             <label htmlFor="login-email" className="mb-1 block text-xs font-bold uppercase text-slate-600">
@@ -240,8 +250,9 @@ export default function LoginPage() {
           contatta la centrale operativa.
         </p>
 
-        <p className="mt-3 text-center text-xs text-slate-500">
-          La sessione resta attiva su questo dispositivo fino al logout.
+        <p className="mt-3 text-center text-xs leading-relaxed text-slate-500">
+          Disconnessione automatica dopo inattività: 30 minuti da computer, 1 ora da telefono o
+          tablet.
         </p>
       </div>
     </div>

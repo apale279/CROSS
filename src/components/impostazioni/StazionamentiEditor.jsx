@@ -7,7 +7,7 @@ import { Modal } from '../ui/Modal';
 import { FormField, btnPrimary, btnSecondary, inputClass } from '../ui/FormField';
 import { SaveFeedback } from './SaveFeedback';
 
-const TIPI_STAZIONAMENTO = ['PMA', 'Base operativa', 'Parcheggio', 'Postazione', 'Altro'];
+const TIPO_STAZIONAMENTO_MAX = 48;
 
 function newStazionamento() {
   return {
@@ -54,7 +54,11 @@ export function StazionamentiEditor() {
       alert('Nome stazionamento già esistente.');
       return;
     }
-    const entry = { ...modal.draft, nome };
+    const entry = {
+      ...modal.draft,
+      nome,
+      tipo_stazionamento: String(modal.draft.tipo_stazionamento ?? '').trim(),
+    };
     const next = list.some((s) => s.id === modal.draft.id)
       ? list.map((s) => (s.id === modal.draft.id ? entry : s))
       : [...list, entry];
@@ -107,10 +111,16 @@ export function StazionamentiEditor() {
                   type="button"
                   className="font-semibold text-slate-800 hover:text-sky-700"
                   onClick={() => openEdit(st)}
-                  title={st.indirizzo || 'Senza indirizzo'}
+                  title={
+                    [st.tipo_stazionamento, st.indirizzo].filter(Boolean).join(' · ') ||
+                    'Senza indirizzo'
+                  }
                   disabled={saving}
                 >
                   {st.nome}
+                  {st.tipo_stazionamento ? (
+                    <span className="ml-1 font-normal text-slate-500">({st.tipo_stazionamento})</span>
+                  ) : null}
                 </button>
                 <button
                   type="button"
@@ -145,24 +155,20 @@ export function StazionamentiEditor() {
                 placeholder="es. PMA Centro"
               />
             </FormField>
-            <FormField label="Tipo stazionamento">
-              <select
+            <FormField label="Tipo di stazionamento">
+              <input
+                type="text"
                 className={inputClass}
                 value={modal.draft.tipo_stazionamento ?? ''}
+                maxLength={TIPO_STAZIONAMENTO_MAX}
+                placeholder="es. PMA, parcheggio notturno…"
                 onChange={(e) =>
                   setModal((m) => ({
                     ...m,
                     draft: { ...m.draft, tipo_stazionamento: e.target.value },
                   }))
                 }
-              >
-                <option value="">—</option>
-                {TIPI_STAZIONAMENTO.map((t) => (
-                  <option key={t} value={t}>
-                    {t}
-                  </option>
-                ))}
-              </select>
+              />
             </FormField>
             <LuogoFisicoField
               value={modal.draft.luogo_fisico}

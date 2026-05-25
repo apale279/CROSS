@@ -108,7 +108,7 @@ export default function PmaDeskPage() {
   };
 
   return (
-    <div className="mx-auto flex min-h-[calc(100vh-8rem)] max-w-[1600px] flex-col px-3 py-4 lg:px-6">
+    <div className="pma-viewport mx-auto flex min-h-[calc(100vh-8rem)] w-full min-w-0 max-w-[1600px] flex-col overflow-x-clip px-3 py-4 lg:px-6">
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3 border-b border-slate-200 pb-4">
         <div>
           {fullCentrale && (
@@ -147,7 +147,7 @@ export default function PmaDeskPage() {
       )}
 
       {showCodiciMinori && (
-        <Modal title="Tabella codici minori" wide onClose={() => setShowCodiciMinori(false)}>
+        <Modal title="Tabella codici minori" extraWide onClose={() => setShowCodiciMinori(false)}>
           <PmaCodiciMinoriPanel
             rows={codiciMinori}
             busy={codiciBusy}
@@ -204,7 +204,7 @@ export default function PmaDeskPage() {
       )}
 
       {!loading && list.length > 0 && (
-        <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[minmax(260px,320px)_1fr]">
+        <div className="grid min-h-0 min-w-0 flex-1 gap-4 lg:grid-cols-[minmax(260px,320px)_1fr]">
           <aside className="flex flex-col gap-4 overflow-y-auto rounded-lg border border-amber-200 bg-amber-50/30 p-3">
             <section>
               <h2 className="mb-2 text-xs font-bold uppercase text-amber-900">

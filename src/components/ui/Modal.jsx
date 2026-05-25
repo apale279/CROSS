@@ -1,7 +1,9 @@
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 
-export function Modal({ title, onClose, children, wide = false }) {
+export function Modal({ title, onClose, children, wide = false, extraWide = false }) {
+  const widthClass = extraWide ? 'max-w-6xl' : wide ? 'max-w-3xl' : 'max-w-lg';
+
   return createPortal(
     <div
       className="fixed inset-0 z-[2000] flex items-center justify-center bg-slate-900/50 p-4"
@@ -9,9 +11,7 @@ export function Modal({ title, onClose, children, wide = false }) {
       role="presentation"
     >
       <div
-        className={`max-h-[90vh] w-full overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-xl ${
-          wide ? 'max-w-3xl' : 'max-w-lg'
-        }`}
+        className={`max-h-[90vh] w-full overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-xl ${widthClass}`}
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"

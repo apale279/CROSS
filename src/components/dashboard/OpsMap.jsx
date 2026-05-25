@@ -77,7 +77,16 @@ const viewToggleBtn =
 
 const PMA_MAP_EMOJI = '🏕️';
 
-export function OpsMap({ eventi, mezzi, missioni = [], pmaList = [], onSelect, readOnly = false }) {
+export function OpsMap({
+  eventi,
+  mezzi,
+  missioni = [],
+  pmaList = [],
+  onSelect,
+  readOnly = false,
+  /** Dashboard: niente fullscreen Google (coprirebbe il pannello PMA). */
+  embedded = false,
+}) {
   const { isLoaded, loadError } = useGoogleMapsReady();
   const { impostazioni } = useImpostazioni();
   const [viewMode, setViewMode] = useState(readOpsMapViewMode);
@@ -87,10 +96,14 @@ export function OpsMap({ eventi, mezzi, missioni = [], pmaList = [], onSelect, r
     persistOpsMapViewMode(mode);
   };
 
-  const mapOptions = useMemo(
-    () => opsMapOptionsForView(readOnly ? readOnlyMapOptions : baseMapOptions, viewMode),
-    [readOnly, viewMode],
-  );
+  const mapOptions = useMemo(() => {
+    const base = readOnly || embedded ? readOnlyMapOptions : baseMapOptions;
+    const opts = opsMapOptionsForView(base, viewMode);
+    if (embedded) {
+      return { ...opts, fullscreenControl: false };
+    }
+    return opts;
+  }, [readOnly, embedded, viewMode]);
   const tipiMezzo = useMemo(
     () => normalizeTipiMezzo(impostazioni.tipiMezzo),
     [impostazioni.tipiMezzo],

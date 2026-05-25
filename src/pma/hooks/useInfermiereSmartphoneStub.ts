@@ -1,4 +1,6 @@
-/** Stub: layout smartphone infermiere non usato in CROSS PMA. */
-export function useInfermiereSmartphone(_user: unknown) {
-  return { isInfermiereSmartphone: false };
+import { usePmaMobile } from './usePmaMobile'
+
+/** Layout compatto smartphone in cartella clinica (tutti i profili PMA su viewport stretta). */
+export function useInfermiereSmartphone(_user: unknown): boolean {
+  return usePmaMobile()
 }

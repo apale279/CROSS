@@ -32,6 +32,10 @@ import { MissioneEccezioniPanel } from './MissioneEccezioniPanel';
 import { MissionePazientiTrasportoSection } from './MissionePazientiTrasportoSection';
 import { MissionePazienteRiferimentoSection } from './MissionePazienteRiferimentoSection';
 import { MissionePmaInvioPsBadge } from './MissionePmaInvioPsBadge';
+import {
+  isMissionePmaInvioPs,
+  ospedaleDestinazioneMissione,
+} from '../../lib/pmaInvioPsMission';
 import { useImpostazioni } from '../../hooks/useImpostazioni';
 import { MissioneTelegramSendButton } from '../telegram/MissioneTelegramSendButton';
 import { pazientiTrasportoPerMissione } from '../../lib/pazientiTrasportoQuery';
@@ -79,6 +83,12 @@ export function MissioneScheda({
     () => normalizeTratteMissione(missione.tratteMissione),
     [missione.tratteMissione],
   );
+
+  const ospedaleDest = useMemo(
+    () => ospedaleDestinazioneMissione(missione),
+    [missione],
+  );
+  const missioneInvioPs = isMissionePmaInvioPs(missione);
 
   const persistTratte = useCallback(
     async (next) => {
@@ -187,10 +197,19 @@ export function MissioneScheda({
         <dl className="grid gap-2">
           <Row label="Evento" value={missione.eventoCorrelato} mono />
           <Row label="Mezzo" value={missione.mezzo} mono />
+          {(missioneInvioPs || ospedaleDest) && (
+            <Row label="Ospedale destinazione" value={ospedaleDest || '—'} />
+          )}
           <Row label="Apertura" value={formatTimestamp(missione.apertura)} />
           <Row label="Aperta" value={missione.aperta !== false ? 'Sì' : 'No'} />
           <Row label="Equipaggio" value={missione.equipaggio || '—'} />
         </dl>
+        {missioneInvioPs && ospedaleDest && (
+          <section className="rounded border border-violet-300 bg-violet-50 p-3">
+            <p className="text-xs font-bold uppercase text-violet-900">Destinazione PS</p>
+            <p className="mt-1 text-lg font-semibold text-slate-900">{ospedaleDest}</p>
+          </section>
+        )}
         <MissionePazienteRiferimentoSection
           riferimento={missione.pazienteRiferimento}
           onOpenPaziente={onOpenPaziente}
@@ -292,10 +311,20 @@ export function MissioneScheda({
       <dl className="grid gap-2">
         <Row label="Evento" value={missione.eventoCorrelato} mono />
         <Row label="Mezzo" value={missione.mezzo} mono />
+        {(missioneInvioPs || ospedaleDest) && (
+          <Row label="Ospedale destinazione" value={ospedaleDest || '—'} />
+        )}
         <Row label="Apertura" value={formatTimestamp(missione.apertura)} />
         <Row label="Aperta" value={missione.aperta !== false ? 'Sì' : 'No'} />
         <Row label="Equipaggio" value={missione.equipaggio || '—'} />
       </dl>
+
+      {missioneInvioPs && ospedaleDest && (
+        <section className="rounded border border-violet-300 bg-violet-50 p-3">
+          <p className="text-xs font-bold uppercase text-violet-900">Destinazione PS</p>
+          <p className="mt-1 text-lg font-semibold text-slate-900">{ospedaleDest}</p>
+        </section>
+      )}
 
       <MissionePazienteRiferimentoSection
         riferimento={missione.pazienteRiferimento}

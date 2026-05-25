@@ -1,5 +1,6 @@
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { InactivityLogoutGuard } from './InactivityLogoutGuard';
 import { SessionRevocationGuard } from './SessionRevocationGuard';
 
 export function RequireAuth() {
@@ -21,6 +22,7 @@ export function RequireAuth() {
   return (
     <>
       <SessionRevocationGuard />
+      <InactivityLogoutGuard />
       <Outlet />
     </>
   );
