@@ -6,6 +6,7 @@ import {
   missioniPerEvento,
   pazientiPerEvento,
   eventoSenzaCoperturaMissione,
+  sortEventiAperti,
 } from '../lib/eventoLinks';
 
 function pazientiTrasportoPerMissione(pazienti, mis) {
@@ -24,7 +25,7 @@ export function useOperativoDashboardData() {
   const { data: mezzi, loading: loadingZ } = useManifestazioneCollection(COLLECTIONS.mezzi);
   const { data: pazienti, loading: loadingP } = useManifestazioneCollection(COLLECTIONS.pazienti);
 
-  const eventiAperti = useMemo(() => eventi.filter((e) => e.stato !== false), [eventi]);
+  const eventiAperti = useMemo(() => sortEventiAperti(eventi), [eventi]);
 
   const pazientiCountByEvento = useMemo(() => {
     const m = new Map();
@@ -61,11 +62,7 @@ export function useOperativoDashboardData() {
     const usedMissionIds = new Set();
     const blocks = [];
 
-    const eventiOrdinati = [...eventiAperti].sort(
-      (a, b) => (b.apertura?.toMillis?.() ?? 0) - (a.apertura?.toMillis?.() ?? 0),
-    );
-
-    for (const ev of eventiOrdinati) {
+    for (const ev of eventiAperti) {
       const missions = sortMissioni(missioniPerEvento(missioniAperte, ev));
       missions.forEach((m) => usedMissionIds.add(m._docId));
       blocks.push({

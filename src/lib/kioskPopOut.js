@@ -1,8 +1,8 @@
-/** @typedef {'operativo' | 'mezzi' | 'mappa'} KioskPanelId */
+/** @typedef {'operativo' | 'mezzi' | 'mappa' | 'pma'} KioskPanelId */
 
 /** @typedef {'embedded' | 'popped' | 'docked'} KioskPanelMode */
 
-export const KIOSK_PANEL_IDS = /** @type {const} */ (['operativo', 'mezzi', 'mappa']);
+export const KIOSK_PANEL_IDS = /** @type {const} */ (['operativo', 'mezzi', 'mappa', 'pma']);
 
 export const KIOSK_PANEL_CONFIG = {
   operativo: {
@@ -23,6 +23,12 @@ export const KIOSK_PANEL_CONFIG = {
     shortLabel: 'Mappa',
     windowName: 'cross-kiosk-mappa',
   },
+  pma: {
+    url: '/kiosk/pma',
+    label: 'Dashboard PMA',
+    shortLabel: 'PMA',
+    windowName: 'cross-kiosk-pma',
+  },
 };
 
 /** Path kiosk → id pannello dashboard. */
@@ -30,6 +36,7 @@ export const KIOSK_PATH_TO_PANEL = {
   '/kiosk/eventi': 'operativo',
   '/kiosk/mezzi': 'mezzi',
   '/kiosk/mappa': 'mappa',
+  '/kiosk/pma': 'pma',
 };
 
 export function appendReadonlyMode(targetUrl) {

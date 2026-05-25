@@ -70,6 +70,11 @@ export function MissioneScheda({
     [pazienti, missione],
   );
 
+  const coloreTrasportoEffettivo = useMemo(
+    () => resolveCodiceColoreTrasporto(missione, evento, pazientiTrasporto),
+    [missione, evento, pazientiTrasporto],
+  );
+
   const tratte = useMemo(
     () => normalizeTratteMissione(missione.tratteMissione),
     [missione.tratteMissione],
@@ -330,6 +335,11 @@ export function MissioneScheda({
           </div>
           <div>
             <p className="mb-1 text-[11px] font-semibold text-slate-500">T — Trasporto</p>
+            {!coloreTrasportoEffettivo && (
+              <p className="mb-1 text-[10px] text-slate-500">
+                Nessun colore: deriva dai pazienti in trasporto (MSB/MSA).
+              </p>
+            )}
             <div className="flex flex-wrap gap-1">
               {DEFAULT_IMPOSTAZIONI.coloriEvento.map((c) => (
                 <button
@@ -338,7 +348,7 @@ export function MissioneScheda({
                   title={c}
                   onClick={() => void patchColoreTrasporto(c)}
                   className={`rounded border p-0.5 ${
-                    resolveCodiceColoreTrasporto(missione, evento) === c
+                    coloreTrasportoEffettivo === c
                       ? 'border-sky-600 ring-2 ring-sky-400'
                       : 'border-slate-300'
                   }`}

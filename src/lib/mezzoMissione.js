@@ -68,3 +68,10 @@ export function isStatoMissioneRientroOLiberato(stato) {
   const s = String(stato ?? '').trim();
   return s === 'RIENTRO' || s === 'ARRIVATO H';
 }
+
+/** Missioni aperte sul mezzo in rientro/liberate (da chiudere con FINE MISSIONE al nuovo ingaggio). */
+export function missioniRientroAperteSuMezzo(missioni, mezzoSigla) {
+  return missioniAperteSuMezzo(missioni, mezzoSigla).filter((m) =>
+    isStatoMissioneRientroOLiberato(m.stato),
+  );
+}

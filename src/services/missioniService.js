@@ -1,6 +1,7 @@
 import {
   addDoc,
   collection,
+  deleteField,
   doc,
   getDoc,
   getDocs,
@@ -20,11 +21,26 @@ import { DEFAULT_IMPOSTAZIONI } from '../constants';
 import { pickGravestColore, normalizeCodiceColore } from '../lib/codiciColore';
 import { ESITO_MISSIONE_DEFAULT } from '../lib/missioneEsito';
 import { MISSIONE_ECCEZIONE_MOTIVO, MEZZO_STATO_AVARIA_SINISTRO } from '../lib/missionEccezioni';
+import { buildStatoChangeFields } from '../lib/missionStoricoStati';
+import { missioniRientroAperteSuMezzo } from '../lib/mezzoMissione';
 import { fetchPazientiTrasportoOnMezzo, pazienteSameEventoAsMissione } from '../lib/pazientiTrasportoQuery';
 import { patchPaziente } from './pazientiService';
 import { syncPazientiArrivatoH } from './pazientiService';
 import { syncPazientiPmaOnDirettoH } from './pazientePmaMissionSync';
 import { notifyTelegramStatoFromCentrale } from './telegramService';
+
+/** Un solo ingaggio attivo per mezzo: chiude le missioni in RIENTRO/ARRIVATO H prima del nuovo evento. */
+async function terminaMissioniRientroPrecedenti(manifestationId, mezzoSigla, existingMissioni) {
+  const precedenti = missioniRientroAperteSuMezzo(existingMissioni ?? [], mezzoSigla);
+  for (const mis of precedenti) {
+    await patchMissione(
+      manifestationId,
+      mis._docId,
+      buildStatoChangeFields(mis, 'FINE MISSIONE'),
+      mis.mezzo,
+    );
+  }
+}
 
 function formatEquipaggio(equipaggio) {
   if (!equipaggio) return '';
@@ -46,6 +62,10 @@ function formatEquipaggio(equipaggio) {
 }
 
 export async function createMissione(manifestationId, payload, existingMissioni, mezzo) {
+  if (payload.mezzo) {
+    await terminaMissioniRientroPrecedenti(manifestationId, payload.mezzo, existingMissioni);
+  }
+
   const idMissione = await allocateProgressiveId(
     manifestationId,
     'M',
@@ -63,7 +83,9 @@ export async function createMissione(manifestationId, payload, existingMissioni,
       : autopresentato
         ? 'IN POSTO'
         : 'ALLERTARE';
-  const coloreEvento = normalizeCodiceColore(payload.coloreEvento ?? 'Bianco');
+  const coloreMissione = normalizeCodiceColore(
+    payload.codiceColoreMissione ?? payload.coloreEvento ?? 'Bianco',
+  );
   const colRef = collection(db, ...missioniPath(manifestationId));
   const docRef = await addDoc(colRef, {
     manifestationId,
@@ -79,10 +101,9 @@ export async function createMissione(manifestationId, payload, existingMissioni,
     equipaggio: formatEquipaggio(mezzo?.equipaggio),
     aperta: true,
     apertura: serverTimestamp(),
-    noteMissione: '',
+    noteMissione: payload.noteMissione ?? '',
     tratteMissione: [],
-    codiceColoreMissione: coloreEvento,
-    codiceColoreTrasporto: coloreEvento,
+    codiceColoreMissione: coloreMissione,
     esitoMissione: ESITO_MISSIONE_DEFAULT,
   });
   await patchMezzo(manifestationId, payload.mezzo, { statoMezzo: 'Non disponibile' });
@@ -120,14 +141,19 @@ export async function refreshMissioneCodiceColoreTrasporto(manifestationId, miss
   const colori = [];
   for (const p of candidati) {
     if (!pazienteSameEventoAsMissione(p, missione)) continue;
-    const c = p.codiceColoreSanitario ?? p.codiceColore;
+    const c = String(p.codiceColoreSanitario ?? '').trim();
     if (c && COLORI_VALIDI.has(c)) colori.push(c);
   }
-  const next = colori.length
-    ? pickGravestColore(colori)
-    : normalizeCodiceColore(missione.codiceColoreMissione ?? missione.codiceColore);
+  if (colori.length) {
+    await updateDoc(doc(db, ...missioniPath(manifestationId), missionDocId), {
+      codiceColoreTrasporto: pickGravestColore(colori),
+      codiceColoreTrasportoManuale: false,
+    });
+    return;
+  }
   await updateDoc(doc(db, ...missioniPath(manifestationId), missionDocId), {
-    codiceColoreTrasporto: next,
+    codiceColoreTrasporto: deleteField(),
+    codiceColoreTrasportoManuale: deleteField(),
   });
 }
 
@@ -135,17 +161,23 @@ export async function refreshMissioneCodiceColoreTrasporto(manifestationId, miss
  * Allinea colore sanitario paziente e codice trasporto missione (valutazione MSB/MSA).
  */
 export async function patchMissioneCodiceColoreFromPaziente(manifestationId, paziente, codiceColore) {
-  if (!manifestationId || !paziente || codiceColore == null || codiceColore === '') return;
-  if (!COLORI_VALIDI.has(codiceColore)) return;
+  if (!manifestationId || !paziente) return;
+
+  const esplicito =
+    codiceColore != null && codiceColore !== '' && COLORI_VALIDI.has(codiceColore);
 
   if (paziente._docId) {
-    await patchPaziente(manifestationId, paziente._docId, {
-      codiceColoreSanitario: codiceColore,
-    });
+    await patchPaziente(
+      manifestationId,
+      paziente._docId,
+      esplicito
+        ? { codiceColoreSanitario: codiceColore }
+        : { codiceColoreSanitario: deleteField() },
+    );
   }
 
   const hit = await findMissioneDocForPaziente(manifestationId, paziente);
-  if (!hit) return;
+  if (!hit || hit.data.codiceColoreTrasportoManuale === true) return;
   await refreshMissioneCodiceColoreTrasporto(manifestationId, hit.id, hit.data);
 }
 

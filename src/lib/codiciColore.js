@@ -36,17 +36,31 @@ export function resolveCodiceColoreMissione(missione, evento) {
   return resolveCodiceColoreEvento(evento);
 }
 
-export function resolveCodiceColoreTrasporto(missione, evento, pazientiTrasporto = []) {
-  const stored = missione?.codiceColoreTrasporto;
-  if (stored) return normalizeCodiceColore(stored);
-  const fromPaz = (pazientiTrasporto ?? []).map(
-    (p) => p.codiceColoreSanitario ?? p.codiceColore,
-  );
+/** Codici sanitari espliciti sui pazienti in trasporto (campo `codiceColoreSanitario`). */
+export function codiciColoreSanitariPazienti(pazientiTrasporto = []) {
+  return (pazientiTrasporto ?? [])
+    .map((p) => String(p?.codiceColoreSanitario ?? '').trim())
+    .filter((c) => DEFAULT_IMPOSTAZIONI.coloriEvento.includes(c));
+}
+
+/**
+ * Colore T (trasporto verso ospedale): solo da codice sanitario paziente o impostazione manuale missione.
+ * Ignora default MSB «Bianco» e valori legacy copiati dall’evento.
+ */
+export function resolveCodiceColoreTrasporto(missione, _evento, pazientiTrasporto = []) {
+  const fromPaz = codiciColoreSanitariPazienti(pazientiTrasporto);
   if (fromPaz.length) return pickGravestColore(fromPaz);
-  return resolveCodiceColoreEvento(evento);
+  if (missione?.codiceColoreTrasportoManuale === true) {
+    const stored = String(missione?.codiceColoreTrasporto ?? '').trim();
+    if (stored) return normalizeCodiceColore(stored);
+  }
+  return null;
 }
 
 /** Colore di riga dashboard: priorità trasporto → missione → evento. */
 export function coloreRigaDashboard(missione, evento, pazientiTrasporto = []) {
-  return resolveCodiceColoreTrasporto(missione, evento, pazientiTrasporto);
+  return (
+    resolveCodiceColoreTrasporto(missione, evento, pazientiTrasporto) ??
+    resolveCodiceColoreMissione(missione, evento)
+  );
 }

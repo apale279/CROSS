@@ -46,7 +46,7 @@ export function emptyMsaDetails() {
     parametri: emptyMsaParametri(),
     farmaci: [],
     noteMsa: '',
-    codiceColore: 'Bianco',
+    codiceColore: null,
     mezzoMsa: '',
   };
 }
@@ -129,9 +129,8 @@ export function normalizeMsaDetails(raw) {
   d.parametri = parametri;
   d.farmaci = Array.isArray(raw.farmaci) ? raw.farmaci.map((f) => String(f ?? '')) : [];
   d.noteMsa = raw.noteMsa ?? '';
-  d.codiceColore = DEFAULT_IMPOSTAZIONI.coloriEvento.includes(raw.codiceColore)
-    ? raw.codiceColore
-    : 'Bianco';
+  const rawColore = String(raw.codiceColore ?? '').trim();
+  d.codiceColore = DEFAULT_IMPOSTAZIONI.coloriEvento.includes(rawColore) ? rawColore : null;
   d.mezzoMsa = raw.mezzoMsa ?? '';
   return d;
 }

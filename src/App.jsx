@@ -9,6 +9,7 @@ import DashboardPage from './pages/DashboardPage';
 import KioskEventiPage from './pages/kiosk/KioskEventiPage';
 import KioskMezziPage from './pages/kiosk/KioskMezziPage';
 import KioskMappaPage from './pages/kiosk/KioskMappaPage';
+import KioskPmaPage from './pages/kiosk/KioskPmaPage';
 import EventiPage from './pages/EventiPage';
 import MezziPage from './pages/MezziPage';
 import MissioniPage from './pages/MissioniPage';
@@ -53,6 +54,7 @@ export default function App() {
             <Route path="kiosk/eventi" element={<KioskEventiPage />} />
             <Route path="kiosk/mezzi" element={<KioskMezziPage />} />
             <Route path="kiosk/mappa" element={<KioskMappaPage />} />
+            <Route path="kiosk/pma" element={<KioskPmaPage />} />
           </Route>
         </Route>
       </Route>

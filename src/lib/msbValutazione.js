@@ -27,7 +27,7 @@ export function emptyMsbDetails() {
     glicemia: null,
     app: '',
     descrizione: '',
-    codiceColore: 'Bianco',
+    codiceColore: null,
     esitoMsb: 'Trasportato',
     esitoAltroMsb: '',
     mezzoMsb: '',
@@ -87,9 +87,8 @@ export function normalizeMsbDetails(raw) {
       : clampNum(glicRaw, null, 800, 0);
   d.app = raw.app ?? '';
   d.descrizione = raw.descrizione ?? '';
-  d.codiceColore = DEFAULT_IMPOSTAZIONI.coloriEvento.includes(raw.codiceColore)
-    ? raw.codiceColore
-    : 'Bianco';
+  const rawColore = String(raw.codiceColore ?? '').trim();
+  d.codiceColore = DEFAULT_IMPOSTAZIONI.coloriEvento.includes(rawColore) ? rawColore : null;
   d.esitoMsb = ESITI_MSB.includes(raw.esitoMsb) ? raw.esitoMsb : 'Trasportato';
   d.esitoAltroMsb = raw.esitoAltroMsb ?? '';
   d.mezzoMsb = raw.mezzoMsb ?? '';

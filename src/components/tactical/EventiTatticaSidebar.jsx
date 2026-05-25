@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { GripVertical, Plus } from 'lucide-react';
 import { ColoreIndicator } from '../ui/ColoreIndicator';
 import { coloreBadgeClass } from '../../utils/formatters';
-import { missioniPerEvento } from '../../lib/eventoLinks';
+import { compareEventiAperti, missioniPerEvento } from '../../lib/eventoLinks';
 import { eventoOnTacticalBoard } from '../../lib/tacticalBoard';
 import { isMissioneAttiva } from '../../lib/mezzoMissione';
 import { NuovoEventoRapidoForm } from './NuovoEventoRapidoForm';
@@ -36,7 +36,7 @@ export function EventiTatticaSidebar({
     () =>
       eventi
         .filter((e) => e.stato !== false && (e.luogo_fisico ?? '').trim())
-        .sort((a, b) => String(a.idEvento ?? '').localeCompare(String(b.idEvento ?? ''), 'it')),
+        .sort(compareEventiAperti),
     [eventi],
   );
 

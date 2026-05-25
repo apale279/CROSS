@@ -285,7 +285,11 @@ export function EventiMissioniTable({
                     className={`${tdClass} border-r-2 border-slate-300 text-center`}
                     title="Colore trasporto"
                   >
-                    <ColoreIndicator colore={coloreT} size="md" />
+                    {coloreT ? (
+                      <ColoreIndicator colore={coloreT} size="md" />
+                    ) : (
+                      <span className="text-xs text-slate-400">—</span>
+                    )}
                   </td>
                   <td
                     className={`${tdClass} border-l-2 border-slate-300 font-mono font-bold whitespace-nowrap`}

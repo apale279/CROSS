@@ -13,10 +13,13 @@ import { db } from '../firebaseConfig';
 import { eventiPath, missioniPath, pazientiPath } from '../lib/firestorePaths';
 import { deletePazienteCascade } from './pazientiService';
 import { buildStatoChangeFields } from '../lib/missionStoricoStati';
+import { mezzoHaMissioneAttiva } from '../lib/mezzoMissione';
+import { MEZZO_STATO_DISPONIBILE } from '../lib/mezzoStati';
 import { isMissioneTerminata } from '../utils/eventoAutoClose';
 import { newIdUnivoco } from '../lib/ids';
 import { allocateProgressiveId } from './progressiveIdService';
 import { patchMissione } from './missioniService';
+import { patchMezzo } from './mezziService';
 
 async function flushBatchDeletes(refs) {
   if (!refs.length) return;
@@ -85,7 +88,21 @@ async function deleteRecordiCollegati(manifestationId, idUnivoco, idEvento) {
     return p.eventoCorrelato === idEvento;
   });
 
+  const deletedMissionIds = new Set(delMissioni.map((d) => d.id));
+  const mezziCoinvolti = [
+    ...new Set(delMissioni.map((d) => d.data().mezzo).filter(Boolean)),
+  ];
+  const missioniRimanenti = missioniSnap.docs
+    .filter((d) => !deletedMissionIds.has(d.id))
+    .map((d) => ({ _docId: d.id, ...d.data() }));
+
   await flushBatchDeletes(delMissioni.map((d) => d.ref));
+
+  for (const sigla of mezziCoinvolti) {
+    if (!mezzoHaMissioneAttiva(sigla, missioniRimanenti)) {
+      await patchMezzo(manifestationId, sigla, { statoMezzo: MEZZO_STATO_DISPONIBILE });
+    }
+  }
 
   for (const d of delPazienti) {
     await deletePazienteCascade(manifestationId, d.id);

@@ -1,10 +1,11 @@
-import { Table2, Truck, Map } from 'lucide-react';
+import { Table2, Truck, Map, Tent } from 'lucide-react';
 import { KIOSK_PANEL_CONFIG } from '../../lib/kioskPopOut';
 
 const ICONS = {
   operativo: Table2,
   mezzi: Truck,
   mappa: Map,
+  pma: Tent,
 };
 
 /**

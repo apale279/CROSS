@@ -18,6 +18,7 @@ import { patchMissione } from '../services/missioniService';
 import { OpsMap } from '../components/dashboard/OpsMap';
 import { MappaTatticaDashboard } from '../components/dashboard/MappaTatticaDashboard';
 import { EventiMissioniTable } from '../components/dashboard/EventiMissioniTable';
+import { DashboardPmaPanel } from '../components/dashboard/DashboardPmaPanel';
 import { FloatingPanel } from '../components/dashboard/FloatingPanel';
 import { FullscreenPanel } from '../components/dashboard/FullscreenPanel';
 import { MezzoScheda } from '../components/mezzi/MezzoScheda';
@@ -74,7 +75,7 @@ export default function DashboardPage() {
   const { broadcast: broadcastDiario, broadcasting: broadcastingDiario } =
     useDiarioTelegramBroadcast();
   const [layout, setLayout] = useState(() => loadDashboardLayout(manifestationId));
-  const [zOrder, setZOrder] = useState(['operativo', 'mezzi', 'mappa']);
+  const [zOrder, setZOrder] = useState(['operativo', 'mezzi', 'mappa', 'pma']);
   const [operativoFullscreen, setOperativoFullscreen] = useState(false);
   const [dashboardView, setDashboardView] = useState('operativo');
   const {
@@ -100,7 +101,7 @@ export default function DashboardPage() {
   useEffect(() => {
     const onReset = () => {
       setLayout({ ...DEFAULT_DASHBOARD_LAYOUT });
-      setZOrder(['operativo', 'mezzi', 'mappa']);
+      setZOrder(['operativo', 'mezzi', 'mappa', 'pma']);
       setOperativoFullscreen(false);
       setDashboardView('operativo');
     };
@@ -281,6 +282,19 @@ export default function DashboardPage() {
             if (payload.type === 'pma') setModal({ type: 'pma', data: payload.data });
           }}
         />
+      </FloatingPanel>
+      )}
+
+      {isPanelVisible('pma') && (
+      <FloatingPanel
+        title="Dashboard PMA"
+        layout={layout.pma ?? DEFAULT_DASHBOARD_LAYOUT.pma}
+        zIndex={zIndexFor('pma')}
+        onFocus={() => focusPanel('pma')}
+        onLayoutChange={(patch) => updatePanel('pma', patch)}
+        headerActions={panelHeaderActions('pma')}
+      >
+        <DashboardPmaPanel pazienti={pazienti} loading={loading} />
       </FloatingPanel>
       )}
 

@@ -20,6 +20,7 @@ import { buildStatoChangeFields } from '../../lib/missionStoricoStati';
 import { createMissione, patchMissione } from '../../services/missioniService';
 import { PazienteScheda } from '../pazienti/PazienteScheda';
 import { Modal } from '../ui/Modal';
+import { ColoreIndicator } from '../ui/ColoreIndicator';
 import { coloreBadgeClass, formatTimestamp, statoMissioneBadgeClass } from '../../utils/formatters';
 import {
   FormField,
@@ -67,7 +68,11 @@ export function EventoScheda({
   const [draft, setDraft] = useState(emptyValues);
   const [showMissioneForm, setShowMissioneForm] = useState(false);
   const [pazienteModal, setPazienteModal] = useState(null);
-  const [missioneForm, setMissioneForm] = useState({ mezzo: '', pazienteAutopresentato: false });
+  const [missioneForm, setMissioneForm] = useState({
+    mezzo: '',
+    pazienteAutopresentato: false,
+    codiceColoreMissione: 'Bianco',
+  });
   const [saving, setSaving] = useState(false);
   const [noteChiusura, setNoteChiusura] = useState('');
   const [chiusuraStandDown, setChiusuraStandDown] = useState(false);
@@ -133,12 +138,12 @@ export function EventoScheda({
   useEffect(() => {
     if (readOnly || isCreate || !evento?._docId || evento.stato === false) return;
     if (evento.operativoTerminato === true) return;
-    if (!shouldAutoCloseEvento(missioniEvento)) return;
+    if (!shouldAutoCloseEvento(missioniEvento, pazientiEvento)) return;
     patchEvento(manifestazioneId, evento._docId, {
       operativoTerminato: true,
       operativoTerminatoIl: serverTimestamp(),
     });
-  }, [readOnly, isCreate, evento, missioniEvento, manifestazioneId]);
+  }, [readOnly, isCreate, evento, missioniEvento, pazientiEvento, manifestazioneId]);
 
   const patch = (fields) => {
     if (isCreate) {
@@ -182,12 +187,16 @@ export function EventoScheda({
           eventoCorrelato: evento.idEvento,
           mezzo: missioneForm.mezzo,
           pazienteAutopresentato: missioneForm.pazienteAutopresentato,
-          coloreEvento: evento.colore,
+          codiceColoreMissione: missioneForm.codiceColoreMissione ?? evento.colore,
         },
         allMissioni,
         mezzo,
       );
-      setMissioneForm({ mezzo: '', pazienteAutopresentato: false });
+      setMissioneForm({
+        mezzo: '',
+        pazienteAutopresentato: false,
+        codiceColoreMissione: evento.colore ?? 'Bianco',
+      });
       setShowMissioneForm(false);
     } catch (err) {
       alert('Errore: ' + err.message);
@@ -341,7 +350,18 @@ export function EventoScheda({
             <button
               type="button"
               className={`${btnPrimary} flex items-center gap-2`}
-              onClick={() => setShowMissioneForm((v) => !v)}
+              onClick={() => {
+                setShowMissioneForm((v) => {
+                  const next = !v;
+                  if (next) {
+                    setMissioneForm((f) => ({
+                      ...f,
+                      codiceColoreMissione: evento.colore ?? 'Bianco',
+                    }));
+                  }
+                  return next;
+                });
+              }}
             >
               <Plus className="h-4 w-4" />
               Nuova missione
@@ -372,6 +392,34 @@ export function EventoScheda({
                   })}
                 </select>
               </FormField>
+              <div className="mt-3">
+                <p className="mb-1.5 text-[10px] font-semibold uppercase text-violet-800">
+                  Codice colore missione
+                </p>
+                <div className="flex flex-wrap gap-1">
+                  {DEFAULT_IMPOSTAZIONI.coloriEvento.map((c) => {
+                    const sel = (missioneForm.codiceColoreMissione ?? 'Bianco') === c;
+                    return (
+                      <button
+                        key={c}
+                        type="button"
+                        onClick={() =>
+                          setMissioneForm((f) => ({ ...f, codiceColoreMissione: c }))
+                        }
+                        className={`rounded border-2 p-1 ${
+                          sel ? 'border-violet-600 bg-violet-50' : 'border-slate-200 bg-white'
+                        }`}
+                        title={c}
+                      >
+                        <ColoreIndicator colore={c} size="md" />
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className="mt-1 text-[10px] text-violet-700">
+                  Il colore trasporto si compila dai pazienti caricati sul mezzo.
+                </p>
+              </div>
               <label className="mt-3 flex items-center gap-2 text-sm text-slate-700">
                 <input
                   type="checkbox"

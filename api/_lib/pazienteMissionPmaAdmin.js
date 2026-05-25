@@ -93,16 +93,16 @@ export function buildArrivatoHPatchAdmin(paziente, evento = null) {
 
   const pmaDest = String(paziente.destinazionePmaId ?? '').trim();
   if (pmaDest) {
-    patch.statoPzPma = STATO_PZ_PMA.IN_CARICO;
+    const cur = String(paziente.statoPzPma ?? '').trim();
+    if (cur !== STATO_PZ_PMA.DIMESSO && cur !== STATO_PZ_PMA.IN_CARICO) {
+      patch.statoPzPma = STATO_PZ_PMA.IN_ARRIVO;
+    }
     patch.pmaId = paziente.pmaId ?? pmaDest;
     if (!paziente.pmaScheda) {
       patch.pmaScheda = {
         ...EMPTY_PMA_SCHEDA,
-        ingresso_carico_at: FieldValue.serverTimestamp(),
         ...seedFromPazienteEvento(paziente, evento),
       };
-    } else {
-      patch['pmaScheda.ingresso_carico_at'] = FieldValue.serverTimestamp();
     }
   }
 

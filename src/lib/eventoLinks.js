@@ -43,3 +43,28 @@ export function findEvento(eventi, ref) {
     ) ?? null
   );
 }
+
+/** Eventi ancora aperti (`stato !== false`), non chiusi dall’operatore. */
+export function isEventoAperto(evento) {
+  return evento?.stato !== false;
+}
+
+/** Fase operativa conclusa (rientro / fine missioni), evento ancora «aperto» in archivio. */
+export function isEventoOperativoTerminato(evento) {
+  return isEventoAperto(evento) && evento?.operativoTerminato === true;
+}
+
+/**
+ * Ordine elenco eventi aperti: prima in corso, poi operativo terminati in fondo;
+ * dentro ogni gruppo, apertura più recente prima.
+ */
+export function compareEventiAperti(a, b) {
+  const termA = isEventoOperativoTerminato(a) ? 1 : 0;
+  const termB = isEventoOperativoTerminato(b) ? 1 : 0;
+  if (termA !== termB) return termA - termB;
+  return (b.apertura?.toMillis?.() ?? 0) - (a.apertura?.toMillis?.() ?? 0);
+}
+
+export function sortEventiAperti(eventi) {
+  return [...(eventi ?? [])].filter(isEventoAperto).sort(compareEventiAperti);
+}

@@ -80,7 +80,7 @@ export async function createTrasportoInvioPsDaPma(
       eventoCorrelato: evento.idEvento,
       mezzo,
       statoInizialeForzato: 'IN POSTO',
-      coloreEvento: coloreDaCodiceTrasporto(scheda.invio_ps_codice_trasporto),
+      codiceColoreMissione: coloreDaCodiceTrasporto(scheda.invio_ps_codice_trasporto),
       tipoTrasporto: TIPO_TRASPORTO_MISSIONE_PMA_INVIO_PS,
       noteMissione: noteLines.join('\n'),
       pazienteRiferimento: {

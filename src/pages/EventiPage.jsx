@@ -5,7 +5,7 @@ import { useManifestazioneCollection } from '../hooks/useManifestazioneCollectio
 import { useEventoScheda } from '../context/EventoSchedaContext';
 import { ColoreIndicator } from '../components/ui/ColoreIndicator';
 import { formatTimestamp } from '../utils/formatters';
-import { pazientiPerEvento } from '../lib/eventoLinks';
+import { compareEventiAperti, isEventoAperto, pazientiPerEvento } from '../lib/eventoLinks';
 
 export default function EventiPage() {
   const { data: eventi, loading: loadingEventi } = useManifestazioneCollection(COLLECTIONS.eventi);
@@ -21,11 +21,13 @@ export default function EventiPage() {
     return m;
   }, [eventi, pazienti]);
 
-  const sorted = [...eventi].sort((a, b) => {
-    const ta = a.apertura?.toMillis?.() ?? 0;
-    const tb = b.apertura?.toMillis?.() ?? 0;
-    return tb - ta;
-  });
+  const sorted = useMemo(() => {
+    const aperti = eventi.filter(isEventoAperto).sort(compareEventiAperti);
+    const chiusi = eventi
+      .filter((e) => !isEventoAperto(e))
+      .sort((a, b) => (b.apertura?.toMillis?.() ?? 0) - (a.apertura?.toMillis?.() ?? 0));
+    return [...aperti, ...chiusi];
+  }, [eventi]);
 
   const thClass =
     'bg-slate-100 px-4 py-3 text-left text-xs font-bold uppercase text-slate-600';

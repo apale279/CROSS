@@ -30,7 +30,7 @@ import {
 } from '../../lib/pmaModule';
 import { chiusuraCentraleLabel, isChiusoCentrale, isTrasportoCentraleModificabile, statoCentraleLabel } from '../../lib/pazienteStati';
 import { moduliSchedaPaziente, pmaIdDaPaziente, usaSchedaUnificataPma, VISTA_SCHEDA } from '../../lib/pazienteSchedaModuli';
-import { ensurePmaSchedaOnDestinazione } from '../../services/pazientePmaMissionSync';
+import { setPazientePmaInArrivo } from '../../services/pazientePmaMissionSync';
 import { PazienteModuloPma } from './moduli/PazienteModuloPma';
 import { COLLECTIONS } from '../../lib/firestorePaths';
 import {
@@ -232,7 +232,7 @@ export function PazienteScheda({
       if (isCreate) return;
       await patchPatientFields(patch, Object.keys(patch));
       if (dest.destinazionePmaId && patientDocId) {
-        await ensurePmaSchedaOnDestinazione(
+        await setPazientePmaInArrivo(
           manifestationId,
           patientDocId,
           { ...displayPatient, ...patch },
@@ -441,7 +441,10 @@ export function PazienteScheda({
           destinazionePmaId: trasporta ? draft.destinazionePmaId ?? '' : '',
           pmaId: trasporta ? draft.destinazionePmaId ?? '' : '',
           tipoPz: TIPO_PZ.CENTRALE,
-          statoPzPma: null,
+          statoPzPma:
+            trasporta && String(draft.destinazionePmaId ?? '').trim()
+              ? STATO_PZ_PMA.IN_ARRIVO
+              : null,
           ...(trasporta ? soreuFieldsForFirestore(draft) : {}),
           stato: draft.stato,
           mezzo: trasporta ? draft.mezzo : '',

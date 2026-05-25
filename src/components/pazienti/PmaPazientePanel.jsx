@@ -52,8 +52,9 @@ export function PmaPazientePanel({ paziente, pmaNome, compact = false }) {
       <p className="mt-3 text-xs text-slate-600">
         Due livelli distinti: la centrale chiude la missione (<strong>ARRIVATO H</strong>,{' '}
         <strong>aperta: false</strong>); il PMA ha il proprio ciclo (
-        <strong>{STATO_PZ_PMA.IN_ARRIVO}</strong> → <strong>{STATO_PZ_PMA.IN_CARICO}</strong> →{' '}
-        <strong>{STATO_PZ_PMA.DIMESSO}</strong>).
+        <strong>{STATO_PZ_PMA.IN_ARRIVO}</strong> → presa in carico al desk (
+        <strong>{STATO_PZ_PMA.IN_CARICO}</strong>) → <strong>{STATO_PZ_PMA.DIMESSO}</strong>).
+        L&apos;arrivo del mezzo non imposta automaticamente «in carico».
       </p>
     </section>
   );

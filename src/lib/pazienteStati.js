@@ -10,7 +10,7 @@
  *
  * Un paziente inviato al PMA dalla centrale, dopo ARRIVATO H, è:
  *    - chiuso per la centrale (`aperta: false`, `stato: ARRIVATO H`)
- *    - attivo in tenda (`statoPzPma: in carico`) fino a dimissione PMA
+ *    - in tenda `IN ARRIVO` fino a «Prendi in carico», poi `in carico` fino a dimissione PMA
  */
 
 import {
@@ -39,7 +39,7 @@ export function isAttivoPma(paziente) {
 
 /**
  * Elenco centrale «Chiusi»: missione/trasporto concluso e, se inviato al PMA, anche dimesso in tenda.
- * Un centrale ARRIVATO H ma ancora in carico al PMA resta in «Aperti».
+ * Un centrale ARRIVATO H ma ancora IN ARRIVO / in carico al PMA resta in «Aperti».
  */
 export function pazienteInElencoChiusi(paziente) {
   if (!paziente) return false;

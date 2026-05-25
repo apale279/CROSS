@@ -40,6 +40,26 @@ export async function ensurePmaSchedaOnDestinazione(manifestationId, docId, pazi
   await initPmaSchedaIfMissing(manifestationId, docId, Object.keys(seed).length ? seed : null);
 }
 
+/**
+ * Centrale invia verso PMA: stato tenda «IN ARRIVO» (presa in carico solo da desk PMA).
+ * Non sovrascrive «in carico» o «DIMESSO».
+ */
+export async function setPazientePmaInArrivo(manifestationId, docId, paziente, evento = null) {
+  if (!manifestationId || !docId) return;
+  if (!String(paziente?.destinazionePmaId ?? '').trim()) return;
+  const cur = normalizeStatoPzPma(paziente.statoPzPma);
+  if (cur === STATO_PZ_PMA.DIMESSO || cur === STATO_PZ_PMA.IN_CARICO) return;
+
+  await patchPaziente(manifestationId, docId, {
+    tipoPz: paziente.tipoPz ?? TIPO_PZ.CENTRALE,
+    pmaId: paziente.pmaId ?? paziente.destinazionePmaId ?? '',
+    statoPzPma: STATO_PZ_PMA.IN_ARRIVO,
+  });
+  if (!paziente.pmaScheda) {
+    await ensurePmaSchedaOnDestinazione(manifestationId, docId, paziente, evento);
+  }
+}
+
 function pazienteCollegatoAMissione(p, missione) {
   return (
     pazienteSameEventoAsMissione(p, missione) &&
@@ -51,7 +71,7 @@ const STATI_MISSIONE_PMA_SYNC = new Set(['DIRETTO H', 'ARRIVATO H', 'RIENTRO']);
 
 /**
  * Destinazione PMA impostata/tardiva mentre la missione è già in viaggio o conclusa:
- * allinea statoPzPma (IN ARRIVO o in carico se ARRIVATO H).
+ * allinea statoPzPma a IN ARRIVO (mai in carico automatico da stato mezzo).
  */
 export async function syncPmaStatoOnDestinazionePaziente(
   manifestationId,
@@ -71,17 +91,11 @@ export async function syncPmaStatoOnDestinazionePaziente(
   if (cur === STATO_PZ_PMA.DIMESSO) return;
 
   if (ms === 'ARRIVATO H') {
-    if (paziente.stato === 'ARRIVATO H' && cur === STATO_PZ_PMA.IN_CARICO) return;
     const result = patchPazienteArrivatoHConPma(paziente, evento);
     if (!result?.patch) return;
     await patchPaziente(manifestationId, paziente._docId, result.patch);
     if (result.initPmaScheda) {
       await initPmaSchedaIfMissing(manifestationId, paziente._docId, result.pmaSchedaSeed);
-    }
-    if (result.markIngressoCarico) {
-      await patchPazientePmaGranular(manifestationId, paziente._docId, {
-        ingresso_carico_at: Timestamp.now(),
-      });
     }
     return;
   }
@@ -123,25 +137,22 @@ export async function syncPazientiPmaOnDirettoH(manifestationId, missione) {
   return { updated: tasks.length };
 }
 
-/** ARRIVATO H + destinazione PMA: chiusura centrale e «in carico» in tenda. */
+/** ARRIVATO H + destinazione PMA: chiusura centrale; in tenda resta IN ARRIVO fino a presa in carico manuale. */
 export function patchPazienteArrivatoHConPma(paziente, evento = null) {
   const patch = applyMissioneArrivatoH(paziente);
   if (!patch) return null;
   let initPmaScheda = false;
   let pmaSchedaSeed = null;
-  let markIngressoCarico = false;
   if (String(paziente.destinazionePmaId ?? '').trim()) {
-    patch.statoPzPma = STATO_PZ_PMA.IN_CARICO;
+    const cur = normalizeStatoPzPma(paziente.statoPzPma);
+    if (cur !== STATO_PZ_PMA.DIMESSO && cur !== STATO_PZ_PMA.IN_CARICO) {
+      patch.statoPzPma = STATO_PZ_PMA.IN_ARRIVO;
+    }
     patch.pmaId = paziente.pmaId ?? paziente.destinazionePmaId ?? '';
     if (!paziente.pmaScheda) {
       initPmaScheda = true;
-      pmaSchedaSeed = {
-        ingresso_carico_at: Timestamp.now(),
-        ...seedFromPazienteEvento(paziente, evento),
-      };
-    } else {
-      markIngressoCarico = true;
+      pmaSchedaSeed = seedFromPazienteEvento(paziente, evento);
     }
   }
-  return { patch, initPmaScheda, pmaSchedaSeed, markIngressoCarico };
+  return { patch, initPmaScheda, pmaSchedaSeed, markIngressoCarico: false };
 }

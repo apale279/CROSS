@@ -18,7 +18,7 @@ import { normalizeMsaDetails } from '../lib/msaValutazione';
 import { newValutazioneSoccorsoItem, payloadValutazioneRow } from '../lib/valutazioniSoccorsoPayload';
 import { defaultsForPatientCreate } from '../lib/pazienteDefaults';
 import { patchPazienteArrivatoHConPma } from './pazientePmaMissionSync';
-import { initPmaSchedaIfMissing, patchPazientePmaGranular } from '../pma/lib/pazientePmaPatch';
+import { initPmaSchedaIfMissing } from '../pma/lib/pazientePmaPatch';
 import {
   fetchEventoForMissione,
   fetchPazientiTrasportoOnMezzo,
@@ -94,11 +94,6 @@ export async function transitionPazienteArrivatoHTransaction(
   await patchPaziente(manifestationId, patientDocId, result.patch);
   if (result.initPmaScheda) {
     await initPmaSchedaIfMissing(manifestationId, patientDocId, result.pmaSchedaSeed);
-  }
-  if (result.markIngressoCarico) {
-    await patchPazientePmaGranular(manifestationId, patientDocId, {
-      ingresso_carico_at: Timestamp.now(),
-    });
   }
 }
 
@@ -240,11 +235,6 @@ export async function syncPazientiArrivatoH(manifestationId, missione) {
     await patchPaziente(manifestationId, p._docId, result.patch);
     if (result.initPmaScheda) {
       await initPmaSchedaIfMissing(manifestationId, p._docId, result.pmaSchedaSeed);
-    }
-    if (result.markIngressoCarico) {
-      await patchPazientePmaGranular(manifestationId, p._docId, {
-        ingresso_carico_at: Timestamp.now(),
-      });
     }
   }
 }

@@ -217,10 +217,15 @@ export function MsbValutazioneForm({ msbDetails, onPatch, mezziEventoSigle, valu
       </FormField>
 
       <div>
-        <p className="mb-2 text-xs font-semibold uppercase text-slate-600">Codice colore</p>
+        <p className="mb-2 text-xs font-semibold uppercase text-slate-600">
+          Codice colore trasporto
+        </p>
+        <p className="mb-2 text-[10px] text-slate-500">
+          Imposta il codice T della missione quando il paziente è in trasporto.
+        </p>
         <div className="flex flex-wrap gap-2">
           {DEFAULT_IMPOSTAZIONI.coloriEvento.map((c) => {
-            const sel = d.codiceColore === c;
+            const sel = d.codiceColore != null && d.codiceColore === c;
             return (
               <button
                 key={c}
@@ -235,6 +240,15 @@ export function MsbValutazioneForm({ msbDetails, onPatch, mezziEventoSigle, valu
               </button>
             );
           })}
+          {d.codiceColore != null && (
+            <button
+              type="button"
+              onClick={() => onPatch({ codiceColore: null })}
+              className="rounded-lg border border-slate-300 px-2 py-1.5 text-[10px] font-semibold text-slate-600 hover:bg-slate-50"
+            >
+              Rimuovi
+            </button>
+          )}
         </div>
       </div>
     </div>

@@ -1,6 +1,7 @@
 import { collection, doc, getDoc, getDocs, query, serverTimestamp, where } from 'firebase/firestore';
 import { db } from '../firebaseConfig';
-import { eventiPath, missioniPath } from '../lib/firestorePaths';
+import { eventiPath, missioniPath, pazientiPath } from '../lib/firestorePaths';
+import { pazientiPerEvento } from '../lib/eventoLinks';
 import { shouldAutoCloseEvento } from '../utils/eventoAutoClose';
 import { patchEvento } from './eventiService';
 
@@ -27,7 +28,9 @@ export async function tryAutoCloseEvento(manifestationId, eventoRef) {
     missioni = snap.docs.map((d) => d.data());
   }
 
-  if (!shouldAutoCloseEvento(missioni)) return;
+  let pazienti = [];
+  const pazSnap = await getDocs(collection(db, ...pazientiPath(manifestationId)));
+  pazienti = pazSnap.docs.map((d) => ({ _docId: d.id, ...d.data() }));
 
   let eventoDoc;
   if (eventoRef.docId) {
@@ -55,6 +58,13 @@ export async function tryAutoCloseEvento(manifestationId, eventoRef) {
   }
 
   if (!eventoDoc || eventoDoc.stato === false || eventoDoc.operativoTerminato === true) return;
+
+  const pazientiEvento = pazientiPerEvento(pazienti, {
+    idUnivoco: eventoDoc.idUnivoco,
+    idEvento: eventoDoc.idEvento,
+  });
+  if (!shouldAutoCloseEvento(missioni, pazientiEvento)) return;
+
   await patchEvento(manifestationId, eventoDoc.id, {
     operativoTerminato: true,
     operativoTerminatoIl: serverTimestamp(),

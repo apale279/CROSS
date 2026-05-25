@@ -12,6 +12,7 @@ import { FormField, btnPrimary, btnSecondary, inputClass, selectClass } from '..
 const emptyDraft = () => ({
   luogo_fisico: '',
   colore: 'Bianco',
+  codiceColoreMissione: 'Bianco',
   tipoEvento: DEFAULT_IMPOSTAZIONI.tipiEvento[0],
   dettaglioEvento: '',
   mezzo: '',
@@ -90,7 +91,7 @@ export function NuovoEventoRapidoForm({
           eventoCorrelato: result.idEvento,
           mezzo: draft.mezzo,
           pazienteAutopresentato: false,
-          coloreEvento: draft.colore,
+          codiceColoreMissione: draft.codiceColoreMissione,
         },
         missioni,
         mezzo,
@@ -198,8 +199,31 @@ export function NuovoEventoRapidoForm({
             })}
           </select>
         </FormField>
-        <p className="text-[10px] text-violet-800">
-          Viene creata una missione ALLERTARE collegata all&apos;evento.
+        <div className="mt-2">
+          <p className="mb-1 text-[10px] font-semibold uppercase text-violet-800">
+            Codice colore missione
+          </p>
+          <div className="flex flex-wrap gap-1">
+            {colori.map((c) => {
+              const sel = (draft.codiceColoreMissione ?? 'Bianco') === c;
+              return (
+                <button
+                  key={`m-${c}`}
+                  type="button"
+                  onClick={() => patch({ codiceColoreMissione: c })}
+                  className={`rounded border-2 p-1 ${
+                    sel ? 'border-violet-600 bg-violet-50' : 'border-slate-200 bg-white'
+                  }`}
+                  title={c}
+                >
+                  <ColoreIndicator colore={c} size="md" />
+                </button>
+              );
+            })}
+          </div>
+        </div>
+        <p className="mt-1 text-[10px] text-violet-800">
+          Viene creata una missione ALLERTARE collegata all&apos;evento. Colore trasporto: dai pazienti.
         </p>
       </div>
 
