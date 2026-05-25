@@ -109,6 +109,9 @@ export function listaPmaImpostazioni(impostazioni) {
       indirizzo: p?.indirizzo ?? '',
       luogo_fisico: p?.luogo_fisico ?? '',
       coordinate: p.coordinate ?? null,
+      ipadUser: p?.ipadUser ?? '',
+      ipadPassword: p?.ipadPassword ?? '',
+      ipadEmail: p?.ipadEmail ?? '',
     }))
     .filter((p) => p.id && p.nome)
     .sort((a, b) => a.nome.localeCompare(b.nome, 'it', { sensitivity: 'base' }));

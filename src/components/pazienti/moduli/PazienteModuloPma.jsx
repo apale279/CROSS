@@ -247,6 +247,17 @@ export function PazienteModuloPma({
     canEditPma && pmaUser && schedaTabDimissioneAllows(pmaUser.rank, 'UPDATE'),
   );
 
+  const pmaIpadFirma =
+    manifestationId && pmaId && patientDocId && user?.uid
+      ? {
+          manifestationId,
+          pmaId,
+          pazienteDocId: patientDocId,
+          operatorUid: user.uid,
+          operatorNome: profile?.nome ?? user.displayName ?? '',
+        }
+      : null;
+
   const shellPanels = {
     anagrafica: anagraficaPanel ?? defaultAnagrafica,
     dati_centrale: datiCentralePanel ?? defaultDatiCentrale,
@@ -276,6 +287,7 @@ export function PazienteModuloPma({
           rifiutoInvioPs={liste.rifiutoInvioPs}
           presetDimissione={liste.presetDimissione}
           prestazioniManifestazioneLista={liste.prestazioni}
+          pmaIpadFirma={pmaIpadFirma}
         />
         <InvioPsSoreuTrasportoBlock
           manifestationId={manifestationId}

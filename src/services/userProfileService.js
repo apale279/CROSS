@@ -15,6 +15,30 @@ export async function createUserProfile(manifestationId, uid, { nome, nomeUtente
   });
 }
 
+/** Profilo operatore kiosk iPad (creato al primo scan QR). */
+export async function ensurePmaIpadKioskProfile(
+  manifestationId,
+  uid,
+  { email, pmaId, pmaNome },
+) {
+  const scope = String(pmaId ?? '').trim();
+  await setDoc(
+    userProfileDocRef(manifestationId, uid),
+    {
+      email: String(email ?? '').trim().toLowerCase(),
+      nome: `iPad firma — ${String(pmaNome ?? scope).trim() || 'PMA'}`,
+      nomeUtente: scope ? `ipad-${scope}` : 'ipad',
+      accessType: 'PMA',
+      pmaRank: 'Infermiere',
+      pmaScopeId: scope,
+      isPmaIpadKiosk: true,
+      aggiornatoIl: serverTimestamp(),
+      creatoIl: serverTimestamp(),
+    },
+    { merge: true },
+  );
+}
+
 export async function saveUserProfile(manifestationId, uid, { nome, nomeUtente, pmaScopeId }) {
   const payload = {
     nome: nome?.trim() ?? '',

@@ -18,6 +18,7 @@ import { PmaPatientQuickForm } from '../components/pma/PmaPatientQuickForm';
 import { PmaPatientReadonlyCard } from '../components/pma/PmaPatientReadonlyCard';
 import { PmaInCaricoCard } from '../components/pma/PmaInCaricoCard';
 import { PmaCodiciMinoriPanel } from '../components/pma/PmaCodiciMinoriPanel';
+import { PmaIpadFirmaInfoPanel } from '../components/pma/PmaIpadFirmaInfoPanel';
 import { btnPrimary, btnSecondary } from '../components/ui/FormField';
 import { prendiInCaricoPma } from '../services/pmaStatoService';
 import {
@@ -41,6 +42,7 @@ export default function PmaDeskPage() {
   const { data: eventi } = useManifestazioneCollection(COLLECTIONS.eventi);
   const [showCreate, setShowCreate] = useState(false);
   const [showCodiciMinori, setShowCodiciMinori] = useState(false);
+  const [showIpadFirma, setShowIpadFirma] = useState(false);
   const [busyId, setBusyId] = useState(null);
   const [codiciBusy, setCodiciBusy] = useState(false);
 
@@ -123,11 +125,20 @@ export default function PmaDeskPage() {
           <button type="button" className={btnSecondary} onClick={() => setShowCodiciMinori(true)}>
             Tabella codici minori
           </button>
+          <button type="button" className={btnSecondary} onClick={() => setShowIpadFirma(true)}>
+            Ipad firma
+          </button>
           <button type="button" className={btnSecondary} onClick={() => setShowCreate(true)}>
             + Paziente autopresentato
           </button>
         </div>
       </div>
+
+      {showIpadFirma && (
+        <Modal title="Ipad firma" wide onClose={() => setShowIpadFirma(false)}>
+          <PmaIpadFirmaInfoPanel pma={pma} />
+        </Modal>
+      )}
 
       {showCreate && (
         <Modal title="Nuovo paziente autopresentato" wide onClose={() => setShowCreate(false)}>

@@ -21,6 +21,7 @@ import LoginPage from './pages/LoginPage';
 import PmaSelectPage from './pages/PmaSelectPage';
 import PmaDeskPage from './pages/PmaDeskPage';
 import PmaPazientePage from './pages/PmaPazientePage';
+import PmaIpadFirmaPage from './pages/PmaIpadFirmaPage';
 
 export default function App() {
   return (
@@ -30,6 +31,9 @@ export default function App() {
         element={<LegacyManifestazioneRedirect />}
       />
       <Route path="/login" element={<LoginPage />} />
+      <Route element={<AppDataShell />}>
+        <Route path="pma-ipad/:pmaId" element={<PmaIpadFirmaPage />} />
+      </Route>
       <Route element={<RequireAuth />}>
         <Route element={<AppDataShell />}>
           <Route element={<PmaAccessRouter />}>

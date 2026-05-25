@@ -16,6 +16,20 @@ import { rasterizeFirmaDataUrlToPng } from '@pma/lib/signatureSvg'
 import { PdfPreviewModal } from './PdfPreviewModal'
 import type { PresetDimissioneVoce } from '@pma/types/manifestazioneImpostazioni'
 import { btnDanger, btnPrimary, btnSecondary } from '@pma/cross/uiTokens'
+import {
+  parsePmaIpadQueueRequest,
+  pushPmaIpadFirmaRequest,
+  subscribePmaIpadFirmaQueue,
+  uploadPmaFirmaPdfPreview,
+} from '../../../services/pmaIpadFirmaService'
+
+export type PmaIpadFirmaSender = {
+  manifestationId: string
+  pmaId: string
+  pazienteDocId: string
+  operatorUid: string
+  operatorNome: string
+}
 
 type Props = {
   p: Paziente
@@ -36,6 +50,8 @@ type Props = {
   presetDimissione?: PresetDimissioneVoce[]
   /** Elenco prestazioni manifestazione: stesso ordine della cartella clinica nel PDF. */
   prestazioniManifestazioneLista?: string[]
+  /** Invio documento all'iPad PMA (coda condivisa, sostituisce richiesta precedente). */
+  pmaIpadFirma?: PmaIpadFirmaSender | null
 }
 
 /**
@@ -57,6 +73,7 @@ export function DimissioneSection({
   rifiutoInvioPs = '',
   presetDimissione = [],
   prestazioniManifestazioneLista = [],
+  pmaIpadFirma = null,
 }: Props) {
   const dimissioneEdit = canEditDimissioneTab && canEditScheda
   const canChiudiDimetti = Boolean(canEditScheda && user && user.rank === 'Medico')
@@ -69,6 +86,10 @@ export function DimissioneSection({
   const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string | null>(null)
   const [pdfPreviewFilename, setPdfPreviewFilename] = useState<string | null>(null)
   const [pdfPreviewBlob, setPdfPreviewBlob] = useState<Blob | null>(null)
+  const [ipadBusy, setIpadBusy] = useState(false)
+  const [ipadErr, setIpadErr] = useState<string | null>(null)
+  const [ipadOk, setIpadOk] = useState(false)
+  const [ipadQueueDoc, setIpadQueueDoc] = useState<Record<string, unknown> | null>(null)
 
   useEffect(() => {
     return () => revokePdfObjectUrl(pdfPreviewUrl)
@@ -80,6 +101,22 @@ export function DimissioneSection({
   useEffect(() => {
     if (!dimissioneEdit) setNoteDraft(p.dimissione_note)
   }, [dimissioneEdit, p.dimissione_note])
+
+  useEffect(() => {
+    if (!pmaIpadFirma?.manifestationId || !pmaIpadFirma?.pmaId) return undefined
+    return subscribePmaIpadFirmaQueue(
+      pmaIpadFirma.manifestationId,
+      pmaIpadFirma.pmaId,
+      setIpadQueueDoc,
+    )
+  }, [pmaIpadFirma?.manifestationId, pmaIpadFirma?.pmaId])
+
+  const ipadQueueRequest = parsePmaIpadQueueRequest(ipadQueueDoc)
+  const ipadQueueForPatient =
+    ipadQueueRequest &&
+    ipadQueueRequest.pazienteDocId === pmaIpadFirma?.pazienteDocId
+      ? ipadQueueRequest
+      : null
 
   const pdfManifestazioneTesti = {
     consensoGenericoCure: consensoGenericoCure.trim() || undefined,
@@ -97,6 +134,34 @@ export function DimissioneSection({
       firma_paziente_url: deleteField(),
     })
     setReplaceFirma(false)
+  }
+
+  async function handleInviaIpadFirma() {
+    if (!pmaIpadFirma || !dimissioneEdit) return
+    setIpadBusy(true)
+    setIpadErr(null)
+    setIpadOk(false)
+    try {
+      const blob = await buildCurrentPdfBlob()
+      const pdfPreviewUrl = await uploadPmaFirmaPdfPreview(
+        pmaIpadFirma.manifestationId,
+        blob,
+        pmaIpadFirma.pazienteDocId,
+      )
+      await pushPmaIpadFirmaRequest(pmaIpadFirma.manifestationId, pmaIpadFirma.pmaId, {
+        pazienteDocId: pmaIpadFirma.pazienteDocId,
+        idPaziente: p.id,
+        pdfPreviewUrl,
+        requestedByUid: pmaIpadFirma.operatorUid,
+        requestedByNome: pmaIpadFirma.operatorNome,
+      })
+      setIpadOk(true)
+      window.setTimeout(() => setIpadOk(false), 6000)
+    } catch (e) {
+      setIpadErr(e instanceof Error ? e.message : 'Invio a iPad non riuscito.')
+    } finally {
+      setIpadBusy(false)
+    }
   }
 
   async function handleDimettiConfirm() {
@@ -345,6 +410,42 @@ export function DimissioneSection({
         <div>
           <div className="pma-section-hdr">Firma paziente</div>
           <div className="px-3 pb-3">
+            {dimissioneEdit && pmaIpadFirma ? (
+              <div className="mb-3 space-y-2 rounded-lg border border-violet-200 bg-violet-50/80 px-3 py-2.5">
+                <p className="text-xs text-violet-950">
+                  <strong>iPad PMA:</strong> invia il PDF di dimissione all&apos;iPad accoppiato. Se un
+                  altro medico invia un documento, sull&apos;iPad resta solo l&apos;ultimo.
+                </p>
+                <button
+                  type="button"
+                  disabled={ipadBusy}
+                  onClick={() => void handleInviaIpadFirma()}
+                  className={`${btnPrimary} uppercase tracking-wide disabled:opacity-50`}
+                >
+                  {ipadBusy ? 'Invio…' : 'Invia documento a iPad per firma'}
+                </button>
+                {ipadOk ? (
+                  <p className="text-xs font-medium text-emerald-800" role="status">
+                    Documento inviato all&apos;iPad. In attesa della firma del paziente…
+                  </p>
+                ) : null}
+                {ipadErr ? (
+                  <p className="text-xs text-red-800" role="alert">
+                    {ipadErr}
+                  </p>
+                ) : null}
+                {ipadQueueForPatient?.status === 'pending' ? (
+                  <p className="text-xs text-amber-900" role="status">
+                    In attesa firma su iPad…
+                  </p>
+                ) : null}
+                {ipadQueueForPatient?.status === 'signed' ? (
+                  <p className="text-xs font-medium text-emerald-800" role="status">
+                    Firma ricevuta dall&apos;iPad.
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
             {dimissioneEdit ? (
               <div className="space-y-3">
                 {firmaPaz ? (

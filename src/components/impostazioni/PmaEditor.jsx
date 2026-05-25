@@ -1,6 +1,9 @@
 import { useState } from 'react';
 import { X } from 'lucide-react';
+import { useManifestazioneId } from '../../context/ManifestazioneContext';
+import { enrichPmaEntryWithIpadCredentials } from '../../lib/pmaIpadCredentials';
 import { useImpostazioniField } from '../../hooks/useImpostazioniField';
+import { syncPmaIpadConfigFromPmaEntry } from '../../services/pmaIpadFirmaService';
 import { AddressPicker } from '../maps/AddressPicker';
 import { LuogoFisicoField } from '../maps/LuogoFisicoField';
 import { Modal } from '../ui/Modal';
@@ -8,16 +11,17 @@ import { FormField, btnPrimary, btnSecondary, inputClass } from '../ui/FormField
 import { SaveFeedback } from './SaveFeedback';
 
 function newPma() {
-  return {
+  return enrichPmaEntryWithIpadCredentials({
     id: crypto.randomUUID(),
     nome: '',
     indirizzo: '',
     luogo_fisico: '',
     coordinate: null,
-  };
+  });
 }
 
 export function PmaEditor() {
+  const manifestationId = useManifestazioneId();
   const { value: items, saveField, saving, loading } = useImpostazioniField('pma');
   const list = items ?? [];
   const [feedback, setFeedback] = useState('');
@@ -50,7 +54,7 @@ export function PmaEditor() {
       alert('Nome PMA già esistente.');
       return;
     }
-    const entry = { ...modal.draft, nome };
+    const entry = enrichPmaEntryWithIpadCredentials({ ...modal.draft, nome });
     const next = list.some((p) => p.id === modal.draft.id)
       ? list.map((p) => (p.id === modal.draft.id ? entry : p))
       : [...list, entry];
@@ -60,6 +64,9 @@ export function PmaEditor() {
         next,
         list.some((p) => p.id === modal.draft.id) ? 'PMA aggiornato.' : 'PMA creato.',
       );
+      if (manifestationId) {
+        await syncPmaIpadConfigFromPmaEntry(manifestationId, entry);
+      }
       setModal(null);
     } catch {
       /* feedback in persistList */
@@ -97,9 +104,8 @@ export function PmaEditor() {
         </button>
       </div>
       <p className="mb-3 text-xs text-slate-500">
-        Ogni PMA ha un ID univoco (root di accesso): usalo per assegnare operatori con vista limitata.
-        In mappa operativa compare con l&apos;icona tenda; in scheda paziente compare in fondo alle
-        destinazioni ospedale.
+        Ogni PMA ha un ID univoco e un account iPad automatico (utente <code className="font-mono">nomepma_ipad</code>
+        , password <code className="font-mono">ipad123</code>). In mappa operativa compare con l&apos;icona tenda.
       </p>
 
       {list.length === 0 ? (
