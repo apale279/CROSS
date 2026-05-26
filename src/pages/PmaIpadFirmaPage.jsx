@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { useManifestazioneId } from '../context/ManifestazioneContext';
+import { useManifestationIdOptional } from '../context/ManifestazioneContext';
+import { useTenantContext } from '../context/TenantContext';
 import { useImpostazioni } from '../hooks/useImpostazioni';
 import { findPmaById } from '../lib/pmaModule';
 import { pmaIpadCredentialsFromEntry } from '../lib/pmaIpadCredentials';
@@ -18,8 +19,9 @@ export default function PmaIpadFirmaPage() {
   const { pmaId: pmaIdParam } = useParams();
   const pmaId = decodeURIComponent(pmaIdParam ?? '');
 
-  const tenantId = useManifestazioneId();
-  const { impostazioni } = useImpostazioni();
+  const { loading: tenantLoading } = useTenantContext();
+  const tenantId = useManifestationIdOptional();
+  const { impostazioni, loading: impostazioniLoading } = useImpostazioni();
   const { user, loading: authLoading } = useAuth();
 
   const pma = useMemo(() => findPmaById(impostazioni, pmaId), [impostazioni, pmaId]);
@@ -93,6 +95,14 @@ export default function PmaIpadFirmaPage() {
     }
   }
 
+  if (tenantLoading || impostazioniLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center p-6 text-sm text-slate-600">
+        Caricamento…
+      </div>
+    );
+  }
+
   if (!tenantId) {
     return (
       <div className="flex min-h-screen items-center justify-center p-6 text-sm text-slate-600">
@@ -103,8 +113,13 @@ export default function PmaIpadFirmaPage() {
 
   if (!pma) {
     return (
-      <div className="flex min-h-screen items-center justify-center p-6 text-sm text-slate-600">
-        PMA non trovato.
+      <div className="flex min-h-screen flex-col items-center justify-center gap-2 p-6 text-center text-sm text-slate-600">
+        <p>PMA non trovato.</p>
+        {pmaId ? (
+          <p className="font-mono text-xs text-slate-500">
+            ID richiesto: <span className="break-all">{pmaId}</span>
+          </p>
+        ) : null}
       </div>
     );
   }

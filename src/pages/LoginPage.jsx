@@ -4,6 +4,8 @@ import { useAuth } from '../context/AuthContext';
 import { useTenantContext } from '../context/TenantContext';
 import { TenantConfigMissing } from '../components/routing/TenantConfigMissing';
 import { AppLogo } from '../components/brand/AppLogo';
+import { getDefaultAppPath } from '../lib/defaultAppPath';
+import { isPmaOperatorProfile } from '../lib/pmaModule';
 
 function mapAuthError(code) {
   switch (code) {
@@ -123,10 +125,10 @@ export default function LoginPage() {
             <button
               type="button"
               disabled={loggingOut}
-              onClick={() => navigate('/', { replace: true })}
+              onClick={() => navigate(getDefaultAppPath(profile), { replace: true })}
               className="flex-1 rounded-lg bg-sky-600 py-2.5 text-sm font-bold uppercase tracking-wide text-white hover:bg-sky-700 disabled:opacity-60"
             >
-              Continua alla dashboard
+              {isPmaOperatorProfile(profile) ? 'Vai al PMA' : 'Continua alla dashboard'}
             </button>
             <button
               type="button"
@@ -176,8 +178,8 @@ export default function LoginPage() {
 
     setSubmitting(true);
     try {
-      await login({ email: email.trim(), password });
-      navigate('/', { replace: true });
+      const prof = await login({ email: email.trim(), password });
+      navigate(getDefaultAppPath(prof), { replace: true });
     } catch (err) {
       const msg = mapAuthError(err?.code) ?? err?.message ?? 'Accesso non riuscito.';
       setError(msg);

@@ -129,6 +129,8 @@ export function AuthProvider({ children }) {
             ? `${window.location.pathname}${window.location.search}`
             : null,
       });
+
+      return prof;
     },
     [tenantId],
   );

@@ -1,9 +1,12 @@
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
 import { usePmaAccess } from '../../hooks/usePmaAccess';
+import { getDefaultAppPath } from '../../lib/defaultAppPath';
 import { isPathAllowedForPmaOperator } from '../../lib/userAccess';
 
 /** Operatori PMA: solo /pma, /pazienti, /diario, /account. Centrale: accesso completo. */
 export function PmaAccessRouter() {
+  const { profile } = useAuth();
   const { scopeId, loading, accessiblePma, restrictedNav } = usePmaAccess();
   const location = useLocation();
 
@@ -16,14 +19,7 @@ export function PmaAccessRouter() {
   }
 
   if (restrictedNav && !isPathAllowedForPmaOperator(location.pathname)) {
-    if (scopeId) {
-      return <Navigate to={`/pma/${encodeURIComponent(scopeId)}`} replace />;
-    }
-    return (
-      <div className="mx-auto max-w-lg p-8 text-center text-sm text-slate-600">
-        Profilo operatore PMA incompleto o PMA non assegnato. Contatta la centrale.
-      </div>
-    );
+    return <Navigate to={getDefaultAppPath(profile)} replace />;
   }
 
   if (restrictedNav && location.pathname.startsWith('/pma') && accessiblePma.length === 0) {

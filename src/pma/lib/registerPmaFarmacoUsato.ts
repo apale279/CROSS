@@ -1,13 +1,14 @@
 import { doc, getDoc, updateDoc } from 'firebase/firestore'
 import type { Firestore } from 'firebase/firestore'
+import { impostazioniPath } from '../../lib/firestorePaths'
 import type { FarmacoVia } from '../types/cartellaClinica'
 import {
-  ensureFarmacoInCatalogo,
-  parseFarmaciCatalogoFromFirestore,
-  serializeFarmaciCatalogo,
-} from '../types/farmaciCatalogo'
+  incrementFarmacoConsumato,
+  parseFarmaciConsumatiFromFirestore,
+  serializeFarmaciConsumati,
+} from '../types/farmaciConsumatiStats'
 
-/** Registra somministrazione in `pmaClinica.farmaci_consumati` (crea voce se assente). */
+/** Registra somministrazione in `pmaClinica.farmaci_consumati` (conteggio aggregato per nome). */
 export async function registerPmaFarmacoUsato(
   db: Firestore,
   manifestazioneId: string,
@@ -17,13 +18,12 @@ export async function registerPmaFarmacoUsato(
   const nome = String(params.nome ?? '').trim()
   if (!tenant || !nome) return
 
-  const ref = doc(db, 'manifestazioni', tenant, 'settings', 'impostazioni')
+  const ref = doc(db, ...impostazioniPath(tenant))
   const snap = await getDoc(ref)
   const pmaClinica = (snap.data()?.pmaClinica ?? {}) as Record<string, unknown>
-  const raw = pmaClinica.farmaci_consumati ?? pmaClinica.farmaci
-  const current = parseFarmaciCatalogoFromFirestore(raw)
-  const next = ensureFarmacoInCatalogo(current, params)
-  const serialized = serializeFarmaciCatalogo(next)
+  const current = parseFarmaciConsumatiFromFirestore(pmaClinica.farmaci_consumati)
+  const next = incrementFarmacoConsumato(current, params)
+  const serialized = serializeFarmaciConsumati(next)
 
   await updateDoc(ref, {
     'pmaClinica.farmaci_consumati': serialized,

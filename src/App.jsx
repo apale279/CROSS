@@ -5,7 +5,7 @@ import { RequireAuth } from './components/auth/RequireAuth';
 import { PmaAccessRouter } from './components/auth/PmaAccessRouter';
 import { DashboardLayout } from './components/layout/DashboardLayout';
 import { KioskLayout } from './components/layout/KioskLayout';
-import DashboardPage from './pages/DashboardPage';
+import { DefaultHomeRoute } from './components/routing/DefaultHomeRoute';
 import KioskEventiPage from './pages/kiosk/KioskEventiPage';
 import KioskMezziPage from './pages/kiosk/KioskMezziPage';
 import KioskMappaPage from './pages/kiosk/KioskMappaPage';
@@ -42,7 +42,7 @@ export default function App() {
               element={<PmaPazientePage />}
             />
             <Route element={<DashboardLayout />}>
-              <Route index element={<DashboardPage />} />
+              <Route index element={<DefaultHomeRoute />} />
               <Route path="diario" element={<DiarioPage />} />
               <Route path="account" element={<AccountPage />} />
               <Route path="eventi" element={<EventiPage />} />

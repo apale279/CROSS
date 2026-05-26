@@ -13,6 +13,7 @@ import {
   signOut,
 } from 'firebase/auth';
 import { auth, db } from '../firebaseConfig';
+import { apiUrl } from '../lib/apiUrl';
 import { pmaIpadCredentialsFromEntry } from '../lib/pmaIpadCredentials';
 import { patchPazientePmaGranular } from '../pma/lib/pazientePmaPatch';
 import { writeStoredUserSessionToken } from '../lib/deviceSession';
@@ -185,13 +186,55 @@ export function subscribePmaIpadFirmaQueue(tenantId, pmaId, onData) {
   );
 }
 
-export async function uploadPmaFirmaPdfPreview(tenantId, blob, pazienteDocId) {
+function blobToBase64(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = String(reader.result ?? '');
+      const comma = dataUrl.indexOf(',');
+      resolve(comma >= 0 ? dataUrl.slice(comma + 1) : dataUrl);
+    };
+    reader.onerror = () => reject(new Error('Lettura PDF non riuscita.'));
+    reader.readAsDataURL(blob);
+  });
+}
+
+async function uploadPmaFirmaPdfViaApi(tenantId, blob, pazienteDocId) {
+  const user = auth.currentUser;
+  if (!user) {
+    throw new Error('Devi essere autenticato per inviare il documento all\'iPad.');
+  }
+  const token = await user.getIdToken();
+  const fileBase64 = await blobToBase64(blob);
+  const res = await fetch(apiUrl('/api/pma-firma-pdf-upload'), {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      fileBase64,
+      mimeType: 'application/pdf',
+      pazienteDocId,
+      tenantId,
+    }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(
+      data.error ??
+        'Upload PDF su server non riuscito. Verifica CLOUDINARY_* su Vercel (o avvia `vercel dev` in locale).',
+    );
+  }
+  if (!data.url) throw new Error('Upload PDF: URL mancante nella risposta.');
+  return String(data.url);
+}
+
+async function uploadPmaFirmaPdfUnsigned(tenantId, blob, pazienteDocId) {
   const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME?.trim();
   const preset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET?.trim();
   if (!cloudName || !preset) {
-    throw new Error(
-      'Cloudinary non configurato (VITE_CLOUDINARY_CLOUD_NAME / VITE_CLOUDINARY_UPLOAD_PRESET).',
-    );
+    throw new Error('PRESET_CLIENT_SKIP');
   }
   const file = new File([blob], `firma-preview-${pazienteDocId}.pdf`, { type: 'application/pdf' });
   const body = new FormData();
@@ -206,10 +249,34 @@ export async function uploadPmaFirmaPdfPreview(tenantId, blob, pazienteDocId) {
   });
   const data = await uploadRes.json().catch(() => ({}));
   if (!uploadRes.ok) {
-    throw new Error(data.error?.message ?? `Upload PDF anteprima fallito (${uploadRes.status})`);
+    const msg = String(data.error?.message ?? '');
+    throw new Error(msg || `Upload PDF anteprima fallito (${uploadRes.status})`);
   }
   if (!data.secure_url) throw new Error('Upload PDF: URL mancante.');
   return String(data.secure_url);
+}
+
+/** Carica anteprima PDF dimissione per iPad (preset unsigned o API server con secret). */
+export async function uploadPmaFirmaPdfPreview(tenantId, blob, pazienteDocId) {
+  if (blob.size > 15 * 1024 * 1024) {
+    throw new Error('PDF troppo grande (max 15 MB).');
+  }
+
+  try {
+    return await uploadPmaFirmaPdfUnsigned(tenantId, blob, pazienteDocId);
+  } catch (clientErr) {
+    const msg = clientErr instanceof Error ? clientErr.message : String(clientErr);
+    const useServer =
+      msg === 'PRESET_CLIENT_SKIP' ||
+      /preset not found/i.test(msg) ||
+      /upload preset/i.test(msg) ||
+      /unknown upload preset/i.test(msg);
+
+    if (!useServer) throw clientErr;
+
+    console.warn('[pma-firma] Upload client Cloudinary non disponibile, uso API server:', msg);
+    return uploadPmaFirmaPdfViaApi(tenantId, blob, pazienteDocId);
+  }
 }
 
 export async function pushPmaIpadFirmaRequest(tenantId, pmaId, payload) {

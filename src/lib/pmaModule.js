@@ -127,7 +127,15 @@ export function listaOspedaliDestinazione(impostazioni) {
 export function findPmaById(impostazioni, pmaId) {
   const id = String(pmaId ?? '').trim();
   if (!id) return null;
-  return listaPmaImpostazioni(impostazioni).find((p) => p.id === id) ?? null;
+  const list = listaPmaImpostazioni(impostazioni);
+  const exact = list.find((p) => p.id === id);
+  if (exact) return exact;
+  const lower = id.toLowerCase();
+  return (
+    list.find((p) => String(p.id ?? '').toLowerCase() === lower) ??
+    list.find((p) => String(p.nome ?? '').trim().toLowerCase() === lower) ??
+    null
+  );
 }
 
 export function findPmaByNome(impostazioni, nome) {

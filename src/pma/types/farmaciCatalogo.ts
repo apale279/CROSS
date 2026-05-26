@@ -1,7 +1,7 @@
 import type { FarmacoVia } from './cartellaClinica'
 import { FARMACO_VIE, isFarmacoVia } from './cartellaClinica'
 
-/** Voce catalogo PMA (impostazioni → farmaci consumati). */
+/** Voce catalogo PMA (impostazioni → farmaci selezionabili in cartella clinica). */
 export type PmaFarmacoCatalogoEntry = {
   id: string
   nome: string

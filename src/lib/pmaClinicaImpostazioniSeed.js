@@ -6,8 +6,8 @@ import { serializeFarmaciCatalogo } from '../pma/types/farmaciCatalogo';
 export function seedPmaClinicaImpostazioni() {
   return {
     prestazioni: [...PRESTAZIONI_LISTA_DEFAULT],
-    farmaci: [],
-    farmaci_consumati: serializeFarmaciCatalogo(defaultFarmaciConsumatiCatalog()),
+    farmaci: serializeFarmaciCatalogo(defaultFarmaciConsumatiCatalog()),
+    farmaci_consumati: [],
     preset_dimissione: [],
     preset_farmaci: [],
     consenso_generico_cure: '',
