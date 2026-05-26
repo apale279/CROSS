@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { useTenantContext } from '../context/TenantContext';
 import { TenantConfigMissing } from '../components/routing/TenantConfigMissing';
 import { AppLogo } from '../components/brand/AppLogo';
+import { AppVersionBadge } from '../components/ui/AppVersionBadge';
 import { getDefaultAppPath } from '../lib/defaultAppPath';
 import { isPmaOperatorProfile } from '../lib/pmaModule';
 
@@ -189,7 +190,10 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-b from-slate-100 to-slate-200 px-4 py-10">
+    <div className="relative flex min-h-screen flex-col items-center justify-center bg-gradient-to-b from-slate-100 to-slate-200 px-4 py-10">
+      <div className="absolute left-3 top-3 z-10">
+        <AppVersionBadge />
+      </div>
       <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8 shadow-lg">
         <div className="flex flex-col items-center gap-2">
           <AppLogo className="h-16 w-auto" />

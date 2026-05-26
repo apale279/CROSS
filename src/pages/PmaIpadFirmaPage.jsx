@@ -13,6 +13,7 @@ import {
   subscribePmaIpadFirmaQueue,
 } from '../services/pmaIpadFirmaService';
 import { SignatureCanvas } from '../pma/components/scheda-paziente/SignatureCanvas';
+import { AppVersionBadge } from '../components/ui/AppVersionBadge';
 
 /** Vista iPad: login automatico con credenziali del PMA + coda firme. */
 export default function PmaIpadFirmaPage() {
@@ -151,6 +152,7 @@ export default function PmaIpadFirmaPage() {
   return (
     <div className="pma-viewport fixed inset-0 z-[100] flex min-h-0 flex-col bg-slate-100">
       <header className="shrink-0 border-b border-slate-300 bg-teal-900 px-4 py-3 text-white">
+        <AppVersionBadge className="mb-2 border-teal-600 bg-teal-800 text-teal-100" />
         <p className="text-xs font-bold uppercase tracking-wider text-teal-200">iPad firma PMA</p>
         <h1 className="text-xl font-bold">{pma.nome}</h1>
       </header>

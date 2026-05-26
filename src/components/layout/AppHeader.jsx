@@ -11,6 +11,7 @@ import { AppLogo } from '../brand/AppLogo';
 import { usePmaAccess } from '../../hooks/usePmaAccess';
 import { isPmaMedicoAccount } from '../../lib/userAccess';
 import { AccessDebugStrip } from './AccessDebugStrip';
+import { AppVersionBadge } from '../ui/AppVersionBadge';
 
 const navClass = ({ isActive }) =>
   `rounded border px-3 py-2 text-sm font-bold uppercase tracking-wide ${
@@ -63,6 +64,7 @@ export function AppHeader() {
     <>
       <AccessDebugStrip />
       <header className="flex shrink-0 flex-wrap items-center gap-2 border-b border-slate-300 bg-white px-4 py-2">
+      <AppVersionBadge className="order-first" />
       <Link
         to={pmaOnly ? (scopeId ? `/pma/${encodeURIComponent(scopeId)}` : '/pma') : '/'}
         className="flex items-center gap-2"
