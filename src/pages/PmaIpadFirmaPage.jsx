@@ -179,18 +179,18 @@ export default function PmaIpadFirmaPage() {
           <div className="flex shrink-0 items-center justify-between gap-2 border-b border-slate-200 px-3 py-2">
             <button
               type="button"
-              className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-800"
+              className="rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-800"
               onClick={() => setFirmaFullScreen(false)}
             >
-              ← Anteprima PDF
+              ← Torna al documento
             </button>
-            <p className="text-sm font-semibold text-slate-800">Firma del paziente</p>
-            <span className="w-24" aria-hidden />
-          </div>
-          <div className="flex min-h-0 flex-1 flex-col gap-2 p-3">
-            <p className="shrink-0 text-center font-mono text-lg font-bold text-teal-900">
+            <p className="font-mono text-sm font-bold text-teal-900">
               {activeRequest.idPaziente || 'Paziente'}
             </p>
+            <span className="w-[7.5rem]" aria-hidden />
+          </div>
+          <div className="flex min-h-0 flex-1 flex-col gap-2 p-3 landscape:px-6">
+            <p className="shrink-0 text-center text-sm text-slate-600">Firma del paziente</p>
             <SignatureCanvas
               key={`${activeRequest.id}-fs`}
               className="min-h-0 flex-1"
@@ -198,59 +198,47 @@ export default function PmaIpadFirmaPage() {
             />
             {saveBusy ? <p className="text-center text-xs text-slate-500">Salvataggio…</p> : null}
             {saveErr ? (
-              <p className="text-center text-xs text-red-800" role="alert">
+              <p className="text-center text-sm text-red-800" role="alert">
                 {saveErr}
               </p>
             ) : null}
           </div>
         </div>
       ) : (
-        <div className="flex min-h-0 flex-1 flex-col">
-          <section className="flex min-h-0 flex-[3] flex-col border-b border-slate-300">
-            <div className="shrink-0 border-b border-slate-200 bg-white px-3 py-2">
-              <p className="font-mono text-lg font-bold text-teal-900">
-                {activeRequest.idPaziente || 'Paziente'}
-              </p>
-              <p className="text-xs text-slate-600">
-                Richiesto da {activeRequest.requestedByNome || 'operatore'}
-              </p>
-            </div>
-            <div className="min-h-0 flex-1 bg-slate-200">
-              {activeRequest.pdfPreviewUrl ? (
-                <iframe
-                  title="Anteprima documento"
-                  src={activeRequest.pdfPreviewUrl}
-                  className="h-full w-full border-0 bg-white"
-                />
-              ) : (
-                <p className="p-6 text-sm text-slate-600">Anteprima PDF non disponibile.</p>
-              )}
-            </div>
-          </section>
+        <div className="relative flex min-h-0 flex-1 flex-col">
+          <div className="flex shrink-0 items-center justify-between gap-3 border-b border-slate-200 bg-white px-3 py-2 landscape:px-4">
+            <p className="font-mono text-base font-bold text-teal-900 landscape:text-lg">
+              {activeRequest.idPaziente || 'Paziente'}
+            </p>
+            <p className="truncate text-xs text-slate-600">
+              {activeRequest.requestedByNome || 'operatore'}
+            </p>
+          </div>
 
-          <section className="flex min-h-0 flex-[2] flex-col gap-2 bg-white p-3">
-            <div className="flex shrink-0 items-center justify-between gap-2">
-              <p className="text-sm font-semibold text-slate-800">Firma del paziente</p>
-              <button
-                type="button"
-                className="rounded-lg bg-teal-800 px-3 py-2 text-xs font-bold uppercase tracking-wide text-white"
-                onClick={() => setFirmaFullScreen(true)}
-              >
-                Schermo intero firma
-              </button>
-            </div>
-            <SignatureCanvas
-              key={activeRequest.id}
-              className="min-h-0 flex-1"
-              onSaveDataUrl={handleSaveFirma}
-            />
-            {saveBusy ? <p className="shrink-0 text-xs text-slate-500">Salvataggio…</p> : null}
-            {saveErr ? (
-              <p className="shrink-0 text-xs text-red-800" role="alert">
-                {saveErr}
-              </p>
-            ) : null}
-          </section>
+          <div className="min-h-0 flex-1 overflow-hidden bg-slate-200">
+            {activeRequest.pdfPreviewUrl ? (
+              <iframe
+                title="Anteprima documento"
+                src={activeRequest.pdfPreviewUrl}
+                className="h-full w-full border-0 bg-white"
+              />
+            ) : (
+              <p className="p-6 text-sm text-slate-600">Anteprima PDF non disponibile.</p>
+            )}
+          </div>
+
+          <div className="shrink-0 border-t border-slate-300 bg-white px-3 py-3 shadow-[0_-4px_12px_rgba(0,0,0,0.08)] landscape:px-6 landscape:py-4">
+            <p className="mb-2 text-center text-xs text-slate-600 landscape:text-sm">
+              Dopo aver letto il documento, apri la firma a schermo intero.
+            </p>
+            <button
+              type="button"
+              className="w-full rounded-xl bg-teal-800 px-4 py-4 text-base font-bold uppercase tracking-wide text-white shadow-md active:bg-teal-900 landscape:py-5 landscape:text-lg"
+              onClick={() => setFirmaFullScreen(true)}
+            >
+              Firma a schermo intero
+            </button>
+          </div>
         </div>
       )}
     </div>
