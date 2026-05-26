@@ -77,8 +77,13 @@ export function DimissioneSection({
   pmaIpadFirma = null,
 }: Props) {
   const dimissioneEdit = canEditDimissioneTab && canEditScheda
+  const pazienteGiaDimesso =
+    !p.aperto || p.stato === 'dimesso' || p.dimesso_at != null
   const canChiudiDimetti = Boolean(
-    canEditScheda && user && schedaTabDimissioneAllows(user.rank, 'UPDATE'),
+    canEditScheda &&
+      user &&
+      schedaTabDimissioneAllows(user.rank, 'UPDATE') &&
+      !pazienteGiaDimesso,
   )
   const [noteDraft, setNoteDraft] = useState(p.dimissione_note)
   const [dimettiOpen, setDimettiOpen] = useState(false)
@@ -169,7 +174,7 @@ export function DimissioneSection({
   }
 
   async function handleDimettiConfirm() {
-    if (!canChiudiDimetti || !user) return
+    if (!canChiudiDimetti || !user || pazienteGiaDimesso) return
     setDimettiBusy(true)
     setDimettiErr(null)
     try {
@@ -543,7 +548,11 @@ export function DimissioneSection({
         </div>
 
         <div className="border-t border-slate-200 bg-gradient-to-b from-slate-50 to-white px-4 py-8">
-          {canChiudiDimetti ? (
+          {pazienteGiaDimesso ? (
+            <p className="mb-6 text-center text-sm font-medium text-slate-600" role="status">
+              Paziente già dimesso — scheda chiusa.
+            </p>
+          ) : canChiudiDimetti ? (
             <div className="mb-6 flex w-full justify-center">
               <button
                 type="button"

@@ -44,13 +44,14 @@ export function crossDocToPazienteView(doc, manifestationId, pmaIdRoute) {
   const tipoPz = doc.tipoPz === TIPO_PZ.PMA ? TIPO_PZ.PMA : TIPO_PZ.CENTRALE;
 
   const inCaricoPma = doc.statoPzPma === STATO_PZ_PMA.IN_CARICO;
+  const dimessoPma = doc.statoPzPma === STATO_PZ_PMA.DIMESSO;
 
   const view: Paziente = {
     id: doc._docId ?? doc.id ?? '',
     id_manifestazione: manifestationId ?? '',
     id_pma: pmaId,
-    /** In PMA la scheda resta modificabile in «in carico» anche se la centrale ha chiuso `aperta` su ARRIVATO H. */
-    aperto: inCaricoPma ? true : doc.aperta !== false,
+    /** In carico: scheda PMA modificabile anche se la centrale ha chiuso `aperta`. Dimesso: sempre chiusa. */
+    aperto: dimessoPma ? false : inCaricoPma ? true : doc.aperta !== false,
     id_paziente_visibile: doc.idPaziente ?? '',
     apertura_scheda: tsOrNow(doc.apertura),
     tipo_paziente: tipoPz === TIPO_PZ.PMA ? 'autopresentato' : 'trasportato',
