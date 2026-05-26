@@ -42,8 +42,8 @@ export function FarmacoNomeDoseFields({
     dose && doseOptions.includes(dose) ? dose : doseOptions.length > 0 ? CUSTOM_DOSE : CUSTOM_DOSE
 
   return (
-    <div className="space-y-3">
-      <label className="relative block text-xs">
+    <div className="min-w-0 space-y-3">
+      <label className="relative block min-w-0 text-xs">
         <span className="font-semibold uppercase tracking-wider text-slate-500">Nome</span>
         <input
           type="text"
@@ -52,12 +52,12 @@ export function FarmacoNomeDoseFields({
           onFocus={() => setNomeFocused(true)}
           onBlur={() => window.setTimeout(() => setNomeFocused(false), 150)}
           autoComplete="off"
-          className={`${inputClassName} mt-1 min-h-[2.75rem] w-full text-base`}
+          className={`${inputClassName} mt-1 min-h-[2.75rem]`}
           placeholder={nomePlaceholder}
         />
         {nomeFocused && suggestions.length > 0 ? (
           <ul
-            className="absolute z-20 mt-1 max-h-48 w-full overflow-y-auto rounded-md border border-slate-200 bg-white py-1 shadow-lg"
+            className="absolute inset-x-0 z-20 mt-1 max-h-48 overflow-x-hidden overflow-y-auto rounded-md border border-slate-200 bg-white py-1 shadow-lg"
             role="listbox"
           >
             {suggestions.map((entry) => (
@@ -80,7 +80,7 @@ export function FarmacoNomeDoseFields({
         ) : null}
       </label>
 
-      <label className="block text-xs">
+      <label className="block min-w-0 text-xs">
         <span className="font-semibold uppercase tracking-wider text-slate-500">Dose</span>
         {doseOptions.length > 0 ? (
           <select
@@ -93,7 +93,7 @@ export function FarmacoNomeDoseFields({
               }
               onDoseChange(v)
             }}
-            className={`${inputClassName} mt-1 min-h-[2.75rem] w-full text-base`}
+            className={`${inputClassName} mt-1 min-h-[2.75rem]`}
           >
             <option value={CUSTOM_DOSE}>— Altro / libero —</option>
             {doseOptions.map((d) => (
@@ -108,7 +108,7 @@ export function FarmacoNomeDoseFields({
             type="text"
             value={dose}
             onChange={(e) => onDoseChange(e.target.value)}
-            className={`${inputClassName} mt-1 min-h-[2.75rem] w-full text-base`}
+            className={`${inputClassName} mt-1 min-h-[2.75rem]`}
             placeholder="Dose libera…"
           />
         ) : null}

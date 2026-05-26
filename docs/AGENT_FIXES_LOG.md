@@ -111,6 +111,7 @@ Elenco interventi applicati dopo la code review. Ogni voce indica **file toccati
 | U6 | Operatore PMA: liste eventi/missioni/mezzi/pazienti filtrate per `pmaScopeId` (centrale invariata) | `src/lib/manifestazioneDataScope.js`, `src/context/ManifestazioneDataContext.jsx` |
 | U8 | Lock campi PMA: **una** transazione (snapshot lock + paziente), update solo path modificati, merge array/EO; release lock ritardato al blur; alias lock (`affidatario_*` → `affidatario`) | `pmaFieldPresenceService.js`, `pazientePmaPatch.js`, `pmaPatchSnapshot.js`, `pmaSchedaArrayMerge.js`, `pmaFieldLockKeys.js`, `PmaFieldPresenceContext.tsx`, `PazienteModuloPma.jsx` |
 | U9 | Dimissione: validazione esito, note, firma paziente, PS/affidatario prima di «Dimetti» | `src/pma/lib/dimissioneValidate.ts`, `src/pma/components/scheda-paziente/DimissioneSection.tsx` |
+| U10 | UI mobile PMA: modali farmaci/PV/prestazioni senza overflow, input 16px, tab centrate; allergie come campo normale | `PmaMobileSheet.tsx`, `CartellaClinicaSection.tsx`, `FarmacoNomeDoseFields.tsx`, `pma-theme.css` |
 
 ---
 

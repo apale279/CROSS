@@ -46,10 +46,15 @@ import { QuickExamField } from './QuickExamField'
 import { LesioniBodyMap } from './LesioniBodyMap'
 import { PmaFieldGuard } from '../PmaFieldGuard'
 import { PmaCodiceColoreField } from './PmaCodiceColoreField'
+import {
+  PmaMobileSheet,
+  PmaMobileSheetFooterActions,
+  PmaMobileSheetHeader,
+} from './PmaMobileSheet'
 
 function allergieVerificaButtonClass(selected: boolean, k: AllergieVerificaStato): string {
   const base =
-    'min-h-[44px] min-w-[5rem] rounded-lg border-2 px-4 py-2 text-sm font-bold uppercase shadow-sm transition-colors'
+    'min-h-[44px] w-full rounded-lg border-2 px-2 py-2 text-xs font-bold uppercase shadow-sm transition-colors sm:text-sm'
   if (!selected) {
     return `${base} border-slate-400 bg-white text-slate-800 hover:border-slate-600 hover:bg-slate-50`
   }
@@ -83,7 +88,10 @@ function sortRivDesc(rows: RivalutazioneVoce[]) {
 }
 
 const PV_INPUT =
-  'mt-0.5 w-full min-w-0 rounded-md border border-slate-300 px-2 py-1.5 text-sm font-medium disabled:bg-slate-100'
+  'pma-mobile-input mt-0.5 rounded-md border border-slate-300 px-2 py-1.5 font-medium disabled:bg-slate-100'
+
+/** Input modali full-screen smartphone (16px = niente zoom iOS che «allarga» il layout). */
+const PMA_MODAL_INPUT = 'pma-mobile-input rounded-md border border-slate-300 px-3 py-2 font-medium disabled:bg-slate-100'
 
 /** Input compatto: riga unica parametri vitali (celle strette). */
 const PV_IN_ROW =
@@ -1033,19 +1041,22 @@ export function CartellaClinicaSection({
           Valutazione e anamnesi
         </div>
         <div className="space-y-0">
-            <PmaFieldGuard fieldKey="allergie_verifica" className="mx-3 my-4 box-border rounded-xl border-2 border-red-500 bg-red-50 px-5 py-5 shadow-sm sm:mx-4 sm:px-6 sm:py-6">
-              <span className="pma-field__label">DOMANDA ALLERGIE</span>
-              <p className="mt-2 text-sm leading-relaxed text-slate-600">
-                Prima di procedere: il paziente ha allergie farmacologiche o di altro tipo da segnalare?
+            <PmaFieldGuard
+              fieldKey="allergie_verifica"
+              className={`pma-allergie-verifica block ${bloccoVerificaAllergie ? 'pma-allergie-verifica--pending' : ''}`}
+            >
+              <span className="pma-field__label">Domanda allergie</span>
+              <p className="mt-1 text-sm leading-snug text-slate-700">
+                Il paziente ha allergie farmacologiche o di altro tipo da segnalare?
               </p>
               {bloccoVerificaAllergie && canEdit ? (
-                <p className="mt-2 text-xs font-semibold text-red-800">
-                  Seleziona SI, NO o NON NOTO per sbloccare la cartella clinica sottostante.
+                <p className="mt-1 text-xs font-semibold text-red-700">
+                  Seleziona SI, NO o NON NOTO per sbloccare la cartella sottostante.
                 </p>
               ) : null}
               {canEdit ? (
                 <div
-                  className="mt-4 flex flex-wrap gap-3 pb-0.5"
+                  className="pma-allergie-verifica__actions pb-0.5"
                   role="group"
                   aria-label={
                     bloccoVerificaAllergie
@@ -1298,7 +1309,7 @@ export function CartellaClinicaSection({
             </div>
           </div>
 
-          <div className="mt-4 flex max-w-3xl flex-wrap items-center gap-3">
+          <div className="mt-4 flex max-w-3xl flex-col items-stretch gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-center sm:gap-3">
             <input
               ref={ecgFileInputRef}
               type="file"
@@ -1314,7 +1325,7 @@ export function CartellaClinicaSection({
               disabled={!schedaClinicalEdit || ecgUploadBusy}
               title="Carica foto ECG su Cloudinary e collega alla scheda"
               onClick={() => ecgFileInputRef.current?.click()}
-              className={`${btnSecondary} inline-flex h-9 shrink-0 items-center gap-1.5 disabled:cursor-not-allowed disabled:opacity-50`}
+              className={`${btnSecondary} inline-flex h-10 w-full min-w-0 items-center justify-center gap-1.5 sm:h-9 sm:w-auto sm:shrink-0 disabled:cursor-not-allowed disabled:opacity-50`}
             >
               <svg width="18" height="14" viewBox="0 0 24 18" fill="none" aria-hidden className="shrink-0 text-red-600">
                 <path
@@ -1523,199 +1534,137 @@ export function CartellaClinicaSection({
         ) : null}
 
         {!hideClinicalBlocks && pmaMobile && pvModalOpen && pvDraft ? (
-          <div
-            className="fixed inset-0 z-[80] flex items-end justify-center bg-slate-900/50 p-0 sm:items-center sm:p-4"
-            role="presentation"
-            onClick={closePvModal}
+          <PmaMobileSheet
+            ariaLabel="Nuova rilevazione parametri vitali"
+            onBackdropClick={closePvModal}
+            header={
+              <PmaMobileSheetHeader title="Nuova rilevazione" onClose={closePvModal} closeLabel="Annulla" />
+            }
+            footer={
+              <PmaMobileSheetFooterActions
+                onCancel={closePvModal}
+                onConfirm={() => void savePvDraft()}
+                confirmLabel="Salva rilevazione"
+                confirmDisabled={!schedaClinicalEdit}
+                confirmClassName={btnPrimary}
+              />
+            }
           >
-            <div
-              className="flex max-h-[92vh] w-full max-w-lg flex-col overflow-hidden rounded-t-2xl border border-slate-200 bg-white shadow-xl sm:rounded-2xl"
-              role="dialog"
-              aria-modal
-              aria-label="Nuova rilevazione parametri vitali"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex shrink-0 items-center justify-between border-b border-slate-200 px-4 py-3">
-                <span className="text-sm font-bold text-slate-900">Nuova rilevazione</span>
-                <button
-                  type="button"
-                  className="pma-theme-skip rounded-md px-3 py-1.5 text-sm font-semibold text-slate-700"
-                  onClick={closePvModal}
-                >
-                  Annulla
-                </button>
-              </div>
-              <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3 [&_input[type='number']]:min-h-[2.75rem] [&_input[type='number']]:text-base">
-                <ParametriVitaliBlock
-                  key={pvDraft.id}
-                  row={pvDraft}
-                  canEdit={schedaClinicalEdit}
-                  onPatch={(_id, partial) => {
-                    setPvDraft((d) => (d ? { ...d, ...partial } : d))
-                  }}
-                  layout="stack"
-                />
-              </div>
-              <div className="flex shrink-0 gap-2 border-t border-slate-200 p-3">
-                <button
-                  type="button"
-                  className="pma-theme-skip flex-1 rounded-md border border-slate-300 bg-white py-2.5 text-sm font-semibold text-slate-800"
-                  onClick={closePvModal}
-                >
-                  Annulla
-                </button>
-                <button
-                  type="button"
-                  disabled={!schedaClinicalEdit}
-                  onClick={() => void savePvDraft()}
-                  className={`${btnPrimary} flex-1 disabled:opacity-40`}
-                >
-                  Salva rilevazione
-                </button>
-              </div>
+            <div className="[&_input[type='number']]:pma-mobile-input [&_input[type='number']]:min-h-[2.75rem]">
+              <ParametriVitaliBlock
+                key={pvDraft.id}
+                row={pvDraft}
+                canEdit={schedaClinicalEdit}
+                onPatch={(_id, partial) => {
+                  setPvDraft((d) => (d ? { ...d, ...partial } : d))
+                }}
+                layout="stack"
+              />
             </div>
-          </div>
+          </PmaMobileSheet>
         ) : null}
 
         {!hideClinicalBlocks && pmaMobile && prestModalOpen ? (
-          <div
-            className="fixed inset-0 z-[80] flex items-end justify-center bg-slate-900/50 p-0 sm:items-center sm:p-4"
-            role="presentation"
-            onClick={() => setPrestModalOpen(false)}
+          <PmaMobileSheet
+            ariaLabel="Selezione prestazioni"
+            onBackdropClick={() => setPrestModalOpen(false)}
+            header={
+              <PmaMobileSheetHeader
+                title="Prestazioni"
+                onClose={() => setPrestModalOpen(false)}
+              />
+            }
           >
-            <div
-              className="flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-t-2xl border border-slate-200 bg-white shadow-xl sm:rounded-2xl"
-              role="dialog"
-              aria-modal
-              aria-label="Selezione prestazioni"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex shrink-0 items-center justify-between border-b border-slate-200 px-4 py-3">
-                <span className="text-sm font-bold text-slate-900">Prestazioni</span>
-                <button
-                  type="button"
-                  className="pma-theme-skip rounded-md px-3 py-1.5 text-sm font-semibold text-slate-700"
-                  onClick={() => setPrestModalOpen(false)}
-                >
-                  Chiudi
-                </button>
-              </div>
-              <div className="max-h-[min(70vh,24rem)] overflow-y-auto p-2">
-                {prestazioniLista.length === 0 ? (
-                  <p className="px-2 py-3 text-sm text-slate-500">
-                    Nessuna prestazione configurata sulla manifestazione.
-                  </p>
-                ) : (
-                  prestazioniLista.map((label) => (
-                    <label
-                      key={label}
-                      className="flex cursor-pointer items-start gap-2 rounded-md px-2 py-2.5 text-sm hover:bg-slate-50"
-                    >
-                      <input
-                        type="checkbox"
-                        className="mt-0.5 h-4 w-4 shrink-0 rounded border-slate-300 text-emerald-700 focus:ring-emerald-600"
-                        checked={selPrest.has(label)}
-                        disabled={!schedaClinicalEdit}
-                        onChange={() => togglePrestazione(label)}
-                      />
-                      <span className="min-w-0 leading-snug text-slate-800">{label}</span>
-                    </label>
-                  ))
-                )}
-              </div>
+            <div className="max-h-[min(70vh,24rem)] overflow-y-auto overflow-x-hidden">
+              {prestazioniLista.length === 0 ? (
+                <p className="py-2 text-sm text-slate-500">
+                  Nessuna prestazione configurata sulla manifestazione.
+                </p>
+              ) : (
+                prestazioniLista.map((label) => (
+                  <label
+                    key={label}
+                    className="flex cursor-pointer items-start gap-2 rounded-md px-1 py-2.5 text-sm hover:bg-slate-50"
+                  >
+                    <input
+                      type="checkbox"
+                      className="mt-0.5 h-4 w-4 shrink-0 rounded border-slate-300 text-emerald-700 focus:ring-emerald-600"
+                      checked={selPrest.has(label)}
+                      disabled={!schedaClinicalEdit}
+                      onChange={() => togglePrestazione(label)}
+                    />
+                    <span className="min-w-0 break-words leading-snug text-slate-800">{label}</span>
+                  </label>
+                ))
+              )}
             </div>
-          </div>
+          </PmaMobileSheet>
         ) : null}
 
         {!hideClinicalBlocks && pmaMobile && farmModalOpen && farmaciEdit ? (
-          <div
-            className="fixed inset-0 z-[80] flex items-end justify-center bg-slate-900/50 p-0 sm:items-center sm:p-4"
-            role="presentation"
-            onClick={() => {
+          <PmaMobileSheet
+            ariaLabel={farmModalEditId ? 'Modifica farmaco' : 'Aggiungi farmaco'}
+            onBackdropClick={() => {
               setFarmModalOpen(false)
               setFarmModalEditId(null)
             }}
+            header={
+              <PmaMobileSheetHeader
+                title={farmModalEditId ? 'Modifica farmaco' : 'Nuovo farmaco'}
+                onClose={() => {
+                  setFarmModalOpen(false)
+                  setFarmModalEditId(null)
+                }}
+              />
+            }
+            footer={
+              <PmaMobileSheetFooterActions
+                onCancel={() => {
+                  setFarmModalOpen(false)
+                  setFarmModalEditId(null)
+                }}
+                onConfirm={() => void salvaFarmacoModal()}
+                confirmLabel={farmModalEditId ? 'Salva' : 'Aggiungi'}
+                confirmDisabled={!farmModalNome.trim()}
+                confirmClassName={btnPrimary}
+              />
+            }
           >
-            <div
-              className="flex max-h-[92vh] w-full max-w-lg flex-col overflow-hidden rounded-t-2xl border border-slate-200 bg-white shadow-xl sm:rounded-2xl"
-              role="dialog"
-              aria-modal
-              aria-label={farmModalEditId ? 'Modifica farmaco' : 'Aggiungi farmaco'}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex shrink-0 items-center justify-between border-b border-slate-200 px-4 py-3">
-                <span className="text-sm font-bold text-slate-900">
-                  {farmModalEditId ? 'Modifica farmaco' : 'Nuovo farmaco'}
-                </span>
-                <button
-                  type="button"
-                  className="pma-theme-skip rounded-md px-3 py-1.5 text-sm font-semibold text-slate-700"
-                  onClick={() => {
-                    setFarmModalOpen(false)
-                    setFarmModalEditId(null)
-                  }}
-                >
-                  Chiudi
-                </button>
-              </div>
-              <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-3">
-                <FarmacoNomeDoseFields
-                  catalog={farmaciCatalogo}
-                  nome={farmModalNome}
-                  dose={farmModalDose}
-                  onNomeChange={setFarmModalNome}
-                  onDoseChange={setFarmModalDose}
-                  inputClassName={PV_INPUT}
-                />
-                <label className="block text-xs">
-                  <span className="font-semibold uppercase tracking-wider text-slate-500">Via</span>
-                  <select
-                    value={farmModalVia}
-                    onChange={(e) => {
-                      const v = e.target.value
-                      if (isFarmacoVia(v)) setFarmModalVia(v)
-                    }}
-                    className={`${PV_INPUT} mt-1 min-h-[2.75rem] text-base`}
-                  >
-                    {FARMACO_VIE.map((via) => (
-                      <option key={via} value={via}>
-                        {FARMACO_VIA_LABEL[via]}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="block text-xs">
-                  <span className="font-semibold uppercase tracking-wider text-slate-500">Orario</span>
-                  <input
-                    type="datetime-local"
-                    value={farmModalTs}
-                    onChange={(e) => setFarmModalTs(e.target.value)}
-                    className={`${PV_INPUT} mt-1 min-h-[2.75rem] text-base`}
-                  />
-                </label>
-              </div>
-              <div className="flex shrink-0 gap-2 border-t border-slate-200 p-3">
-                <button
-                  type="button"
-                  className="pma-theme-skip flex-1 rounded-md border border-slate-300 bg-white py-2.5 text-sm font-semibold text-slate-800"
-                  onClick={() => {
-                    setFarmModalOpen(false)
-                    setFarmModalEditId(null)
-                  }}
-                >
-                  Annulla
-                </button>
-                <button
-                  type="button"
-                  disabled={!farmModalNome.trim()}
-                  onClick={() => void salvaFarmacoModal()}
-                  className={`${btnPrimary} flex-1 disabled:opacity-40`}
-                >
-                  {farmModalEditId ? 'Salva' : 'Aggiungi'}
-                </button>
-              </div>
-            </div>
-          </div>
+            <FarmacoNomeDoseFields
+              catalog={farmaciCatalogo}
+              nome={farmModalNome}
+              dose={farmModalDose}
+              onNomeChange={setFarmModalNome}
+              onDoseChange={setFarmModalDose}
+              inputClassName={PMA_MODAL_INPUT}
+            />
+            <label className="block min-w-0 text-xs">
+              <span className="font-semibold uppercase tracking-wider text-slate-500">Via</span>
+              <select
+                value={farmModalVia}
+                onChange={(e) => {
+                  const v = e.target.value
+                  if (isFarmacoVia(v)) setFarmModalVia(v)
+                }}
+                className={`${PMA_MODAL_INPUT} mt-1 min-h-[2.75rem]`}
+              >
+                {FARMACO_VIE.map((via) => (
+                  <option key={via} value={via}>
+                    {FARMACO_VIA_LABEL[via]}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="block min-w-0 text-xs">
+              <span className="font-semibold uppercase tracking-wider text-slate-500">Orario</span>
+              <input
+                type="datetime-local"
+                value={farmModalTs}
+                onChange={(e) => setFarmModalTs(e.target.value)}
+                className={`${PMA_MODAL_INPUT} mt-1 min-h-[2.75rem]`}
+              />
+            </label>
+          </PmaMobileSheet>
         ) : null}
 
         <PmaFieldGuard fieldKey="rivalutazioni">

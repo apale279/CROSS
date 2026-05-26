@@ -686,7 +686,75 @@
   width: 100%;
 }
 
+/* Bottom sheet modali (farmaci, PV, prestazioni) — niente allargamento oltre schermo */
+.pma-mobile-sheet {
+  box-sizing: border-box;
+  min-width: 0;
+  max-width: 100vw;
+  overflow: hidden;
+  border: 0.5px solid #e2e8f0;
+  border-bottom: none;
+  border-radius: 1rem 1rem 0 0;
+  background: #fff;
+  box-shadow: 0 -8px 30px rgb(15 23 42 / 0.18);
+}
+
+.pma-mobile-sheet__body {
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.pma-mobile-input {
+  box-sizing: border-box;
+  display: block;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  font-size: 16px;
+  line-height: 1.35;
+}
+
+.pma-allergie-verifica {
+  box-sizing: border-box;
+  min-width: 0;
+  max-width: 100%;
+  padding: var(--pma-field-pad-v) var(--pma-field-pad-h);
+  border-bottom: 0.5px solid #e2e8f0;
+  background: #fff;
+}
+
+.pma-allergie-verifica--pending {
+  border-left: 3px solid #dc2626;
+}
+
+.pma-allergie-verifica__actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.5rem;
+  max-width: 22rem;
+  margin-top: 0.75rem;
+  margin-left: auto;
+  margin-right: auto;
+}
+
 @media (max-width: 640px) {
+  .pma-tabs {
+    justify-content: center;
+    gap: 2px;
+    padding: 4px;
+  }
+
+  .pma-tab {
+    flex: 1 1 calc(50% - 4px);
+    min-width: 0;
+    max-width: calc(50% - 2px);
+    white-space: normal;
+    line-height: 1.25;
+    hyphens: auto;
+    overflow-wrap: anywhere;
+  }
+
   .pma-viewport .pma-tab {
     white-space: normal;
     line-height: 1.25;
