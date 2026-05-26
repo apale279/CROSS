@@ -199,6 +199,35 @@ function blobToBase64(blob) {
   });
 }
 
+function cloudinaryViteClientConfig() {
+  return {
+    cloudName: import.meta.env.VITE_CLOUDINARY_CLOUD_NAME?.trim() ?? '',
+    preset: import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET?.trim() ?? '',
+  };
+}
+
+function devCloudinaryClientHint() {
+  const { cloudName, preset } = cloudinaryViteClientConfig();
+  if (cloudName && preset) return null;
+  const missing = [
+    !cloudName ? 'VITE_CLOUDINARY_CLOUD_NAME' : null,
+    !preset ? 'VITE_CLOUDINARY_UPLOAD_PRESET' : null,
+  ].filter(Boolean);
+  return (
+    `In .env.local mancano ${missing.join(' e ')} (obbligatorio il prefisso VITE_ per il browser). ` +
+    'Riavvia "npm run dev" dopo ogni modifica al file.'
+  );
+}
+
+function devCloudinaryServerFallbackHint(serverMessage) {
+  const apiBase = (import.meta.env.VITE_API_BASE_URL ?? '').trim() || 'Vercel (produzione)';
+  return (
+    `${serverMessage} ` +
+    `Con "npm run dev" la route /api viene inoltrata a ${apiBase}: le variabili CLOUDINARY_* nel tuo .env.local non valgono per quell'upload. ` +
+    'Usa VITE_CLOUDINARY_CLOUD_NAME + VITE_CLOUDINARY_UPLOAD_PRESET in .env.local, oppure avvia "vercel dev" per eseguire le API in locale.'
+  );
+}
+
 async function uploadPmaFirmaPdfViaApi(tenantId, blob, pazienteDocId) {
   const user = auth.currentUser;
   if (!user) {
@@ -221,18 +250,20 @@ async function uploadPmaFirmaPdfViaApi(tenantId, blob, pazienteDocId) {
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    throw new Error(
+    const serverMsg =
       data.error ??
-        'Upload PDF su server non riuscito. Verifica CLOUDINARY_* su Vercel (o avvia `vercel dev` in locale).',
-    );
+      'Upload PDF su server non riuscito. Verifica CLOUDINARY_* su Vercel (o avvia `vercel dev` in locale).';
+    if (import.meta.env.DEV && res.status === 503 && /CLOUDINARY/i.test(String(serverMsg))) {
+      throw new Error(devCloudinaryServerFallbackHint(serverMsg));
+    }
+    throw new Error(serverMsg);
   }
   if (!data.url) throw new Error('Upload PDF: URL mancante nella risposta.');
   return String(data.url);
 }
 
 async function uploadPmaFirmaPdfUnsigned(tenantId, blob, pazienteDocId) {
-  const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME?.trim();
-  const preset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET?.trim();
+  const { cloudName, preset } = cloudinaryViteClientConfig();
   if (!cloudName || !preset) {
     throw new Error('PRESET_CLIENT_SKIP');
   }
@@ -272,7 +303,26 @@ export async function uploadPmaFirmaPdfPreview(tenantId, blob, pazienteDocId) {
       /upload preset/i.test(msg) ||
       /unknown upload preset/i.test(msg);
 
+    if (import.meta.env.DEV && msg === 'PRESET_CLIENT_SKIP') {
+      const hint = devCloudinaryClientHint();
+      if (hint) throw new Error(hint);
+    }
+
     if (!useServer) throw clientErr;
+
+    const viteProxiesApiToRemote =
+      import.meta.env.DEV && Boolean(import.meta.env.VITE_API_BASE_URL?.trim());
+
+    if (viteProxiesApiToRemote) {
+      const hint = devCloudinaryClientHint();
+      throw new Error(
+        hint
+          ? `${hint} Dettaglio upload: ${msg}.`
+          : `Upload Cloudinary dal browser non riuscito (${msg}). ` +
+            'Con npm run dev le API /api vanno su Vercel remoto e ignorano CLOUDINARY_* in .env.local. ' +
+            'Correggi il preset unsigned su Cloudinary oppure avvia "vercel dev".',
+      );
+    }
 
     console.warn('[pma-firma] Upload client Cloudinary non disponibile, uso API server:', msg);
     return uploadPmaFirmaPdfViaApi(tenantId, blob, pazienteDocId);
