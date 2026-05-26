@@ -1,6 +1,7 @@
-import { doc, getDoc, updateDoc } from 'firebase/firestore'
+import { getDoc } from 'firebase/firestore'
 import type { Firestore } from 'firebase/firestore'
-import { impostazioniPath } from '../../lib/firestorePaths'
+import { impostazioniDocRef } from '../../services/impostazioniService'
+import { savePmaClinicaFarmaciConsumati } from '../../services/pmaClinicaImpostazioniService'
 import type { FarmacoVia } from '../types/cartellaClinica'
 import {
   incrementFarmacoConsumato,
@@ -18,14 +19,11 @@ export async function registerPmaFarmacoUsato(
   const nome = String(params.nome ?? '').trim()
   if (!tenant || !nome) return
 
-  const ref = doc(db, ...impostazioniPath(tenant))
-  const snap = await getDoc(ref)
+  const snap = await getDoc(impostazioniDocRef(tenant))
   const pmaClinica = (snap.data()?.pmaClinica ?? {}) as Record<string, unknown>
   const current = parseFarmaciConsumatiFromFirestore(pmaClinica.farmaci_consumati)
   const next = incrementFarmacoConsumato(current, params)
   const serialized = serializeFarmaciConsumati(next)
 
-  await updateDoc(ref, {
-    'pmaClinica.farmaci_consumati': serialized,
-  })
+  await savePmaClinicaFarmaciConsumati(tenant, serialized)
 }

@@ -11,7 +11,12 @@ function dosaggiToText(dosaggi) {
   return (dosaggi ?? []).join('; ')
 }
 
-export function FarmaciConsumatiStatsEditor({ value, onChange, disabled = false }) {
+export function FarmaciConsumatiStatsEditor({
+  value,
+  onChange,
+  disabled = false,
+  onClearRemote,
+}) {
   const [rows, setRows] = useState([])
 
   useEffect(() => {
@@ -27,17 +32,27 @@ export function FarmaciConsumatiStatsEditor({ value, onChange, disabled = false 
     [onChange],
   )
 
-  const clearAll = () => {
+  const clearAll = async () => {
     if (rows.length === 0) return
     if (!window.confirm('Azzerare tutte le statistiche di utilizzo?')) return
-    commit([])
+    try {
+      if (onClearRemote) await onClearRemote()
+      commit([])
+    } catch (err) {
+      window.alert(err?.message ?? 'Impossibile azzerare le statistiche su server.')
+    }
   }
 
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h4 className="text-xs font-bold uppercase text-slate-700">Farmaci consumati</h4>
-        <button type="button" className={btnSecondary} disabled={disabled || rows.length === 0} onClick={clearAll}>
+        <button
+          type="button"
+          className={btnSecondary}
+          disabled={disabled || rows.length === 0}
+          onClick={() => void clearAll()}
+        >
           Azzera statistiche
         </button>
       </div>

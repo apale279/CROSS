@@ -1,5 +1,6 @@
 import { DEFAULT_IMPOSTAZIONI } from '../constants';
 import { DEFAULT_DETTAGLI_PER_TIPO_LUOGO } from '../data/defaultLuoghiImpostazioni';
+import { resolvePmaClinicaFarmaciFields } from '../pma/lib/pmaClinicaFarmaciFields';
 import { normalizeTipiMezzo } from './tipiMezzo';
 
 /** Unifica dati Firestore con default e migra dettagliEvento → dettagliPerTipoEvento. */
@@ -55,13 +56,19 @@ export function normalizeImpostazioni(data) {
 
   const defaultPma = DEFAULT_IMPOSTAZIONI.pmaClinica ?? {};
   const rawPma = merged.pmaClinica && typeof merged.pmaClinica === 'object' ? merged.pmaClinica : {};
-  const pmaClinica = {
+  const pmaClinicaMerged = {
     ...defaultPma,
     ...rawPma,
     dettaglio_eo_rapido: {
       ...(defaultPma.dettaglio_eo_rapido ?? {}),
       ...(rawPma.dettaglio_eo_rapido ?? {}),
     },
+  };
+  const { farmaci, farmaci_consumati } = resolvePmaClinicaFarmaciFields(pmaClinicaMerged);
+  const pmaClinica = {
+    ...pmaClinicaMerged,
+    farmaci,
+    farmaci_consumati,
   };
 
   return {

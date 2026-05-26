@@ -1,14 +1,19 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { parseLinesToValues } from '../../pma/lib/multilineList';
 import { resolvePmaClinicaFarmaciFields } from '../../pma/lib/pmaClinicaFarmaciFields';
 import { useImpostazioniField } from '../../hooks/useImpostazioniField';
+import { useManifestationId } from '../../context/ManifestazioneContext';
+import { clearPmaClinicaFarmaciConsumati } from '../../services/pmaClinicaImpostazioniService';
 import { FarmaciSelezionabiliEditor } from './FarmaciSelezionabiliEditor';
 import { FarmaciConsumatiStatsEditor } from './FarmaciConsumatiStatsEditor';
 import { btnPrimary, btnSecondary } from '../ui/FormField';
 import { SaveFeedback } from './SaveFeedback';
 
 export function PmaClinicaImpostazioniPanel() {
+  const manifestationId = useManifestationId();
   const { value: pmaClinica, saveField, saving, loading } = useImpostazioniField('pmaClinica');
+  const farmaciDirtyRef = useRef(false);
+  const consumatiDirtyRef = useRef(false);
   const [feedback, setFeedback] = useState('');
   const [prestazioniDraft, setPrestazioniDraft] = useState('');
   const [farmaciSelezionabili, setFarmaciSelezionabili] = useState([]);
@@ -23,8 +28,8 @@ export function PmaClinicaImpostazioniPanel() {
     const pc = pmaClinica ?? {};
     const { farmaci, farmaci_consumati } = resolvePmaClinicaFarmaciFields(pc);
     setPrestazioniDraft((pc.prestazioni ?? []).join('\n'));
-    setFarmaciSelezionabili(farmaci);
-    setFarmaciConsumati(farmaci_consumati);
+    if (!farmaciDirtyRef.current) setFarmaciSelezionabili(farmaci);
+    if (!consumatiDirtyRef.current) setFarmaciConsumati(farmaci_consumati);
     setConsensoCure(pc.consenso_generico_cure ?? '');
     setConsensoPrivacy(pc.consenso_privacy ?? '');
     setRifiutoPs(pc.rifiuto_invio_ps ?? '');
@@ -36,6 +41,8 @@ export function PmaClinicaImpostazioniPanel() {
       setFeedback('');
       try {
         await saveField(next);
+        farmaciDirtyRef.current = false;
+        consumatiDirtyRef.current = false;
         setFeedback(msg);
       } catch (err) {
         alert(err.message ?? 'Errore salvataggio');
@@ -50,11 +57,14 @@ export function PmaClinicaImpostazioniPanel() {
       dettaglio_eo_rapido_default: _eoDef,
       ...restPma
     } = pmaClinica ?? {};
+    const serverFarmaci = resolvePmaClinicaFarmaciFields(pmaClinica ?? {});
     return {
       ...restPma,
       prestazioni: parseLinesToValues(prestazioniDraft),
       farmaci: farmaciSelezionabili,
-      farmaci_consumati: farmaciConsumati,
+      farmaci_consumati: consumatiDirtyRef.current
+        ? farmaciConsumati
+        : serverFarmaci.farmaci_consumati,
       consenso_generico_cure: consensoCure,
       consenso_privacy: consensoPrivacy,
       rifiuto_invio_ps: rifiutoPs,
@@ -97,7 +107,10 @@ export function PmaClinicaImpostazioniPanel() {
         <div className="border-t border-slate-200 px-4 pb-4 pt-3">
           <FarmaciSelezionabiliEditor
             value={farmaciSelezionabili}
-            onChange={setFarmaciSelezionabili}
+            onChange={(next) => {
+              farmaciDirtyRef.current = true;
+              setFarmaciSelezionabili(next);
+            }}
             disabled={saving}
           />
         </div>
@@ -115,8 +128,15 @@ export function PmaClinicaImpostazioniPanel() {
         <div className="border-t border-slate-200 px-4 pb-4 pt-3">
           <FarmaciConsumatiStatsEditor
             value={farmaciConsumati}
-            onChange={setFarmaciConsumati}
+            onChange={(next) => {
+              consumatiDirtyRef.current = true;
+              setFarmaciConsumati(next);
+            }}
             disabled={saving}
+            onClearRemote={async () => {
+              await clearPmaClinicaFarmaciConsumati(manifestationId);
+              consumatiDirtyRef.current = false;
+            }}
           />
         </div>
       </details>
