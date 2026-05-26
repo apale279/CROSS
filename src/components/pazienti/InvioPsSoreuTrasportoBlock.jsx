@@ -19,6 +19,8 @@ export function InvioPsSoreuTrasportoBlock({
   manifestationId,
   paziente,
   pma,
+  /** false se scheda sbloccata o in modifica; true = sola visione sui campi SOREU. */
+  soreuReadOnly = false,
   onWriteSoreu,
   onOpenEvento,
   onOpenMissione,
@@ -109,9 +111,19 @@ export function InvioPsSoreuTrasportoBlock({
       <p className="text-xs font-bold uppercase text-violet-900">
         Invio in PS — dati missione SOREU (118)
       </p>
+      {soreuReadOnly ? (
+        <p className="rounded bg-amber-50 px-3 py-2 text-xs text-amber-950">
+          Scheda in sola visione: usa <strong>Sblocca modifica</strong> in alto per aggiornare i dati
+          SOREU. Il comando «CREA TRASPORTO» resta disponibile per i pazienti dimessi con invio PS.
+        </p>
+      ) : null}
       <SoreuTrasportoFields
         values={soreuValues}
-        onPatch={(partial) => void onWriteSoreu?.(partial)}
+        disabled={soreuReadOnly}
+        onPatch={(partial) => {
+          if (soreuReadOnly) return;
+          void onWriteSoreu?.(partial);
+        }}
       />
 
       <div className="rounded-lg border border-slate-300 bg-white p-3">
@@ -196,10 +208,11 @@ export function InvioPsSoreuTrasportoBlock({
               <select
                 className={selectClass}
                 value={ospedaleSel}
-                disabled={busy}
+                disabled={busy || soreuReadOnly}
                 onChange={(e) => {
                   const v = e.target.value;
                   setOspedaleSel(v);
+                  if (soreuReadOnly) return;
                   void onWriteSoreu?.({ invio_ps_ospedale: v });
                 }}
               >

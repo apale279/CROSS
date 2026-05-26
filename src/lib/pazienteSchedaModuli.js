@@ -1,10 +1,4 @@
-import {
-  isPazienteOriginePma,
-  normalizeStatoPzPma,
-  pazienteHaDestinazionePma,
-  pazienteHaSchedaPma,
-  STATO_PZ_PMA,
-} from './pmaModule';
+import { isPazienteOriginePma, pazienteHaDestinazionePma, pazienteHaSchedaPma } from './pmaModule';
 
 /**
  * Vista scheda: chi apre il paziente (ordine tab e permessi UI).
@@ -64,10 +58,14 @@ export function pmaIdDaPaziente(paziente) {
   return String(paziente?.pmaId ?? paziente?.destinazionePmaId ?? '').trim();
 }
 
-/** Scheda unificata PMA in centrale solo quando il flusso PMA è partito (sync mezzo). */
-export function usaSchedaUnificataPma(paziente) {
+/** Tab/modulo PMA in scheda centrale (anche paziente dimesso con storico PMA). */
+export function mostraModuloPmaInSchedaCentrale(paziente) {
   if (!paziente) return false;
   if (!pmaIdDaPaziente(paziente)) return false;
-  const stato = normalizeStatoPzPma(paziente.statoPzPma);
-  return stato != null && stato !== STATO_PZ_PMA.DIMESSO;
+  return pazienteHaSchedaPma(paziente);
+}
+
+/** @deprecated Usare `mostraModuloPmaInSchedaCentrale` */
+export function usaSchedaUnificataPma(paziente) {
+  return mostraModuloPmaInSchedaCentrale(paziente);
 }

@@ -1,5 +1,4 @@
-import { schedaTabDimissioneAllows } from '@pma/lib/rankMatrix';
-import { isPazienteOriginePma, pazienteHaSchedaPma, pazientePmaChiuso } from './pmaModule';
+import { isPazienteOriginePma, pazientePmaChiuso } from './pmaModule';
 import { isChiusoCentrale } from './pazienteStati';
 
 export function isSchedaModificaForzata(paziente) {
@@ -7,21 +6,17 @@ export function isSchedaModificaForzata(paziente) {
 }
 
 /**
- * Scheda chiusa (centrale o PMA): sola visione salvo sblocco esplicito.
- * @param {{ userRank?: string | null }} [options] — rank operatore (Medico/Centrale può modificare dimessi PMA).
+ * Scheda chiusa (centrale o PMA): sola visione salvo sblocco esplicito (`schedaModificaForzata`).
  */
-export function isSchedaInSolaVisione(paziente, options = {}) {
+export function isSchedaInSolaVisione(paziente) {
   if (!paziente) return false;
   if (isSchedaModificaForzata(paziente)) return false;
-  const rank = options.userRank ?? null;
   const pmaChiuso = pazientePmaChiuso(paziente);
-  const mayEditDimessoPma =
-    pmaChiuso && rank && schedaTabDimissioneAllows(rank, 'UPDATE') && pazienteHaSchedaPma(paziente);
-
-  if (isPazienteOriginePma(paziente)) {
-    if (mayEditDimessoPma) return false;
-    return pmaChiuso;
-  }
-  if (mayEditDimessoPma) return false;
+  if (isPazienteOriginePma(paziente)) return pmaChiuso;
   return isChiusoCentrale(paziente) || pmaChiuso;
+}
+
+/** Modifica consentita (scheda operativa aperta oppure sblocco manuale). */
+export function isSchedaModificabile(paziente) {
+  return Boolean(paziente) && !isSchedaInSolaVisione(paziente);
 }

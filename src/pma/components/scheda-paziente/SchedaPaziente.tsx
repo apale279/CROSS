@@ -480,7 +480,8 @@ export function SchedaPaziente({ pazienteId }: Props) {
 
   const canEditDimissioneTab = schedaTabDimissioneAllows(user.rank, 'UPDATE')
   const canSetStatoInArrivo = schedaStatoInArrivoAllows(user.rank)
-  const invioPsReadOnly = !canWriteInvioPsFields(user.rank, p.aperto)
+  const schedaModificabileInvioPs = Boolean(p?.aperto)
+  const invioPsReadOnly = !canWriteInvioPsFields(user.rank, schedaModificabileInvioPs)
 
   return (
     <SchedaPazienteShell

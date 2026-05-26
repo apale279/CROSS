@@ -77,8 +77,7 @@ export function DimissioneSection({
   pmaIpadFirma = null,
 }: Props) {
   const dimissioneEdit = canEditDimissioneTab && canEditScheda
-  const pazienteGiaDimesso =
-    !p.aperto || p.stato === 'dimesso' || p.dimesso_at != null
+  const pazienteGiaDimesso = p.stato === 'dimesso' || p.dimesso_at != null
   const canChiudiDimetti = Boolean(
     canEditScheda &&
       user &&
@@ -430,7 +429,7 @@ export function DimissioneSection({
         ) : null}
 
         <div>
-          <div className="pma-section-hdr">Firma paziente</div>
+          <div className="pma-section-hdr">Firma paziente (opzionale)</div>
           <div className="px-3 pb-3">
             {dimissioneEdit && pmaIpadFirma ? (
               <div className="mb-3 space-y-2 rounded-lg border border-violet-200 bg-violet-50/80 px-3 py-2.5">

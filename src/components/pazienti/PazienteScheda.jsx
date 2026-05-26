@@ -24,12 +24,20 @@ import {
 } from '../../lib/destinazioniOspedale';
 import {
   isPazienteOriginePma,
+  normalizeStatoPzPma,
   STATO_PZ_PMA,
   TIPO_PZ,
   statoPzPmaLabel,
 } from '../../lib/pmaModule';
 import { chiusuraCentraleLabel, isChiusoCentrale, isTrasportoCentraleModificabile, statoCentraleLabel } from '../../lib/pazienteStati';
-import { moduliSchedaPaziente, pmaIdDaPaziente, usaSchedaUnificataPma, VISTA_SCHEDA } from '../../lib/pazienteSchedaModuli';
+import {
+  moduliSchedaPaziente,
+  mostraModuloPmaInSchedaCentrale,
+  pmaIdDaPaziente,
+  VISTA_SCHEDA,
+} from '../../lib/pazienteSchedaModuli';
+import { isSchedaInSolaVisione } from '../../lib/schedaSolaVisione';
+import { SchedaUnlockBar } from './SchedaUnlockBar';
 import { setPazientePmaInArrivo } from '../../services/pazientePmaMissionSync';
 import { PazienteModuloPma } from './moduli/PazienteModuloPma';
 import { COLLECTIONS } from '../../lib/firestorePaths';
@@ -140,6 +148,8 @@ export function PazienteScheda({
 
   const [valuationRows, setValuationRows] = useState([]);
   const [saving, setSaving] = useState(false);
+  const [unlockBusy, setUnlockBusy] = useState(false);
+  const [mainTab, setMainTab] = useState('centrale');
 
   /** Snapshot diretto sul documento paziente → merge preservando campi dirty. */
   useEffect(() => {
@@ -210,10 +220,11 @@ export function PazienteScheda({
         setDraft((d) => ({ ...d, ...fields }));
         return;
       }
+      if (schedaSolaVisione) return;
       await patchPaziente(manifestationId, patientDocId, fields);
       dirtyKeysToClear.forEach((k) => dirtyPatientFieldsRef.current.delete(k));
     },
-    [isCreate, manifestationId, patientDocId],
+    [isCreate, manifestationId, patientDocId, schedaSolaVisione],
   );
 
   const applyDestinazioneChange = useCallback(
@@ -262,10 +273,22 @@ export function PazienteScheda({
   const isOriginePma = !isCreate && isPazienteOriginePma(displayPatient);
   const moduli = !isCreate && displayPatient ? moduliSchedaPaziente(displayPatient) : null;
   const pmaIdScheda = displayPatient ? pmaIdDaPaziente(displayPatient) : '';
-  const schedaUnificataPma = !isCreate && usaSchedaUnificataPma(displayPatient);
+  const mostraTabPma = !isCreate && mostraModuloPmaInSchedaCentrale(displayPatient);
+  const schedaSolaVisione =
+    !isCreate && displayPatient ? isSchedaInSolaVisione(displayPatient) : false;
+
+  useEffect(() => {
+    if (!displayPatient || !mostraTabPma) {
+      setMainTab('centrale');
+      return;
+    }
+    const dimesso = normalizeStatoPzPma(displayPatient.statoPzPma) === STATO_PZ_PMA.DIMESSO;
+    setMainTab(dimesso ? 'pma' : 'centrale');
+  }, [patientDocId, displayPatient?.statoPzPma, mostraTabPma]);
 
   const trasporta = draft.esito === ESITO_TRASPORTA;
-  const trasportoModificabile = isCreate || isTrasportoCentraleModificabile(displayPatient);
+  const trasportoModificabile =
+    isCreate || (!schedaSolaVisione && isTrasportoCentraleModificabile(displayPatient));
   const showAltro = draft.esito === ESITO_ALTRO;
   const mostraSoreu = trasporta && destinazioneRichiedeSoreu(displayPatient ?? draft, impostazioni);
 
@@ -278,6 +301,7 @@ export function PazienteScheda({
   );
 
   const addValutazione = async (tipo) => {
+    if (schedaSolaVisione) return;
     const item = newValutazioneSoccorsoItem(tipo);
     if (isCreate) {
       setDraft((d) => ({
@@ -532,7 +556,7 @@ export function PazienteScheda({
     ]);
   };
 
-  const anagraficaCentralePanel = schedaUnificataPma ? (
+  const anagraficaCentralePanel = (
     <div className="space-y-4 p-1">
       {isOriginePma && (
         <dl className="grid gap-3 md:grid-cols-2">
@@ -601,10 +625,10 @@ export function PazienteScheda({
         />
       </div>
     </div>
-  ) : null;
+  );
 
   const datiCentraleCentralePanel =
-    schedaUnificataPma && !isOriginePma ? (
+    !isOriginePma && (isCreate || moduli?.esitoTrasporto) ? (
       <div className="space-y-4 p-1">
         <dl className="grid gap-3 md:grid-cols-2">
           <FormField label="Evento correlato">
@@ -846,19 +870,12 @@ export function PazienteScheda({
             {displayPatient.idPaziente}
           </span>
           <span className="font-mono text-xs text-slate-500">{displayPatient.idUnivoco}</span>
-          {moduli?.haPma && pmaIdScheda && !schedaUnificataPma && (
-            <a
-              href={`#modulo-pma`}
-              className="rounded border border-violet-400 bg-violet-50 px-3 py-1.5 text-xs font-bold uppercase text-violet-900 hover:bg-violet-100"
-            >
-              Vai al modulo PMA ↓
-            </a>
-          )}
           {!isOriginePma && displayPatient?.stato !== 'ARRIVATO H' && !isChiusoCentrale(displayPatient) && (
           <label className="ml-auto flex items-center gap-2">
             <input
               type="checkbox"
               checked={draft.aperta}
+              disabled={schedaSolaVisione}
               onChange={(e) => {
                 const aperta = e.target.checked;
                 touchDirty('aperta');
@@ -872,310 +889,77 @@ export function PazienteScheda({
         </div>
       )}
 
-      {schedaUnificataPma ? (
-        <PazienteModuloPma
-          patientDocId={patientDocId}
-          pmaId={pmaIdScheda}
-          eventi={eventiAll}
-          evento={evento}
-          missioniEvento={missioniEvento}
-          vistaScheda={VISTA_SCHEDA.CENTRALE}
-          defaultTab="cartella"
-          anagraficaPanel={anagraficaCentralePanel}
-          datiCentralePanel={datiCentraleCentralePanel}
+      {!isCreate && displayPatient ? (
+        <SchedaUnlockBar
+          paziente={displayPatient}
+          busy={unlockBusy}
+          onToggleModifica={async (forced) => {
+            if (!manifestationId || !patientDocId) return;
+            setUnlockBusy(true);
+            try {
+              await patchPaziente(manifestationId, patientDocId, {
+                schedaModificaForzata: forced,
+              });
+            } finally {
+              setUnlockBusy(false);
+            }
+          }}
         />
-      ) : (
-        <>
-      {!isOriginePma && (
-      <dl className="grid gap-3 md:grid-cols-2">
-        <FormField label="Evento correlato">
-          <p className="font-mono font-semibold text-slate-800">{evento?.idEvento ?? '—'}</p>
-        </FormField>
-        {!isCreate && displayPatient?.idMissione && (
-          <FormField label="ID missione">
-            <p className="font-mono text-slate-800">{displayPatient.idMissione}</p>
-          </FormField>
-        )}
-        <FormField label="Creato">
-          <input
-            type="datetime-local"
-            className={`${inputClass} font-mono`}
-            value={draft.creatoLocal}
-            onChange={(e) => {
-              touchDirty('creatoLocal');
-              setDraft((d) => ({ ...d, creatoLocal: e.target.value }));
-            }}
-            onBlur={onCreatoBlur}
+      ) : null}
+
+      {mostraTabPma ? (
+        <div className="flex gap-1 border-b border-slate-300" role="tablist">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={mainTab === 'centrale'}
+            className={
+              mainTab === 'centrale'
+                ? 'border-b-2 border-teal-600 px-4 py-2 text-xs font-bold uppercase text-teal-800'
+                : 'px-4 py-2 text-xs font-bold uppercase text-slate-500 hover:text-slate-700'
+            }
+            onClick={() => setMainTab('centrale')}
+          >
+            Valutazioni centrale
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={mainTab === 'pma'}
+            className={
+              mainTab === 'pma'
+                ? 'border-b-2 border-violet-600 px-4 py-2 text-xs font-bold uppercase text-violet-900'
+                : 'px-4 py-2 text-xs font-bold uppercase text-slate-500 hover:text-slate-700'
+            }
+            onClick={() => setMainTab('pma')}
+          >
+            PMA
+          </button>
+        </div>
+      ) : null}
+
+      {(!mostraTabPma || mainTab === 'centrale') && (
+        <div className="space-y-4">
+          {anagraficaCentralePanel}
+          {datiCentraleCentralePanel}
+        </div>
+      )}
+
+      {mostraTabPma && mainTab === 'pma' ? (
+        <div id="modulo-pma" className="min-h-[320px]">
+          <PazienteModuloPma
+            patientDocId={patientDocId}
+            pmaId={pmaIdScheda}
+            eventi={eventiAll}
+            evento={evento}
+            missioniEvento={missioniEvento}
+            vistaScheda={VISTA_SCHEDA.CENTRALE}
+            defaultTab="cartella"
+            clinicalOnly
+            hideSchedaUnlockBar
           />
-        </FormField>
-        {!isCreate && displayPatient?.stato === 'ARRIVATO H' && (
-          <FormField label="Arrivato in H">
-            <p className="text-slate-800">{formatTimestamp(displayPatient.arrivatoHAt)}</p>
-          </FormField>
-        )}
-      </dl>
-      )}
-
-      {isOriginePma && (
-        <dl className="grid gap-3 md:grid-cols-2">
-          <FormField label="Creato">
-            <input
-              type="datetime-local"
-              className={`${inputClass} font-mono`}
-              value={draft.creatoLocal}
-              onChange={(e) => {
-                touchDirty('creatoLocal');
-                setDraft((d) => ({ ...d, creatoLocal: e.target.value }));
-              }}
-              onBlur={onCreatoBlur}
-            />
-          </FormField>
-          <FormField label="Stato PMA">
-            <p className="font-semibold text-violet-900">
-              {statoPzPmaLabel(displayPatient?.statoPzPma) ?? '—'}
-            </p>
-          </FormField>
-        </dl>
-      )}
-
-      <div className="border-t border-slate-200 pt-3">
-        <p className="mb-2 text-xs font-bold uppercase text-slate-600">Anagrafica</p>
-        <PazienteAnagraficaFields
-          draft={draft}
-          registryAvailable={registryPartecipanti.length > 0}
-          onSearchPettorale={cercaPettoraleInElenco}
-          onChange={(key, value) => {
-            touchDirty(key);
-            setDraft((d) => ({ ...d, [key]: value }));
-          }}
-          onBlurField={(key) => {
-            if (isCreate) return;
-            if (key === 'pettorale') {
-              void patchPatientFields(
-                {
-                  pettorale:
-                    draft.pettorale !== '' && draft.pettorale != null
-                      ? Number(draft.pettorale)
-                      : null,
-                },
-                ['pettorale'],
-              );
-              return;
-            }
-            if (key === 'dataNascita') {
-              void patchPatientFields(
-                {
-                  dataNascita: draft.dataNascita,
-                  eta: etaDaDataNascita(draft.dataNascita),
-                },
-                ['dataNascita', 'eta'],
-              );
-              return;
-            }
-            if (key === 'eta') {
-              void patchPatientFields({ eta: parseEtaDraft(draft.eta) }, ['eta']);
-              return;
-            }
-            if (key === 'sesso') {
-              void patchPatientFields({ sesso: draft.sesso }, ['sesso']);
-              return;
-            }
-            void patchPatientFields({ [key]: draft[key] ?? '' }, [key]);
-          }}
-        />
-      </div>
-
-      {!isOriginePma && (isCreate || moduli?.esitoTrasporto) && (
-      <div className="border-t border-slate-200 pt-3">
-        <p className="mb-2 text-xs font-bold uppercase text-slate-600">Esito e trasporto</p>
-        {!trasportoModificabile && (
-          <p className="mb-3 rounded bg-slate-100 px-3 py-2 text-xs text-slate-600">
-            Missione conclusa o paziente in percorso PMA — esito, mezzo e destinazione non
-            modificabili.
-          </p>
-        )}
-        <div className="mb-4 space-y-3">
-          <FormField label="Esito">
-            <select
-              className={selectClass}
-              value={draft.esito}
-              disabled={!trasportoModificabile}
-              onChange={(e) => onEsitoChange(e.target.value)}
-            >
-              <option value="">—</option>
-              {ESITI_PAZIENTE.map((e) => (
-                <option key={e} value={e}>
-                  {e}
-                </option>
-              ))}
-            </select>
-          </FormField>
-          {showAltro && (
-            <FormField label="Specificare esito">
-              <textarea
-                className={inputClass}
-                rows={2}
-                value={draft.esitoAltro}
-                onChange={(e) => {
-                  touchDirty('esitoAltro');
-                  setDraft((d) => ({ ...d, esitoAltro: e.target.value }));
-                }}
-                onBlur={(e) =>
-                  !isCreate &&
-                  patchPatientFields({ esitoAltro: e.target.value }, ['esitoAltro'])
-                }
-              />
-            </FormField>
-          )}
-          {trasporta && (
-            <>
-              <FormField label="Mezzo (missioni evento)">
-                <select
-                  className={selectClass}
-                  value={draft.mezzo}
-                  disabled={!trasportoModificabile}
-                  onChange={(e) => onMezzoChange(e.target.value)}
-                >
-                  <option value="">—</option>
-                  {mezziEvento.map((sigla) => (
-                    <option key={sigla} value={sigla}>
-                      {sigla}
-                    </option>
-                  ))}
-                </select>
-              </FormField>
-              <FormField label="Ospedale destinazione">
-                <select
-                  className={selectClass}
-                  value={draft.ospedaleDestinazione}
-                  disabled={!trasportoModificabile}
-                  onChange={(e) => void applyDestinazioneChange(e.target.value)}
-                >
-                  <option value="">—</option>
-                  {ospedali.map((h) => (
-                    <option key={`osp-${h}`} value={h}>
-                      {h}
-                    </option>
-                  ))}
-                  {pmaDestinazioni.length > 0 && (
-                    <optgroup label="PMA">
-                      {pmaDestinazioni.map((p) => (
-                        <option key={`pma-${p.id}`} value={p.nome}>
-                          PMA — {p.nome}
-                        </option>
-                      ))}
-                    </optgroup>
-                  )}
-                </select>
-              </FormField>
-              {mostraSoreu && draft.ospedaleDestinazione && (
-                <SoreuTrasportoFields
-                  values={draft}
-                  onPatch={(partial) => {
-                    Object.keys(partial).forEach(touchDirty);
-                    setDraft((d) => ({ ...d, ...partial }));
-                    if (!isCreate) void patchPatientFields(partial, Object.keys(partial));
-                  }}
-                />
-              )}
-              <FormField label="Stato paziente">
-                <select className={selectClass} value={draft.stato} disabled>
-                  {STATI_PAZIENTE.map((s) => (
-                    <option key={s} value={s}>
-                      {s}
-                    </option>
-                  ))}
-                </select>
-              </FormField>
-            </>
-          )}
-          {!trasporta && draft.esito && (
-            <FormField label="Stato paziente">
-              <p className="font-semibold text-slate-700">{draft.stato || 'ATTESA'}</p>
-            </FormField>
-          )}
         </div>
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <p className="text-xs font-bold uppercase text-slate-600">
-            Valutazioni mezzi di soccorso
-          </p>
-          <div className="flex flex-wrap gap-1.5">
-            <button
-              type="button"
-              className={`${btnSecondary} px-2 py-1 text-xs font-semibold`}
-              onClick={() => addValutazione('MSB')}
-            >
-              + VALUTAZIONE MSB
-            </button>
-            <button
-              type="button"
-              className={`${btnSecondary} px-2 py-1 text-xs font-semibold`}
-              onClick={() => addValutazione('MSA')}
-            >
-              + VALUTAZIONE MSA
-            </button>
-          </div>
-        </div>
-        {valutazioniList.length === 0 ? (
-          <p className="text-xs text-slate-500">Nessuna valutazione. Aggiungi MSB o MSA.</p>
-        ) : (
-          <ul className="space-y-3">
-            {valutazioniList.map((v) => (
-              <li
-                key={v.id}
-                className="rounded-lg border border-teal-200/80 bg-teal-50/30 p-3"
-              >
-                <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                  <span
-                    className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${
-                      v.tipo === 'MSA'
-                        ? 'bg-violet-200 text-violet-900'
-                        : 'bg-teal-200 text-teal-900'
-                    }`}
-                  >
-                    {v.tipo === 'MSA' ? 'VALUTAZIONE MSA' : 'VALUTAZIONE MSB'}
-                  </span>
-                  <div className="flex items-center gap-2">
-                    {v.creatoIl && (
-                      <span className="text-[10px] text-slate-500">
-                        {formatTimestamp(v.creatoIl)}
-                      </span>
-                    )}
-                    <button
-                      type="button"
-                      className="rounded p-1 text-slate-400 hover:bg-red-100 hover:text-red-700"
-                      title="Rimuovi valutazione"
-                      onClick={() => removeValutazione(v.id)}
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                </div>
-                {v.tipo === 'MSB' ? (
-                  <MsbValutazioneForm
-                    valuationId={v.id}
-                    msbDetails={v.msbDetails}
-                    mezziEventoSigle={mezziEvento}
-                    onPatch={(partial) => void patchMsbValutazione(v.id, partial)}
-                  />
-                ) : (
-                  <MsaValutazioneForm
-                    valuationId={v.id}
-                    msaDetails={v.msaDetails}
-                    creatoIl={v.creatoIl}
-                    mezziEventoSigle={mezziEvento}
-                    onPatchDetails={(partial) => void patchMsaValutazione(v.id, partial)}
-                    onPatchCreatoIl={(creatoIl) => void patchMsaCreatoIl(v.id, creatoIl)}
-                  />
-                )}
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-      )}
-        </>
-      )}
+      ) : null}
 
       <div className="flex gap-2 border-t border-slate-200 pt-3">
         {isCreate ? (

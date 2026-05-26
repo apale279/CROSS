@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { isPathAllowedForPmaOperator } from '../../lib/userAccess'
-import { canInsertFarmaci, schedaTabDimissioneAllows } from './rankMatrix'
+import { canInsertFarmaci, canWriteInvioPsFields, schedaTabDimissioneAllows } from './rankMatrix'
 
 describe('rankMatrix dimissione', () => {
   it('Infermiere e Soccorritore: lettura sì, modifica no', () => {
@@ -12,6 +12,13 @@ describe('rankMatrix dimissione', () => {
 
   it('Medico può modificare dimissione', () => {
     expect(schedaTabDimissioneAllows('Medico', 'UPDATE')).toBe(true)
+  })
+})
+
+describe('rankMatrix invio PS', () => {
+  it('Medico può scrivere invio PS se la scheda è modificabile (anche dopo sblocco)', () => {
+    expect(canWriteInvioPsFields('Medico', true)).toBe(true)
+    expect(canWriteInvioPsFields('Medico', false)).toBe(false)
   })
 })
 

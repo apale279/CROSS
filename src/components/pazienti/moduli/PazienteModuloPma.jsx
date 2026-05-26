@@ -6,8 +6,8 @@ import { useImpostazioni } from '../../../hooks/useImpostazioni';
 import { usePazienteDocument } from '../../../hooks/usePazienteDocument';
 import { findPmaById, isPazienteOriginePma, pazientePmaChiuso, STATO_PZ_PMA, statoPzPmaLabel } from '../../../lib/pmaModule';
 import { chiusuraCentraleLabel, isChiusoCentrale, statoCentraleLabel } from '../../../lib/pazienteStati';
-import { isSchedaInSolaVisione } from '../../../lib/schedaSolaVisione';
 import { invioPsSoreuPatchForScheda, invioPsSoreuFieldsFromScheda } from '../../../lib/invioPsSoreu';
+import { isSchedaModificabile } from '../../../lib/schedaSolaVisione';
 import { patchPaziente } from '../../../services/pazientiService';
 import { InvioPsSoreuTrasportoBlock } from '../InvioPsSoreuTrasportoBlock';
 import { SchedaUnlockBar } from '../SchedaUnlockBar';
@@ -48,6 +48,8 @@ export function PazienteModuloPma({
   /** Solo cartella/dimissione (es. sezione PMA collassabile in vista centrale). */
   clinicalOnly = false,
   hidePmaPanel = false,
+  /** Barra sblocco mostrata dal genitore (es. tab scheda in Pazienti). */
+  hideSchedaUnlockBar = false,
 }) {
   const resolvedVista = vistaScheda ?? contesto ?? VISTA_SCHEDA.CENTRALE;
   const vistaPma = isVistaPma(resolvedVista);
@@ -100,8 +102,11 @@ export function PazienteModuloPma({
 
   const operatorRank =
     pmaUser?.rank ?? (profile?.pmaRank ? normalizePmaRank(profile.pmaRank) : profile?.rank) ?? null;
-  const schedaReadonly = rawDoc ? isPmaSchedaReadonly(rawDoc, operatorRank) : false;
-  const canEditPma = vistaPma && p && rawDoc ? canEditPmaScheda(p, rawDoc, operatorRank) : false;
+  const schedaReadonly = rawDoc ? isPmaSchedaReadonly(rawDoc) : false;
+  const schedaEditAllowed = p && rawDoc ? canEditPmaScheda(p, rawDoc) : false;
+  const canEditPma =
+    schedaEditAllowed &&
+    (vistaPma || rawDoc?.schedaModificaForzata === true);
   const isAutopresentato = rawDoc ? isPazienteOriginePma(rawDoc) : false;
   const shellTabs = useMemo(
     () => (clinicalOnly ? PMA_CLINICAL_SHELL_TABS : pmaShellTabsFor(isAutopresentato)),
@@ -247,6 +252,7 @@ export function PazienteModuloPma({
   const canEditDimissioneTab = Boolean(
     canEditPma && pmaUser && schedaTabDimissioneAllows(pmaUser.rank, 'UPDATE'),
   );
+  const schedaModificabile = rawDoc ? isSchedaModificabile(rawDoc) : false;
 
   const pmaIpadFirma =
     manifestationId && pmaId && patientDocId && user?.uid
@@ -294,8 +300,9 @@ export function PazienteModuloPma({
           manifestationId={manifestationId}
           paziente={rawDoc}
           pma={pma}
+          soreuReadOnly={!schedaModificabile}
           onWriteSoreu={async (partial) => {
-            if (!manifestationId || !patientDocId) return;
+            if (!schedaModificabile || !manifestationId || !patientDocId) return;
             const merged = {
               ...invioPsSoreuFieldsFromScheda(rawDoc.pmaScheda ?? {}),
               ...partial,
@@ -352,24 +359,26 @@ export function PazienteModuloPma({
 
       {schedaReadonly && (
         <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900">
-          Paziente dimesso — scheda in sola lettura.
+          Scheda in sola visione. Usa <strong>Sblocca modifica</strong> in alto per modificare cartella
+          e dimissione.
         </p>
       )}
 
-      <SchedaUnlockBar
-        paziente={rawDoc}
-        userRank={operatorRank}
-        onToggleModifica={async (forced) => {
-          if (!manifestationId || !patientDocId) return;
-          await patchPaziente(manifestationId, patientDocId, {
-            schedaModificaForzata: forced,
-          });
-        }}
-      />
+      {!hideSchedaUnlockBar ? (
+        <SchedaUnlockBar
+          paziente={rawDoc}
+          onToggleModifica={async (forced) => {
+            if (!manifestationId || !patientDocId) return;
+            await patchPaziente(manifestationId, patientDocId, {
+              schedaModificaForzata: forced,
+            });
+          }}
+        />
+      ) : null}
 
-      {vistaCentrale && !canEditPma && rawDoc.statoPzPma !== STATO_PZ_PMA.IN_CARICO && (
+      {vistaCentrale && !canEditPma && rawDoc.statoPzPma === STATO_PZ_PMA.IN_CARICO && (
         <p className="text-xs text-slate-600">
-          La cartella clinica PMA è modificabile dal personale in tenda quando il paziente è{' '}
+          La cartella clinica PMA è modificabile dal personale in tenda mentre il paziente è{' '}
           <strong>in carico</strong>.
         </p>
       )}

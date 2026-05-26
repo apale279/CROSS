@@ -16,7 +16,7 @@ const chipBtn = (active) =>
       : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
   }`;
 
-export function SoreuTrasportoFields({ values, onPatch }) {
+export function SoreuTrasportoFields({ values, onPatch, disabled = false }) {
   const accompagnato = values.soreuAccompagnato ?? ['NO'];
   const oraTs = values.soreuOraMissione ?? defaultSoreuOraMissione();
 
@@ -28,6 +28,7 @@ export function SoreuTrasportoFields({ values, onPatch }) {
         <input
           type="datetime-local"
           className={inputClass}
+          disabled={disabled}
           value={toDatetimeLocalValue(oraTs)}
           onChange={(e) => {
             const d = fromDatetimeLocalValue(e.target.value);
@@ -41,6 +42,7 @@ export function SoreuTrasportoFields({ values, onPatch }) {
           type="text"
           inputMode="numeric"
           className={inputClass}
+          disabled={disabled}
           maxLength={16}
           value={values.soreuNumeroMissione ?? ''}
           onChange={(e) =>
@@ -57,6 +59,7 @@ export function SoreuTrasportoFields({ values, onPatch }) {
             <button
               key={opt}
               type="button"
+              disabled={disabled}
               className={chipBtn(accompagnato.includes(opt))}
               onClick={() =>
                 onPatch({ soreuAccompagnato: toggleSoreuAccompagnato(accompagnato, opt) })
@@ -71,6 +74,7 @@ export function SoreuTrasportoFields({ values, onPatch }) {
       <FormField label="Codice SOREU">
         <select
           className={selectClass}
+          disabled={disabled}
           value={normalizeSoreuCodice(values.soreuCodice) || ''}
           onChange={(e) => onPatch({ soreuCodice: e.target.value })}
         >

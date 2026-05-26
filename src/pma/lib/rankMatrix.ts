@@ -67,8 +67,8 @@ export function schedaStatoInArrivoAllows(rank: UserRank): boolean {
   return rank === 'Superadmin' || rank === 'Centrale';
 }
 
-/** Invio PS: Centrale e Medico con scheda aperta. */
-export function canWriteInvioPsFields(rank: UserRank, schedaAperta: boolean): boolean {
-  if (!schedaAperta) return false;
+/** Invio PS: Centrale e Medico se la scheda è modificabile (in carico o sbloccata manualmente). */
+export function canWriteInvioPsFields(rank: UserRank, schedaModificabile: boolean): boolean {
+  if (!schedaModificabile) return false;
   return rank === 'Superadmin' || rank === 'Centrale' || rank === 'Medico';
 }
