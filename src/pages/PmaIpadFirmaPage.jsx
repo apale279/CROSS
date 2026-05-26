@@ -37,6 +37,7 @@ export default function PmaIpadFirmaPage() {
   const [saveBusy, setSaveBusy] = useState(false);
   const [saveErr, setSaveErr] = useState(null);
   const [doneMsg, setDoneMsg] = useState('');
+  const [firmaFullScreen, setFirmaFullScreen] = useState(false);
 
   const activeRequest = useMemo(() => parsePmaIpadQueueRequest(queueDoc), [queueDoc]);
 
@@ -70,6 +71,7 @@ export default function PmaIpadFirmaPage() {
     if (activeRequest?.status === 'pending') {
       setDoneMsg('');
       setSaveErr(null);
+      setFirmaFullScreen(false);
     }
   }, [activeRequest?.id]);
 
@@ -172,9 +174,39 @@ export default function PmaIpadFirmaPage() {
             </p>
           ) : null}
         </div>
+      ) : firmaFullScreen ? (
+        <div className="flex min-h-0 flex-1 flex-col bg-white">
+          <div className="flex shrink-0 items-center justify-between gap-2 border-b border-slate-200 px-3 py-2">
+            <button
+              type="button"
+              className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-800"
+              onClick={() => setFirmaFullScreen(false)}
+            >
+              ← Anteprima PDF
+            </button>
+            <p className="text-sm font-semibold text-slate-800">Firma del paziente</p>
+            <span className="w-24" aria-hidden />
+          </div>
+          <div className="flex min-h-0 flex-1 flex-col gap-2 p-3">
+            <p className="shrink-0 text-center font-mono text-lg font-bold text-teal-900">
+              {activeRequest.idPaziente || 'Paziente'}
+            </p>
+            <SignatureCanvas
+              key={`${activeRequest.id}-fs`}
+              className="min-h-0 flex-1"
+              onSaveDataUrl={handleSaveFirma}
+            />
+            {saveBusy ? <p className="text-center text-xs text-slate-500">Salvataggio…</p> : null}
+            {saveErr ? (
+              <p className="text-center text-xs text-red-800" role="alert">
+                {saveErr}
+              </p>
+            ) : null}
+          </div>
+        </div>
       ) : (
-        <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
-          <section className="flex min-h-0 flex-1 flex-col border-b border-slate-300 lg:border-b-0 lg:border-r">
+        <div className="flex min-h-0 flex-1 flex-col">
+          <section className="flex min-h-0 flex-[3] flex-col border-b border-slate-300">
             <div className="shrink-0 border-b border-slate-200 bg-white px-3 py-2">
               <p className="font-mono text-lg font-bold text-teal-900">
                 {activeRequest.idPaziente || 'Paziente'}
@@ -196,12 +228,25 @@ export default function PmaIpadFirmaPage() {
             </div>
           </section>
 
-          <section className="flex w-full shrink-0 flex-col gap-3 bg-white p-4 lg:w-[min(420px,40%)]">
-            <p className="text-sm font-semibold text-slate-800">Firma del paziente</p>
-            <SignatureCanvas key={activeRequest.id} className="flex-1" onSaveDataUrl={handleSaveFirma} />
-            {saveBusy ? <p className="text-xs text-slate-500">Salvataggio…</p> : null}
+          <section className="flex min-h-0 flex-[2] flex-col gap-2 bg-white p-3">
+            <div className="flex shrink-0 items-center justify-between gap-2">
+              <p className="text-sm font-semibold text-slate-800">Firma del paziente</p>
+              <button
+                type="button"
+                className="rounded-lg bg-teal-800 px-3 py-2 text-xs font-bold uppercase tracking-wide text-white"
+                onClick={() => setFirmaFullScreen(true)}
+              >
+                Schermo intero firma
+              </button>
+            </div>
+            <SignatureCanvas
+              key={activeRequest.id}
+              className="min-h-0 flex-1"
+              onSaveDataUrl={handleSaveFirma}
+            />
+            {saveBusy ? <p className="shrink-0 text-xs text-slate-500">Salvataggio…</p> : null}
             {saveErr ? (
-              <p className="text-xs text-red-800" role="alert">
+              <p className="shrink-0 text-xs text-red-800" role="alert">
                 {saveErr}
               </p>
             ) : null}

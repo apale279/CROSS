@@ -15,6 +15,7 @@ import { resolveMedicoFirmaPngSrc, resolveMedicoFirmaSrc } from '@pma/lib/medico
 import { rasterizeFirmaDataUrlToPng } from '@pma/lib/signatureSvg'
 import { PdfPreviewModal } from './PdfPreviewModal'
 import type { PresetDimissioneVoce } from '@pma/types/manifestazioneImpostazioni'
+import { schedaTabDimissioneAllows } from '@pma/lib/rankMatrix'
 import { btnDanger, btnPrimary, btnSecondary } from '@pma/cross/uiTokens'
 import {
   parsePmaIpadQueueRequest,
@@ -57,7 +58,7 @@ type Props = {
 /**
  * Sezione 4 — Dimissione.
  * Modifica: Superadmin, Centrale, Medico. Infermiere e Soccorritore: sola lettura.
- * Chiusura definitiva (**Dimetti**): solo Medico con scheda aperta.
+ * Chiusura definitiva (**Dimetti**): Superadmin, Centrale, Medico con scheda aperta.
  */
 export function DimissioneSection({
   p,
@@ -76,10 +77,13 @@ export function DimissioneSection({
   pmaIpadFirma = null,
 }: Props) {
   const dimissioneEdit = canEditDimissioneTab && canEditScheda
-  const canChiudiDimetti = Boolean(canEditScheda && user && user.rank === 'Medico')
+  const canChiudiDimetti = Boolean(
+    canEditScheda && user && schedaTabDimissioneAllows(user.rank, 'UPDATE'),
+  )
   const [noteDraft, setNoteDraft] = useState(p.dimissione_note)
   const [dimettiOpen, setDimettiOpen] = useState(false)
   const [dimettiBusy, setDimettiBusy] = useState(false)
+  const [dimettiErr, setDimettiErr] = useState<string | null>(null)
   const [replaceFirma, setReplaceFirma] = useState(false)
   const [pdfBusy, setPdfBusy] = useState(false)
   const [pdfErr, setPdfErr] = useState<string | null>(null)
@@ -165,22 +169,35 @@ export function DimissioneSection({
   }
 
   async function handleDimettiConfirm() {
-    if (!canChiudiDimetti || !user || user.rank !== 'Medico') return
+    if (!canChiudiDimetti || !user) return
     setDimettiBusy(true)
+    setDimettiErr(null)
     try {
-      let snap = user.firma_medico_base64?.trim() || null
-      const src = resolveMedicoFirmaSrc(user)
-      if (!snap && src) {
-        snap = await rasterizeFirmaDataUrlToPng(src)
+      let snap =
+        p.dimissione_firma_medico_base64?.trim() || user.firma_medico_base64?.trim() || null
+      if (!snap) {
+        const src = resolveMedicoFirmaSrc(user)
+        if (src) {
+          try {
+            snap = await rasterizeFirmaDataUrlToPng(src)
+          } catch {
+            snap = null
+          }
+        }
       }
-      await write({
+      const patch: Record<string, unknown> = {
         aperto: false,
         stato: 'dimesso',
         dimesso_at: serverTimestamp(),
-        dimissione_firma_medico_base64: snap,
-        dimissione_firma_medico_url: deleteField(),
-      })
+      }
+      if (snap) {
+        patch.dimissione_firma_medico_base64 = snap
+        patch.dimissione_firma_medico_url = deleteField()
+      }
+      await write(patch)
       setDimettiOpen(false)
+    } catch (e) {
+      setDimettiErr(e instanceof Error ? e.message : 'Dimissione non riuscita.')
     } finally {
       setDimettiBusy(false)
     }
@@ -530,7 +547,10 @@ export function DimissioneSection({
             <div className="mb-6 flex w-full justify-center">
               <button
                 type="button"
-                onClick={() => setDimettiOpen(true)}
+                onClick={() => {
+                  setDimettiErr(null)
+                  setDimettiOpen(true)
+                }}
                 className={`${btnDanger} w-full max-w-lg`}
               >
                 Dimetti paziente
@@ -604,6 +624,15 @@ export function DimissioneSection({
             <p className="mt-3 text-sm text-slate-600">
               Sei sicuro? Una volta dimesso, il paziente verrà chiuso e non sarà più possibile modificare i
               dati. Resti sulla scheda in sola lettura.
+            </p>
+            {dimettiErr ? (
+              <p className="mt-3 text-sm text-red-700" role="alert">
+                {dimettiErr}
+              </p>
+            ) : null}
+            <p className="mt-3 text-xs text-slate-500">
+              La firma medico non è obbligatoria: se non configurata in Account, la dimissione procede
+              comunque.
             </p>
             <div className="mt-6 flex flex-wrap justify-end gap-2">
               <button
