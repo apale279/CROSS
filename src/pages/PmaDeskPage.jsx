@@ -311,7 +311,7 @@ export default function PmaDeskPage() {
           >
             <span>Dimessi ({dimessi.length})</span>
             <span className="text-xs font-normal normal-case text-slate-500">
-              {showDimessi ? 'Nascondi' : 'Mostra scheda in sola visione'}
+              {showDimessi ? 'Nascondi' : 'Mostra elenco'}
             </span>
           </button>
           {showDimessi && (

@@ -1,5 +1,7 @@
 import { Timestamp } from 'firebase/firestore';
 import { TIPO_PZ, STATO_PZ_PMA } from '../../lib/pmaModule';
+import { schedaTabDimissioneAllows } from '@pma/lib/rankMatrix';
+import type { UserRank } from '@pma/lib/rankMatrix';
 import type { Paziente } from '@pma/types/paziente';
 import { normalizePmaScheda, EMPTY_PMA_SCHEDA } from '@pma/lib/pmaSchedaDefaults';
 import { parseParametriVitali, parseFarmaci, parseRivalutazioni } from '@pma/lib/parseCartellaClinica';
@@ -134,14 +136,29 @@ export function splitPazientePatch(patch) {
   return out;
 }
 
-export function canEditPmaScheda(pazienteView, rawDoc?: { statoPzPma?: string | null; schedaModificaForzata?: boolean }) {
+/** Modifica scheda PMA: in carico, oppure dimesso se il rank può aggiornare la dimissione (es. Medico). */
+export function canEditPmaScheda(
+  _pazienteView,
+  rawDoc?: { statoPzPma?: string | null; schedaModificaForzata?: boolean },
+  userRank?: UserRank | null,
+) {
   if (rawDoc?.schedaModificaForzata === true) return true;
-  return rawDoc?.statoPzPma === STATO_PZ_PMA.IN_CARICO;
+  if (rawDoc?.statoPzPma === STATO_PZ_PMA.IN_CARICO) return true;
+  if (
+    rawDoc?.statoPzPma === STATO_PZ_PMA.DIMESSO &&
+    userRank &&
+    schedaTabDimissioneAllows(userRank, 'UPDATE')
+  ) {
+    return true;
+  }
+  return false;
 }
 
-export function isPmaSchedaReadonly(rawDoc?: { statoPzPma?: string | null; schedaModificaForzata?: boolean }) {
-  if (rawDoc?.schedaModificaForzata === true) return false;
-  return rawDoc?.statoPzPma === STATO_PZ_PMA.DIMESSO;
+export function isPmaSchedaReadonly(
+  rawDoc?: { statoPzPma?: string | null; schedaModificaForzata?: boolean },
+  userRank?: UserRank | null,
+) {
+  return !canEditPmaScheda(null, rawDoc, userRank);
 }
 
 export function canEditPmaAnagrafica(doc) {

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { pdfEmbedViewerUrl } from '../lib/pdfViewerUrl';
 import { useParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useManifestationIdOptional } from '../context/ManifestazioneContext';
@@ -40,6 +41,10 @@ export default function PmaIpadFirmaPage() {
   const [firmaFullScreen, setFirmaFullScreen] = useState(false);
 
   const activeRequest = useMemo(() => parsePmaIpadQueueRequest(queueDoc), [queueDoc]);
+  const pdfViewerSrc = useMemo(
+    () => pdfEmbedViewerUrl(activeRequest?.pdfPreviewUrl),
+    [activeRequest?.pdfPreviewUrl],
+  );
 
   const runLogin = useCallback(async () => {
     if (!tenantId || !pmaId || !pmaWithCreds) return;
@@ -215,12 +220,14 @@ export default function PmaIpadFirmaPage() {
             </p>
           </div>
 
-          <div className="min-h-0 flex-1 overflow-hidden bg-slate-200">
-            {activeRequest.pdfPreviewUrl ? (
-              <iframe
+          <div className="min-h-0 flex-1 overflow-auto bg-slate-300">
+            {pdfViewerSrc ? (
+              <embed
+                key={pdfViewerSrc}
                 title="Anteprima documento"
-                src={activeRequest.pdfPreviewUrl}
-                className="h-full w-full border-0 bg-white"
+                src={pdfViewerSrc}
+                type="application/pdf"
+                className="block min-h-full w-full bg-white"
               />
             ) : (
               <p className="p-6 text-sm text-slate-600">Anteprima PDF non disponibile.</p>

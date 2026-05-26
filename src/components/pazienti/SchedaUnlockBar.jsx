@@ -1,9 +1,9 @@
 import { isSchedaInSolaVisione, isSchedaModificaForzata } from '../../lib/schedaSolaVisione';
 import { btnSecondary } from '../ui/FormField';
 
-export function SchedaUnlockBar({ paziente, onToggleModifica, busy = false }) {
+export function SchedaUnlockBar({ paziente, userRank = null, onToggleModifica, busy = false }) {
   if (!paziente) return null;
-  const solaVisione = isSchedaInSolaVisione(paziente);
+  const solaVisione = isSchedaInSolaVisione(paziente, { userRank });
   const modificaForzata = isSchedaModificaForzata(paziente);
   if (!solaVisione && !modificaForzata) return null;
 

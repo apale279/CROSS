@@ -86,17 +86,6 @@ export function PazienteModuloPma({
     return crossDocToPazienteView(rawDoc, manifestationId, pmaId);
   }, [rawDoc, manifestationId, pmaId]);
 
-  const schedaReadonly = rawDoc ? isPmaSchedaReadonly(rawDoc) : false;
-  const canEditPma =
-    vistaPma && p && rawDoc ? canEditPmaScheda(p, rawDoc) && !schedaReadonly : false;
-  const isAutopresentato = rawDoc ? isPazienteOriginePma(rawDoc) : false;
-  const shellTabs = useMemo(
-    () => (clinicalOnly ? PMA_CLINICAL_SHELL_TABS : pmaShellTabsFor(isAutopresentato)),
-    [clinicalOnly, isAutopresentato],
-  );
-  const canEditStatoPma = vistaPma && isAutopresentato && !schedaReadonly;
-  const canEditAnagraficaAutopresentato = vistaPma && isAutopresentato && !schedaReadonly;
-
   const pmaUser = user
     ? {
         uid: user.uid,
@@ -108,6 +97,18 @@ export function PazienteModuloPma({
         firmaUrl: profile?.firmaUrl ?? null,
       }
     : null;
+
+  const operatorRank =
+    pmaUser?.rank ?? (profile?.pmaRank ? normalizePmaRank(profile.pmaRank) : profile?.rank) ?? null;
+  const schedaReadonly = rawDoc ? isPmaSchedaReadonly(rawDoc, operatorRank) : false;
+  const canEditPma = vistaPma && p && rawDoc ? canEditPmaScheda(p, rawDoc, operatorRank) : false;
+  const isAutopresentato = rawDoc ? isPazienteOriginePma(rawDoc) : false;
+  const shellTabs = useMemo(
+    () => (clinicalOnly ? PMA_CLINICAL_SHELL_TABS : pmaShellTabsFor(isAutopresentato)),
+    [clinicalOnly, isAutopresentato],
+  );
+  const canEditStatoPma = vistaPma && isAutopresentato && !schedaReadonly;
+  const canEditAnagraficaAutopresentato = vistaPma && isAutopresentato && !schedaReadonly;
 
   const write = useCallback(
     async (patch) => {
@@ -357,6 +358,7 @@ export function PazienteModuloPma({
 
       <SchedaUnlockBar
         paziente={rawDoc}
+        userRank={operatorRank}
         onToggleModifica={async (forced) => {
           if (!manifestationId || !patientDocId) return;
           await patchPaziente(manifestationId, patientDocId, {
