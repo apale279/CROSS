@@ -29,22 +29,26 @@ export function SessionRevocationGuard() {
 
     const profileRef = userProfileDocRef(tenantId, user.uid);
     let unsub = () => {};
+    let cancelled = false;
 
     void (async () => {
       let localToken = readStoredUserSessionToken(tenantId, user.uid);
       if (!localToken) {
         const snap = await getDoc(profileRef);
+        if (cancelled) return;
         const remote = snap.exists() ? snap.data()?.active_session_token : null;
         if (typeof remote === 'string' && remote.length > 0) {
           writeStoredUserSessionToken(tenantId, user.uid, remote);
           localToken = remote;
         } else {
           const issued = await ensureUserSessionToken(tenantId, user.uid);
+          if (cancelled) return;
           writeStoredUserSessionToken(tenantId, user.uid, issued);
           localToken = issued;
         }
       }
 
+      if (cancelled) return;
       const boundToken = localToken;
       unsub = onSnapshot(profileRef, (snap) => {
         if (signingOutRef.current) return;
@@ -57,7 +61,10 @@ export function SessionRevocationGuard() {
       });
     })();
 
-    return () => unsub();
+    return () => {
+      cancelled = true;
+      unsub();
+    };
   }, [user?.uid, tenantId]);
 
   useEffect(() => {

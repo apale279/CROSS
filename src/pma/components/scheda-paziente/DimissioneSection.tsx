@@ -16,6 +16,7 @@ import { rasterizeFirmaDataUrlToPng } from '@pma/lib/signatureSvg'
 import { PdfPreviewModal } from './PdfPreviewModal'
 import type { PresetDimissioneVoce } from '@pma/types/manifestazioneImpostazioni'
 import { schedaTabDimissioneAllows } from '@pma/lib/rankMatrix'
+import { validateDimissioneBeforeClose } from '@pma/lib/dimissioneValidate'
 import { btnDanger, btnPrimary, btnSecondary } from '@pma/cross/uiTokens'
 import {
   parsePmaIpadQueueRequest,
@@ -174,6 +175,11 @@ export function DimissioneSection({
 
   async function handleDimettiConfirm() {
     if (!canChiudiDimetti || !user || pazienteGiaDimesso) return
+    const validationErrors = validateDimissioneBeforeClose(p)
+    if (validationErrors.length > 0) {
+      setDimettiErr(validationErrors.join(' '))
+      return
+    }
     setDimettiBusy(true)
     setDimettiErr(null)
     try {
@@ -632,6 +638,10 @@ export function DimissioneSection({
             <p className="mt-3 text-sm text-slate-600">
               Sei sicuro? Una volta dimesso, il paziente verrà chiuso e non sarà più possibile modificare i
               dati. Resti sulla scheda in sola lettura.
+            </p>
+            <p className="mt-2 text-xs text-slate-500">
+              Prima di confermare servono: esito dimissione, note, firma paziente e (se applicabile) ospedale
+              PS o dati affidatario.
             </p>
             {dimettiErr ? (
               <p className="mt-3 text-sm text-red-700" role="alert">

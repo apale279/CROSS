@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { collection, doc, onSnapshot, Timestamp } from 'firebase/firestore';
+import { collection, deleteField, doc, onSnapshot, Timestamp } from 'firebase/firestore';
 import { Trash2 } from 'lucide-react';
 import {
   ESITI_PAZIENTE,
@@ -32,13 +32,17 @@ import {
 import { chiusuraCentraleLabel, isChiusoCentrale, isTrasportoCentraleModificabile, statoCentraleLabel } from '../../lib/pazienteStati';
 import {
   moduliSchedaPaziente,
+  moduliSchedaPazienteForCreate,
   mostraModuloPmaInSchedaCentrale,
   pmaIdDaPaziente,
   VISTA_SCHEDA,
 } from '../../lib/pazienteSchedaModuli';
 import { isSchedaInSolaVisione } from '../../lib/schedaSolaVisione';
 import { SchedaUnlockBar } from './SchedaUnlockBar';
-import { setPazientePmaInArrivo } from '../../services/pazientePmaMissionSync';
+import {
+  setPazientePmaInArrivo,
+  syncPmaStatoOnDestinazionePaziente,
+} from '../../services/pazientePmaMissionSync';
 import { PazienteModuloPma } from './moduli/PazienteModuloPma';
 import { COLLECTIONS } from '../../lib/firestorePaths';
 import {
@@ -63,7 +67,10 @@ import {
   deleteValutazioneSoccorsoDoc,
   transitionPazienteArrivatoHTransaction,
 } from '../../services/pazientiService';
+import { codiceColoreSanitarioFromValutazioni } from '../../lib/codiciColore';
 import { patchMissioneCodiceColoreFromPaziente } from '../../services/missioniService';
+import { pazienteSameEventoAsMissione } from '../../lib/pazientiTrasportoQuery';
+import { sameMezzoSigla } from '../../lib/mezzoMissione';
 import { formatTimestamp } from '../../utils/formatters';
 import { FormField, btnPrimary, btnSecondary, inputClass, selectClass } from '../ui/FormField';
 import { MsbValutazioneForm } from './MsbValutazioneForm';
@@ -109,8 +116,8 @@ function parseEtaDraft(s) {
 export function PazienteScheda({
   evento,
   paziente,
-  missioniEvento,
-  allPazienti,
+  missioniEvento = [],
+  allPazienti = [],
   onClose,
   onSaved,
 }) {
@@ -123,7 +130,8 @@ export function PazienteScheda({
   );
   const ospedali = useMemo(() => listaOspedaliDestinazione(impostazioni), [impostazioni]);
   const pmaDestinazioni = useMemo(() => listaPmaImpostazioni(impostazioni), [impostazioni]);
-  const mezziEvento = useMemo(() => mezziMissioniEvento(missioniEvento), [missioniEvento]);
+  const missioniSafe = missioniEvento ?? [];
+  const mezziEvento = useMemo(() => mezziMissioniEvento(missioniSafe), [missioniSafe]);
   const { data: eventiAll } = useManifestazioneCollection(COLLECTIONS.eventi);
 
   const [serverPatient, setServerPatient] = useState(
@@ -150,22 +158,31 @@ export function PazienteScheda({
   const [saving, setSaving] = useState(false);
   const [unlockBusy, setUnlockBusy] = useState(false);
   const [mainTab, setMainTab] = useState('centrale');
+  const [patientSnapshotError, setPatientSnapshotError] = useState(null);
+  const arrivatoHSyncKeyRef = useRef('');
 
   /** Snapshot diretto sul documento paziente → merge preservando campi dirty. */
   useEffect(() => {
     if (isCreate || !patientDocId || !manifestationId) return undefined;
+    setPatientSnapshotError(null);
     const dref = doc(db, ...pazientiPath(manifestationId), patientDocId);
     const unsub = onSnapshot(
       dref,
       (snap) => {
         if (!snap.exists()) return;
+        setPatientSnapshotError(null);
         const row = { _docId: snap.id, ...snap.data() };
         setServerPatient(row);
         setDraft((prev) =>
           mergePatientDraftFromServer(prev, row, dirtyPatientFieldsRef.current),
         );
       },
-      () => {},
+      (err) => {
+        console.error('[PazienteScheda] Snapshot paziente:', err);
+        setPatientSnapshotError(
+          err instanceof Error ? err.message : 'Aggiornamento scheda non disponibile.',
+        );
+      },
     );
     return () => unsub();
   }, [isCreate, patientDocId, manifestationId]);
@@ -202,16 +219,38 @@ export function PazienteScheda({
     /* Ogni scheda aggiorna solo questo paziente; la missione in ARRIVATO H vale per tutti sullo stesso mezzo anche via syncPazientiArrivatoH. */
     if (isCreate || !displayPatient || displayPatient.esito !== ESITO_TRASPORTA) return;
     if (displayPatient.stato === 'ARRIVATO H') return;
-    const mis = missioniEvento.find((m) => {
-      if (m.mezzo !== displayPatient.mezzo || m.stato !== 'ARRIVATO H') return false;
+    const mis = missioniSafe.find((m) => {
+      if (!sameMezzoSigla(m.mezzo, displayPatient.mezzo) || m.stato !== 'ARRIVATO H') {
+        return false;
+      }
       if (displayPatient.missioneIdUnivoco) {
         return m.idUnivoco === displayPatient.missioneIdUnivoco;
       }
-      return true;
+      return pazienteSameEventoAsMissione(displayPatient, m);
     });
     if (!mis) return;
-    void transitionPazienteArrivatoHTransaction(manifestationId, patientDocId, evento);
-  }, [missioniEvento, displayPatient, isCreate, manifestationId, patientDocId, evento]);
+    const syncKey = `${patientDocId}:${mis._docId ?? mis.idUnivoco}`;
+    if (arrivatoHSyncKeyRef.current === syncKey) return;
+    arrivatoHSyncKeyRef.current = syncKey;
+    void transitionPazienteArrivatoHTransaction(manifestationId, patientDocId, evento).catch(
+      (err) => {
+        arrivatoHSyncKeyRef.current = '';
+        console.error('[PazienteScheda] Sync ARRIVATO H:', err);
+      },
+    );
+  }, [missioniSafe, displayPatient, isCreate, manifestationId, patientDocId, evento]);
+
+  const isOriginePma = !isCreate && isPazienteOriginePma(displayPatient);
+  const moduli = useMemo(() => {
+    if (isCreate) return moduliSchedaPazienteForCreate(evento);
+    if (!displayPatient) return null;
+    return moduliSchedaPaziente(displayPatient);
+  }, [isCreate, displayPatient, evento?.idEvento, evento?.idUnivoco]);
+  const showEsitoTrasporto = Boolean(moduli?.esitoTrasporto);
+  const pmaIdScheda = displayPatient ? pmaIdDaPaziente(displayPatient) : '';
+  const mostraTabPma = !isCreate && mostraModuloPmaInSchedaCentrale(displayPatient);
+  const schedaSolaVisione =
+    !isCreate && displayPatient ? isSchedaInSolaVisione(displayPatient) : false;
 
   const patchPatientFields = useCallback(
     async (fields, dirtyKeysToClear = []) => {
@@ -236,19 +275,31 @@ export function PazienteScheda({
           ? { soreuOraMissione: defaultSoreuOraMissione() }
           : {};
       const patch = { ...dest, ...soreuInit };
+      const draftExtras =
+        isCreate && dest.destinazionePmaId ? { statoPzPma: STATO_PZ_PMA.IN_ARRIVO } : {};
       ['ospedaleDestinazione', 'destinazionePmaId', 'pmaId', ...Object.keys(soreuInit)].forEach(
         touchDirty,
       );
-      setDraft((d) => ({ ...d, ...patch }));
+      if (draftExtras.statoPzPma) touchDirty('statoPzPma');
+      setDraft((d) => ({ ...d, ...patch, ...draftExtras }));
       if (isCreate) return;
       await patchPatientFields(patch, Object.keys(patch));
       if (dest.destinazionePmaId && patientDocId) {
-        await setPazientePmaInArrivo(
-          manifestationId,
-          patientDocId,
-          { ...displayPatient, ...patch },
-          evento,
-        );
+        const updated = { ...displayPatient, ...patch, _docId: patientDocId };
+        await setPazientePmaInArrivo(manifestationId, patientDocId, updated, evento);
+        const mis =
+          missionePerMezzo(missioniSafe, updated.mezzo) ??
+          missioniSafe.find(
+            (m) =>
+              m.aperta !== false &&
+              (String(m.idMissione ?? '') === String(updated.idMissione ?? '') ||
+                (updated.missioneIdUnivoco &&
+                  m.idUnivoco === updated.missioneIdUnivoco)),
+          ) ??
+          null;
+        if (mis) {
+          await syncPmaStatoOnDestinazionePaziente(manifestationId, updated, mis, evento);
+        }
       }
     },
     [
@@ -259,6 +310,7 @@ export function PazienteScheda({
       patientDocId,
       displayPatient,
       evento,
+      missioniSafe,
       patchPatientFields,
       touchDirty,
     ],
@@ -269,13 +321,6 @@ export function PazienteScheda({
       setDraft((d) => ({ ...d, creatoLocal: toDatetimeLocalValue(new Date()) }));
     }
   }, [isCreate, draft.creatoLocal]);
-
-  const isOriginePma = !isCreate && isPazienteOriginePma(displayPatient);
-  const moduli = !isCreate && displayPatient ? moduliSchedaPaziente(displayPatient) : null;
-  const pmaIdScheda = displayPatient ? pmaIdDaPaziente(displayPatient) : '';
-  const mostraTabPma = !isCreate && mostraModuloPmaInSchedaCentrale(displayPatient);
-  const schedaSolaVisione =
-    !isCreate && displayPatient ? isSchedaInSolaVisione(displayPatient) : false;
 
   useEffect(() => {
     if (!displayPatient || !mostraTabPma) {
@@ -409,17 +454,37 @@ export function PazienteScheda({
       return;
     }
     await deleteValutazioneSoccorsoDoc(manifestationId, patientDocId, id);
+    if (displayPatient) {
+      const remaining = valuationRows.filter((v) => v.id !== id);
+      const colore = codiceColoreSanitarioFromValutazioni(remaining);
+      await patchMissioneCodiceColoreFromPaziente(
+        manifestationId,
+        displayPatient,
+        colore,
+      );
+    }
   };
 
   const onEsitoChange = async (esito) => {
     if (displayPatient && !isTrasportoCentraleModificabile(displayPatient)) return;
     const clearTrasporto = esito !== ESITO_TRASPORTA;
-    const fields = fieldsPerEsito(esito, { clearTrasporto });
+    const fields =
+      esito === ESITO_TRASPORTA && draft.mezzo
+        ? fieldsPerEsito(esito, {
+            mezzo: draft.mezzo,
+            missione: missionePerMezzo(missioniSafe, draft.mezzo),
+          })
+        : fieldsPerEsito(esito, { clearTrasporto });
     const soreuKeys = [
       'esito',
       'mezzo',
       'stato',
+      'idMissione',
+      'missioneIdUnivoco',
       'ospedaleDestinazione',
+      'destinazionePmaId',
+      'pmaId',
+      'statoPzPma',
       'soreuOraMissione',
       'soreuNumeroMissione',
       'soreuAccompagnato',
@@ -434,12 +499,13 @@ export function PazienteScheda({
 
   const onMezzoChange = async (mezzo) => {
     if (displayPatient && !isTrasportoCentraleModificabile(displayPatient)) return;
-    const mis = missionePerMezzo(missioniEvento, mezzo);
+    const mis = missionePerMezzo(missioniSafe, mezzo);
     const fields = fieldsPerEsito(ESITO_TRASPORTA, { mezzo, missione: mis });
-    ['mezzo', 'stato', 'ospedaleDestinazione'].forEach(touchDirty);
+    const mezzoKeys = ['mezzo', 'stato', 'idMissione', 'missioneIdUnivoco'];
+    mezzoKeys.forEach(touchDirty);
     setDraft((d) => ({ ...d, ...fields }));
     if (!isCreate) {
-      await patchPatientFields(fields, ['mezzo', 'stato', 'ospedaleDestinazione']);
+      await patchPatientFields(fields, mezzoKeys);
     }
   };
 
@@ -451,7 +517,7 @@ export function PazienteScheda({
     setSaving(true);
     try {
       const creato = fromDatetimeLocalValue(draft.creatoLocal);
-      const mis = missionePerMezzo(missioniEvento, draft.mezzo);
+      const mis = missionePerMezzo(missioniSafe, draft.mezzo);
       await createPaziente(
         manifestationId,
         {
@@ -501,12 +567,13 @@ export function PazienteScheda({
             };
           }),
         },
-        allPazienti,
+        allPazienti ?? [],
       );
       onSaved?.();
       onClose?.();
     } catch (err) {
-      alert('Errore: ' + err.message);
+      const msg = err instanceof Error ? err.message : String(err);
+      alert('Errore: ' + msg);
     } finally {
       setSaving(false);
     }
@@ -551,9 +618,10 @@ export function PazienteScheda({
     const date = fromDatetimeLocalValue(draft.creatoLocal);
     const prev = toDatetimeLocalValue(displayPatient?.apertura);
     if (draft.creatoLocal === prev) return;
-    await patchPatientFields({ apertura: date ? Timestamp.fromDate(date) : null }, [
-      'creatoLocal',
-    ]);
+    await patchPatientFields(
+      { apertura: date ? Timestamp.fromDate(date) : deleteField() },
+      ['creatoLocal'],
+    );
   };
 
   const anagraficaCentralePanel = (
@@ -628,13 +696,13 @@ export function PazienteScheda({
   );
 
   const datiCentraleCentralePanel =
-    !isOriginePma && (isCreate || moduli?.esitoTrasporto) ? (
+    !isOriginePma && showEsitoTrasporto ? (
       <div className="space-y-4 p-1">
         <dl className="grid gap-3 md:grid-cols-2">
           <FormField label="Evento correlato">
             <p className="font-mono font-semibold text-slate-800">{evento?.idEvento ?? '—'}</p>
           </FormField>
-          {displayPatient?.idMissione && (
+          {!isCreate && displayPatient?.idMissione && (
             <FormField label="ID missione">
               <p className="font-mono text-slate-800">{displayPatient.idMissione}</p>
             </FormField>
@@ -651,29 +719,33 @@ export function PazienteScheda({
               onBlur={onCreatoBlur}
             />
           </FormField>
-          {displayPatient?.stato === 'ARRIVATO H' && (
+          {!isCreate && displayPatient?.stato === 'ARRIVATO H' && (
             <FormField label="Arrivato in H">
               <p className="text-slate-800">{formatTimestamp(displayPatient.arrivatoHAt)}</p>
             </FormField>
           )}
-          <FormField label="Stato centrale (missione)">
-            <p className="font-semibold text-slate-800">
-              {statoCentraleLabel(displayPatient)}
-              {chiusuraCentraleLabel(displayPatient) && (
-                <span className="ml-2 text-xs font-normal text-slate-500">
-                  ({chiusuraCentraleLabel(displayPatient)})
-                </span>
-              )}
-            </p>
-          </FormField>
-          <FormField label="Stato PMA">
-            <p className="font-semibold text-violet-900">
-              {statoPzPmaLabel(displayPatient?.statoPzPma) ??
-                (displayPatient?.destinazionePmaId ? 'In attesa mezzo' : '—')}
-            </p>
-          </FormField>
+          {!isCreate && (
+            <>
+              <FormField label="Stato centrale (missione)">
+                <p className="font-semibold text-slate-800">
+                  {statoCentraleLabel(displayPatient)}
+                  {chiusuraCentraleLabel(displayPatient) && (
+                    <span className="ml-2 text-xs font-normal text-slate-500">
+                      ({chiusuraCentraleLabel(displayPatient)})
+                    </span>
+                  )}
+                </p>
+              </FormField>
+              <FormField label="Stato PMA">
+                <p className="font-semibold text-violet-900">
+                  {statoPzPmaLabel(displayPatient?.statoPzPma) ??
+                    (displayPatient?.destinazionePmaId ? 'In attesa mezzo' : '—')}
+                </p>
+              </FormField>
+            </>
+          )}
         </dl>
-        {moduli?.esitoTrasporto && (
+        {showEsitoTrasporto && (
           <div className="border-t border-slate-200 pt-3">
             <p className="mb-2 text-xs font-bold uppercase text-slate-600">Esito e trasporto</p>
             {!trasportoModificabile && (
@@ -862,8 +934,31 @@ export function PazienteScheda({
       </div>
     ) : undefined;
 
+  if (isCreate && !evento?.idEvento && !evento?.idUnivoco) {
+    return (
+      <div className="space-y-3 text-sm">
+        <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-red-900" role="alert">
+          Evento non valido: impossibile creare il paziente. Chiudi e riapri la scheda evento.
+        </p>
+        <button type="button" className={btnSecondary} onClick={onClose}>
+          Chiudi
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4 text-sm">
+      {isCreate && (
+        <p className="rounded-lg border border-teal-200 bg-teal-50 px-3 py-2 text-xs text-teal-950">
+          Nuovo paziente per evento <strong className="font-mono">{evento?.idEvento}</strong>
+        </p>
+      )}
+      {patientSnapshotError ? (
+        <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-900" role="alert">
+          {patientSnapshotError} — i dati mostrati potrebbero non essere aggiornati.
+        </p>
+      ) : null}
       {!isCreate && displayPatient && (
         <div className="flex flex-wrap items-center gap-3 border-b border-slate-200 pb-3">
           <span className="font-mono text-xl font-bold text-teal-800">
@@ -952,7 +1047,7 @@ export function PazienteScheda({
             pmaId={pmaIdScheda}
             eventi={eventiAll}
             evento={evento}
-            missioniEvento={missioniEvento}
+            missioniEvento={missioniSafe}
             vistaScheda={VISTA_SCHEDA.CENTRALE}
             defaultTab="cartella"
             clinicalOnly

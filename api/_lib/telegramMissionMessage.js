@@ -82,11 +82,7 @@ export function formatMissionTelegramHtml(payload) {
   const apertura =
     missione.apertura ?? payload.apertura ?? missione.creazione ?? payload.creazione;
   const idMissione = missione.idMissione ?? payload.idMissione ?? '—';
-  const coloreM =
-    missione.codiceColoreMissione ??
-    missione.codiceColore ??
-    payload.colore ??
-    '—';
+  const coloreM = missione.codiceColoreMissione ?? payload.colore ?? '—';
 
   const indirizzo =
     (evento.indirizzo ?? payload.indirizzo ?? '').trim() || '—';
@@ -99,6 +95,10 @@ export function formatMissionTelegramHtml(payload) {
   const luogo = displayValue(evento.luogo) || '—';
   const tipoLuogo = displayValue(evento.tipoLuogo) || '—';
   const tipo = displayValue(evento.tipoEvento ?? payload.tipoEvento) || '—';
+  const dettaglio = displayValue(evento.dettaglioEvento ?? payload.dettaglioEvento);
+  const chiamante = displayValue(evento.chiamante ?? payload.chiamante);
+  const coloreE = displayValue(evento.colore ?? evento.coloreEvento ?? payload.coloreEvento);
+  const meteo = displayValue(evento.meteo ?? payload.meteo);
   const noteEvento = displayValue(evento.noteEvento);
 
   const lines = ['<b>🚨 Nuova missione</b>', ''];
@@ -106,10 +106,14 @@ export function formatMissionTelegramHtml(payload) {
   appendLine(lines, 'Data e ora creazione', formatDateTimeCreation(apertura));
   appendLine(lines, 'ID missione', idMissione);
   appendLine(lines, 'Codice colore M', coloreM);
+  if (coloreE) appendLine(lines, 'Codice colore E', coloreE);
   appendHtmlLine(lines, 'Indirizzo', indirizzoHtml);
+  if (chiamante) appendLine(lines, 'Chiamante', chiamante);
   appendLine(lines, 'Luogo', luogo);
   appendLine(lines, 'Tipo luogo', tipoLuogo);
-  appendLine(lines, 'Tipo', tipo);
+  if (meteo) appendLine(lines, 'Meteo', meteo);
+  appendLine(lines, 'Tipo evento', tipo);
+  if (dettaglio) appendLine(lines, 'Dettaglio evento', dettaglio);
   if (noteEvento) {
     appendLine(lines, 'Note evento', noteEvento);
   }

@@ -78,3 +78,28 @@ export function foreignLockForField(fields, fieldKey, myUid) {
   if (isStale(lock)) return null;
   return lock;
 }
+
+export class PmaFieldLockedError extends Error {
+  /** @param {string} fieldKey @param {object} lock */
+  constructor(fieldKey, lock) {
+    const who =
+      String(lock?.displayName ?? '').trim() ||
+      String(lock?.nomeUtente ?? '').trim() ||
+      'un altro operatore';
+    super(`Il campo «${fieldKey}» è in modifica da ${who}. Attendi o chiedi di rilasciare il focus.`);
+    this.name = 'PmaFieldLockedError';
+    this.fieldKey = fieldKey;
+    this.lock = lock;
+  }
+}
+
+/** Verifica lock (snapshot transazione) prima di scrivere campi PMA. */
+export function assertPmaFieldLocksWritable(lockFields, fieldKeys, operatorUid) {
+  if (!operatorUid || !fieldKeys?.length) return;
+  for (const fieldKey of fieldKeys) {
+    const foreign = foreignLockForField(lockFields, fieldKey, operatorUid);
+    if (foreign) {
+      throw new PmaFieldLockedError(fieldKey, foreign);
+    }
+  }
+}

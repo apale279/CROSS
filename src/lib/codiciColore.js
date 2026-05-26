@@ -13,11 +13,33 @@ export function normalizeCodiceColore(raw, fallback = 'Bianco') {
   return DEFAULT_IMPOSTAZIONI.coloriEvento.includes(c) ? c : fallback;
 }
 
+/** Codice colore valido oppure `null` se assente / non impostato (M, T). */
+export function parseCodiceColoreOptional(raw) {
+  const c = String(raw ?? '').trim();
+  return DEFAULT_IMPOSTAZIONI.coloriEvento.includes(c) ? c : null;
+}
+
 export function gravitaIndice(colore) {
   return GRAVITA_INDICE[normalizeCodiceColore(colore)] ?? 0;
 }
 
 /** Restituisce il codice più grave tra quelli forniti. */
+/** Colore sanitario più grave tra valutazioni MSB/MSA (sottocollezione o draft). */
+export function codiceColoreSanitarioFromValutazioni(rows) {
+  const colori = [];
+  for (const v of rows ?? []) {
+    if (v?.tipo === 'MSB') {
+      const c = parseCodiceColoreOptional(v.msbDetails?.codiceColore);
+      if (c) colori.push(c);
+    } else if (v?.tipo === 'MSA') {
+      const c = parseCodiceColoreOptional(v.msaDetails?.codiceColore);
+      if (c) colori.push(c);
+    }
+  }
+  if (!colori.length) return null;
+  return pickGravestColore(colori);
+}
+
 export function pickGravestColore(colori) {
   const list = (colori ?? []).map((c) => normalizeCodiceColore(c)).filter(Boolean);
   if (!list.length) return 'Bianco';
@@ -30,10 +52,9 @@ export function resolveCodiceColoreEvento(evento) {
   return normalizeCodiceColore(evento?.colore);
 }
 
-export function resolveCodiceColoreMissione(missione, evento) {
-  const m = missione?.codiceColoreMissione ?? missione?.codiceColore;
-  if (m) return normalizeCodiceColore(m);
-  return resolveCodiceColoreEvento(evento);
+/** M — solo `codiceColoreMissione` esplicito (ignora legacy `codiceColore`). */
+export function resolveCodiceColoreMissione(missione) {
+  return parseCodiceColoreOptional(missione?.codiceColoreMissione);
 }
 
 /** Codici sanitari espliciti sui pazienti in trasporto (campo `codiceColoreSanitario`). */
@@ -61,6 +82,7 @@ export function resolveCodiceColoreTrasporto(missione, _evento, pazientiTrasport
 export function coloreRigaDashboard(missione, evento, pazientiTrasporto = []) {
   return (
     resolveCodiceColoreTrasporto(missione, evento, pazientiTrasporto) ??
-    resolveCodiceColoreMissione(missione, evento)
+    resolveCodiceColoreMissione(missione) ??
+    resolveCodiceColoreEvento(evento)
   );
 }

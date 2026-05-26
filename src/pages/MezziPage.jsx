@@ -4,6 +4,8 @@ import { DEFAULT_IMPOSTAZIONI } from '../constants';
 import { useImpostazioni } from '../hooks/useImpostazioni';
 import { useManifestazioneId } from '../context/ManifestazioneContext';
 import { COLLECTIONS } from '../lib/firestorePaths';
+import { getMezzoDeleteBlockReason } from '../lib/mezzoDeleteGuard';
+import { applyStazionamentoPresetIfNeeded } from '../lib/mezzoStazionamentoPreset';
 import { useManifestazioneCollection } from '../hooks/useManifestazioneCollection';
 import { AddressPicker } from '../components/maps/AddressPicker';
 import { LuogoFisicoField } from '../components/maps/LuogoFisicoField';
@@ -50,6 +52,7 @@ export default function MezziPage() {
   );
   const stazionamentiPreset = impostazioni.stazionamenti ?? [];
   const { data: mezzi, loading } = useManifestazioneCollection(COLLECTIONS.mezzi);
+  const { data: missioni } = useManifestazioneCollection(COLLECTIONS.missioni);
   const [form, setForm] = useState(() => emptyForm(tipiMezzo));
   const [showForm, setShowForm] = useState(false);
 
@@ -78,7 +81,8 @@ export default function MezziPage() {
     }
     setSaving(true);
     try {
-      await createMezzo(manifestazioneId, sigla, form);
+      const payload = applyStazionamentoPresetIfNeeded(form, stazionamentiPreset);
+      await createMezzo(manifestazioneId, sigla, payload);
       setForm(emptyForm(tipiMezzo));
       setShowForm(false);
     } catch (err) {
@@ -188,15 +192,22 @@ export default function MezziPage() {
                 }
               />
             </div>
-            <label className="flex items-center gap-2 md:col-span-2">
+            <label className="flex items-start gap-2 md:col-span-2">
               <input
                 type="checkbox"
+                className="mt-0.5"
                 checked={form.stazionamentoPredefinito}
                 onChange={(e) =>
                   setForm((f) => ({ ...f, stazionamentoPredefinito: e.target.checked }))
                 }
               />
-              <span className="text-sm text-slate-700">Stazionamento predefinito</span>
+              <span className="text-sm text-slate-700">
+                Stazionamento predefinito
+                <span className="mt-0.5 block text-xs text-slate-500">
+                  Se non compili il luogo sotto, alla creazione verrà usato il primo stazionamento
+                  dalle Impostazioni.
+                </span>
+              </span>
             </label>
             <div className="md:col-span-2">
               <EquipaggioForm
@@ -307,6 +318,23 @@ export default function MezziPage() {
                         }
                       />
                     </div>
+                    <label className="flex items-start gap-2">
+                      <input
+                        type="checkbox"
+                        className="mt-0.5"
+                        checked={m.stazionamentoPredefinito === true}
+                        onChange={(e) =>
+                          patch(sigla, { stazionamentoPredefinito: e.target.checked })
+                        }
+                      />
+                      <span className="text-sm text-slate-700">
+                        Stazionamento predefinito
+                        <span className="mt-0.5 block text-xs text-slate-500">
+                          Alla creazione, se il luogo era vuoto, copia il primo preset da
+                          Impostazioni.
+                        </span>
+                      </span>
+                    </label>
                     <EquipaggioForm
                       equipaggio={m.equipaggio ?? emptyEquipaggio()}
                       onChange={(equipaggio) => patch(sigla, { equipaggio })}
@@ -315,6 +343,11 @@ export default function MezziPage() {
                       type="button"
                       className={btnDanger}
                       onClick={async () => {
+                        const block = getMezzoDeleteBlockReason(sigla, missioni);
+                        if (block) {
+                          alert(block);
+                          return;
+                        }
                         if (!confirmDelete(`mezzo ${sigla}`)) return;
                         await deleteMezzo(manifestazioneId, sigla);
                         setExpanded(null);

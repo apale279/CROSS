@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { COLLECTIONS } from '../../lib/firestorePaths';
+import { getMezzoDeleteBlockReason } from '../../lib/mezzoDeleteGuard';
 import { useManifestazioneId } from '../../context/ManifestazioneContext';
+import { useManifestazioneCollection } from '../../hooks/useManifestazioneCollection';
 import { useImpostazioni } from '../../hooks/useImpostazioni';
 import {
   MEZZO_STATO_DISPONIBILE,
@@ -20,6 +23,7 @@ import { btnDanger, btnSecondary, inputClass } from '../ui/FormField';
 /** Scheda mezzo (modale dashboard): dettaglio + modifica stato disponibilità. */
 export function MezzoScheda({ mezzo, onDeleted, readOnly = false }) {
   const manifestationId = useManifestazioneId();
+  const { data: missioni } = useManifestazioneCollection(COLLECTIONS.missioni);
   const { impostazioni } = useImpostazioni();
   const gpsTrackingEnabled = impostazioni?.telegramGpsTrackingEnabled !== false;
   const [savingStato, setSavingStato] = useState(false);
@@ -88,6 +92,10 @@ export function MezzoScheda({ mezzo, onDeleted, readOnly = false }) {
         <Row label="Tipo" value={mezzo.tipo} />
         <Row label="Targa" value={mezzo.targa || '—'} />
         <Row label="Radio" value={mezzo.radio || '—'} />
+        <Row
+          label="Staz. predefinito"
+          value={mezzo.stazionamentoPredefinito === true ? 'Sì' : 'No'}
+        />
         <Row label="Stato mezzo" value={stato} />
         <Row label="Operativo" value={mezzo.operativo !== false ? 'Sì' : 'No'} />
         {mezzo.operativo === false && <Row label="Note" value={mezzo.noteOperativo || '—'} />}
@@ -129,6 +137,10 @@ export function MezzoScheda({ mezzo, onDeleted, readOnly = false }) {
       <Row label="Tipo" value={mezzo.tipo} />
       <Row label="Targa" value={mezzo.targa || '—'} />
       <Row label="Radio" value={mezzo.radio || '—'} />
+      <Row
+        label="Staz. predefinito"
+        value={mezzo.stazionamentoPredefinito === true ? 'Sì' : 'No'}
+      />
       <Row label="Stato mezzo">
         <div className="flex flex-wrap gap-2">
           <button
@@ -232,6 +244,11 @@ export function MezzoScheda({ mezzo, onDeleted, readOnly = false }) {
           type="button"
           className={btnDanger}
           onClick={async () => {
+            const block = getMezzoDeleteBlockReason(sigla, missioni);
+            if (block) {
+              alert(block);
+              return;
+            }
             if (!confirmDelete(`mezzo ${sigla}`)) return;
             await deleteMezzo(manifestationId, sigla);
             onDeleted?.();

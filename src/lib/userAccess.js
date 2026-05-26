@@ -12,12 +12,14 @@ export const PMA_RANK = {
   MEDICO: 'MEDICO',
   INFERMIERE: 'INFERMIERE',
   SOCCORRITORE: 'SOCCORRITORE',
+  TRIAGE: 'TRIAGE',
 };
 
 export const PMA_RANK_LABEL = {
   [PMA_RANK.MEDICO]: 'Medico',
   [PMA_RANK.INFERMIERE]: 'Infermiere',
   [PMA_RANK.SOCCORRITORE]: 'Soccorritore',
+  [PMA_RANK.TRIAGE]: 'Triage',
 };
 
 /** Rank per componenti PMA (title case). Restituisce null se non configurato (fail-closed sui permessi). */
@@ -28,7 +30,18 @@ export function normalizePmaRank(value) {
   if (v === PMA_RANK.INFERMIERE) return 'Infermiere';
   if (v === PMA_RANK.SOCCORRITORE) return 'Soccorritore';
   if (v === PMA_RANK.MEDICO) return 'Medico';
+  if (v === PMA_RANK.TRIAGE) return 'Triage';
   return null;
+}
+
+/**
+ * Rank effettivo per permessi scheda PMA (matrice Rank).
+ * Centrale / superadmin non hanno `pmaRank` ma devono poter dimettere e gestire la cartella.
+ */
+export function effectivePmaUserRank(profile, isSuperAdmin = false) {
+  if (isSuperAdmin) return 'Superadmin';
+  if (userHasFullCentraleAccess(profile, false)) return 'Centrale';
+  return normalizePmaRank(profile?.pmaRank);
 }
 
 export function normalizeAccessType(value) {

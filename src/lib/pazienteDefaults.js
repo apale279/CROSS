@@ -57,6 +57,7 @@ export function normalizePatientDoc(doc) {
     missioneIdUnivoco: doc.missioneIdUnivoco ?? '',
     eventoIdUnivoco: doc.eventoIdUnivoco ?? '',
     eventoCorrelato: doc.eventoCorrelato ?? '',
+    codiceColoreSanitario: doc.codiceColoreSanitario ?? doc.codiceColore ?? '',
     statoPzPma: statoPzPma ?? null,
     aperta: doc.aperta !== false,
   };

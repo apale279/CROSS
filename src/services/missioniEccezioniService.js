@@ -5,7 +5,13 @@ import {
   MISSIONE_ECCEZIONE_MOTIVO,
 } from '../lib/missionEccezioni';
 import { createEvento } from './eventiService';
+import { parseCodiceColoreOptional } from '../lib/codiciColore';
 import { createMissione, patchMissione } from './missioniService';
+
+function optionalColoreMissionePayload(coloreRaw) {
+  const m = parseCodiceColoreOptional(coloreRaw);
+  return m ? { codiceColoreMissione: m } : {};
+}
 
 function buildAnnullaMissioneFields(missione, motivo, note) {
   return {
@@ -42,7 +48,7 @@ export async function eseguiDirottamentoMissione({
       mezzo: missione.mezzo,
       pazienteAutopresentato: false,
       statoInizialeForzato: 'ALLERTATO',
-      codiceColoreMissione: eventoDestinazione.colore ?? 'Bianco',
+      ...optionalColoreMissionePayload(eventoDestinazione.colore),
     },
     allMissioni,
     mezzoRecord,
@@ -85,7 +91,7 @@ export async function eseguiFlagDownMissione({
       mezzo: missione.mezzo,
       pazienteAutopresentato: false,
       statoInizialeForzato: 'IN POSTO',
-      codiceColoreMissione: nuovoEventoFields.colore ?? 'Bianco',
+      ...optionalColoreMissionePayload(nuovoEventoFields.colore),
     },
     allMissioni,
     mezzoRecord,

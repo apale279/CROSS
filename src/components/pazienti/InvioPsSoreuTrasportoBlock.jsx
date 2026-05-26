@@ -5,8 +5,11 @@ import { COLLECTIONS } from '../../lib/firestorePaths';
 import { listaOspedaliDestinazione } from '../../lib/destinazioniOspedale';
 import { invioPsSoreuFieldsFromScheda } from '../../lib/invioPsSoreu';
 import { missionePmaInvioPsApertaPerPaziente } from '../../lib/pmaInvioPsMission';
-import { isStatoMissioneRientroOLiberato, mezzoHaMissioneAttiva, missioniAperteSuMezzo } from '../../lib/mezzoMissione';
-import { MEZZO_STATO_DISPONIBILE } from '../../lib/mezzoStati';
+import {
+  filterMezziSelezionabiliPerNuovaMissione,
+  isStatoMissioneRientroOLiberato,
+  missioniAperteSuMezzo,
+} from '../../lib/mezzoMissione';
 import { createTrasportoInvioPsDaPma } from '../../services/pmaInvioPsTrasportoService';
 import { SoreuTrasportoFields } from './SoreuTrasportoFields';
 import { FormField, btnPrimary, btnSecondary, selectClass } from '../ui/FormField';
@@ -57,13 +60,7 @@ export function InvioPsSoreuTrasportoBlock({
   );
 
   const mezziDisponibili = useMemo(
-    () =>
-      (mezzi ?? []).filter((m) => {
-        const sigla = m.sigla ?? m._docId;
-        if ((m.statoMezzo ?? MEZZO_STATO_DISPONIBILE) !== MEZZO_STATO_DISPONIBILE) return false;
-        if (mezzoHaMissioneAttiva(sigla, missioni ?? [])) return false;
-        return true;
-      }),
+    () => filterMezziSelezionabiliPerNuovaMissione(mezzi, missioni),
     [mezzi, missioni],
   );
 

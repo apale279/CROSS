@@ -41,7 +41,14 @@ export default async function handler(req, res) {
   }
 
   const secret = getWebhookSecret();
-  if (secret) {
+  const isProd =
+    process.env.VERCEL_ENV === 'production' || process.env.NODE_ENV === 'production';
+  if (!secret) {
+    if (isProd) {
+      console.error('[telegram-webhook] TELEGRAM_WEBHOOK_SECRET mancante in produzione');
+      return res.status(503).json({ error: 'Webhook non configurato' });
+    }
+  } else {
     const header = req.headers['x-telegram-bot-api-secret-token'];
     if (header !== secret) {
       console.error(

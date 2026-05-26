@@ -1,4 +1,9 @@
-import { isPazienteOriginePma, pazienteHaDestinazionePma, pazienteHaSchedaPma } from './pmaModule';
+import {
+  isPazienteOriginePma,
+  pazienteHaDestinazionePma,
+  pazienteHaSchedaPma,
+  TIPO_PZ,
+} from './pmaModule';
 
 /**
  * Vista scheda: chi apre il paziente (ordine tab e permessi UI).
@@ -31,6 +36,15 @@ export { TIPO_PZ } from './pmaModule';
  * Quali blocchi compongono la scheda paziente.
  * @param {object} paziente documento Firestore (o draft con tipoPz, eventoCorrelato, …)
  */
+/** Moduli scheda in creazione da evento (paziente centrale collegato all'evento aperto). */
+export function moduliSchedaPazienteForCreate(evento) {
+  return moduliSchedaPaziente({
+    tipoPz: TIPO_PZ.CENTRALE,
+    eventoCorrelato: evento?.idEvento ?? '',
+    eventoIdUnivoco: evento?.idUnivoco ?? '',
+  });
+}
+
 export function moduliSchedaPaziente(paziente) {
   const originePma = isPazienteOriginePma(paziente);
   const haPma = pazienteHaSchedaPma(paziente);

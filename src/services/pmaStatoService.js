@@ -5,10 +5,8 @@ import { patchPazientePmaGranular } from '../pma/lib/pazientePmaPatch';
 
 /** Da «in attesa» a «in carico» (presa in carico al PMA). */
 export async function prendiInCaricoPma(manifestationId, docId) {
-  await patchPaziente(manifestationId, docId, {
-    statoPzPma: STATO_PZ_PMA.IN_CARICO,
-  });
   await patchPazientePmaGranular(manifestationId, docId, {
+    statoPzPma: STATO_PZ_PMA.IN_CARICO,
     ingresso_carico_at: Timestamp.now(),
   });
 }

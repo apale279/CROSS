@@ -3,6 +3,7 @@ import {
   doc,
   getDoc,
   onSnapshot,
+  runTransaction,
   serverTimestamp,
   setDoc,
   updateDoc,
@@ -370,17 +371,47 @@ export async function completePmaIpadFirmaRequest(
   pazienteDocId,
   firmaDataUrl,
 ) {
-  void requestId;
-  void pmaId;
-  await patchPazientePmaGranular(tenantId, pazienteDocId, {
+  const queueRef = ipadQueueRef(tenantId, pmaId);
+  const pazienteId = String(pazienteDocId ?? '').trim();
+  const reqId = String(requestId ?? '').trim();
+  if (!pazienteId || !reqId) {
+    throw new Error('Richiesta firma iPad non valida.');
+  }
+
+  await runTransaction(db, async (transaction) => {
+    const snap = await transaction.get(queueRef);
+    if (!snap.exists()) {
+      throw new Error('Coda firma iPad non trovata.');
+    }
+    const data = snap.data();
+    const req = data?.request;
+    if (!req || typeof req !== 'object') {
+      throw new Error('Nessuna richiesta di firma attiva.');
+    }
+    if (String(data.activeRequestId ?? '') !== reqId || String(req.id ?? '') !== reqId) {
+      throw new Error('Richiesta di firma non più valida. Rinvia il documento dal PC.');
+    }
+    if (String(req.status ?? '') !== 'pending') {
+      throw new Error('Richiesta di firma già completata o annullata.');
+    }
+    if (String(req.pazienteDocId ?? '').trim() !== pazienteId) {
+      throw new Error('Il documento non corrisponde al paziente in coda.');
+    }
+    const expiresAtMs = Number(req.expiresAtMs);
+    if (Number.isFinite(expiresAtMs) && Date.now() > expiresAtMs) {
+      throw new Error('Richiesta di firma scaduta.');
+    }
+  });
+
+  await patchPazientePmaGranular(tenantId, pazienteId, {
     firma_paziente_base64: firmaDataUrl,
     firma_paziente_url: deleteField(),
   });
 
-  await updateDoc(ipadQueueRef(tenantId, pmaId), {
+  await updateDoc(queueRef, {
     'request.status': 'signed',
     'request.signedAt': serverTimestamp(),
     'request.firmaSaved': true,
     updatedAt: serverTimestamp(),
-  }).catch(() => {});
+  });
 }

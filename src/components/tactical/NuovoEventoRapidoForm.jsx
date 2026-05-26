@@ -5,14 +5,15 @@ import { dettagliPerTipoEvento } from '../../lib/impostazioniNormalize';
 import { useImpostazioni } from '../../hooks/useImpostazioni';
 import { createEvento } from '../../services/eventiService';
 import { createMissione } from '../../services/missioniService';
-import { MEZZO_STATO_DISPONIBILE } from '../../lib/mezzoStati';
+import { filterMezziSelezionabiliPerNuovaMissione } from '../../lib/mezzoMissione';
 import { ColoreIndicator } from '../ui/ColoreIndicator';
+import { ColoreSelectButtons } from '../ui/ColoreSelectButtons';
 import { FormField, btnPrimary, btnSecondary, inputClass, selectClass } from '../ui/FormField';
 
 const emptyDraft = () => ({
   luogo_fisico: '',
   colore: 'Bianco',
-  codiceColoreMissione: 'Bianco',
+  codiceColoreMissione: '',
   tipoEvento: DEFAULT_IMPOSTAZIONI.tipiEvento[0],
   dettaglioEvento: '',
   mezzo: '',
@@ -38,9 +39,7 @@ export function NuovoEventoRapidoForm({
   const opzioniDettaglio = dettagliPerTipoEvento(impostazioni, tipo);
   const colori = DEFAULT_IMPOSTAZIONI.coloriEvento;
 
-  const mezziDisponibili = mezzi.filter(
-    (m) => (m.statoMezzo ?? MEZZO_STATO_DISPONIBILE) === MEZZO_STATO_DISPONIBILE,
-  );
+  const mezziDisponibili = filterMezziSelezionabiliPerNuovaMissione(mezzi, missioni);
 
   const patch = (fields) => setDraft((d) => ({ ...d, ...fields }));
 
@@ -91,7 +90,7 @@ export function NuovoEventoRapidoForm({
           eventoCorrelato: result.idEvento,
           mezzo: draft.mezzo,
           pazienteAutopresentato: false,
-          codiceColoreMissione: draft.codiceColoreMissione,
+          codiceColoreMissione: draft.codiceColoreMissione || undefined,
         },
         missioni,
         mezzo,
@@ -203,24 +202,10 @@ export function NuovoEventoRapidoForm({
           <p className="mb-1 text-[10px] font-semibold uppercase text-violet-800">
             Codice colore missione
           </p>
-          <div className="flex flex-wrap gap-1">
-            {colori.map((c) => {
-              const sel = (draft.codiceColoreMissione ?? 'Bianco') === c;
-              return (
-                <button
-                  key={`m-${c}`}
-                  type="button"
-                  onClick={() => patch({ codiceColoreMissione: c })}
-                  className={`rounded border-2 p-1 ${
-                    sel ? 'border-violet-600 bg-violet-50' : 'border-slate-200 bg-white'
-                  }`}
-                  title={c}
-                >
-                  <ColoreIndicator colore={c} size="md" />
-                </button>
-              );
-            })}
-          </div>
+          <ColoreSelectButtons
+            value={draft.codiceColoreMissione}
+            onChange={(c) => patch({ codiceColoreMissione: c ?? '' })}
+          />
         </div>
         <p className="mt-1 text-[10px] text-violet-800">
           Viene creata una missione ALLERTARE collegata all&apos;evento. Colore trasporto: dai pazienti.

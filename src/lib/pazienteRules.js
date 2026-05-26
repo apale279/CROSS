@@ -1,5 +1,6 @@
 import { Timestamp } from 'firebase/firestore';
 import { ESITO_TRASPORTA } from '../constants';
+import { normalizeMezzoKey } from './mezzoMissione';
 import { emptySoreuFirestoreClear } from './soreuTrasporto';
 
 /**
@@ -12,16 +13,27 @@ import { emptySoreuFirestoreClear } from './soreuTrasporto';
  */
 export function missionePerMezzo(missioni, mezzo) {
   if (!mezzo) return null;
-  return missioni.find((m) => m.mezzo === mezzo && m.aperta !== false) ?? null;
+  const nk = normalizeMezzoKey(mezzo);
+  if (!nk) return null;
+  return (
+    (missioni ?? []).find(
+      (m) => m.mezzo && m.aperta !== false && normalizeMezzoKey(m.mezzo) === nk,
+    ) ?? null
+  );
 }
 
 /** Elenco sigle mezzo con almeno una missione aperta sull’evento (stesso mezzo = carico multiplo ammesso). */
 export function mezziMissioniEvento(missioni) {
-  const sigle = new Set();
-  missioni
-    .filter((m) => m.aperta !== false && m.mezzo)
-    .forEach((m) => sigle.add(m.mezzo));
-  return [...sigle].sort((a, b) => String(a).localeCompare(String(b), 'it', { sensitivity: 'base' }));
+  const seen = new Set();
+  const sigle = [];
+  for (const m of missioni ?? []) {
+    if (m.aperta === false || !m.mezzo) continue;
+    const nk = normalizeMezzoKey(m.mezzo);
+    if (!nk || seen.has(nk)) continue;
+    seen.add(nk);
+    sigle.push(m.mezzo);
+  }
+  return sigle.sort((a, b) => String(a).localeCompare(String(b), 'it', { sensitivity: 'base' }));
 }
 
 export function fieldsPerEsito(esito, { mezzo, missione, clearTrasporto } = {}) {

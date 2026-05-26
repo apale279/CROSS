@@ -1,6 +1,21 @@
 import { describe, expect, it } from 'vitest'
-import { isPathAllowedForPmaOperator } from '../../lib/userAccess'
-import { canInsertFarmaci, canWriteInvioPsFields, schedaTabDimissioneAllows } from './rankMatrix'
+import { effectivePmaUserRank, isPathAllowedForPmaOperator } from '../../lib/userAccess'
+import {
+  canInsertFarmaci,
+  canWriteInvioPsFields,
+  schedaTabCartellaAllows,
+  schedaTabDimissioneAllows,
+} from './rankMatrix'
+
+describe('effectivePmaUserRank', () => {
+  it('centrale senza pmaRank ottiene rank Centrale', () => {
+    expect(effectivePmaUserRank({ accessType: 'CENTRALE' }, false)).toBe('Centrale')
+  })
+
+  it('superadmin ottiene rank Superadmin', () => {
+    expect(effectivePmaUserRank(null, true)).toBe('Superadmin')
+  })
+})
 
 describe('rankMatrix dimissione', () => {
   it('Infermiere e Soccorritore: lettura sì, modifica no', () => {
@@ -19,6 +34,13 @@ describe('rankMatrix invio PS', () => {
   it('Medico può scrivere invio PS se la scheda è modificabile (anche dopo sblocco)', () => {
     expect(canWriteInvioPsFields('Medico', true)).toBe(true)
     expect(canWriteInvioPsFields('Medico', false)).toBe(false)
+  })
+})
+
+describe('rankMatrix triage cartella', () => {
+  it('Triage può leggere e aggiornare cartella (blocchi clinici limitati in UI)', () => {
+    expect(schedaTabCartellaAllows('Triage', 'READ')).toBe(true)
+    expect(schedaTabCartellaAllows('Triage', 'UPDATE')).toBe(true)
   })
 })
 

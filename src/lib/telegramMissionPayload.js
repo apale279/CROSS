@@ -26,11 +26,18 @@ function serializeTimestamp(ts) {
 
 function pickEventoForTelegram(evento) {
   if (!evento) return {};
+  const luogoFisico = String(evento.luogo_fisico ?? '').trim();
+  const indirizzo = String(evento.indirizzo ?? '').trim();
   return {
     tipoEvento: evento.tipoEvento ?? '',
+    dettaglioEvento: evento.dettaglioEvento ?? '',
+    chiamante: evento.chiamante ?? '',
     luogo: evento.luogo ?? '',
     tipoLuogo: evento.tipoLuogo ?? '',
-    indirizzo: evento.indirizzo ?? '',
+    luogo_fisico: luogoFisico,
+    indirizzo: indirizzo || luogoFisico,
+    meteo: evento.meteo ?? '',
+    coloreEvento: evento.colore ?? '',
     noteEvento: evento.noteEvento ?? '',
     coordinate: evento.coordinate ?? null,
   };
@@ -43,8 +50,7 @@ function pickMissioneForTelegram(missione) {
     apertura: serializeTimestamp(missione.apertura),
     stato: missione.stato ?? '',
     mezzo: missione.mezzo ?? '',
-    codiceColoreMissione:
-      missione.codiceColoreMissione ?? missione.codiceColore ?? '',
+    codiceColoreMissione: missione.codiceColoreMissione ?? '',
     aperta: missione.aperta !== false,
   };
 }
@@ -66,5 +72,6 @@ export function buildMissionTelegramPayload(missione, evento) {
     tipoEvento: ev.tipoEvento,
     coordinate: ev.coordinate,
     colore: mi.codiceColoreMissione,
+    coloreEvento: ev.coloreEvento,
   };
 }

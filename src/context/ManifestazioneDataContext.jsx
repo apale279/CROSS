@@ -2,7 +2,9 @@ import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { collection, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebaseConfig';
 import { COLLECTIONS, PATH_BY_KEY } from '../lib/firestorePaths';
+import { filterManifestazioneDataForProfile } from '../lib/manifestazioneDataScope';
 import { useFirestoreSync } from './FirestoreSyncContext';
+import { useAuth } from './AuthContext';
 import { useTenantContext } from './TenantContext';
 
 const ManifestazioneDataContext = createContext(null);
@@ -171,16 +173,26 @@ export function useManifestazioneData() {
 }
 
 export function useManifestazioneCollection(collectionName) {
-  const { eventi, missioni, mezzi, pazienti, noteDiario, loading, error } =
-    useManifestazioneData();
+  const raw = useManifestazioneData();
+  const { profile } = useAuth();
+  const scoped = useMemo(
+    () => filterManifestazioneDataForProfile(raw, profile),
+    [raw, profile],
+  );
   const key = COLLECTION_KEYS[collectionName];
   if (!key) {
     throw new Error(`Collezione non supportata: ${collectionName}`);
   }
-  const dataMap = { eventi, missioni, mezzi, pazienti, noteDiario };
+  const dataMap = {
+    eventi: scoped.eventi,
+    missioni: scoped.missioni,
+    mezzi: scoped.mezzi,
+    pazienti: scoped.pazienti,
+    noteDiario: scoped.noteDiario,
+  };
   return {
     data: dataMap[key],
-    loading: loading[key],
-    error,
+    loading: raw.loading[key],
+    error: raw.error,
   };
 }

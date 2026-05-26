@@ -19,13 +19,18 @@ import { PazienteAnagraficaPmaTab } from '../PazienteAnagraficaPmaTab';
 import { DettaglioPaziente } from '../../../pma/components/scheda-paziente/DettaglioPaziente';
 import { CartellaClinicaSection } from '../../../pma/components/scheda-paziente/CartellaClinicaSection';
 import { DimissioneSection } from '../../../pma/components/scheda-paziente/DimissioneSection';
-import { pmaShellTabsFor, PMA_CLINICAL_SHELL_TABS } from '../../../pma/components/scheda-paziente/schedaPazienteTabs';
+import {
+  filterPmaShellTabsByRank,
+  pmaShellTabsFor,
+  PMA_CLINICAL_SHELL_TABS,
+} from '../../../pma/components/scheda-paziente/schedaPazienteTabs';
 import { staffSoftRefFromUser } from '../../../pma/lib/staffSoftRef';
 import { schedaTabDimissioneAllows } from '../../../pma/lib/rankMatrix';
 import { PmaFieldPresenceProvider } from '../../../pma/context/PmaFieldPresenceContext';
 import { PazienteModuloCentrale } from './PazienteModuloCentrale';
 import { PmaPazientePanel } from '../PmaPazientePanel';
-import { normalizePmaRank } from '../../../lib/userAccess';
+import { effectivePmaUserRank, normalizePmaRank } from '../../../lib/userAccess';
+import { IS_SUPERADMIN } from '../../../constants';
 import { findEvento } from '../../../lib/eventoLinks';
 
 /**
@@ -88,30 +93,30 @@ export function PazienteModuloPma({
     return crossDocToPazienteView(rawDoc, manifestationId, pmaId);
   }, [rawDoc, manifestationId, pmaId]);
 
+  const operativeRank = effectivePmaUserRank(profile, IS_SUPERADMIN);
+
   const pmaUser = user
     ? {
         uid: user.uid,
         nome: profile?.nome ?? user.displayName ?? '',
         nomeUtente: profile?.nomeUtente ?? '',
-        rank: profile?.pmaRank ? normalizePmaRank(profile.pmaRank) : null,
+        rank: operativeRank,
         firma_medico_base64: profile?.firma_medico_base64 ?? null,
         firma_medico_svg: profile?.firma_medico_svg ?? null,
         firmaUrl: profile?.firmaUrl ?? null,
       }
     : null;
-
-  const operatorRank =
-    pmaUser?.rank ?? (profile?.pmaRank ? normalizePmaRank(profile.pmaRank) : profile?.rank) ?? null;
   const schedaReadonly = rawDoc ? isPmaSchedaReadonly(rawDoc) : false;
   const schedaEditAllowed = p && rawDoc ? canEditPmaScheda(p, rawDoc) : false;
   const canEditPma =
     schedaEditAllowed &&
     (vistaPma || rawDoc?.schedaModificaForzata === true);
   const isAutopresentato = rawDoc ? isPazienteOriginePma(rawDoc) : false;
-  const shellTabs = useMemo(
-    () => (clinicalOnly ? PMA_CLINICAL_SHELL_TABS : pmaShellTabsFor(isAutopresentato)),
-    [clinicalOnly, isAutopresentato],
-  );
+  const shellTabs = useMemo(() => {
+    const base = clinicalOnly ? PMA_CLINICAL_SHELL_TABS : pmaShellTabsFor(isAutopresentato);
+    if (!operativeRank) return base;
+    return filterPmaShellTabsByRank(base, operativeRank);
+  }, [clinicalOnly, isAutopresentato, operativeRank]);
   const canEditStatoPma = vistaPma && isAutopresentato && !schedaReadonly;
   const canEditAnagraficaAutopresentato = vistaPma && isAutopresentato && !schedaReadonly;
 
@@ -120,13 +125,15 @@ export function PazienteModuloPma({
       if (!canEditPma || !manifestationId || !patientDocId) return;
       setSaveError(null);
       try {
-        await patchPazientePmaGranular(manifestationId, patientDocId, patch);
+        await patchPazientePmaGranular(manifestationId, patientDocId, patch, {
+          operatorUid: user?.uid ?? null,
+        });
       } catch (err) {
         setSaveError(err instanceof Error ? err.message : 'Errore salvataggio');
         throw err;
       }
     },
-    [canEditPma, manifestationId, patientDocId],
+    [canEditPma, manifestationId, patientDocId, user?.uid],
   );
 
   useEffect(() => {
@@ -179,6 +186,14 @@ export function PazienteModuloPma({
     return <p className="text-sm text-slate-500">Caricamento modulo PMA…</p>;
   }
 
+  if (!patientDocId) {
+    return (
+      <p className="text-sm text-amber-800">
+        Modulo PMA non disponibile: salva prima il paziente o apri una scheda esistente.
+      </p>
+    );
+  }
+
   if (!rawDoc || !p) {
     return (
       <p className="text-sm text-amber-800">Modulo PMA non disponibile (dati paziente assenti).</p>
@@ -209,7 +224,9 @@ export function PazienteModuloPma({
       return;
     }
     if (canEditAnagraficaAutopresentato && manifestationId && patientDocId) {
-      await patchPazientePmaGranular(manifestationId, patientDocId, patch);
+      await patchPazientePmaGranular(manifestationId, patientDocId, patch, {
+        operatorUid: user?.uid ?? null,
+      });
     }
   };
 
@@ -311,6 +328,7 @@ export function PazienteModuloPma({
               manifestationId,
               patientDocId,
               invioPsSoreuPatchForScheda(merged),
+              { operatorUid: user?.uid ?? null },
             );
           }}
           onOpenEvento={(ev) => {

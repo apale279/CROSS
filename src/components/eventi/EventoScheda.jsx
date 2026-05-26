@@ -11,7 +11,7 @@ import {
   patchEvento,
   terminaEventoOperatore,
 } from '../../services/eventiService';
-import { mezzoHaMissioneAttiva } from '../../lib/mezzoMissione';
+import { filterMezziSelezionabiliPerNuovaMissione, findMezzoBySigla } from '../../lib/mezzoMissione';
 import { EVENTO_TIPO_CHIUSURA } from '../../lib/missionEccezioni';
 import { missioniPerEvento, pazientiPerEvento } from '../../lib/eventoLinks';
 import { shouldAutoCloseEvento } from '../../utils/eventoAutoClose';
@@ -20,7 +20,7 @@ import { buildStatoChangeFields } from '../../lib/missionStoricoStati';
 import { createMissione, patchMissione } from '../../services/missioniService';
 import { PazienteScheda } from '../pazienti/PazienteScheda';
 import { Modal } from '../ui/Modal';
-import { ColoreIndicator } from '../ui/ColoreIndicator';
+import { ColoreSelectButtons } from '../ui/ColoreSelectButtons';
 import { coloreBadgeClass, formatTimestamp, statoMissioneBadgeClass } from '../../utils/formatters';
 import {
   FormField,
@@ -71,7 +71,7 @@ export function EventoScheda({
   const [missioneForm, setMissioneForm] = useState({
     mezzo: '',
     pazienteAutopresentato: false,
-    codiceColoreMissione: 'Bianco',
+    codiceColoreMissione: '',
   });
   const [saving, setSaving] = useState(false);
   const [noteChiusura, setNoteChiusura] = useState('');
@@ -123,10 +123,9 @@ export function EventoScheda({
     () => (evento ? pazientiPerEvento(pazienti, evento) : []),
     [pazienti, evento],
   );
-  const mezziDisponibili = mezzi.filter(
-    (m) =>
-      (m.statoMezzo ?? 'Disponibile') === 'Disponibile' &&
-      !mezzoHaMissioneAttiva(m.sigla ?? m._docId, allMissioni ?? missioni),
+  const mezziDisponibili = filterMezziSelezionabiliPerNuovaMissione(
+    mezzi,
+    allMissioni ?? missioni,
   );
   const eventoAperto = isCreate || evento.stato !== false;
   const eventoTerminato = !isCreate && evento.operativoTerminato === true && evento.stato !== false;
@@ -135,13 +134,20 @@ export function EventoScheda({
   /** Pazienti registrabili finché l'evento non è chiuso/archiviato (anche se operativo terminato). */
   const eventoAccettaNuoviPazienti = eventoAperto;
 
+  const autoCloseEventoRef = useRef(false);
+
   useEffect(() => {
     if (readOnly || isCreate || !evento?._docId || evento.stato === false) return;
     if (evento.operativoTerminato === true) return;
     if (!shouldAutoCloseEvento(missioniEvento, pazientiEvento)) return;
-    patchEvento(manifestazioneId, evento._docId, {
+    if (autoCloseEventoRef.current) return;
+    autoCloseEventoRef.current = true;
+    void patchEvento(manifestazioneId, evento._docId, {
       operativoTerminato: true,
       operativoTerminatoIl: serverTimestamp(),
+    }).catch((err) => {
+      autoCloseEventoRef.current = false;
+      console.error('[EventoScheda] Chiusura operativa automatica fallita:', err);
     });
   }, [readOnly, isCreate, evento, missioniEvento, pazientiEvento, manifestazioneId]);
 
@@ -177,7 +183,7 @@ export function EventoScheda({
   const handleNuovaMissione = async (e) => {
     e.preventDefault();
     if (!missioneForm.mezzo) return;
-    const mezzo = mezzi.find((m) => (m.sigla ?? m._docId) === missioneForm.mezzo);
+    const mezzo = findMezzoBySigla(mezzi, missioneForm.mezzo);
     setSaving(true);
     try {
       await createMissione(
@@ -187,16 +193,16 @@ export function EventoScheda({
           eventoCorrelato: evento.idEvento,
           mezzo: missioneForm.mezzo,
           pazienteAutopresentato: missioneForm.pazienteAutopresentato,
-          codiceColoreMissione: missioneForm.codiceColoreMissione ?? evento.colore,
+          codiceColoreMissione: missioneForm.codiceColoreMissione || undefined,
         },
         allMissioni,
         mezzo,
       );
-      setMissioneForm({
+      setMissioneForm((f) => ({
         mezzo: '',
         pazienteAutopresentato: false,
-        codiceColoreMissione: evento.colore ?? 'Bianco',
-      });
+        codiceColoreMissione: f.codiceColoreMissione,
+      }));
       setShowMissioneForm(false);
     } catch (err) {
       alert('Errore: ' + err.message);
@@ -217,7 +223,7 @@ export function EventoScheda({
   const handleChiudiEvento = async () => {
     const note = noteChiusura.trim();
     if (!note) {
-      alert('La nota di chiusura ? obbligatoria: indica il motivo della chiusura forzata.');
+      alert('La nota di chiusura è obbligatoria: indica il motivo della chiusura forzata.');
       return;
     }
     const missioniAperte = missioniEvento.filter(
@@ -337,7 +343,7 @@ export function EventoScheda({
                 disabled={saving}
                 onClick={handleCreaEvento}
               >
-                {saving ? 'Salvataggio?' : 'Crea evento'}
+                {saving ? 'Salvataggio…' : 'Crea evento'}
               </button>
             </div>
           )}
@@ -350,18 +356,7 @@ export function EventoScheda({
             <button
               type="button"
               className={`${btnPrimary} flex items-center gap-2`}
-              onClick={() => {
-                setShowMissioneForm((v) => {
-                  const next = !v;
-                  if (next) {
-                    setMissioneForm((f) => ({
-                      ...f,
-                      codiceColoreMissione: evento.colore ?? 'Bianco',
-                    }));
-                  }
-                  return next;
-                });
-              }}
+              onClick={() => setShowMissioneForm((v) => !v)}
             >
               <Plus className="h-4 w-4" />
               Nuova missione
@@ -381,12 +376,12 @@ export function EventoScheda({
                   }
                   required
                 >
-                  <option value="">?</option>
+                  <option value="">—</option>
                   {mezziDisponibili.map((m) => {
                     const s = m.sigla ?? m._docId;
                     return (
                       <option key={s} value={s}>
-                        {`${s} ? ${m.tipo}`}
+                        {`${s} — ${m.tipo}`}
                       </option>
                     );
                   })}
@@ -396,28 +391,15 @@ export function EventoScheda({
                 <p className="mb-1.5 text-[10px] font-semibold uppercase text-violet-800">
                   Codice colore missione
                 </p>
-                <div className="flex flex-wrap gap-1">
-                  {DEFAULT_IMPOSTAZIONI.coloriEvento.map((c) => {
-                    const sel = (missioneForm.codiceColoreMissione ?? 'Bianco') === c;
-                    return (
-                      <button
-                        key={c}
-                        type="button"
-                        onClick={() =>
-                          setMissioneForm((f) => ({ ...f, codiceColoreMissione: c }))
-                        }
-                        className={`rounded border-2 p-1 ${
-                          sel ? 'border-violet-600 bg-violet-50' : 'border-slate-200 bg-white'
-                        }`}
-                        title={c}
-                      >
-                        <ColoreIndicator colore={c} size="md" />
-                      </button>
-                    );
-                  })}
-                </div>
+                <ColoreSelectButtons
+                  value={missioneForm.codiceColoreMissione}
+                  onChange={(c) =>
+                    setMissioneForm((f) => ({ ...f, codiceColoreMissione: c ?? '' }))
+                  }
+                />
                 <p className="mt-1 text-[10px] text-violet-700">
-                  Il colore trasporto si compila dai pazienti caricati sul mezzo.
+                  Primo pulsante = nessun colore <strong>M</strong>. <strong>T</strong> resta vuoto
+                  finché non carichi pazienti o lo imposti in scheda missione.
                 </p>
               </div>
               <label className="mt-3 flex items-center gap-2 text-sm text-slate-700">
@@ -551,7 +533,7 @@ export function EventoScheda({
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="font-mono font-bold text-teal-700">{paz.idPaziente}</span>
                       <span>
-                        {[paz.cognome, paz.nome].filter(Boolean).join(' ') || '?'}
+                        {[paz.cognome, paz.nome].filter(Boolean).join(' ') || '—'}
                       </span>
                       {paz.esito && (
                         <span className="rounded bg-slate-200 px-1.5 py-0.5 text-xs">{paz.esito}</span>

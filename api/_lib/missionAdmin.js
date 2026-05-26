@@ -3,9 +3,11 @@ import { getAdminDb } from './firebaseAdmin.js';
 import { impostazioniDocRef } from './telegramFirestore.js';
 import { buildStatoChangeFields } from './missionStoricoStati.js';
 import { isStatoMissioneTerminale, nextStatoMissione } from './missionStati.js';
+import { resolveMezzoSiglaForTelegram } from './mezzoResolve.js';
 import {
   buildArrivatoHPatchAdmin,
   EMPTY_PMA_SCHEDA,
+  pazienteEsclusoDaSyncMissioneAdmin,
   pazienteMatchesMissioneTrasporto,
   seedFromPazienteEvento,
 } from './pazienteMissionPmaAdmin.js';
@@ -23,6 +25,50 @@ const DEFAULT_STATI_MISSIONE = [
 ];
 
 const MEZZO_STATO_AVARIA_SINISTRO = 'Non operativo (avaria/sinistro)';
+
+function normalizeMezzoKey(sigla) {
+  return String(sigla ?? '')
+    .replace(/_/g, '')
+    .toLowerCase();
+}
+
+function missioneBloccaMezzo(missione) {
+  if (!missione || missione.aperta === false) return false;
+  const s = missione.stato ?? '';
+  if (s === 'FINE MISSIONE' || s === 'ANNULLATA') return false;
+  if (s === 'RIENTRO' || s === 'ARRIVATO H') return false;
+  return true;
+}
+
+async function mezzoHaAltreMissioniBloccantiAdmin(tenantId, mezzoSiglaRaw, excludeDocId) {
+  const nk = normalizeMezzoKey(mezzoSiglaRaw);
+  if (!nk) return false;
+  const snap = await missioniCol(tenantId).get();
+  return snap.docs.some((d) => {
+    if (d.id === excludeDocId) return false;
+    const m = d.data();
+    if (m.aperta === false) return false;
+    if (!m.mezzo || normalizeMezzoKey(m.mezzo) !== nk) return false;
+    return missioneBloccaMezzo(m);
+  });
+}
+
+async function syncStatoMezzoDopoMissioneAdmin(tenantId, mezzoSiglaRaw, excludeDocId, stato, motivoEccezione) {
+  if (!mezzoSiglaRaw) return;
+  if (await mezzoHaAltreMissioniBloccantiAdmin(tenantId, mezzoSiglaRaw, excludeDocId)) {
+    return;
+  }
+  const mezzoDoc = await resolveMezzoSiglaForTelegram(tenantId, mezzoSiglaRaw);
+  if (!mezzoDoc) return;
+  if (stato === 'ANNULLATA' && motivoEccezione === 'AVARIA_SINISTRO') {
+    await patchMezzoAdmin(tenantId, mezzoDoc, {
+      statoMezzo: MEZZO_STATO_AVARIA_SINISTRO,
+      operativo: false,
+    });
+    return;
+  }
+  await patchMezzoAdmin(tenantId, mezzoDoc, { statoMezzo: 'Disponibile' });
+}
 
 function missioniCol(tenantId) {
   return getAdminDb().collection('manifestazioni').doc(tenantId).collection('missioni');
@@ -91,6 +137,33 @@ async function fetchPazientiTrasportoOnMezzoAdmin(tenantId, mezzo) {
   return snap.docs.map((d) => ({ _docId: d.id, ...d.data() }));
 }
 
+/** Come client: sigla esatta + fallback evento con match normalizzato mezzo. */
+async function fetchPazientiTrasportoForMissioneAdmin(tenantId, missione) {
+  const sigla = missione?.mezzo;
+  if (!sigla) return [];
+  const nk = normalizeMezzoKey(sigla);
+  if (!nk) return [];
+
+  const direct = await fetchPazientiTrasportoOnMezzoAdmin(tenantId, sigla);
+  const fromDirect = direct.filter(
+    (p) => pazienteMatchesMissioneTrasporto(p, missione) && normalizeMezzoKey(p.mezzo) === nk,
+  );
+  if (fromDirect.length > 0) return fromDirect;
+
+  let q = pazientiCol(tenantId).where('esito', '==', 'Trasporta');
+  if (missione.eventoIdUnivoco) {
+    q = q.where('eventoIdUnivoco', '==', missione.eventoIdUnivoco);
+  } else if (missione.eventoCorrelato) {
+    q = q.where('eventoCorrelato', '==', missione.eventoCorrelato);
+  } else {
+    return [];
+  }
+  const snap = await q.limit(100).get();
+  return snap.docs
+    .map((d) => ({ _docId: d.id, ...d.data() }))
+    .filter((p) => normalizeMezzoKey(p.mezzo) === nk);
+}
+
 async function findEventoForMissioneAdmin(tenantId, missione) {
   if (missione?.eventoIdUnivoco) {
     const snap = await eventiCol(tenantId)
@@ -111,11 +184,10 @@ async function findEventoForMissioneAdmin(tenantId, missione) {
 
 async function syncPazientiArrivatoHAdmin(tenantId, missione) {
   if (!missione?.mezzo) return;
-  const candidati = await fetchPazientiTrasportoOnMezzoAdmin(tenantId, missione.mezzo);
+  const candidati = await fetchPazientiTrasportoForMissioneAdmin(tenantId, missione);
   const evento = await findEventoForMissioneAdmin(tenantId, missione);
 
   for (const p of candidati) {
-    if (!pazienteMatchesMissioneTrasporto(p, missione)) continue;
     if (p.stato === 'ARRIVATO H') continue;
 
     const patch = buildArrivatoHPatchAdmin(p, evento);
@@ -127,10 +199,10 @@ async function syncPazientiArrivatoHAdmin(tenantId, missione) {
 
 async function syncPazientiPmaOnDirettoHAdmin(tenantId, missione) {
   if (!missione?.mezzo) return;
-  const candidati = await fetchPazientiTrasportoOnMezzoAdmin(tenantId, missione.mezzo);
+  const candidati = await fetchPazientiTrasportoForMissioneAdmin(tenantId, missione);
 
   for (const p of candidati) {
-    if (!pazienteMatchesMissioneTrasporto(p, missione)) continue;
+    if (pazienteEsclusoDaSyncMissioneAdmin(p)) continue;
     if (!String(p.destinazionePmaId ?? '').trim()) continue;
 
     const patch = {
@@ -159,6 +231,49 @@ function isMissioneTerminata(m) {
   return m.aperta === false || isStatoMissioneTerminale(m.stato);
 }
 
+function pazienteInElencoApertiAdmin(p) {
+  if (!p) return false;
+  const tipo = String(p.tipoPz ?? '')
+    .trim()
+    .toUpperCase();
+  if (tipo === 'PMA' || tipo === 'CODICE MINORE') {
+    return String(p.statoPzPma ?? '').trim().toUpperCase() !== 'DIMESSO';
+  }
+  if (p.aperta !== false && p.stato !== 'ARRIVATO H') return true;
+  if (!String(p.destinazionePmaId ?? '').trim()) return false;
+  return String(p.statoPzPma ?? '').trim().toUpperCase() !== 'DIMESSO';
+}
+
+function missioneConsenteChiusuraEventoAdmin(m) {
+  if (!m) return false;
+  if (m.aperta === false) return true;
+  const s = m.stato ?? '';
+  return s === 'RIENTRO' || s === 'FINE MISSIONE' || s === 'ANNULLATA';
+}
+
+function shouldAutoCloseEventoAdmin(missioni, pazientiEvento) {
+  if (!missioni?.length) return false;
+  if ((pazientiEvento ?? []).some(pazienteInElencoApertiAdmin)) return false;
+  if (!missioni.every(missioneConsenteChiusuraEventoAdmin)) return false;
+  return missioni.some((m) => m.stato === 'FINE MISSIONE' || m.stato === 'RIENTRO');
+}
+
+async function fetchPazientiForEventoAdmin(tenantId, eventoIdUnivoco, eventoCorrelato) {
+  if (eventoIdUnivoco) {
+    const snap = await pazientiCol(tenantId)
+      .where('eventoIdUnivoco', '==', eventoIdUnivoco)
+      .get();
+    return snap.docs.map((d) => d.data());
+  }
+  if (eventoCorrelato) {
+    const snap = await pazientiCol(tenantId)
+      .where('eventoCorrelato', '==', eventoCorrelato)
+      .get();
+    return snap.docs.map((d) => d.data());
+  }
+  return [];
+}
+
 async function tryAutoCloseEventoAdmin(tenantId, eventoIdUnivoco, eventoCorrelato) {
   let missioni = [];
   if (eventoIdUnivoco) {
@@ -169,8 +284,13 @@ async function tryAutoCloseEventoAdmin(tenantId, eventoIdUnivoco, eventoCorrelat
     missioni = snap.docs.map((d) => d.data());
   }
   if (!missioni.length) return;
-  if (!missioni.every(isMissioneTerminata)) return;
-  if (!missioni.some((m) => m.stato === 'FINE MISSIONE')) return;
+
+  const pazientiEvento = await fetchPazientiForEventoAdmin(
+    tenantId,
+    eventoIdUnivoco,
+    eventoCorrelato,
+  );
+  if (!shouldAutoCloseEventoAdmin(missioni, pazientiEvento)) return;
 
   let eventoRef = null;
   if (eventoIdUnivoco) {
@@ -201,7 +321,7 @@ async function tryAutoCloseEventoAdmin(tenantId, eventoIdUnivoco, eventoCorrelat
 export async function advanceMissioneStato(tenantId, missionDocId, expectedMezzo) {
   const missione = await getMissioneById(tenantId, missionDocId);
   if (!missione) return { ok: false, error: 'Missione non trovata' };
-  if (missione.mezzo !== expectedMezzo) {
+  if (!normalizeMezzoKey(missione.mezzo) || normalizeMezzoKey(missione.mezzo) !== normalizeMezzoKey(expectedMezzo)) {
     return { ok: false, error: 'Questa missione non è del tuo mezzo' };
   }
   if (missione.aperta === false || isStatoMissioneTerminale(missione.stato)) {
@@ -226,19 +346,14 @@ export async function advanceMissioneStato(tenantId, missionDocId, expectedMezzo
   if (nuovo === 'DIRETTO H') {
     await syncPazientiPmaOnDirettoHAdmin(tenantId, missioneAggiornata);
   }
-  if (nuovo === 'RIENTRO' || nuovo === 'FINE MISSIONE') {
-    await patchMezzoAdmin(tenantId, expectedMezzo, { statoMezzo: 'Disponibile' });
-  }
-  if (nuovo === 'ANNULLATA') {
-    const motivo = missione.missioneEccezioneMotivo;
-    if (motivo === 'AVARIA_SINISTRO') {
-      await patchMezzoAdmin(tenantId, expectedMezzo, {
-        statoMezzo: MEZZO_STATO_AVARIA_SINISTRO,
-        operativo: false,
-      });
-    } else {
-      await patchMezzoAdmin(tenantId, expectedMezzo, { statoMezzo: 'Disponibile' });
-    }
+  if (nuovo === 'RIENTRO' || nuovo === 'FINE MISSIONE' || nuovo === 'ANNULLATA') {
+    await syncStatoMezzoDopoMissioneAdmin(
+      tenantId,
+      expectedMezzo,
+      missionDocId,
+      nuovo,
+      missione.missioneEccezioneMotivo,
+    );
   }
 
   await tryAutoCloseEventoAdmin(

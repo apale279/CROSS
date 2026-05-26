@@ -15,6 +15,7 @@ const CARTELLA_READ: UserRank[] = [
   'Medico',
   'Infermiere',
   'Soccorritore',
+  'Triage',
 ];
 /** Cartella clinica: tutti i rank PMA possono modificare (con eccezioni puntuali, es. farmaci). */
 const CARTELLA_UPDATE: UserRank[] = [
@@ -23,6 +24,7 @@ const CARTELLA_UPDATE: UserRank[] = [
   'Medico',
   'Infermiere',
   'Soccorritore',
+  'Triage',
 ];
 
 /** Dimissione: Infermiere e Soccorritore solo lettura. */

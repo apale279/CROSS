@@ -18,10 +18,11 @@ import { normalizeMsaDetails } from '../lib/msaValutazione';
 import { newValutazioneSoccorsoItem, payloadValutazioneRow } from '../lib/valutazioniSoccorsoPayload';
 import { defaultsForPatientCreate } from '../lib/pazienteDefaults';
 import { patchPazienteArrivatoHConPma } from './pazientePmaMissionSync';
+import { omitUndefinedFields } from '../lib/firestorePatch';
 import { initPmaSchedaIfMissing } from '../pma/lib/pazientePmaPatch';
 import {
   fetchEventoForMissione,
-  fetchPazientiTrasportoOnMezzo,
+  fetchPazientiTrasportoForMissione,
   pazienteSameEventoAsMissione,
 } from '../lib/pazientiTrasportoQuery';
 import {
@@ -144,8 +145,10 @@ export async function createPaziente(manifestationId, payload, existingPazienti)
 
 export async function patchPaziente(manifestationId, docId, fields) {
   if (!docId || !fields || Object.keys(fields).length === 0) return;
+  const payload = omitUndefinedFields(fields);
+  if (Object.keys(payload).length === 0) return;
   const docRef = doc(db, ...pazientiPath(manifestationId), docId);
-  await updateDoc(docRef, fields);
+  await updateDoc(docRef, payload);
 }
 
 export async function setValutazioneSoccorsoDoc(manifestationId, pazienteDocId, item) {
@@ -164,9 +167,10 @@ export async function persistValutazioneSoccorsoSnapshot(manifestationId, pazien
 }
 
 export async function updateValutazioneSoccorsoDoc(manifestationId, pazienteDocId, valutazioneId, fields) {
-  if (!pazienteDocId || !valutazioneId || !fields || Object.keys(fields).length === 0) return;
+  const payload = omitUndefinedFields(fields);
+  if (!pazienteDocId || !valutazioneId || Object.keys(payload).length === 0) return;
   const ref = valutazioneSoccorsoDocRef(manifestationId, pazienteDocId, valutazioneId);
-  await updateDoc(ref, fields);
+  await updateDoc(ref, payload);
 }
 
 export async function deleteValutazioneSoccorsoDoc(manifestationId, pazienteDocId, valutazioneId) {
@@ -223,7 +227,7 @@ export async function syncPazientiArrivatoH(manifestationId, missione) {
   if (!missione?.mezzo) return;
 
   const [candidati, evento] = await Promise.all([
-    fetchPazientiTrasportoOnMezzo(manifestationId, missione.mezzo),
+    fetchPazientiTrasportoForMissione(manifestationId, missione),
     fetchEventoForMissione(manifestationId, missione),
   ]);
 

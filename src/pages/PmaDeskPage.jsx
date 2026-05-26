@@ -6,6 +6,8 @@ import { usePmaAccess } from '../hooks/usePmaAccess';
 import { findEvento } from '../lib/eventoLinks';
 import {
   findPmaById,
+  isPazienteOriginePma,
+  normalizeStatoPzPma,
   pazienteDimessoInPmaDesk,
   pazienteVisibileInPmaDesk,
   pazientiCodiceMinorePerPma,
@@ -91,9 +93,12 @@ export default function PmaDeskPage() {
 
   const list = pazienti.filter((p) => pazienteVisibileInPmaDesk(p, pma.id));
 
-  const inArrivo = list.filter((p) => p.statoPzPma === STATO_PZ_PMA.IN_ARRIVO);
-  const inAttesa = list.filter((p) => p.statoPzPma === STATO_PZ_PMA.IN_ATTESA);
-  const inCarico = list.filter((p) => p.statoPzPma === STATO_PZ_PMA.IN_CARICO);
+  const inArrivo = list.filter((p) => {
+    const s = normalizeStatoPzPma(p.statoPzPma);
+    return s === STATO_PZ_PMA.IN_ARRIVO || (s == null && !isPazienteOriginePma(p));
+  });
+  const inAttesa = list.filter((p) => normalizeStatoPzPma(p.statoPzPma) === STATO_PZ_PMA.IN_ATTESA);
+  const inCarico = list.filter((p) => normalizeStatoPzPma(p.statoPzPma) === STATO_PZ_PMA.IN_CARICO);
 
   const eventoFor = (p) => findEvento(eventi, p.eventoIdUnivoco ?? p.eventoCorrelato);
 

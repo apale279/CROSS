@@ -1,5 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { pdfEmbedViewerUrl } from '../lib/pdfViewerUrl';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useManifestationIdOptional } from '../context/ManifestazioneContext';
@@ -15,6 +14,12 @@ import {
 } from '../services/pmaIpadFirmaService';
 import { SignatureCanvas } from '../pma/components/scheda-paziente/SignatureCanvas';
 import { AppVersionBadge } from '../components/ui/AppVersionBadge';
+
+const PdfMultiPageViewer = lazy(() =>
+  import('../components/pdf/PdfMultiPageViewer').then((m) => ({
+    default: m.PdfMultiPageViewer,
+  })),
+);
 
 /** Vista iPad: login automatico con credenziali del PMA + coda firme. */
 export default function PmaIpadFirmaPage() {
@@ -41,10 +46,7 @@ export default function PmaIpadFirmaPage() {
   const [firmaFullScreen, setFirmaFullScreen] = useState(false);
 
   const activeRequest = useMemo(() => parsePmaIpadQueueRequest(queueDoc), [queueDoc]);
-  const pdfViewerSrc = useMemo(
-    () => pdfEmbedViewerUrl(activeRequest?.pdfPreviewUrl),
-    [activeRequest?.pdfPreviewUrl],
-  );
+  const pdfPreviewUrl = activeRequest?.pdfPreviewUrl ?? '';
 
   const runLogin = useCallback(async () => {
     if (!tenantId || !pmaId || !pmaWithCreds) return;
@@ -220,15 +222,15 @@ export default function PmaIpadFirmaPage() {
             </p>
           </div>
 
-          <div className="min-h-0 flex-1 overflow-auto bg-slate-300">
-            {pdfViewerSrc ? (
-              <embed
-                key={pdfViewerSrc}
-                title="Anteprima documento"
-                src={pdfViewerSrc}
-                type="application/pdf"
-                className="block min-h-full w-full bg-white"
-              />
+          <div className="min-h-0 flex-1 overflow-y-auto bg-slate-300">
+            {pdfPreviewUrl ? (
+              <Suspense
+                fallback={
+                  <p className="p-6 text-center text-sm text-slate-600">Caricamento documento…</p>
+                }
+              >
+                <PdfMultiPageViewer key={pdfPreviewUrl} url={pdfPreviewUrl} />
+              </Suspense>
             ) : (
               <p className="p-6 text-sm text-slate-600">Anteprima PDF non disponibile.</p>
             )}

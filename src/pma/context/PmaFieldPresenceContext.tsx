@@ -9,6 +9,7 @@ import {
   type ReactNode,
 } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { PMA_FIELD_LOCK_RELEASE_DELAY_MS } from '../lib/pmaFieldPresencePaths';
 import {
   claimPmaFieldLock,
   foreignLockForField,
@@ -44,9 +45,18 @@ export function PmaFieldPresenceProvider({
   const { user, profile } = useAuth();
   const [locks, setLocks] = useState<LockMap>({});
   const focusedKeysRef = useRef(new Set<string>());
+  const releaseTimersRef = useRef(new Map<string, ReturnType<typeof setTimeout>>());
 
   useEffect(() => {
     return subscribePmaFieldLocks(manifestationId, pazienteDocId, setLocks);
+  }, [manifestationId, pazienteDocId]);
+
+  useEffect(() => {
+    const timers = releaseTimersRef.current;
+    return () => {
+      for (const t of timers.values()) clearTimeout(t);
+      timers.clear();
+    };
   }, [manifestationId, pazienteDocId]);
 
   const operator = useMemo(
@@ -92,7 +102,14 @@ export function PmaFieldPresenceProvider({
 
       const onBlur = () => {
         focusedKeysRef.current.delete(fieldKey);
-        void releasePmaFieldLock(manifestationId, pazienteDocId, fieldKey, operator.uid);
+        const prev = releaseTimersRef.current.get(fieldKey);
+        if (prev) clearTimeout(prev);
+        const timer = setTimeout(() => {
+          releaseTimersRef.current.delete(fieldKey);
+          if (focusedKeysRef.current.has(fieldKey)) return;
+          void releasePmaFieldLock(manifestationId, pazienteDocId, fieldKey, operator.uid);
+        }, PMA_FIELD_LOCK_RELEASE_DELAY_MS);
+        releaseTimersRef.current.set(fieldKey, timer);
       };
 
       return {

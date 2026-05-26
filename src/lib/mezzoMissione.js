@@ -1,3 +1,7 @@
+import {
+  MEZZO_STATO_DISPONIBILE,
+} from './mezzoStati';
+
 /** Missione ancora attiva sul mezzo (non terminata / non annullata). */
 export function isMissioneAttiva(missione) {
   if (!missione || missione.aperta === false) return false;
@@ -18,6 +22,35 @@ export function normalizeMezzoKey(sigla) {
   return String(sigla ?? '')
     .replace(/_/g, '')
     .toLowerCase();
+}
+
+export function sameMezzoSigla(a, b) {
+  const na = normalizeMezzoKey(a);
+  const nb = normalizeMezzoKey(b);
+  return Boolean(na && nb && na === nb);
+}
+
+/** Trova documento mezzo in lista caricata (sigla o _docId, anche con underscore). */
+export function findMezzoBySigla(mezzi, siglaRaw) {
+  const key = String(siglaRaw ?? '').trim();
+  if (!key) return null;
+  const list = mezzi ?? [];
+  const exact = list.find((m) => (m.sigla ?? m._docId) === key);
+  if (exact) return exact;
+  const nk = normalizeMezzoKey(key);
+  return (
+    list.find((m) => {
+      const id = String(m.sigla ?? m._docId ?? '').trim();
+      return id && normalizeMezzoKey(id) === nk;
+    }) ?? null
+  );
+}
+
+/** ID documento Firestore per patch (preferisce sigla canonica del mezzo trovato). */
+export function resolveMezzoDocIdFromList(mezzi, siglaRaw) {
+  const hit = findMezzoBySigla(mezzi, siglaRaw);
+  if (hit) return String(hit.sigla ?? hit._docId ?? '').trim();
+  return String(siglaRaw ?? '').trim();
 }
 
 export function mezzoHaMissioneAttiva(sigla, missioni) {
@@ -74,4 +107,20 @@ export function missioniRientroAperteSuMezzo(missioni, mezzoSigla) {
   return missioniAperteSuMezzo(missioni, mezzoSigla).filter((m) =>
     isStatoMissioneRientroOLiberato(m.stato),
   );
+}
+
+/** Mezzo selezionabile per nuova missione / trasporto PS. */
+export function isMezzoSelezionabilePerNuovaMissione(mezzo, missioni) {
+  const sigla = String(mezzo?.sigla ?? mezzo?._docId ?? '').trim();
+  if (!sigla) return false;
+  if (mezzo?.operativo === false) return false;
+  if ((mezzo?.statoMezzo ?? MEZZO_STATO_DISPONIBILE) !== MEZZO_STATO_DISPONIBILE) {
+    return false;
+  }
+  if (mezzoHaMissioneAttiva(sigla, missioni)) return false;
+  return true;
+}
+
+export function filterMezziSelezionabiliPerNuovaMissione(mezzi, missioni) {
+  return (mezzi ?? []).filter((m) => isMezzoSelezionabilePerNuovaMissione(m, missioni));
 }

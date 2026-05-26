@@ -5,7 +5,7 @@ export function missioniPerEvento(missioni, evento) {
   if (!evento) return [];
   const uid = evento.idUnivoco;
   const displayId = evento.idEvento;
-  return missioni.filter((m) => {
+  return (missioni ?? []).filter((m) => {
     if (uid && m.eventoIdUnivoco) return m.eventoIdUnivoco === uid;
     return m.eventoCorrelato === displayId;
   });
@@ -27,7 +27,7 @@ export function pazientiPerEvento(pazienti, evento) {
   if (!evento) return [];
   const uid = evento.idUnivoco;
   const displayId = evento.idEvento;
-  return pazienti.filter((p) => {
+  return (pazienti ?? []).filter((p) => {
     if (uid && p.eventoIdUnivoco) return p.eventoIdUnivoco === uid;
     return p.eventoCorrelato === displayId;
   });

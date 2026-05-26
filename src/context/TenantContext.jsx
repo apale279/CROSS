@@ -37,7 +37,16 @@ export function TenantProvider({ children }) {
         if (snap.empty) {
           setState({ tenantId: null, loading: false, error: 'empty', source: null });
         } else if (snap.size > 1) {
-          setState({ tenantId: null, loading: false, error: 'multiple', source: null });
+          console.warn(
+            '[TenantContext] Più documenti in manifestazioni: uso il primo. ' +
+              'Per scegliere esplicitamente, imposta VITE_TENANT_ID in .env.local.',
+          );
+          setState({
+            tenantId: snap.docs[0].id,
+            loading: false,
+            error: null,
+            source: 'firestore-first',
+          });
         } else {
           setState({
             tenantId: snap.docs[0].id,

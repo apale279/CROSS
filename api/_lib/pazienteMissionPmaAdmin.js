@@ -121,6 +121,13 @@ export function buildDirettoHPatchAdmin(paziente) {
   };
 }
 
+/** Come client `pazienteEsclusoDaSyncMissione` — non riallineare PMA da missione. */
+export function pazienteEsclusoDaSyncMissioneAdmin(paziente) {
+  if (!paziente) return true;
+  if (String(paziente.statoPzPma ?? '').trim().toUpperCase() === 'DIMESSO') return true;
+  return false;
+}
+
 export function pazienteMatchesMissioneTrasporto(p, missione) {
   const sameEvento =
     (missione.eventoIdUnivoco && p.eventoIdUnivoco === missione.eventoIdUnivoco) ||

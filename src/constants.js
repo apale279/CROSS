@@ -1,9 +1,8 @@
 export const IS_SUPERADMIN = import.meta.env.VITE_SUPERADMIN === 'true';
 
 /**
- * ID documento opzionale: se assente e in Firestore c'è un solo documento in
- * `manifestazioni`, viene usato automaticamente (vedi TenantContext).
- * Con più documenti, impostare esplicitamente questa variabile.
+ * ID documento sotto `manifestazioni/{id}` (opzionale).
+ * Se assente: si usa l'unico documento in Firestore, oppure il primo se ce ne sono più di uno.
  */
 export const TENANT_ID = (import.meta.env.VITE_TENANT_ID ?? '').trim();
 

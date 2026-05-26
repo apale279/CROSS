@@ -3,6 +3,7 @@ import { createMissione } from './missioniService';
 import { invioPsSoreuFieldsFromScheda } from '../lib/invioPsSoreu';
 import { normalizeStatoPzPma, STATO_PZ_PMA } from '../lib/pmaModule';
 import { createMissioneConConfermaRientro } from '../lib/missioneRientroCreate';
+import { parseCodiceColoreOptional } from '../lib/codiciColore';
 import {
   missionePmaInvioPsApertaPerPaziente,
   TIPO_TRASPORTO_MISSIONE_PMA_INVIO_PS,
@@ -13,9 +14,17 @@ function labelPaziente(paziente) {
   return nome || paziente.idPaziente || 'Paziente';
 }
 
+/** Colore clinico da codice invio PS PMA (nessun default Bianco su M). */
 function coloreDaCodiceTrasporto(codice) {
-  const m = { verde: 'Verde', giallo: 'Giallo', rosso: 'Rosso' };
-  return m[String(codice ?? '').toLowerCase()] ?? 'Bianco';
+  const m = {
+    bianco: 'Bianco',
+    verde: 'Verde',
+    giallo: 'Giallo',
+    rosso: 'Rosso',
+  };
+  const key = String(codice ?? '').trim().toLowerCase();
+  if (!key) return null;
+  return parseCodiceColoreOptional(m[key]);
 }
 
 /**
@@ -57,6 +66,7 @@ export async function createTrasportoInvioPsDaPma(
   }
 
   const scheda = paziente.pmaScheda ?? {};
+  const coloreTrasporto = coloreDaCodiceTrasporto(scheda.invio_ps_codice_trasporto);
   const soreu = invioPsSoreuFieldsFromScheda(scheda);
   const noteLines = [
     `Trasporto PMA → PS — paziente ${paziente.idPaziente ?? ''} ${labelPaziente(paziente)}`.trim(),
@@ -72,7 +82,7 @@ export async function createTrasportoInvioPsDaPma(
       coordinate: pma.coordinate ?? null,
       tipoEvento: 'Trasporto',
       dettaglioEvento: 'PMA → Ospedale (Invio PS)',
-      colore: coloreDaCodiceTrasporto(scheda.invio_ps_codice_trasporto),
+      colore: coloreTrasporto ?? 'Bianco',
       chiamante: pma.nome ?? 'PMA',
       noteEvento: noteLines.join('\n'),
     },
@@ -88,7 +98,7 @@ export async function createTrasportoInvioPsDaPma(
       eventoCorrelato: evento.idEvento,
       mezzo,
       statoInizialeForzato: 'IN POSTO',
-      codiceColoreMissione: coloreDaCodiceTrasporto(scheda.invio_ps_codice_trasporto),
+      ...(coloreTrasporto ? { codiceColoreMissione: coloreTrasporto } : {}),
       tipoTrasporto: TIPO_TRASPORTO_MISSIONE_PMA_INVIO_PS,
       ospedaleDestinazione: ospedale,
       noteMissione: noteLines.join('\n'),

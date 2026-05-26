@@ -1,15 +1,18 @@
 import { useCallback, useMemo } from 'react';
+import { deleteField } from 'firebase/firestore';
 import { Clock } from 'lucide-react';
 import { DEFAULT_IMPOSTAZIONI } from '../../constants';
 import {
   resolveCodiceColoreEvento,
   resolveCodiceColoreMissione,
   resolveCodiceColoreTrasporto,
-  normalizeCodiceColore,
+  parseCodiceColoreOptional,
 } from '../../lib/codiciColore';
 import { ESITI_MISSIONE, ESITO_MISSIONE_DEFAULT, normalizeEsitoMissione } from '../../lib/missioneEsito';
 import { ColoreIndicator } from '../ui/ColoreIndicator';
+import { ColoreSelectButtons } from '../ui/ColoreSelectButtons';
 import { useManifestazioneId } from '../../context/ManifestazioneContext';
+import { eventoColonnaIndirizzo } from '../../lib/eventoDisplay';
 import { findEvento } from '../../lib/eventoLinks';
 import { toDatetimeLocalValue, fromDatetimeLocalValue } from '../../lib/datetimeLocal';
 import { buildStatoChangeFields, patchStoricoStatoAt } from '../../lib/missionStoricoStati';
@@ -38,6 +41,7 @@ import {
 } from '../../lib/pmaInvioPsMission';
 import { useImpostazioni } from '../../hooks/useImpostazioni';
 import { MissioneTelegramSendButton } from '../telegram/MissioneTelegramSendButton';
+import { findMezzoBySigla } from '../../lib/mezzoMissione';
 import { pazientiTrasportoPerMissione } from '../../lib/pazientiTrasportoQuery';
 
 export function MissioneScheda({
@@ -65,7 +69,7 @@ export function MissioneScheda({
     [eventi, missione],
   );
   const mezzo = useMemo(
-    () => mezzi.find((m) => (m.sigla ?? m._docId) === missione.mezzo),
+    () => findMezzoBySigla(mezzi, missione.mezzo),
     [mezzi, missione.mezzo],
   );
 
@@ -73,6 +77,8 @@ export function MissioneScheda({
     () => pazientiTrasportoPerMissione(pazienti, missione),
     [pazienti, missione],
   );
+
+  const coloreM = useMemo(() => resolveCodiceColoreMissione(missione), [missione]);
 
   const coloreTrasportoEffettivo = useMemo(
     () => resolveCodiceColoreTrasporto(missione, evento, pazientiTrasporto),
@@ -129,22 +135,28 @@ export function MissioneScheda({
   };
 
   const patchColoreMissione = async (colore) => {
+    const valid = parseCodiceColoreOptional(colore);
     await patchMissione(
       manifestationId,
       missione._docId,
-      { codiceColoreMissione: normalizeCodiceColore(colore) },
+      valid
+        ? { codiceColoreMissione: valid }
+        : { codiceColoreMissione: deleteField() },
       missione.mezzo,
     );
   };
 
   const patchColoreTrasporto = async (colore) => {
+    const valid = parseCodiceColoreOptional(colore);
     await patchMissione(
       manifestationId,
       missione._docId,
-      {
-        codiceColoreTrasporto: normalizeCodiceColore(colore),
-        codiceColoreTrasportoManuale: true,
-      },
+      valid
+        ? { codiceColoreTrasporto: valid, codiceColoreTrasportoManuale: true }
+        : {
+            codiceColoreTrasporto: deleteField(),
+            codiceColoreTrasportoManuale: deleteField(),
+          },
       missione.mezzo,
     );
   };
@@ -266,7 +278,7 @@ export function MissioneScheda({
         {evento && (
           <section className="rounded border border-slate-200 bg-slate-50 p-3">
             <p className="mb-2 text-xs font-bold uppercase text-slate-600">Evento collegato</p>
-            <p className="text-slate-800">{evento.indirizzo || '—'}</p>
+            <p className="text-slate-800">{eventoColonnaIndirizzo(evento) || '—'}</p>
             <p className="text-slate-600">
               {evento.tipoEvento}
               {evento.dettaglioEvento ? ` — ${evento.dettaglioEvento}` : ''}
@@ -344,48 +356,26 @@ export function MissioneScheda({
           </div>
           <div>
             <p className="mb-1 text-[11px] font-semibold text-slate-500">M — Missione</p>
-            <div className="flex flex-wrap gap-1">
-              {DEFAULT_IMPOSTAZIONI.coloriEvento.map((c) => (
-                <button
-                  key={c}
-                  type="button"
-                  title={c}
-                  onClick={() => void patchColoreMissione(c)}
-                  className={`rounded border p-0.5 ${
-                    resolveCodiceColoreMissione(missione, evento) === c
-                      ? 'border-sky-600 ring-2 ring-sky-400'
-                      : 'border-slate-300'
-                  }`}
-                >
-                  <ColoreIndicator colore={c} size="md" />
-                </button>
-              ))}
-            </div>
+            <ColoreSelectButtons
+              value={coloreM}
+              onChange={(c) => void patchColoreMissione(c)}
+            />
           </div>
           <div>
             <p className="mb-1 text-[11px] font-semibold text-slate-500">T — Trasporto</p>
-            {!coloreTrasportoEffettivo && (
-              <p className="mb-1 text-[10px] text-slate-500">
-                Nessun colore: deriva dai pazienti in trasporto (MSB/MSA).
-              </p>
-            )}
-            <div className="flex flex-wrap gap-1">
-              {DEFAULT_IMPOSTAZIONI.coloriEvento.map((c) => (
-                <button
-                  key={c}
-                  type="button"
-                  title={c}
-                  onClick={() => void patchColoreTrasporto(c)}
-                  className={`rounded border p-0.5 ${
-                    coloreTrasportoEffettivo === c
-                      ? 'border-sky-600 ring-2 ring-sky-400'
-                      : 'border-slate-300'
-                  }`}
-                >
-                  <ColoreIndicator colore={c} size="md" />
-                </button>
-              ))}
-            </div>
+            <p className="mb-1 text-[10px] text-slate-500">
+              {coloreTrasportoEffettivo && !missione.codiceColoreTrasportoManuale
+                ? 'Da pazienti in trasporto (MSB/MSA).'
+                : 'Nessun colore finché non imposti T o carichi pazienti con codice sanitario.'}
+            </p>
+            <ColoreSelectButtons
+              value={
+                missione.codiceColoreTrasportoManuale
+                  ? missione.codiceColoreTrasporto
+                  : coloreTrasportoEffettivo
+              }
+              onChange={(c) => void patchColoreTrasporto(c)}
+            />
             {missione.codiceColoreTrasportoManuale && (
               <p className="mt-1 text-[10px] text-slate-500">Impostato manualmente</p>
             )}

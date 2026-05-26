@@ -12,12 +12,16 @@ import {
 import { db } from '../firebaseConfig';
 import { eventiPath, missioniPath, pazientiPath } from '../lib/firestorePaths';
 import { deletePazienteCascade } from './pazientiService';
-import { buildStatoChangeFields } from '../lib/missionStoricoStati';
 import { mezzoHaMissioneAttiva } from '../lib/mezzoMissione';
 import { MEZZO_STATO_DISPONIBILE } from '../lib/mezzoStati';
-import { isMissioneTerminata } from '../utils/eventoAutoClose';
+import {
+  fieldsChiusuraMissioneSuEventoForzato,
+  missioneRichiedeChiusuraSuEventoForzato,
+} from '../lib/eventoChiusuraMissioni';
 import { newIdUnivoco } from '../lib/ids';
 import { allocateProgressiveId } from './progressiveIdService';
+import { normalizeCodiceColore } from '../lib/codiciColore';
+import { omitUndefinedFields } from '../lib/firestorePatch';
 import { patchMissione } from './missioniService';
 import { patchMezzo } from './mezziService';
 
@@ -52,7 +56,7 @@ function buildEventoPayload(manifestationId, idEvento, idUnivoco, payload) {
     luogo: payload.luogo ?? '',
     tipoLuogo: payload.tipoLuogo ?? '',
     meteo: payload.meteo ?? '',
-    colore: payload.colore ?? 'Bianco',
+    colore: normalizeCodiceColore(payload.colore),
     noteEvento: payload.noteEvento ?? '',
   };
   if (payload.coordinate != null) {
@@ -128,8 +132,13 @@ export async function createEvento(manifestationId, payload, existingEventi) {
 
 export async function patchEvento(manifestationId, docId, fields) {
   if (!docId || !fields || Object.keys(fields).length === 0) return;
+  const payload = omitUndefinedFields(fields);
+  if (Object.prototype.hasOwnProperty.call(payload, 'colore')) {
+    payload.colore = normalizeCodiceColore(payload.colore);
+  }
+  if (Object.keys(payload).length === 0) return;
   const docRef = doc(db, ...eventiPath(manifestationId), docId);
-  await updateDoc(docRef, fields);
+  await updateDoc(docRef, payload);
 }
 
 /** Chiusura manuale dopo fase operativa terminata (rimozione da dashboard). */
@@ -159,12 +168,9 @@ export async function closeEventoForzato(
   }
 
   const closeMissioni = (missioniCollegate ?? [])
-    .filter((mis) => !isMissioneTerminata(mis) || mis.aperta !== false)
+    .filter(missioneRichiedeChiusuraSuEventoForzato)
     .map((mis) => {
-      const fields =
-        mis.stato === 'FINE MISSIONE'
-          ? { aperta: false }
-          : buildStatoChangeFields(mis, 'FINE MISSIONE');
+      const fields = fieldsChiusuraMissioneSuEventoForzato(mis);
       return patchMissione(manifestationId, mis._docId, fields, mis.mezzo);
     });
 

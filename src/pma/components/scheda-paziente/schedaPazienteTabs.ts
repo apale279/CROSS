@@ -32,6 +32,18 @@ export function pmaShellTabsFor(isAutopresentato: boolean) {
   return PMA_SHELL_TABS
 }
 
+/** Tab shell PMA filtrate per rank (READ su cartella/dimissione). */
+export function filterPmaShellTabsByRank(
+  tabs: { id: SchedaPazienteTabId; label: string }[],
+  rank: UserRank,
+) {
+  return tabs.filter((t) => {
+    if (t.id === 'cartella') return schedaTabCartellaAllows(rank, 'READ')
+    if (t.id === 'dimissione') return schedaTabDimissioneAllows(rank, 'READ')
+    return true
+  })
+}
+
 const BASE_TABS: { id: SchedaPazienteTabId; label: string }[] = [
   { id: 'generale', label: 'Generale' },
   { id: 'anagrafica', label: 'Anagrafica' },

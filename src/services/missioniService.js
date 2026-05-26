@@ -15,19 +15,56 @@ import { db } from '../firebaseConfig';
 import { missioniPath } from '../lib/firestorePaths';
 import { newIdUnivoco } from '../lib/ids';
 import { allocateProgressiveId } from './progressiveIdService';
-import { patchMezzo } from './mezziService';
+import { omitUndefinedFields } from '../lib/firestorePatch';
+import {
+  isStatoMissioneRientroOLiberato,
+  missioneBloccaMezzo,
+  missioniAperteSuMezzo,
+  normalizeMezzoKey,
+} from '../lib/mezzoMissione';
+import { MezzoRientroMissioneApertaError } from '../lib/missioneRientroCreate';
+import { patchMezzo, resolveMezzoDocIdFirestore } from './mezziService';
 import { tryAutoCloseEventoForMissione } from './eventoAutoCloseService';
 import { DEFAULT_IMPOSTAZIONI } from '../constants';
-import { pickGravestColore, normalizeCodiceColore } from '../lib/codiciColore';
+import { pickGravestColore, parseCodiceColoreOptional } from '../lib/codiciColore';
 import { ESITO_MISSIONE_DEFAULT } from '../lib/missioneEsito';
 import { MISSIONE_ECCEZIONE_MOTIVO, MEZZO_STATO_AVARIA_SINISTRO } from '../lib/missionEccezioni';
 import { buildStatoChangeFields } from '../lib/missionStoricoStati';
 import { missioniRientroAperteSuMezzo } from '../lib/mezzoMissione';
-import { fetchPazientiTrasportoOnMezzo, pazienteSameEventoAsMissione } from '../lib/pazientiTrasportoQuery';
+import { fetchPazientiTrasportoForMissione } from '../lib/pazientiTrasportoQuery';
 import { patchPaziente } from './pazientiService';
 import { syncPazientiArrivatoH } from './pazientiService';
 import { syncPazientiPmaOnDirettoH } from './pazientePmaMissionSync';
 import { notifyTelegramStatoFromCentrale } from './telegramService';
+
+function assertMezzoLiberoPerNuovaMissione(mezzoSigla, existingMissioni, { chiudiMissioniRientro }) {
+  if (!mezzoSigla) return;
+  const aperte = missioniAperteSuMezzo(existingMissioni ?? [], mezzoSigla);
+  const bloccanti = aperte.filter((m) => missioneBloccaMezzo(m));
+  const rientro = aperte.filter((m) => isStatoMissioneRientroOLiberato(m.stato));
+
+  if (chiudiMissioniRientro) {
+    if (bloccanti.length > 0) {
+      const m = bloccanti[0];
+      throw new Error(
+        `Il mezzo ${mezzoSigla} ha già la missione aperta ${m.idMissione ?? '—'} (${m.stato ?? ''}). ` +
+          'Chiudi quella missione prima di ingaggiare di nuovo lo stesso mezzo.',
+      );
+    }
+    return;
+  }
+
+  if (rientro.length > 0) {
+    throw new MezzoRientroMissioneApertaError(mezzoSigla, rientro[0]);
+  }
+  if (bloccanti.length > 0) {
+    const m = bloccanti[0];
+    throw new Error(
+      `Il mezzo ${mezzoSigla} ha già la missione aperta ${m.idMissione ?? '—'} (${m.stato ?? ''}). ` +
+        'Chiudi o termina quella missione prima di crearne un\'altra sullo stesso mezzo.',
+    );
+  }
+}
 
 /** Un solo ingaggio attivo per mezzo: chiude le missioni in RIENTRO/ARRIVATO H prima del nuovo evento. */
 async function terminaMissioniRientroPrecedenti(manifestationId, mezzoSigla, existingMissioni) {
@@ -62,8 +99,14 @@ function formatEquipaggio(equipaggio) {
 }
 
 export async function createMissione(manifestationId, payload, existingMissioni, mezzo) {
-  if (payload.mezzo) {
-    await terminaMissioniRientroPrecedenti(manifestationId, payload.mezzo, existingMissioni);
+  const mezzoSiglaEarly = payload.mezzo
+    ? await resolveMezzoDocIdFirestore(manifestationId, payload.mezzo)
+    : '';
+  if (mezzoSiglaEarly) {
+    assertMezzoLiberoPerNuovaMissione(mezzoSiglaEarly, existingMissioni, {
+      chiudiMissioniRientro: !!payload.chiudiMissioniRientro,
+    });
+    await terminaMissioniRientroPrecedenti(manifestationId, mezzoSiglaEarly, existingMissioni);
   }
 
   const idMissione = await allocateProgressiveId(
@@ -83,10 +126,9 @@ export async function createMissione(manifestationId, payload, existingMissioni,
       : autopresentato
         ? 'IN POSTO'
         : 'ALLERTARE';
-  const coloreMissione = normalizeCodiceColore(
-    payload.codiceColoreMissione ?? payload.coloreEvento ?? 'Bianco',
-  );
+  const coloreMissione = parseCodiceColoreOptional(payload.codiceColoreMissione);
   const ospedaleDest = String(payload.ospedaleDestinazione ?? '').trim();
+  const mezzoSigla = mezzoSiglaEarly;
   const colRef = collection(db, ...missioniPath(manifestationId));
   const docRef = await addDoc(colRef, {
     manifestationId,
@@ -94,7 +136,7 @@ export async function createMissione(manifestationId, payload, existingMissioni,
     idMissione,
     eventoIdUnivoco: payload.eventoIdUnivoco,
     eventoCorrelato: payload.eventoCorrelato,
-    mezzo: payload.mezzo,
+    mezzo: mezzoSigla,
     stato: statoIniziale,
     statoDa: serverTimestamp(),
     storicoStati: { [statoIniziale]: serverTimestamp() },
@@ -104,13 +146,15 @@ export async function createMissione(manifestationId, payload, existingMissioni,
     apertura: serverTimestamp(),
     noteMissione: payload.noteMissione ?? '',
     tratteMissione: [],
-    codiceColoreMissione: coloreMissione,
+    ...(coloreMissione ? { codiceColoreMissione: coloreMissione } : {}),
     esitoMissione: ESITO_MISSIONE_DEFAULT,
     ...(payload.tipoTrasporto ? { tipoTrasporto: payload.tipoTrasporto } : {}),
     ...(payload.pazienteRiferimento ? { pazienteRiferimento: payload.pazienteRiferimento } : {}),
     ...(ospedaleDest ? { ospedaleDestinazione: ospedaleDest } : {}),
   });
-  await patchMezzo(manifestationId, payload.mezzo, { statoMezzo: 'Non disponibile' });
+  if (mezzoSigla) {
+    await patchMezzo(manifestationId, mezzoSigla, { statoMezzo: 'Non disponibile' });
+  }
   return { docId: docRef.id, idMissione, idUnivoco };
 }
 
@@ -127,9 +171,15 @@ async function findMissioneDocForPaziente(manifestationId, paziente) {
   if (paziente.idMissione && paziente.mezzo) {
     const q = query(colRef, where('idMissione', '==', paziente.idMissione), limit(24));
     const snap = await getDocs(q);
+    const nk = normalizeMezzoKey(paziente.mezzo);
     const open = snap.docs.find((d) => {
       const x = d.data();
-      return x.mezzo === paziente.mezzo && x.aperta !== false;
+      return (
+        x.aperta !== false &&
+        x.mezzo &&
+        nk &&
+        normalizeMezzoKey(x.mezzo) === nk
+      );
     });
     if (open) return { id: open.id, data: open.data() };
   }
@@ -140,11 +190,10 @@ async function findMissioneDocForPaziente(manifestationId, paziente) {
 export async function refreshMissioneCodiceColoreTrasporto(manifestationId, missionDocId, missione) {
   if (!missionDocId || !missione || missione.codiceColoreTrasportoManuale === true) return;
   const candidati = missione.mezzo
-    ? await fetchPazientiTrasportoOnMezzo(manifestationId, missione.mezzo)
+    ? await fetchPazientiTrasportoForMissione(manifestationId, missione)
     : [];
   const colori = [];
   for (const p of candidati) {
-    if (!pazienteSameEventoAsMissione(p, missione)) continue;
     const c = String(p.codiceColoreSanitario ?? '').trim();
     if (c && COLORI_VALIDI.has(c)) colori.push(c);
   }
@@ -185,13 +234,44 @@ export async function patchMissioneCodiceColoreFromPaziente(manifestationId, paz
   await refreshMissioneCodiceColoreTrasporto(manifestationId, hit.id, hit.data);
 }
 
+async function mezzoHaAltreMissioniBloccanti(manifestationId, mezzoSiglaRaw, excludeDocId) {
+  const nk = normalizeMezzoKey(mezzoSiglaRaw);
+  if (!nk) return false;
+  const snap = await getDocs(collection(db, ...missioniPath(manifestationId)));
+  return snap.docs.some((d) => {
+    if (d.id === excludeDocId) return false;
+    const m = d.data();
+    if (m.aperta === false) return false;
+    if (!m.mezzo || normalizeMezzoKey(m.mezzo) !== nk) return false;
+    return missioneBloccaMezzo({ ...m, _docId: d.id });
+  });
+}
+
+async function syncStatoMezzoDopoMissione(manifestationId, mezzoSiglaRaw, excludeDocId, fields) {
+  if (!mezzoSiglaRaw) return;
+  if (await mezzoHaAltreMissioniBloccanti(manifestationId, mezzoSiglaRaw, excludeDocId)) {
+    return;
+  }
+  const mezzoDoc = await resolveMezzoDocIdFirestore(manifestationId, mezzoSiglaRaw);
+  if (!mezzoDoc) return;
+  if (fields.stato === 'ANNULLATA' && fields.missioneEccezioneMotivo === MISSIONE_ECCEZIONE_MOTIVO.AVARIA_SINISTRO) {
+    await patchMezzo(manifestationId, mezzoDoc, {
+      statoMezzo: MEZZO_STATO_AVARIA_SINISTRO,
+      operativo: false,
+    });
+    return;
+  }
+  await patchMezzo(manifestationId, mezzoDoc, { statoMezzo: 'Disponibile' });
+}
+
 export async function patchMissione(manifestationId, docId, fields, mezzoSigla) {
   if (!docId || !fields || Object.keys(fields).length === 0) return;
   const docRef = doc(db, ...missioniPath(manifestationId), docId);
-  const payload = { ...fields };
+  const payload = omitUndefinedFields({ ...fields });
   if (fields.stato != null) {
     payload.statoDa = serverTimestamp();
   }
+  if (Object.keys(payload).length === 0) return;
   await updateDoc(docRef, payload);
   if (fields.stato === 'ARRIVATO H') {
     const snap = await getDoc(docRef);
@@ -199,22 +279,13 @@ export async function patchMissione(manifestationId, docId, fields, mezzoSigla) 
       await syncPazientiArrivatoH(manifestationId, { _docId: snap.id, ...snap.data() });
     }
   }
-  if (fields.stato === 'RIENTRO' && mezzoSigla) {
-    await patchMezzo(manifestationId, mezzoSigla, { statoMezzo: 'Disponibile' });
-  }
-  if (fields.stato === 'FINE MISSIONE' && mezzoSigla) {
-    await patchMezzo(manifestationId, mezzoSigla, { statoMezzo: 'Disponibile' });
-  }
-  if (fields.stato === 'ANNULLATA' && mezzoSigla) {
-    const motivo = fields.missioneEccezioneMotivo;
-    if (motivo === MISSIONE_ECCEZIONE_MOTIVO.AVARIA_SINISTRO) {
-      await patchMezzo(manifestationId, mezzoSigla, {
-        statoMezzo: MEZZO_STATO_AVARIA_SINISTRO,
-        operativo: false,
-      });
-    } else {
-      await patchMezzo(manifestationId, mezzoSigla, { statoMezzo: 'Disponibile' });
-    }
+  if (
+    (fields.stato === 'RIENTRO' ||
+      fields.stato === 'FINE MISSIONE' ||
+      fields.stato === 'ANNULLATA') &&
+    mezzoSigla
+  ) {
+    await syncStatoMezzoDopoMissione(manifestationId, mezzoSigla, docId, fields);
   }
   if (fields.stato != null || fields.aperta != null) {
     await tryAutoCloseEventoForMissione(manifestationId, docId);

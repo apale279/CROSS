@@ -2,7 +2,7 @@ import { Timestamp } from 'firebase/firestore';
 import { applyMissioneArrivatoH } from '../lib/pazienteRules';
 import { normalizeStatoPzPma, STATO_PZ_PMA, TIPO_PZ } from '../lib/pmaModule';
 import {
-  fetchPazientiTrasportoOnMezzo,
+  fetchPazientiTrasportoForMissione,
   pazienteSameEventoAsMissione,
 } from '../lib/pazientiTrasportoQuery';
 import { pazienteEsclusoDaSyncMissione } from '../lib/pmaInvioPsMission';
@@ -48,7 +48,13 @@ export async function setPazientePmaInArrivo(manifestationId, docId, paziente, e
   if (!manifestationId || !docId) return;
   if (!String(paziente?.destinazionePmaId ?? '').trim()) return;
   const cur = normalizeStatoPzPma(paziente.statoPzPma);
-  if (cur === STATO_PZ_PMA.DIMESSO || cur === STATO_PZ_PMA.IN_CARICO) return;
+  if (
+    cur === STATO_PZ_PMA.DIMESSO ||
+    cur === STATO_PZ_PMA.IN_CARICO ||
+    cur === STATO_PZ_PMA.IN_ATTESA
+  ) {
+    return;
+  }
 
   await patchPaziente(manifestationId, docId, {
     tipoPz: paziente.tipoPz ?? TIPO_PZ.CENTRALE,
@@ -115,7 +121,7 @@ export async function syncPmaStatoOnDestinazionePaziente(
 /** Mezzo in DIRETTO H → pazienti verso quel PMA in «IN ARRIVO» (vista PMA). */
 export async function syncPazientiPmaOnDirettoH(manifestationId, missione) {
   if (!missione?.mezzo) return { updated: 0 };
-  const candidati = await fetchPazientiTrasportoOnMezzo(manifestationId, missione.mezzo);
+  const candidati = await fetchPazientiTrasportoForMissione(manifestationId, missione);
   const tasks = [];
 
   for (const p of candidati) {

@@ -5,6 +5,8 @@ import { useManifestazioneCollection } from '../hooks/useManifestazioneCollectio
 import { useEventoScheda } from '../context/EventoSchedaContext';
 import { ColoreIndicator } from '../components/ui/ColoreIndicator';
 import { formatTimestamp } from '../utils/formatters';
+import { eventoColonnaIndirizzo } from '../lib/eventoDisplay';
+import { resolveCodiceColoreEvento } from '../lib/codiciColore';
 import { compareEventiAperti, isEventoAperto, pazientiPerEvento } from '../lib/eventoLinks';
 
 export default function EventiPage() {
@@ -67,7 +69,9 @@ export default function EventiPage() {
                   </td>
                   <td className={tdClass}>{formatTimestamp(row.apertura)}</td>
                   <td className={tdClass}>{row.tipoEvento}</td>
-                  <td className={`${tdClass} max-w-xs truncate`}>{row.indirizzo || '—'}</td>
+                  <td className={`${tdClass} max-w-xs truncate`} title={eventoColonnaIndirizzo(row) || undefined}>
+                    {eventoColonnaIndirizzo(row) || '—'}
+                  </td>
                   <td className={`${tdClass} text-center`}>
                     <span
                       className="inline-flex items-center justify-center gap-1 rounded-md bg-slate-100 px-2 py-1 text-slate-800"
@@ -81,7 +85,7 @@ export default function EventiPage() {
                     </span>
                   </td>
                   <td className={tdClass}>
-                    <ColoreIndicator colore={row.colore} />
+                    <ColoreIndicator colore={resolveCodiceColoreEvento(row)} />
                   </td>
                 </tr>
               ))

@@ -201,7 +201,9 @@ export function pazienteVisibileInPmaDesk(paziente, pmaId) {
   if (isPazienteCodiceMinore(paziente)) return false;
 
   if (String(paziente.destinazionePmaId ?? '').trim() !== pid) return false;
-  return stato != null && STATI_PZ_PMA_APERTI.includes(stato);
+  /** Legacy: destinazione PMA senza statoPzPma → visibile come in arrivo. */
+  if (stato == null) return true;
+  return STATI_PZ_PMA_APERTI.includes(stato);
 }
 
 export function pmaIdPerPaziente(paziente) {
@@ -229,7 +231,12 @@ export function isPmaOperatorProfile(profile) {
   const rank = String(profile.pmaRank ?? '')
     .trim()
     .toUpperCase();
-  return rank === 'MEDICO' || rank === 'INFERMIERE' || rank === 'SOCCORRITORE';
+  return (
+    rank === 'MEDICO' ||
+    rank === 'INFERMIERE' ||
+    rank === 'SOCCORRITORE' ||
+    rank === 'TRIAGE'
+  );
 }
 
 export function userHasFullCentraleAccess(profile, isSuperAdmin = false) {
