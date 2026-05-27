@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { collection, deleteField, doc, onSnapshot, Timestamp } from 'firebase/firestore';
-import { Trash2 } from 'lucide-react';
 import {
   ESITI_PAZIENTE,
   ESITO_ALTRO,
@@ -14,7 +13,6 @@ import { useManifestazioneId } from '../../context/ManifestazioneContext';
 import { cercaPerPettorale, etaDaDataNascita } from '../../lib/excelPartecipanti';
 import { emptyMsbDetails, normalizeMsbDetails } from '../../lib/msbValutazione';
 import { emptyMsaDetails, normalizeMsaDetails } from '../../lib/msaValutazione';
-import { MsaValutazioneForm } from './MsaValutazioneForm';
 import { normalizeValutazioniSoccorso } from '../../lib/pazienteValutazioniSoccorso';
 import { mergePatientDraftFromServer, patientDocToDraftFields } from '../../lib/pazienteDraftMerge';
 import {
@@ -79,7 +77,7 @@ import {
 } from '../../lib/mezzoDestinazioneTrasporto';
 import { formatTimestamp } from '../../utils/formatters';
 import { FormField, btnPrimary, btnSecondary, inputClass, selectClass } from '../ui/FormField';
-import { MsbValutazioneForm } from './MsbValutazioneForm';
+import { ValutazioniSoccorsoTab } from './ValutazioniSoccorsoTab';
 import { PazienteAnagraficaFields } from './PazienteAnagraficaFields';
 import { ValutazioneMezzoButtons } from './ValutazioneMezzoButtons';
 import { SoreuTrasportoFields } from './SoreuTrasportoFields';
@@ -151,6 +149,13 @@ export function PazienteScheda({
   }, []);
 
   const displayPatient = serverPatient ?? paziente ?? null;
+
+  const eventoCollegato = useMemo(
+    () =>
+      evento ??
+      findEvento(eventiAll, displayPatient?.eventoIdUnivoco ?? displayPatient?.eventoCorrelato),
+    [evento, eventiAll, displayPatient?.eventoIdUnivoco, displayPatient?.eventoCorrelato],
+  );
 
   const [draft, setDraft] = useState(() => {
     if (isCreate) return emptyDraft();
@@ -253,6 +258,7 @@ export function PazienteScheda({
     return moduliSchedaPaziente(displayPatient);
   }, [isCreate, displayPatient, evento?.idEvento, evento?.idUnivoco]);
   const showEsitoTrasporto = Boolean(moduli?.esitoTrasporto);
+  const mostraValutazioniMezzo = isCreate || (!isOriginePma && showEsitoTrasporto);
   const pmaIdScheda = displayPatient ? pmaIdDaPaziente(displayPatient) : '';
   const mostraTabPma = !isCreate && mostraModuloPmaInSchedaCentrale(displayPatient);
   const schedaSolaVisione =
@@ -348,12 +354,15 @@ export function PazienteScheda({
   }, [isCreate, draft.creatoLocal]);
 
   useEffect(() => {
-    if (!displayPatient || !mostraTabPma) {
+    if (!mostraValutazioniMezzo && (mainTab === 'msb' || mainTab === 'msa')) {
       setMainTab('centrale');
-      return;
     }
+  }, [mostraValutazioniMezzo, mainTab]);
+
+  useEffect(() => {
+    if (!displayPatient || !mostraTabPma) return;
     const dimesso = normalizeStatoPzPma(displayPatient.statoPzPma) === STATO_PZ_PMA.DIMESSO;
-    setMainTab(dimesso ? 'pma' : 'centrale');
+    if (dimesso) setMainTab('pma');
   }, [patientDocId, displayPatient?.statoPzPma, mostraTabPma]);
 
   const trasporta = draft.esito === ESITO_TRASPORTA;
@@ -793,7 +802,17 @@ export function PazienteScheda({
       <div className="space-y-4 p-1">
         <dl className="grid gap-3 md:grid-cols-2">
           <FormField label="Evento correlato">
-            <p className="font-mono font-semibold text-slate-800">{evento?.idEvento ?? '—'}</p>
+            <p className="font-mono font-semibold text-slate-800">
+              {eventoCollegato?.idEvento ?? displayPatient?.eventoCorrelato ?? '—'}
+            </p>
+          </FormField>
+          <FormField label="Tipo evento">
+            <p className="text-slate-800">{eventoCollegato?.tipoEvento?.trim() || '—'}</p>
+          </FormField>
+          <FormField label="Dettaglio evento" className="md:col-span-2">
+            <p className="whitespace-pre-wrap text-slate-800">
+              {eventoCollegato?.dettaglioEvento?.trim() || '—'}
+            </p>
           </FormField>
           {!isCreate && displayPatient?.idMissione && (
             <FormField label="ID missione">
@@ -960,83 +979,6 @@ export function PazienteScheda({
                 </FormField>
               )}
             </div>
-            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-              <p className="text-xs font-bold uppercase text-slate-600">
-                Valutazioni mezzi di soccorso
-              </p>
-              <div className="flex flex-wrap gap-1.5">
-                <button
-                  type="button"
-                  className={`${btnSecondary} px-2 py-1 text-xs font-semibold`}
-                  onClick={() => addValutazione('MSB')}
-                >
-                  + VALUTAZIONE MSB
-                </button>
-                <button
-                  type="button"
-                  className={`${btnSecondary} px-2 py-1 text-xs font-semibold`}
-                  onClick={() => addValutazione('MSA')}
-                >
-                  + VALUTAZIONE MSA
-                </button>
-              </div>
-            </div>
-            {valutazioniList.length === 0 ? (
-              <p className="text-xs text-slate-500">Nessuna valutazione. Aggiungi MSB o MSA.</p>
-            ) : (
-              <ul className="space-y-3">
-                {valutazioniList.map((v) => (
-                  <li
-                    key={v.id}
-                    className="rounded-lg border border-teal-200/80 bg-teal-50/30 p-3"
-                  >
-                    <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                      <span
-                        className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${
-                          v.tipo === 'MSA'
-                            ? 'bg-violet-200 text-violet-900'
-                            : 'bg-teal-200 text-teal-900'
-                        }`}
-                      >
-                        {v.tipo === 'MSA' ? 'VALUTAZIONE MSA' : 'VALUTAZIONE MSB'}
-                      </span>
-                      <div className="flex items-center gap-2">
-                        {v.creatoIl && (
-                          <span className="text-[10px] text-slate-500">
-                            {formatTimestamp(v.creatoIl)}
-                          </span>
-                        )}
-                        <button
-                          type="button"
-                          className="rounded p-1 text-slate-400 hover:bg-red-100 hover:text-red-700"
-                          title="Rimuovi valutazione"
-                          onClick={() => removeValutazione(v.id)}
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
-                    </div>
-                    {v.tipo === 'MSB' ? (
-                      <MsbValutazioneForm
-                        valuationId={v.id}
-                        msbDetails={v.msbDetails}
-                        mezziEventoSigle={mezziEvento}
-                        onPatch={(partial) => void patchMsbValutazione(v.id, partial)}
-                      />
-                    ) : (
-                      <MsaValutazioneForm
-                        valuationId={v.id}
-                        msaDetails={v.msaDetails}
-                        creatoIl={v.creatoIl}
-                        mezziEventoSigle={mezziEvento}
-                        onPatchDetails={(partial) => void patchMsaValutazione(v.id, partial)}
-                        onPatchCreatoIl={(creatoIl) => void patchMsaCreatoIl(v.id, creatoIl)}
-                      />
-                    )}
-                  </li>
-                ))}
-              </ul>
-            )}
           </div>
         )}
       </div>
@@ -1110,43 +1052,101 @@ export function PazienteScheda({
         />
       ) : null}
 
-      {mostraTabPma ? (
-        <div className="flex gap-1 border-b border-slate-300" role="tablist">
-          <button
-            type="button"
-            role="tab"
-            aria-selected={mainTab === 'centrale'}
-            className={
-              mainTab === 'centrale'
-                ? 'border-b-2 border-teal-600 px-4 py-2 text-xs font-bold uppercase text-teal-800'
-                : 'px-4 py-2 text-xs font-bold uppercase text-slate-500 hover:text-slate-700'
-            }
-            onClick={() => setMainTab('centrale')}
-          >
-            Valutazioni centrale
-          </button>
+      <div className="flex flex-wrap gap-1 border-b border-slate-300" role="tablist">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={mainTab === 'centrale'}
+          className={
+            mainTab === 'centrale'
+              ? 'border-b-2 border-teal-600 px-3 py-2 text-xs font-bold uppercase text-teal-800 sm:px-4'
+              : 'px-3 py-2 text-xs font-bold uppercase text-slate-500 hover:text-slate-700 sm:px-4'
+          }
+          onClick={() => setMainTab('centrale')}
+        >
+          Valutazioni centrale
+        </button>
+        {mostraValutazioniMezzo ? (
+          <>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={mainTab === 'msb'}
+              className={
+                mainTab === 'msb'
+                  ? 'border-b-2 border-teal-600 px-3 py-2 text-xs font-bold uppercase text-teal-800 sm:px-4'
+                  : 'px-3 py-2 text-xs font-bold uppercase text-slate-500 hover:text-slate-700 sm:px-4'
+              }
+              onClick={() => setMainTab('msb')}
+            >
+              MSB
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={mainTab === 'msa'}
+              className={
+                mainTab === 'msa'
+                  ? 'border-b-2 border-violet-600 px-3 py-2 text-xs font-bold uppercase text-violet-900 sm:px-4'
+                  : 'px-3 py-2 text-xs font-bold uppercase text-slate-500 hover:text-slate-700 sm:px-4'
+              }
+              onClick={() => setMainTab('msa')}
+            >
+              MSA
+            </button>
+          </>
+        ) : null}
+        {mostraTabPma ? (
           <button
             type="button"
             role="tab"
             aria-selected={mainTab === 'pma'}
             className={
               mainTab === 'pma'
-                ? 'border-b-2 border-violet-600 px-4 py-2 text-xs font-bold uppercase text-violet-900'
-                : 'px-4 py-2 text-xs font-bold uppercase text-slate-500 hover:text-slate-700'
+                ? 'border-b-2 border-violet-600 px-3 py-2 text-xs font-bold uppercase text-violet-900 sm:px-4'
+                : 'px-3 py-2 text-xs font-bold uppercase text-slate-500 hover:text-slate-700 sm:px-4'
             }
             onClick={() => setMainTab('pma')}
           >
             PMA
           </button>
-        </div>
-      ) : null}
+        ) : null}
+      </div>
 
-      {(!mostraTabPma || mainTab === 'centrale') && (
+      {mainTab === 'centrale' && (
         <div className="space-y-4">
           {anagraficaCentralePanel}
           {datiCentraleCentralePanel}
         </div>
       )}
+
+      {mostraValutazioniMezzo && mainTab === 'msb' ? (
+        <ValutazioniSoccorsoTab
+          tipo="MSB"
+          valutazioniList={valutazioniList}
+          schedaSolaVisione={schedaSolaVisione}
+          mezziEvento={mezziEvento}
+          onAdd={addValutazione}
+          onRemove={removeValutazione}
+          onPatchMsb={patchMsbValutazione}
+          onPatchMsa={patchMsaValutazione}
+          onPatchMsaCreatoIl={patchMsaCreatoIl}
+        />
+      ) : null}
+
+      {mostraValutazioniMezzo && mainTab === 'msa' ? (
+        <ValutazioniSoccorsoTab
+          tipo="MSA"
+          valutazioniList={valutazioniList}
+          schedaSolaVisione={schedaSolaVisione}
+          mezziEvento={mezziEvento}
+          onAdd={addValutazione}
+          onRemove={removeValutazione}
+          onPatchMsb={patchMsbValutazione}
+          onPatchMsa={patchMsaValutazione}
+          onPatchMsaCreatoIl={patchMsaCreatoIl}
+        />
+      ) : null}
 
       {mostraTabPma && mainTab === 'pma' ? (
         <div id="modulo-pma" className="min-h-[320px]">

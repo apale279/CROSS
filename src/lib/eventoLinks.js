@@ -1,14 +1,29 @@
 import { missioneAttiva } from '../utils/eventoAutoClose';
 
-/** Missioni collegate a un evento (idUnivoco + compatibilità dati vecchi). */
-export function missioniPerEvento(missioni, evento) {
-  if (!evento) return [];
+function missioneCollegataAEvento(m, evento) {
+  if (!evento || !m) return false;
   const uid = evento.idUnivoco;
   const displayId = evento.idEvento;
-  return (missioni ?? []).filter((m) => {
-    if (uid && m.eventoIdUnivoco) return m.eventoIdUnivoco === uid;
-    return m.eventoCorrelato === displayId;
-  });
+  if (uid && m.eventoIdUnivoco && m.eventoIdUnivoco === uid) return true;
+  if (displayId && m.eventoCorrelato === displayId) return true;
+  return false;
+}
+
+/** Missioni collegate a un evento (idUnivoco + idEvento; entrambi i criteri se disponibili). */
+export function missioniPerEvento(missioni, evento) {
+  if (!evento) return [];
+  return (missioni ?? []).filter((m) => missioneCollegataAEvento(m, evento));
+}
+
+/**
+ * Missione ancora «in servizio» sull’evento (aperta, non fine/annullata).
+ * Include IN POSTO, ARRIVATO H, RIENTRO — il mezzo resta legato all’evento.
+ */
+export function missioneCoperturaEvento(missione) {
+  if (!missione) return false;
+  if (missione.aperta === false) return false;
+  const s = missione.stato ?? '';
+  return s !== 'FINE MISSIONE' && s !== 'ANNULLATA';
 }
 
 /**
@@ -19,7 +34,7 @@ export function eventoSenzaCoperturaMissione(missioni, evento) {
   if (!evento) return false;
   const list = missioniPerEvento(missioni, evento);
   if (!list.length) return true;
-  return !list.some((m) => missioneAttiva(m));
+  return !list.some((m) => missioneCoperturaEvento(m));
 }
 
 /** Pazienti collegati a un evento. */
@@ -28,8 +43,9 @@ export function pazientiPerEvento(pazienti, evento) {
   const uid = evento.idUnivoco;
   const displayId = evento.idEvento;
   return (pazienti ?? []).filter((p) => {
-    if (uid && p.eventoIdUnivoco) return p.eventoIdUnivoco === uid;
-    return p.eventoCorrelato === displayId;
+    if (uid && p.eventoIdUnivoco && p.eventoIdUnivoco === uid) return true;
+    if (displayId && p.eventoCorrelato === displayId) return true;
+    return false;
   });
 }
 

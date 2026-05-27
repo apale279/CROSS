@@ -4,7 +4,7 @@
  * Legge credenziali e tenant da .env.local automaticamente.
  * Doppio clic su esporta-dati.bat per avviare.
  *
- * Output → ./Dati esportati_local/YYYYMMDD-HHmmss/
+ * Output → ./Datiexport_local/YYYYMMDD-HHmmss/
  *   eventi.csv  missioni.csv  mezzi.csv  pazienti.csv  valutazioni.csv
  *   viewer.html
  *   reports/evento_E1.html  reports/paziente_P1.html  …
@@ -17,7 +17,7 @@ import { fileURLToPath } from 'url';
 
 const require = createRequire(import.meta.url);
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const ROOT = join(__dirname, '..');
+const ROOT = join(__dirname, '..'); // CROSS\ (dove sta .env.local e node_modules)
 
 // ─── Parser .env.local ────────────────────────────────────────────────────────
 function parseEnvFile(filePath) {
@@ -31,7 +31,6 @@ function parseEnvFile(filePath) {
     if (eqIdx === -1) continue;
     const key = line.slice(0, eqIdx).trim();
     let val = line.slice(eqIdx + 1).trim();
-    // Rimuovi virgolette esterne se presenti
     if ((val.startsWith('"') && val.endsWith('"')) ||
         (val.startsWith("'") && val.endsWith("'"))) {
       val = val.slice(1, -1);
@@ -56,7 +55,6 @@ try {
 // ─── Service account ──────────────────────────────────────────────────────────
 let serviceAccount;
 
-// 1) Prova FIREBASE_SERVICE_ACCOUNT_JSON da .env.local
 if (ENV.FIREBASE_SERVICE_ACCOUNT_JSON) {
   try {
     serviceAccount = JSON.parse(ENV.FIREBASE_SERVICE_ACCOUNT_JSON);
@@ -66,10 +64,8 @@ if (ENV.FIREBASE_SERVICE_ACCOUNT_JSON) {
   }
 }
 
-// 2) Fallback: file JSON nella root
 if (!serviceAccount) {
   const candidates = [
-    join(ROOT, 'cross-8bb72-firebase-adminsdk-fbsvc-fc15d3e3a9.json'),
     ...require('fs').readdirSync(ROOT)
       .filter(f => f.includes('firebase-adminsdk') && f.endsWith('.json'))
       .map(f => join(ROOT, f)),
@@ -98,16 +94,16 @@ const db = admin.firestore();
 // ─── Utility ──────────────────────────────────────────────────────────────────
 function tsStr(val) {
   if (!val) return '';
-  if (val && typeof val === 'object' && val._seconds !== undefined)
+  if (typeof val === 'object' && val._seconds !== undefined)
     return new Date(val._seconds * 1000).toLocaleString('it-IT');
-  if (val && typeof val.toDate === 'function')
+  if (typeof val === 'object' && typeof val.toDate === 'function')
     return val.toDate().toLocaleString('it-IT');
   return '';
 }
 
 function flatVal(val) {
   if (val === null || val === undefined) return '';
-  if (val && typeof val === 'object' && (val._seconds !== undefined || typeof val.toDate === 'function'))
+  if (typeof val === 'object' && (val._seconds !== undefined || typeof val.toDate === 'function'))
     return tsStr(val);
   if (Array.isArray(val))
     return val.map(v => (typeof v === 'object' ? JSON.stringify(v) : String(v ?? ''))).join(' | ');
@@ -199,7 +195,6 @@ async function selectTenant() {
 
   const docs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
 
-  // Usa tenant da .env.local se presente e valido
   if (TENANT_ID_ENV) {
     const found = docs.find(d => d.id === TENANT_ID_ENV);
     if (found) {
@@ -208,13 +203,11 @@ async function selectTenant() {
     }
   }
 
-  // Auto-selezione se unico
   if (docs.length === 1) {
     console.log(`✅  Tenant rilevato: ${docs[0].id} (${docs[0].nome ?? ''})`);
     return docs[0].id;
   }
 
-  // Richiede input solo se multiplo e non in env
   const { createInterface } = await import('readline');
   console.log('\nManifestazioni disponibili:');
   docs.forEach((d, i) => console.log(`  ${i+1}. ${d.id}  —  ${d.nome ?? ''}`));
@@ -256,7 +249,6 @@ function flattenPmaScheda(scheda) {
       flat[`pma_${k}`] = flatVal(v);
     }
   }
-  // Ultimi parametri vitali (riga più recente)
   if (Array.isArray(scheda.parametri_vitali) && scheda.parametri_vitali.length) {
     const last = [...scheda.parametri_vitali].sort((a,b)=>(b.registrato_at?._seconds??0)-(a.registrato_at?._seconds??0))[0];
     flat['pma_ultimi_parametri'] = `GCS:${last.gcs??'?'} FC:${last.fc??'?'} PA:${last.pa_sistolica??'?'}/${last.pa_diastolica??'?'} SpO2:${last.spo2_aa??'?'} FR:${last.fr??'?'} T:${last.temperatura??'?'}`;
@@ -317,7 +309,6 @@ function buildPazienteHtml(pz, valutazioni, exportDate) {
   const nome  = [pz.nome, pz.cognome].filter(Boolean).join(' ') || '—';
   const colore = pazienteColoreExport(pz);
 
-  // Parametri vitali
   const pvList = [...(Array.isArray(scheda.parametri_vitali) ? scheda.parametri_vitali : [])]
     .sort((a,b)=>(a.registrato_at?._seconds??0)-(b.registrato_at?._seconds??0));
   const pvRows = pvList.length ? pvList.map(r=>`<tr>
@@ -328,7 +319,6 @@ function buildPazienteHtml(pz, valutazioni, exportDate) {
     <td>${r.temperatura??'—'}</td><td>${r.nrs??'—'}</td></tr>`).join('')
     : `<tr><td colspan="10" class="nd" style="text-align:center;padding:4mm">Nessun parametro registrato</td></tr>`;
 
-  // Farmaci
   const farmList = [...(Array.isArray(scheda.farmaci) ? scheda.farmaci : [])]
     .sort((a,b)=>(a.registrato_at?._seconds??0)-(b.registrato_at?._seconds??0));
   const farmRows = farmList.length ? farmList.map(f=>`<tr>
@@ -336,7 +326,6 @@ function buildPazienteHtml(pz, valutazioni, exportDate) {
     <td>${esc(f.dose||'—')}</td><td>${esc(f.via||'—')}</td></tr>`).join('')
     : `<tr><td colspan="4" class="nd" style="text-align:center;padding:4mm">Nessun farmaco somministrato</td></tr>`;
 
-  // Rivalutazioni
   const rivList = [...(Array.isArray(scheda.rivalutazioni) ? scheda.rivalutazioni : [])]
     .sort((a,b)=>(a.creato_at?._seconds??0)-(b.creato_at?._seconds??0));
   const rivRows = rivList.length ? rivList.map(r=>`<tr>
@@ -344,24 +333,20 @@ function buildPazienteHtml(pz, valutazioni, exportDate) {
     <td style="white-space:pre-wrap">${esc(r.testo||'—')}</td></tr>`).join('')
     : `<tr><td colspan="3" class="nd" style="text-align:center;padding:4mm">Nessuna rivalutazione</td></tr>`;
 
-  // EO rapido
   const eoMap = {EO_GENERALE:'Generale',EO_NEUROLOGICO:'Neurologico',EO_CUTE:'Cute',EO_TORACE:'Torace',EO_ADDOME:'Addome',EO_CAPO_COLLO:'Capo/Collo'};
   const eoHtml = Object.entries(eoMap).map(([k,l])=>{
     const arr = Array.isArray(scheda[k]) ? scheda[k] : [];
     return arr.length ? `<div style="margin-bottom:2mm"><b>${l}:</b> ${arr.map(v=>`<span class="tag">${esc(v)}</span>`).join('')}</div>` : '';
   }).join('') || `<span class="nd">Non compilato</span>`;
 
-  // Prestazioni
   const prestHtml = (Array.isArray(scheda.prestazioni_sel) && scheda.prestazioni_sel.length)
     ? scheda.prestazioni_sel.map(p=>`<span class="tag">${esc(p)}</span>`).join('')
     : `<span class="nd">Nessuna</span>`;
 
-  // Lesioni
   const lesHtml = (Array.isArray(scheda.lesioni) && scheda.lesioni.length)
     ? scheda.lesioni.sort((a,b)=>a.n-b.n).map(l=>`<div class="field"><span class="tag">#${l.n} ${l.vista==='front'?'Fronte':'Retro'}</span> ${esc(l.descrizione||'—')}</div>`).join('')
     : `<span class="nd">Nessun marker lesioni</span>`;
 
-  // Valutazioni soccorso
   const valHtml = valutazioni.length ? valutazioni.map(v=>{
     const tipo = v.tipo || 'MSB';
     const det  = tipo === 'MSA' ? v.msaDetails : v.msbDetails;
@@ -390,7 +375,6 @@ function buildPazienteHtml(pz, valutazioni, exportDate) {
   }).join('') : `<p class="nd">Nessuna valutazione soccorritore</p>`;
 
   const esitoLabel = {dimesso:'Dimesso',invio_ps:'Invio in PS',rifiuta_invio_ps:'Rifiuto invio PS',riaffidato:'Riaffidato',deceduto:'Deceduto',si_allontana:'Si allontana'}[scheda.dimissione_esito] || scheda.dimissione_esito || '—';
-
   const hasPma = scheda && Object.keys(scheda).some(k => scheda[k] !== null && scheda[k] !== '' && scheda[k] !== undefined && !(Array.isArray(scheda[k]) && scheda[k].length === 0));
 
   return `<!DOCTYPE html><html lang="it"><head>
@@ -584,25 +568,13 @@ function buildEventoHtml(evento, missioni, pazienti, valutazioniPerPz, exportDat
 }
 
 // ─── Viewer HTML ──────────────────────────────────────────────────────────────
-
-/**
- * Converte ricorsivamente un valore Firebase in qualcosa di sicuro per JSON embed:
- * - Timestamp  → stringa data italiana
- * - base64/firma → rimosso
- * - Array/oggetti annidati → ricorsivi
- * - Undefined/null → stringa vuota
- */
 function deepClean(val, key = '') {
   if (val === null || val === undefined) return '';
-  // Timestamp firebase-admin: ha _seconds e _nanoseconds
-  if (typeof val === 'object' && typeof val._seconds === 'number') {
+  if (typeof val === 'object' && typeof val._seconds === 'number')
     return new Date(val._seconds * 1000).toLocaleString('it-IT');
-  }
-  // Timestamp con toDate()
   if (typeof val === 'object' && typeof val.toDate === 'function') {
     try { return val.toDate().toLocaleString('it-IT'); } catch { return ''; }
   }
-  // Campi base64/firma: troppo grandi e inutili nel viewer
   if (typeof val === 'string') {
     const lk = key.toLowerCase();
     if (lk.includes('base64') || lk.includes('firma') || lk.includes('signature')) return '(firma)';
@@ -611,40 +583,34 @@ function deepClean(val, key = '') {
   }
   if (typeof val === 'number' || typeof val === 'boolean') return val;
   if (Array.isArray(val)) {
-    // Array di oggetti complessi → conteggio; array di stringhe → join
     if (val.length === 0) return '';
     if (typeof val[0] === 'string') return val.join(', ');
     return `[${val.length} elementi]`;
   }
   if (typeof val === 'object') {
-    // Oggetto generico → appiattisci come stringa leggibile
     const parts = Object.entries(val)
       .filter(([k]) => !k.toLowerCase().includes('base64') && !k.toLowerCase().includes('firma'))
       .map(([k, v]) => `${k}:${deepClean(v, k)}`)
-      .slice(0, 8); // max 8 campi
+      .slice(0, 8);
     return parts.join(' | ');
   }
   return String(val);
 }
 
-/** Prepara un array di documenti Firestore per embedding sicuro nel viewer */
 function prepareRows(rows, extraFields = {}) {
   return rows.map(row => {
     const out = {};
     for (const [k, v] of Object.entries(row)) {
-      // Salta campi interni/inutili nel viewer
       if (['pmaScheda','storicoStati','tratteMissione',
            'firma_paziente_base64','dimissione_firma_medico_base64',
            'manifestationId'].includes(k)) continue;
       out[k] = deepClean(v, k);
     }
-    // Aggiungi campi extra pre-calcolati
     Object.assign(out, extraFields instanceof Function ? extraFields(row) : {});
     return out;
   });
 }
 
-/** Serializza per embed sicuro: protegge </script> e caratteri speciali */
 function safeJsonEmbed(obj) {
   return JSON.stringify(obj)
     .replace(/<\/script>/gi, '<\\/script>')
@@ -653,58 +619,52 @@ function safeJsonEmbed(obj) {
 }
 
 function buildViewer(tenantId, eventi, missioni, pazienti, valutazioni, exportDate) {
-
-  // ── Pre-processa tutti i dati lato Node: Timestamp→stringa, base64 rimosso ──
   const PRIO = {
     eventi:     ['_report','idEvento','tipoEvento','luogo','colore','codiceColore','stato','apertura','createdAt','chiusuraIl'],
     missioni:   ['idMissione','mezzo','stato','eventoCorrelato','codiceColoreMissione','ospedaleDestinazione','apertura','esitoMissione'],
-    pazienti:   ['_report','idPaziente','tipoPz','eventoCorrelato','pettorale','nome','cognome','codiceColoreSanitario','stato','statoPzPma','esito','mezzo','idMissione','ospedaleDestinazione','destinazionePmaId','apertura','arrivatoHAt','pma_codice_colore','pma_dimissione_esito','pma_parametri_n','pma_farmaci_n'],
+    pazienti:   ['_report','idPaziente','tipoPz','eventoCorrelato','pettorale','nome','cognome','codiceColoreSanitario','stato','statoPzPma','esito','mezzo','idMissione','ospedaleDestinazione','apertura','arrivatoHAt','pma_codice_colore','pma_dimissione_esito','pma_parametri_n','pma_farmaci_n'],
     valutazioni:['pazienteId','pettorale','nome','cognome','tipo','creatoIl','mezzo','testo'],
   };
 
-  // Helper: sanitizza ID per nome file (stesso algoritmo di main())
   const sanId = id => String(id || '').replace(/[^a-zA-Z0-9_-]/g, '_');
 
-  // Pazienti: separa pmaScheda in campi flat leggibili + link report
   const pzView = prepareRows(pazienti, row => {
     const s = row.pmaScheda || {};
     const rid = sanId(row.idPaziente || row._docId);
     return {
       _report: rid ? `reports/paziente_${rid}.html` : '',
       codiceColoreSanitario: pazienteColoreExport(row),
-      pma_codice_colore:  s.codice_colore  || '',
+      pma_codice_colore:    s.codice_colore  || '',
       pma_dimissione_esito: s.dimissione_esito || '',
-      pma_dimesso_at:     deepClean(s.dimesso_at, 'dimesso_at'),
-      pma_allergie:       s.allergie       || '',
-      pma_apr:            s.apr            || '',
-      pma_app:            s.app            || '',
-      pma_eo_note:        s.eo_note        || '',
-      pma_parametri_n:    Array.isArray(s.parametri_vitali) ? s.parametri_vitali.length : 0,
-      pma_farmaci_n:      Array.isArray(s.farmaci)          ? s.farmaci.length          : 0,
-      pma_rivalutazioni_n:Array.isArray(s.rivalutazioni)    ? s.rivalutazioni.length    : 0,
-      pma_prestazioni:    Array.isArray(s.prestazioni_sel)  ? s.prestazioni_sel.join(', ') : '',
+      pma_dimesso_at:       deepClean(s.dimesso_at, 'dimesso_at'),
+      pma_allergie:         s.allergie       || '',
+      pma_apr:              s.apr            || '',
+      pma_app:              s.app            || '',
+      pma_eo_note:          s.eo_note        || '',
+      pma_parametri_n:      Array.isArray(s.parametri_vitali) ? s.parametri_vitali.length : 0,
+      pma_farmaci_n:        Array.isArray(s.farmaci)          ? s.farmaci.length          : 0,
+      pma_rivalutazioni_n:  Array.isArray(s.rivalutazioni)    ? s.rivalutazioni.length    : 0,
+      pma_prestazioni:      Array.isArray(s.prestazioni_sel)  ? s.prestazioni_sel.join(', ') : '',
       pma_ultimi_par: (() => {
         const pvl = Array.isArray(s.parametri_vitali) ? s.parametri_vitali : [];
         if (!pvl.length) return '';
         const last = [...pvl].sort((a,b)=>(b.registrato_at?._seconds??0)-(a.registrato_at?._seconds??0))[0];
-        return `GCS:${last.gcs??'?'} FC:${last.fc??'?'} PA:${last.pa_sistolica??'?'}/${last.pa_diastolica??'?'} SpO₂:${last.spo2_aa??'?'}`;
+        return `GCS:${last.gcs??'?'} FC:${last.fc??'?'} PA:${last.pa_sistolica??'?'}/${last.pa_diastolica??'?'} SpO2:${last.spo2_aa??'?'}`;
       })(),
     };
   });
 
-  // Eventi: aggiunge link report
-  const eventiView = prepareRows(eventi, row => {
-    const rid = sanId(row.idEvento || row._docId);
-    return { _report: rid ? `reports/evento_${rid}.html` : '' };
-  });
+  const eventiView     = prepareRows(eventi, row => ({
+    _report: sanId(row.idEvento || row._docId) ? `reports/evento_${sanId(row.idEvento || row._docId)}.html` : '',
+  }));
   const missioniView   = prepareRows(missioni);
   const valutazioniView= prepareRows(valutazioni);
 
-  const jsPRIO  = safeJsonEmbed(PRIO);
-  const jsEv    = safeJsonEmbed(eventiView);
-  const jsMis   = safeJsonEmbed(missioniView);
-  const jsPz    = safeJsonEmbed(pzView);
-  const jsVal   = safeJsonEmbed(valutazioniView);
+  const jsPRIO = safeJsonEmbed(PRIO);
+  const jsEv   = safeJsonEmbed(eventiView);
+  const jsMis  = safeJsonEmbed(missioniView);
+  const jsPz   = safeJsonEmbed(pzView);
+  const jsVal  = safeJsonEmbed(valutazioniView);
 
   return `<!DOCTYPE html><html lang="it"><head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -766,7 +726,6 @@ try {
     valutazioni: ${jsVal}
   };
   var P = ${jsPRIO};
-  // Colonne da NON mostrare nel viewer
   var HID = new Set(['_docId','idUnivoco','eventoIdUnivoco','missioneIdUnivoco','manifestationId',
     'storicoStati','tratteMissione','idPazienteRef','pmaSchedaInizializzata',
     'aperta','noteDiario','telegramChatId']);
@@ -781,7 +740,7 @@ try {
 
   function fs(v) {
     if (v == null || v === '') return '';
-    if (typeof v === 'boolean') return v ? 'Sì' : 'No';
+    if (typeof v === 'boolean') return v ? 'Si' : 'No';
     if (typeof v === 'number') return String(v);
     if (typeof v === 'object') return JSON.stringify(v).slice(0,80);
     return String(v);
@@ -794,12 +753,11 @@ try {
   }
 
   function cell(col, val) {
-    // Link report PDF
     if (col === '_report') {
       if (!val) return '<span style="color:#ccc">—</span>';
-      return '<a href="' + val + '" target="_blank" style="display:inline-block;background:#1a237e;color:#fff;padding:3px 10px;border-radius:4px;font-size:11px;font-weight:600;text-decoration:none;white-space:nowrap">📄 Apri&nbsp;PDF</a>';
+      return '<a href="' + val + '" target="_blank" style="display:inline-block;background:#1a237e;color:#fff;padding:3px 10px;border-radius:4px;font-size:11px;font-weight:600;text-decoration:none;white-space:nowrap">📄 Apri PDF</a>';
     }
-    var COLORE_COLS = ['colore','codiceColore','codiceColoreSanitario','codiceColoreMissione','pma_codice_colore','coloreEvento'];
+    var COLORE_COLS = ['colore','codiceColore','codiceColoreSanitario','codiceColoreMissione','pma_codice_colore'];
     if (COLORE_COLS.indexOf(col) !== -1) return badge(val);
     var s = fs(val);
     if (!s) return '<span style="color:#ccc">—</span>';
@@ -811,8 +769,7 @@ try {
   function getCols(tab) {
     var rows = D[tab];
     if (!rows || !rows.length) return [];
-    var all = [];
-    var seen = {};
+    var all = [], seen = {};
     rows.forEach(function(r) { Object.keys(r).forEach(function(k){ if(!seen[k]){ seen[k]=1; all.push(k); } }); });
     all = all.filter(function(c){ return !HID.has(c); });
     var prio = (P[tab] || []).filter(function(c){ return seen[c]; });
@@ -835,22 +792,20 @@ try {
       return;
     }
 
-    // Header con sort
     hdr.innerHTML = '<tr>' + cols.map(function(c){
-      var icon = ST.sc[tab]===c ? (ST.sd[tab]===1?'▲':'▼') : '↕';
+      var icon = ST.sc[tab]===c ? (ST.sd[tab]===1 ? '▲' : '▼') : '↕';
       var label = c === '_report' ? '📄 PDF' : c;
-      var sortable = c === '_report' ? '' : ' onclick="sortBy(&quot;'+tab+'&quot;,&quot;'+c+'&quot;)"';
-      return '<th'+sortable+' title="'+c+'" style="'+( c === '_report' ? 'min-width:80px;cursor:default' : '')+'">' + label + (c === '_report' ? '' : ' <span style="opacity:.5;font-size:9px">'+icon+'</span>') + '</th>';
+      var sortAttr = c === '_report' ? '' : ' onclick="sortBy(&quot;'+tab+'&quot;,&quot;'+c+'&quot;)"';
+      var style = c === '_report' ? ' style="min-width:90px;cursor:default"' : '';
+      return '<th'+sortAttr+style+' title="'+c+'">' + label + (c === '_report' ? '' : ' <span style="opacity:.5;font-size:9px">'+icon+'</span>') + '</th>';
     }).join('') + '</tr>';
 
-    // Filtro ricerca
     var q = (document.getElementById('s-'+tab)||{value:''}).value.toLowerCase();
     var vis = rows.filter(function(r){
       if (!q) return true;
       return cols.some(function(c){ return fs(r[c]).toLowerCase().indexOf(q) !== -1; });
     });
 
-    // Ordinamento
     var sc = ST.sc[tab];
     if (sc) {
       var d = ST.sd[tab] || 1;
@@ -917,14 +872,13 @@ try {
     if (el) el.classList.add('active');
   };
 
-  // Init
   ['eventi','missioni','pazienti','valutazioni'].forEach(function(t){ renderStats(t); renderTable(t); });
 
 } catch(e) {
   var errEl = document.getElementById('global-err');
   if (errEl) {
     errEl.style.display = 'block';
-    errEl.innerHTML = '<div class="err">⚠️ Errore JavaScript nel viewer: <b>' + e.message + '</b><br><small>' + e.stack + '</small></div>';
+    errEl.innerHTML = '<div class="err">&#9888; Errore JavaScript: <b>' + e.message + '</b><br><small>' + e.stack + '</small></div>';
   }
   console.error('Viewer error:', e);
 }
@@ -956,10 +910,10 @@ async function main() {
   const valPerPz = {};
   valutazioni.forEach(v => { (valPerPz[v.pazienteDocId] ??= []).push(v); });
 
-  // Cartella output
+  // Output: sottocartella datata dentro Datiexport_local\
   const now = new Date();
   const ts  = now.toISOString().replace(/[:.]/g,'-').slice(0,19);
-  const outDir = join(ROOT, 'Dati esportati_local', ts);
+  const outDir = join(__dirname, ts);   // <-- stessa cartella dello script
   const repDir = join(outDir, 'reports');
   mkdirSync(repDir, { recursive: true });
   const exportDate = now.toLocaleString('it-IT');
@@ -968,17 +922,17 @@ async function main() {
   console.log('\n📄  CSV…');
   const COLS_EV  = ['_docId','idEvento','chiamante','tipoEvento','dettaglioEvento','tipoLuogo','luogo','luogo_fisico','indirizzo','meteo','colore','noteEvento','stato','apertura','operativoTerminato','chiusuraIl','noteChiusura','tipoChiusuraEvento'];
   const COLS_MIS = ['_docId','idMissione','eventoCorrelato','mezzo','stato','aperta','codiceColoreMissione','esitoMissione','ospedaleDestinazione','tipoTrasporto','equipaggio','noteMissione','apertura','statoDa'];
-  const COLS_MEZ = ['_docId','sigla','tipo','targa','radio','statoMezzo','operativo','noteOperativo','stazionamentoPredefinito','solamente_esterno','stazione_indirizzo','stazione_luogo_fisico','dettaglio_stazionamento','posizioneReale_lat','posizioneReale_lng','creatoIl'];
+  const COLS_MEZ = ['_docId','sigla','tipo','targa','radio','statoMezzo','operativo','noteOperativo','stazionamentoPredefinito','solamente_esterno','stazione_indirizzo','stazione_luogo_fisico','posizioneReale_lat','posizioneReale_lng','creatoIl'];
   const COLS_VAL = ['pazienteDocId','pazienteId','pettorale','nome','cognome','tipo','creatoIl','mezzo','testo'];
-  const COLS_PZ  = ['_docId','idPaziente','idUnivoco','tipoPz','eventoCorrelato','eventoIdUnivoco','pettorale','nome','cognome','eta','sesso','dataNascita','codiceColoreSanitario','stato','statoPzPma','esito','esitoAltro','mezzo','idMissione','missioneIdUnivoco','ospedaleDestinazione','destinazionePmaId','pmaId','apertura','arrivatoHAt','aperta','notePaziente','soreuNumeroMissione','soreuCodice','pma_codice_colore','pma_dimissione_esito','pma_dimesso_at','pma_parametri_vitali_n','pma_farmaci_n','pma_rivalutazioni_n','pma_ultimi_parametri','pma_ultimi_parametri_ore','pma_farmaci_lista','pma_allergie','pma_apr','pma_app'];
+  const COLS_PZ  = ['_docId','idPaziente','idUnivoco','tipoPz','eventoCorrelato','eventoIdUnivoco','pettorale','nome','cognome','eta','sesso','dataNascita','codiceColoreSanitario','stato','statoPzPma','esito','esitoAltro','mezzo','idMissione','missioneIdUnivoco','ospedaleDestinazione','destinazionePmaId','pmaId','apertura','arrivatoHAt','notePaziente','soreuNumeroMissione','soreuCodice','pma_codice_colore','pma_dimissione_esito','pma_dimesso_at','pma_parametri_vitali_n','pma_farmaci_n','pma_rivalutazioni_n','pma_ultimi_parametri','pma_ultimi_parametri_ore','pma_farmaci_lista','pma_allergie','pma_apr','pma_app'];
 
-  const pzCsv = pazienti.map(flattenPazienteForCsv);
+  const pzCsv   = pazienti.map(flattenPazienteForCsv);
   const mezziCsv = mezzi.map(flattenMezzoForCsv);
-  writeFileSync(join(outDir,'eventi.csv'),    toCsvOrdered(eventi,    COLS_EV),  'utf8');
-  writeFileSync(join(outDir,'missioni.csv'),  toCsvOrdered(missioni,  COLS_MIS), 'utf8');
-  writeFileSync(join(outDir,'mezzi.csv'),     toCsvOrdered(mezziCsv,  COLS_MEZ), 'utf8');
-  writeFileSync(join(outDir,'pazienti.csv'),  toCsvOrdered(pzCsv,     COLS_PZ),  'utf8');
-  writeFileSync(join(outDir,'valutazioni.csv'),toCsvOrdered(valutazioni,COLS_VAL),'utf8');
+  writeFileSync(join(outDir,'eventi.csv'),     toCsvOrdered(eventi,     COLS_EV),  'utf8');
+  writeFileSync(join(outDir,'missioni.csv'),   toCsvOrdered(missioni,   COLS_MIS), 'utf8');
+  writeFileSync(join(outDir,'mezzi.csv'),      toCsvOrdered(mezziCsv,   COLS_MEZ), 'utf8');
+  writeFileSync(join(outDir,'pazienti.csv'),   toCsvOrdered(pzCsv,      COLS_PZ),  'utf8');
+  writeFileSync(join(outDir,'valutazioni.csv'),toCsvOrdered(valutazioni, COLS_VAL), 'utf8');
   console.log('   ✅  5 CSV generati');
 
   // Viewer
@@ -1003,18 +957,18 @@ async function main() {
   console.log(`   ✅  ${pazienti.length} schede paziente`);
 
   console.log(`
-╔══════════════════════════════════════════════╗
-║  ✅  Export completato!                      ║
-║                                              ║
-║  📁  Dati esportati_local/${ts.slice(0,10)}/║
-║      eventi.csv  missioni.csv  mezzi.csv      ║
-║      pazienti.csv  valutazioni.csv           ║
-║      viewer.html                             ║
-║      reports/ (${String(eventi.length+pazienti.length).padEnd(3)} file HTML)               ║
-╚══════════════════════════════════════════════╝
+╔══════════════════════════════════════════════════╗
+║  ✅  Export completato!                          ║
+║                                                  ║
+║  📁  Datiexport_local/${ts.slice(0,10)}/         ║
+║      eventi.csv  missioni.csv  mezzi.csv          ║
+║      pazienti.csv  valutazioni.csv               ║
+║      viewer.html  (4 tab + bottoni PDF)          ║
+║      reports/ (${String(eventi.length+pazienti.length).padEnd(3)} file HTML → Stampa/PDF)    ║
+╚══════════════════════════════════════════════════╝
 
-  Per PDF: apri un file reports/ in Chrome
-           poi Ctrl+P → Salva come PDF
+  Per PDF: nel viewer clicca "📄 Apri PDF" su un paziente/evento
+           poi usa il tasto "Stampa / PDF" → Salva come PDF
 `);
   process.exit(0);
 }

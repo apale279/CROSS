@@ -738,6 +738,19 @@
   margin-right: auto;
 }
 
+/* Scheda paziente PMA smartphone — chrome minimale */
+.pma-scheda-mobile-chrome {
+  touch-action: pan-y;
+}
+
+.pma-scheda-mobile-tabs {
+  scrollbar-width: none;
+}
+
+.pma-scheda-mobile-tabs::-webkit-scrollbar {
+  display: none;
+}
+
 @media (max-width: 640px) {
   .pma-tabs {
     justify-content: center;

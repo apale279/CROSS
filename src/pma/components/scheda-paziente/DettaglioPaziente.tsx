@@ -26,6 +26,10 @@ export type DettaglioPazienteProps = {
   statoCentraleLabel?: string | null
   /** Se true: badge «chiuso centrale» invece di confondere con apertura scheda PMA. */
   chiusoCentrale?: boolean
+  /** Smartphone PMA: header compatto (ID + tab subito, massimo spazio al form). */
+  mobileFocused?: boolean
+  /** Avvisi sotto i tab (sblocco scheda, diario) — solo mobile. */
+  alertSlot?: ReactNode
 }
 
 export function DettaglioPaziente({
@@ -40,10 +44,18 @@ export function DettaglioPaziente({
   statoPmaLabel = null,
   statoCentraleLabel = null,
   chiusoCentrale = false,
+  mobileFocused = false,
+  alertSlot = null,
 }: DettaglioPazienteProps) {
   const cross = variant === 'cross'
   const haStatoPma = Boolean(statoPmaLabel)
   const haStatoCentrale = Boolean(statoCentraleLabel)
+  const compact = mobileFocused && cross
+
+  const statusParts: string[] = [CODICE_COLORE_LABEL[p.codice_colore]]
+  if (haStatoPma && statoPmaLabel) statusParts.push(`PMA: ${statoPmaLabel}`)
+  if (haStatoCentrale && statoCentraleLabel) statusParts.push(`Centrale: ${statoCentraleLabel}`)
+  const statusLine = statusParts.join(' · ')
 
   return (
     <div
@@ -53,70 +65,100 @@ export function DettaglioPaziente({
           : 'flex w-full min-w-0 flex-col bg-white'
       }
     >
-      <div className="shrink-0 border-b border-slate-200 bg-white py-2">
-        <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-2 px-3 sm:px-4">
-          <div className="flex flex-wrap items-center gap-2">
-            <span
-              className={`pma-bar__sdot ${SDOT[p.codice_colore]}`}
-              aria-label={`Codice colore ${CODICE_COLORE_LABEL[p.codice_colore]}`}
-            />
-            <span className="text-sm font-medium text-slate-800">
-              {CODICE_COLORE_LABEL[p.codice_colore]}
-              {haStatoPma && (
-                <>
-                  {' '}
-                  · PMA: <strong>{statoPmaLabel}</strong>
-                </>
-              )}
-              {haStatoCentrale && (
-                <>
-                  {' '}
-                  · Centrale: <strong>{statoCentraleLabel}</strong>
-                </>
-              )}
-              {!haStatoPma && !haStatoCentrale && (
-                <> · {PAZIENTE_STATO_LABEL[p.stato]}</>
-              )}
-            </span>
-            {chiusoCentrale ? (
-              <span className="rounded bg-slate-200 px-2 py-0.5 text-xs font-semibold text-slate-700">
-                Chiuso centrale
-              </span>
-            ) : haStatoPma ? (
+      <div
+        className={
+          compact
+            ? 'pma-scheda-mobile-chrome sticky top-0 z-20 shrink-0 border-b border-slate-200 bg-white shadow-sm'
+            : 'shrink-0 border-b border-slate-200 bg-white py-2'
+        }
+      >
+        {compact ? (
+          <>
+            <div className="flex items-center gap-2 px-3 pt-2 pb-0.5">
               <span
-                className={
-                  cross
-                    ? `rounded px-2 py-0.5 text-xs font-semibold ${
-                        p.aperto ? 'bg-emerald-100 text-emerald-900' : 'bg-slate-200 text-slate-700'
-                      }`
-                    : `pma-bar__badge ${p.aperto ? 'pma-bar__badge--open' : 'pma-bar__badge--closed'}`
-                }
-              >
-                {p.aperto ? (cross ? 'Scheda PMA attiva' : 'Aperta') : cross ? 'Scheda PMA chiusa' : 'Chiusa'}
-              </span>
-            ) : (
+                className={`pma-bar__sdot shrink-0 ${SDOT[p.codice_colore]}`}
+                aria-label={`Codice colore ${CODICE_COLORE_LABEL[p.codice_colore]}`}
+              />
+              <code className="font-mono text-xl font-bold leading-none text-teal-800">
+                {p.id_paziente_visibile}
+              </code>
+              {chiusoCentrale ? (
+                <span className="ml-auto shrink-0 rounded bg-slate-200 px-1.5 py-0.5 text-[10px] font-semibold text-slate-700">
+                  Chiuso C.
+                </span>
+              ) : null}
+            </div>
+            <p className="truncate px-3 pb-1 text-[11px] text-slate-600" title={statusLine}>
+              {statusLine}
+            </p>
+          </>
+        ) : (
+          <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-2 px-3 sm:px-4">
+            <div className="flex flex-wrap items-center gap-2">
               <span
-                className={
-                  cross
-                    ? `rounded px-2 py-0.5 text-xs font-semibold ${
-                        p.aperto ? 'bg-emerald-100 text-emerald-900' : 'bg-slate-200 text-slate-700'
-                      }`
-                    : `pma-bar__badge ${p.aperto ? 'pma-bar__badge--open' : 'pma-bar__badge--closed'}`
-                }
-              >
-                {p.aperto ? (cross ? 'Scheda aperta' : 'Aperta') : cross ? 'Scheda chiusa' : 'Chiusa'}
+                className={`pma-bar__sdot ${SDOT[p.codice_colore]}`}
+                aria-label={`Codice colore ${CODICE_COLORE_LABEL[p.codice_colore]}`}
+              />
+              <span className="text-sm font-medium text-slate-800">
+                {CODICE_COLORE_LABEL[p.codice_colore]}
+                {haStatoPma && (
+                  <>
+                    {' '}
+                    · PMA: <strong>{statoPmaLabel}</strong>
+                  </>
+                )}
+                {haStatoCentrale && (
+                  <>
+                    {' '}
+                    · Centrale: <strong>{statoCentraleLabel}</strong>
+                  </>
+                )}
+                {!haStatoPma && !haStatoCentrale && (
+                  <> · {PAZIENTE_STATO_LABEL[p.stato]}</>
+                )}
               </span>
-            )}
+              {chiusoCentrale ? (
+                <span className="rounded bg-slate-200 px-2 py-0.5 text-xs font-semibold text-slate-700">
+                  Chiuso centrale
+                </span>
+              ) : haStatoPma ? (
+                <span
+                  className={
+                    cross
+                      ? `rounded px-2 py-0.5 text-xs font-semibold ${
+                          p.aperto ? 'bg-emerald-100 text-emerald-900' : 'bg-slate-200 text-slate-700'
+                        }`
+                      : `pma-bar__badge ${p.aperto ? 'pma-bar__badge--open' : 'pma-bar__badge--closed'}`
+                  }
+                >
+                  {p.aperto ? (cross ? 'Scheda PMA attiva' : 'Aperta') : cross ? 'Scheda PMA chiusa' : 'Chiusa'}
+                </span>
+              ) : (
+                <span
+                  className={
+                    cross
+                      ? `rounded px-2 py-0.5 text-xs font-semibold ${
+                          p.aperto ? 'bg-emerald-100 text-emerald-900' : 'bg-slate-200 text-slate-700'
+                        }`
+                      : `pma-bar__badge ${p.aperto ? 'pma-bar__badge--open' : 'pma-bar__badge--closed'}`
+                  }
+                >
+                  {p.aperto ? (cross ? 'Scheda aperta' : 'Aperta') : cross ? 'Scheda chiusa' : 'Chiusa'}
+                </span>
+              )}
+            </div>
+            <code className="font-mono text-sm font-medium text-slate-700">{p.id_paziente_visibile}</code>
           </div>
-          <code className="font-mono text-sm font-medium text-slate-700">{p.id_paziente_visibile}</code>
-        </div>
+        )}
       </div>
 
       <nav
         className={
-          cross
-            ? 'flex shrink-0 flex-wrap gap-1 border-b border-slate-200 bg-white px-3 sm:px-4'
-            : 'pma-tabs shrink-0'
+          compact
+            ? 'pma-scheda-mobile-tabs flex shrink-0 gap-0.5 overflow-x-auto border-b border-slate-200 bg-white px-2 pb-px [-webkit-overflow-scrolling:touch]'
+            : cross
+              ? 'flex shrink-0 flex-wrap gap-1 border-b border-slate-200 bg-white px-3 sm:px-4'
+              : 'pma-tabs shrink-0'
         }
         aria-label="Sezioni scheda paziente"
         role="tablist"
@@ -134,13 +176,19 @@ export function DettaglioPaziente({
               tabIndex={selected ? 0 : -1}
               onClick={() => onTabChange(tab.id)}
               className={
-                cross
-                  ? `rounded-t-lg px-4 py-2 text-xs font-bold uppercase ${
+                compact
+                  ? `shrink-0 whitespace-nowrap rounded-t px-3 py-2.5 text-[11px] font-bold uppercase ${
                       selected
-                        ? 'border-b-2 border-sky-600 text-sky-700'
-                        : 'text-slate-600 hover:text-slate-900'
+                        ? 'border-b-2 border-sky-600 text-sky-800'
+                        : 'text-slate-600'
                     }`
-                  : `pma-theme-skip pma-tab ${selected ? 'pma-tab--active' : ''}`
+                  : cross
+                    ? `rounded-t-lg px-4 py-2 text-xs font-bold uppercase ${
+                        selected
+                          ? 'border-b-2 border-sky-600 text-sky-700'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`
+                    : `pma-theme-skip pma-tab ${selected ? 'pma-tab--active' : ''}`
               }
             >
               {tab.label}
@@ -149,10 +197,14 @@ export function DettaglioPaziente({
         })}
       </nav>
 
+      {compact && alertSlot ? (
+        <div className="shrink-0 space-y-1 border-b border-slate-100 bg-slate-50 py-1">{alertSlot}</div>
+      ) : null}
+
       <div
         className={
           fillHeight
-            ? 'mx-auto flex min-h-0 w-full max-w-5xl flex-1 flex-col overflow-hidden pt-3'
+            ? `mx-auto flex min-h-0 w-full max-w-5xl flex-1 flex-col overflow-hidden ${compact ? 'pt-1' : 'pt-3'}`
             : 'mx-auto w-full max-w-5xl flex-1 pt-3'
         }
       >

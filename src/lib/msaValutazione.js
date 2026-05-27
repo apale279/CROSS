@@ -26,6 +26,8 @@ export function emptyMsaParametri() {
 
 export function emptyMsaAcc() {
   return {
+    /** Se true (ACC attivo): mostra e salva i campi arresto cardiocircolatorio. */
+    attivo: false,
     dataOraAcc: null,
     testimoniato: 'NO',
     bystanderRcp: 'NO',
@@ -99,9 +101,18 @@ export function normalizeMsaParametri(raw) {
   return d;
 }
 
+/** ACC attivo (campi visibili e valorizzabili). */
+export function isMsaAccAttivo(raw) {
+  if (!raw || typeof raw !== 'object') return false;
+  if (raw.attivo === true || raw.attivo === 'SI') return true;
+  if (raw.attivo === false || raw.attivo === 'NO') return false;
+  return Boolean(toTimestamp(raw.dataOraAcc));
+}
+
 export function normalizeMsaAcc(raw) {
   const d = emptyMsaAcc();
   if (!raw || typeof raw !== 'object') return d;
+  d.attivo = isMsaAccAttivo(raw);
   d.dataOraAcc = toTimestamp(raw.dataOraAcc);
   d.testimoniato = siNo(raw.testimoniato);
   d.bystanderRcp = siNo(raw.bystanderRcp);
@@ -152,6 +163,7 @@ export function firstRianimazioneStart(acc) {
 
 /** Minuti tra ACC e prima manovra di rianimazione. */
 export function computeNoFlowMinutes(acc) {
+  if (!isMsaAccAttivo(acc)) return null;
   const accTime = toDate(acc?.dataOraAcc);
   const first = firstRianimazioneStart(acc);
   if (!accTime || !first) return null;
@@ -161,6 +173,7 @@ export function computeNoFlowMinutes(acc) {
 
 /** Minuti tra prima manovra e ROSC (vuoto se ROSC assente). */
 export function computeLowFlowMinutes(acc) {
+  if (!isMsaAccAttivo(acc)) return null;
   const first = firstRianimazioneStart(acc);
   const rosc = toDate(acc?.dataOraRosc);
   if (!first || !rosc) return null;

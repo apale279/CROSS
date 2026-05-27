@@ -15,7 +15,11 @@ import {
 } from '../../../lib/pmaModule';
 import { chiusuraCentraleLabel, isChiusoCentrale, statoCentraleLabel } from '../../../lib/pazienteStati';
 import { invioPsSoreuPatchForScheda, invioPsSoreuFieldsFromScheda } from '../../../lib/invioPsSoreu';
-import { isSchedaModificabile } from '../../../lib/schedaSolaVisione';
+import {
+  isSchedaInSolaVisione,
+  isSchedaModificaForzata,
+  isSchedaModificabile,
+} from '../../../lib/schedaSolaVisione';
 import { patchPaziente } from '../../../services/pazientiService';
 import { InvioPsSoreuTrasportoBlock } from '../InvioPsSoreuTrasportoBlock';
 import { SchedaUnlockBar } from '../SchedaUnlockBar';
@@ -43,6 +47,7 @@ import { findEvento } from '../../../lib/eventoLinks';
 import { COLLECTIONS } from '../../../lib/firestorePaths';
 import { useManifestazioneCollection } from '../../../hooks/useManifestazioneCollection';
 import { DiarioImportantTicker } from '../../diario/DiarioImportantTicker';
+import { usePmaMobile } from '../../../pma/hooks/usePmaMobile';
 
 /**
  * Modulo PMA unificato (4 tab).
@@ -70,6 +75,8 @@ export function PazienteModuloPma({
   const resolvedVista = vistaScheda ?? contesto ?? VISTA_SCHEDA.CENTRALE;
   const vistaPma = isVistaPma(resolvedVista);
   const vistaCentrale = isVistaCentrale(resolvedVista);
+  const pmaMobile = usePmaMobile();
+  const mobileVistaPma = vistaPma && pmaMobile;
   const navigate = useNavigate();
   const { openEventoScheda } = useEventoScheda();
 
@@ -364,6 +371,39 @@ export function PazienteModuloPma({
     ),
   };
 
+  const mobileUnlockVisible =
+    mobileVistaPma &&
+    !hideSchedaUnlockBar &&
+    rawDoc &&
+    (isSchedaInSolaVisione(rawDoc) || isSchedaModificaForzata(rawDoc));
+  const mobileDiarioVisible =
+    mobileVistaPma && noteDiario.some((n) => n.importante === true);
+  const mobileAlertSlot =
+    mobileUnlockVisible || mobileDiarioVisible ? (
+      <>
+        {mobileDiarioVisible ? (
+          <DiarioImportantTicker
+            note={noteDiario}
+            loading={loadingDiario}
+            hideWhenEmpty
+            onOpenNota={() => navigate('/diario')}
+          />
+        ) : null}
+        {mobileUnlockVisible ? (
+          <SchedaUnlockBar
+            compact
+            paziente={rawDoc}
+            onToggleModifica={async (forced) => {
+              if (!manifestationId || !patientDocId) return;
+              await patchPaziente(manifestationId, patientDocId, {
+                schedaModificaForzata: forced,
+              });
+            }}
+          />
+        ) : null}
+      </>
+    ) : null;
+
   const inner = (
     <div
       className={
@@ -374,7 +414,7 @@ export function PazienteModuloPma({
         <p className="text-xs font-bold uppercase text-slate-600">Modulo PMA</p>
       )}
 
-      {vistaPma ? (
+      {vistaPma && !mobileVistaPma ? (
         <DiarioImportantTicker
           note={noteDiario}
           loading={loadingDiario}
@@ -386,18 +426,21 @@ export function PazienteModuloPma({
         <PmaPazientePanel paziente={rawDoc} pmaNome={pmaNome} compact={vistaPma} />
       )}
 
-      <dl className="grid gap-2 text-sm sm:grid-cols-2">
-        <div>
-          <dt className="text-xs font-medium text-slate-500">Medico di riferimento</dt>
-          <dd className="font-semibold text-slate-800">{p.medico_rif?.trim() || '—'}</dd>
-        </div>
-        <div>
-          <dt className="text-xs font-medium text-slate-500">Infermiere di riferimento</dt>
-          <dd className="font-semibold text-slate-800">{p.infermiere_rif?.trim() || '—'}</dd>
-        </div>
-      </dl>
+      {!mobileVistaPma ? (
+        <dl className="grid gap-2 text-sm sm:grid-cols-2">
+          <div>
+            <dt className="text-xs font-medium text-slate-500">Medico di riferimento</dt>
+            <dd className="font-semibold text-slate-800">{p.medico_rif?.trim() || '—'}</dd>
+          </div>
+          <div>
+            <dt className="text-xs font-medium text-slate-500">Infermiere di riferimento</dt>
+            <dd className="font-semibold text-slate-800">{p.infermiere_rif?.trim() || '—'}</dd>
+          </div>
+        </dl>
+      ) : null}
 
-      {vistaPma &&
+      {!mobileVistaPma &&
+        vistaPma &&
         !isPazienteOriginePma(rawDoc) &&
         pazienteHaDestinazionePma(rawDoc) &&
         (normalizeStatoPzPma(rawDoc.statoPzPma) === STATO_PZ_PMA.IN_ARRIVO ||
@@ -408,14 +451,14 @@ export function PazienteModuloPma({
           </p>
         )}
 
-      {schedaReadonly && (
+      {!mobileVistaPma && schedaReadonly && (
         <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900">
           Scheda in sola visione. Usa <strong>Sblocca modifica</strong> in alto per modificare cartella
           e dimissione.
         </p>
       )}
 
-      {!hideSchedaUnlockBar ? (
+      {!mobileVistaPma && !hideSchedaUnlockBar ? (
         <SchedaUnlockBar
           paziente={rawDoc}
           onToggleModifica={async (forced) => {
@@ -455,11 +498,13 @@ export function PazienteModuloPma({
           panels={shellPanels}
           fillHeight={vistaPma}
           variant="cross"
+          mobileFocused={mobileVistaPma}
           statoPmaLabel={statoPzPmaLabel(rawDoc.statoPzPma)}
           statoCentraleLabel={
             isPazienteOriginePma(rawDoc) ? null : statoCentraleLabel(rawDoc)
           }
           chiusoCentrale={isChiusoCentrale(rawDoc)}
+          alertSlot={mobileAlertSlot}
         />
       </div>
     </div>

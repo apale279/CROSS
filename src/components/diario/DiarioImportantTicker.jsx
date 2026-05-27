@@ -13,7 +13,7 @@ function tickerLabel(nota) {
   return testo.length > 96 ? `${testo.slice(0, 96)}…` : testo;
 }
 
-export function DiarioImportantTicker({ note, loading, onOpenNota }) {
+export function DiarioImportantTicker({ note, loading, onOpenNota, hideWhenEmpty = false }) {
   const importanti = useMemo(
     () =>
       note
@@ -26,6 +26,10 @@ export function DiarioImportantTicker({ note, loading, onOpenNota }) {
         }),
     [note],
   );
+
+  if (hideWhenEmpty && !loading && importanti.length === 0) {
+    return null;
+  }
 
   const renderTrack = (keySuffix = '') =>
     importanti.map((nota) => {

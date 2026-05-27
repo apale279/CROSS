@@ -1,47 +1,14 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { Timestamp } from 'firebase/firestore';
-import { ChevronDown, ChevronRight, Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2 } from 'lucide-react';
 import { DEFAULT_IMPOSTAZIONI } from '../../constants';
 import { fromDatetimeLocalValue, toDatetimeLocalValue } from '../../lib/datetimeLocal';
-import {
-  computeLowFlowMinutes,
-  computeNoFlowMinutes,
-  formatFlowMinutes,
-  normalizeMsaAcc,
-  normalizeMsaDetails,
-  RITMO_PRESENTAZIONE_OPTS,
-} from '../../lib/msaValutazione';
+import { normalizeMsaDetails } from '../../lib/msaValutazione';
+import { AccValutazioneBlock } from './AccValutazioneBlock';
 import { ColoreIndicator } from '../ui/ColoreIndicator';
 import { FormField, btnSecondary, inputClass, selectClass } from '../ui/FormField';
 import { ValutazioneMezzoButtons } from './ValutazioneMezzoButtons';
 import { MsaParametriVitaliFields } from './MsaParametriVitaliFields';
-
-function SiNoSelect({ value, onChange, label }) {
-  return (
-    <FormField label={label}>
-      <select className={selectClass} value={value} onChange={(e) => onChange(e.target.value)}>
-        <option value="NO">NO</option>
-        <option value="SI">SI</option>
-      </select>
-    </FormField>
-  );
-}
-
-function AccDatetimeField({ label, tsValue, onChange }) {
-  return (
-    <FormField label={label}>
-      <input
-        type="datetime-local"
-        className={inputClass}
-        value={toDatetimeLocalValue(tsValue)}
-        onChange={(e) => {
-          const d = fromDatetimeLocalValue(e.target.value);
-          onChange(d ? Timestamp.fromDate(d) : null);
-        }}
-      />
-    </FormField>
-  );
-}
 
 export function MsaValutazioneForm({
   msaDetails,
@@ -52,8 +19,6 @@ export function MsaValutazioneForm({
   valuationId,
 }) {
   const d = normalizeMsaDetails(msaDetails);
-  const acc = normalizeMsaAcc(d.acc);
-  const [accOpen, setAccOpen] = useState(false);
   const persistedRef = useRef(false);
 
   useEffect(() => {
@@ -66,25 +31,6 @@ export function MsaValutazioneForm({
     onPatchDetails(normalizeMsaDetails(msaDetails));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [valuationId]);
-
-  const patchAcc = (partial) => {
-    onPatchDetails({ acc: { ...acc, ...partial } });
-  };
-
-  const openAcc = () => {
-    if (!accOpen && !acc.dataOraAcc) {
-      patchAcc({ dataOraAcc: Timestamp.now() });
-    }
-    setAccOpen(true);
-  };
-
-  const toggleAcc = () => {
-    if (accOpen) setAccOpen(false);
-    else openAcc();
-  };
-
-  const noFlow = computeNoFlowMinutes(acc);
-  const lowFlow = computeLowFlowMinutes(acc);
 
   const patchFarmaci = (next) => onPatchDetails({ farmaci: next });
 
@@ -108,142 +54,10 @@ export function MsaValutazioneForm({
         />
       </FormField>
 
-      <div className="overflow-hidden rounded-lg border-2 border-red-400 bg-red-50/60">
-        <button
-          type="button"
-          className="flex w-full items-center justify-between gap-2 px-3 py-2.5 text-left font-bold uppercase tracking-wide text-red-900"
-          onClick={toggleAcc}
-          aria-expanded={accOpen}
-        >
-          <span className="flex items-center gap-2">
-            {accOpen ? (
-              <ChevronDown className="h-4 w-4 shrink-0" />
-            ) : (
-              <ChevronRight className="h-4 w-4 shrink-0" />
-            )}
-            ACC — Arresto cardiocircolatorio
-          </span>
-        </button>
-
-        {accOpen && (
-          <div className="space-y-3 border-t border-red-300 px-3 pb-3 pt-2">
-            <AccDatetimeField
-              label="Data e ora ACC"
-              tsValue={acc.dataOraAcc}
-              onChange={(dataOraAcc) => patchAcc({ dataOraAcc })}
-            />
-
-            <SiNoSelect
-              label="Testimoniato?"
-              value={acc.testimoniato}
-              onChange={(testimoniato) => patchAcc({ testimoniato })}
-            />
-
-            <SiNoSelect
-              label="Bystander RCP?"
-              value={acc.bystanderRcp}
-              onChange={(bystanderRcp) => {
-                const patch = { bystanderRcp };
-                if (bystanderRcp === 'SI' && !acc.bystanderInizio) {
-                  patch.bystanderInizio = Timestamp.now();
-                }
-                if (bystanderRcp === 'NO') {
-                  patch.bystanderInizio = null;
-                  patch.bystanderEfficace = 'NO';
-                }
-                patchAcc(patch);
-              }}
-            />
-
-            {acc.bystanderRcp === 'SI' && (
-              <div className="grid gap-3 rounded border border-red-200 bg-white/80 p-3 sm:grid-cols-2">
-                <AccDatetimeField
-                  label="Data e ora inizio BCPR"
-                  tsValue={acc.bystanderInizio}
-                  onChange={(bystanderInizio) => patchAcc({ bystanderInizio })}
-                />
-                <SiNoSelect
-                  label="Efficace?"
-                  value={acc.bystanderEfficace}
-                  onChange={(bystanderEfficace) => patchAcc({ bystanderEfficace })}
-                />
-              </div>
-            )}
-
-            <FormField label="Ritmo presentazione">
-              <select
-                className={selectClass}
-                value={acc.ritmoPresentazione}
-                onChange={(e) => patchAcc({ ritmoPresentazione: e.target.value })}
-              >
-                <option value="">—</option>
-                {RITMO_PRESENTAZIONE_OPTS.map((r) => (
-                  <option key={r} value={r}>
-                    {r}
-                  </option>
-                ))}
-              </select>
-            </FormField>
-
-            <div className="grid gap-3 sm:grid-cols-2">
-              <AccDatetimeField
-                label="Inizio BLSD"
-                tsValue={acc.inizioBlsd}
-                onChange={(inizioBlsd) => patchAcc({ inizioBlsd })}
-              />
-              <AccDatetimeField
-                label="Inizio ACLS"
-                tsValue={acc.inizioAcls}
-                onChange={(inizioAcls) => patchAcc({ inizioAcls })}
-              />
-            </div>
-
-            <FormField label="N° shock">
-              <input
-                type="number"
-                min={0}
-                max={99}
-                className={inputClass}
-                value={acc.numeroShock}
-                onChange={(e) => patchAcc({ numeroShock: Number(e.target.value) })}
-              />
-            </FormField>
-
-            <AccDatetimeField
-              label="Data e ora ROSC"
-              tsValue={acc.dataOraRosc}
-              onChange={(dataOraRosc) => patchAcc({ dataOraRosc })}
-            />
-
-            <div className="grid gap-3 sm:grid-cols-2">
-              <FormField label="No flow (calcolato)">
-                <input
-                  type="text"
-                  className={`${inputClass} bg-slate-100`}
-                  readOnly
-                  value={formatFlowMinutes(noFlow)}
-                  title="Differenza tra ora ACC e prima manovra (BCPR / BLSD / ACLS)"
-                />
-              </FormField>
-              <FormField label="Low flow (calcolato)">
-                <input
-                  type="text"
-                  className={`${inputClass} bg-slate-100`}
-                  readOnly
-                  value={formatFlowMinutes(lowFlow)}
-                  title="Differenza tra prima manovra e ROSC (vuoto se ROSC assente)"
-                />
-              </FormField>
-            </div>
-
-            <SiNoSelect
-              label="Percorso ECMO?"
-              value={acc.percorsoEcmo}
-              onChange={(percorsoEcmo) => patchAcc({ percorsoEcmo })}
-            />
-          </div>
-        )}
-      </div>
+      <AccValutazioneBlock
+        acc={d.acc}
+        onPatchAcc={(accPartial) => onPatchDetails({ acc: accPartial })}
+      />
 
       <MsaParametriVitaliFields
         parametri={d.parametri}

@@ -76,7 +76,7 @@ function EventoCells({
             {orfano && (
               <PanelAlertIcon
                 variant="amber"
-                title="Evento senza copertura (nessuna missione attiva)"
+                title="Evento senza copertura (nessuna missione aperta collegata)"
                 className="[&_svg]:h-4 [&_svg]:w-4"
               />
             )}

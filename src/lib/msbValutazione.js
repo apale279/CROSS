@@ -1,4 +1,5 @@
 import { DEFAULT_IMPOSTAZIONI } from '../constants';
+import { emptyMsaAcc, normalizeMsaAcc } from './msaValutazione';
 
 export const MR_OPTIONS = [
   { key: 'Eupnoico', path: false, absent: false },
@@ -32,6 +33,7 @@ export function emptyMsbDetails() {
     esitoAltroMsb: '',
     mezzoMsb: '',
     ospedaleDestinazioneMsb: '',
+    acc: emptyMsaAcc(),
   };
 }
 
@@ -93,6 +95,7 @@ export function normalizeMsbDetails(raw) {
   d.esitoAltroMsb = raw.esitoAltroMsb ?? '';
   d.mezzoMsb = raw.mezzoMsb ?? '';
   d.ospedaleDestinazioneMsb = raw.ospedaleDestinazioneMsb ?? '';
+  d.acc = normalizeMsaAcc(raw.acc);
   d.meccanicaRespiratoria = normalizeMeccanica(raw.meccanicaRespiratoria);
   d.cute = normalizeCute(raw.cute);
   return d;

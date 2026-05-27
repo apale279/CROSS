@@ -9,6 +9,7 @@ import {
 } from '../../lib/msbValutazione';
 import { ColoreIndicator } from '../ui/ColoreIndicator';
 import { FormField, inputClass, selectClass } from '../ui/FormField';
+import { AccValutazioneBlock } from './AccValutazioneBlock';
 import { ValutazioneMezzoButtons } from './ValutazioneMezzoButtons';
 
 const avpuOpts = ['A', 'V', 'P', 'U'];
@@ -50,6 +51,8 @@ export function MsbValutazioneForm({ msbDetails, onPatch, mezziEventoSigle, valu
         value={d.mezzoMsb ?? ''}
         onChange={(mezzoMsb) => onPatch({ mezzoMsb })}
       />
+
+      <AccValutazioneBlock acc={d.acc} onPatchAcc={(accPartial) => onPatch({ acc: accPartial })} />
 
       <FormField label="AVPU">
         <select
