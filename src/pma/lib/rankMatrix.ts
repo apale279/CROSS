@@ -55,6 +55,11 @@ export function schedaTabDimissioneAllows(rank: UserRank, action: MatrixAction):
   return allows(rank, action === 'READ' ? DIMISSIONE_READ : DIMISSIONE_UPDATE, action);
 }
 
+/** Chiusura definitiva paziente (pulsante «Dimetti»): solo medico in tenda (+ superadmin). */
+export function canChiudiDimissionePaziente(rank: UserRank): boolean {
+  return rank === 'Medico' || rank === 'Superadmin';
+}
+
 export function schedaTabInvioPsAllows(rank: UserRank, action: MatrixAction): boolean {
   return allows(rank, action === 'READ' ? INVIO_PS_READ : INVIO_PS_UPDATE, action);
 }

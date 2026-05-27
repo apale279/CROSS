@@ -15,7 +15,7 @@ import { resolveMedicoFirmaPngSrc, resolveMedicoFirmaSrc } from '@pma/lib/medico
 import { rasterizeFirmaDataUrlToPng } from '@pma/lib/signatureSvg'
 import { PdfPreviewModal } from './PdfPreviewModal'
 import type { PresetDimissioneVoce } from '@pma/types/manifestazioneImpostazioni'
-import { schedaTabDimissioneAllows } from '@pma/lib/rankMatrix'
+import { canChiudiDimissionePaziente, schedaTabDimissioneAllows } from '@pma/lib/rankMatrix'
 import { validateDimissioneBeforeClose } from '@pma/lib/dimissioneValidate'
 import { btnDanger, btnPrimary, btnSecondary } from '@pma/cross/uiTokens'
 import {
@@ -59,7 +59,7 @@ type Props = {
 /**
  * Sezione 4 — Dimissione.
  * Modifica: Superadmin, Centrale, Medico. Infermiere e Soccorritore: sola lettura.
- * Chiusura definitiva (**Dimetti**): Superadmin, Centrale, Medico con scheda aperta.
+ * Chiusura definitiva (**Dimetti**): solo Medico (e Superadmin) con scheda aperta.
  */
 export function DimissioneSection({
   p,
@@ -80,10 +80,7 @@ export function DimissioneSection({
   const dimissioneEdit = canEditDimissioneTab && canEditScheda
   const pazienteGiaDimesso = p.stato === 'dimesso' || p.dimesso_at != null
   const canChiudiDimetti = Boolean(
-    canEditScheda &&
-      user &&
-      schedaTabDimissioneAllows(user.rank, 'UPDATE') &&
-      !pazienteGiaDimesso,
+    canEditScheda && user && canChiudiDimissionePaziente(user.rank) && !pazienteGiaDimesso,
   )
   const [noteDraft, setNoteDraft] = useState(p.dimissione_note)
   const [dimettiOpen, setDimettiOpen] = useState(false)

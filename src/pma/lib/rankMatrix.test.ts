@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { effectivePmaUserRank, isPathAllowedForPmaOperator } from '../../lib/userAccess'
 import {
+  canChiudiDimissionePaziente,
   canInsertFarmaci,
   canWriteInvioPsFields,
   schedaTabCartellaAllows,
@@ -27,6 +28,14 @@ describe('rankMatrix dimissione', () => {
 
   it('Medico può modificare dimissione', () => {
     expect(schedaTabDimissioneAllows('Medico', 'UPDATE')).toBe(true)
+  })
+
+  it('solo Medico e Superadmin possono dimettere il paziente', () => {
+    expect(canChiudiDimissionePaziente('Medico')).toBe(true)
+    expect(canChiudiDimissionePaziente('Superadmin')).toBe(true)
+    expect(canChiudiDimissionePaziente('Centrale')).toBe(false)
+    expect(canChiudiDimissionePaziente('Infermiere')).toBe(false)
+    expect(canChiudiDimissionePaziente('Soccorritore')).toBe(false)
   })
 })
 

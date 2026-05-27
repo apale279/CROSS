@@ -32,6 +32,9 @@ import { PmaPazientePanel } from '../PmaPazientePanel';
 import { effectivePmaUserRank, normalizePmaRank } from '../../../lib/userAccess';
 import { IS_SUPERADMIN } from '../../../constants';
 import { findEvento } from '../../../lib/eventoLinks';
+import { COLLECTIONS } from '../../../lib/firestorePaths';
+import { useManifestazioneCollection } from '../../../hooks/useManifestazioneCollection';
+import { DiarioImportantTicker } from '../../diario/DiarioImportantTicker';
 
 /**
  * Modulo PMA unificato (4 tab).
@@ -64,6 +67,9 @@ export function PazienteModuloPma({
 
   const { profile, user } = useAuth();
   const { impostazioni } = useImpostazioni();
+  const { data: noteDiario, loading: loadingDiario } = useManifestazioneCollection(
+    COLLECTIONS.note_diario,
+  );
   const liste = usePmaClinicaListe();
   const { rawDoc, loading, manifestationId } = usePazienteDocument(patientDocId);
   const resolvedDefault = initialTab ?? defaultTab;
@@ -359,6 +365,14 @@ export function PazienteModuloPma({
       {vistaCentrale && !clinicalOnly && (
         <p className="text-xs font-bold uppercase text-slate-600">Modulo PMA</p>
       )}
+
+      {vistaPma ? (
+        <DiarioImportantTicker
+          note={noteDiario}
+          loading={loadingDiario}
+          onOpenNota={() => navigate('/diario')}
+        />
+      ) : null}
 
       {!hidePmaPanel && (
         <PmaPazientePanel paziente={rawDoc} pmaNome={pmaNome} compact={vistaPma} />

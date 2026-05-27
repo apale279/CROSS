@@ -145,6 +145,7 @@ function MonitorCell({
   boxClassName,
   /** In tabella l’header della colonna basta: niente etichetta ripetuta nella cella. */
   hideLabel = false,
+  emphasizeLabel = false,
 }: {
   as?: 'div' | 'td'
   label: string
@@ -153,6 +154,8 @@ function MonitorCell({
   /** Larghezza fissa cella (riga unica). */
   boxClassName?: string
   hideLabel?: boolean
+  /** Etichette più leggibili (modale PV smartphone). */
+  emphasizeLabel?: boolean
 }) {
   const shell =
     tone === 'critical'
@@ -161,7 +164,15 @@ function MonitorCell({
         ? 'border-amber-300 bg-amber-50'
         : 'border-slate-200 bg-white'
   const labelEl = (
-    <div className="text-[10px] font-semibold uppercase leading-tight tracking-wider text-slate-500">{label}</div>
+    <div
+      className={
+        emphasizeLabel
+          ? 'text-sm font-bold uppercase leading-snug tracking-wide text-slate-700'
+          : 'text-[10px] font-semibold uppercase leading-tight tracking-wider text-slate-500'
+      }
+    >
+      {label}
+    </div>
   )
   const valEl = hideLabel ? (
     <div className="min-w-0">{children}</div>
@@ -190,23 +201,50 @@ function ParametriVitaliBlock({
   row,
   canEdit,
   onPatch,
+  onRemove,
   layout = 'row',
   variant = 'block',
+  emphasizeLabels = false,
 }: {
   row: ParametroVitaleRilevazione
   canEdit: boolean
   onPatch: (id: string, partial: Partial<ParametroVitaleRilevazione>) => void
+  onRemove?: (id: string) => void
   /** `stack`: colonne in verticale (infermiere smartphone). */
   layout?: 'row' | 'stack'
   /** Riga tabellare (thead separato nel genitore). */
   variant?: 'block' | 'tableRow'
+  emphasizeLabels?: boolean
 }) {
   const cellAs = variant === 'tableRow' ? 'td' : 'div'
   const t = pvTones(row)
   const opNome = (row.operatore_nome ?? '').trim() || '—'
+  const pvFieldInput = emphasizeLabels
+    ? `${PV_IN_ROW} min-h-[2.75rem] text-base font-semibold`
+    : PV_IN_ROW
+  const removeButton =
+    canEdit && onRemove ? (
+      <button
+        type="button"
+        title="Elimina rilevazione"
+        aria-label="Elimina rilevazione parametri vitali"
+        onClick={() => onRemove(row.id)}
+        className="pma-theme-skip inline-flex h-9 w-9 shrink-0 items-center justify-center rounded border border-slate-300 bg-white text-slate-600 hover:border-red-300 hover:bg-red-50 hover:text-red-700"
+      >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+          <path
+            d="M9 3h6M4 7h16M10 11v6M14 11v6M6 7l1 14h10l1-14"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      </button>
+    ) : null
   const inner = (
     <>
-        <MonitorCell as={cellAs} hideLabel={cellAs === 'td'} label="Data/ora" tone={null} boxClassName={layout === 'stack' ? 'w-full min-w-0' : 'w-[11.5rem] shrink-0'}>
+        <MonitorCell as={cellAs} hideLabel={cellAs === 'td'} emphasizeLabel={emphasizeLabels} label="Data/ora" tone={null} boxClassName={layout === 'stack' ? 'w-full min-w-0' : 'w-[11.5rem] shrink-0'}>
           <input
             type="datetime-local"
             disabled={!canEdit}
@@ -215,10 +253,10 @@ function ParametriVitaliBlock({
               const ts = datetimeLocalToTimestamp(e.target.value)
               if (ts) onPatch(row.id, { registrato_at: ts })
             }}
-            className={`${PV_IN_ROW} text-left text-xs font-medium`}
+            className={`${pvFieldInput} text-left`}
           />
         </MonitorCell>
-        <MonitorCell as={cellAs} hideLabel={cellAs === 'td'} label="GCS" tone={t.gcs ?? null} boxClassName={layout === 'stack' ? 'w-full min-w-0' : 'w-[2.85rem] shrink-0'}>
+        <MonitorCell as={cellAs} hideLabel={cellAs === 'td'} emphasizeLabel={emphasizeLabels} label="GCS" tone={t.gcs ?? null} boxClassName={layout === 'stack' ? 'w-full min-w-0' : 'w-[2.85rem] shrink-0'}>
           <input
             type="number"
             min={1}
@@ -230,10 +268,10 @@ function ParametriVitaliBlock({
               if (!Number.isFinite(n)) return
               onPatch(row.id, { gcs: Math.min(15, Math.max(1, Math.floor(n))) })
             }}
-            className={PV_IN_ROW}
+            className={pvFieldInput}
           />
         </MonitorCell>
-        <MonitorCell as={cellAs} hideLabel={cellAs === 'td'} label="FR" tone={t.fr ?? null} boxClassName={layout === 'stack' ? 'w-full min-w-0' : 'w-[3rem] shrink-0'}>
+        <MonitorCell as={cellAs} hideLabel={cellAs === 'td'} emphasizeLabel={emphasizeLabels} label="FR" tone={t.fr ?? null} boxClassName={layout === 'stack' ? 'w-full min-w-0' : 'w-[3rem] shrink-0'}>
           <input
             type="number"
             min={0}
@@ -244,10 +282,10 @@ function ParametriVitaliBlock({
               if (!Number.isFinite(n)) return
               onPatch(row.id, { fr: Math.max(0, Math.floor(n)) })
             }}
-            className={PV_IN_ROW}
+            className={pvFieldInput}
           />
         </MonitorCell>
-        <MonitorCell as={cellAs} hideLabel={cellAs === 'td'} label="SpO₂ aa" tone={t.spo2 ?? null} boxClassName={layout === 'stack' ? 'w-full min-w-0' : 'w-[3rem] shrink-0'}>
+        <MonitorCell as={cellAs} hideLabel={cellAs === 'td'} emphasizeLabel={emphasizeLabels} label="SpO₂ aa" tone={t.spo2 ?? null} boxClassName={layout === 'stack' ? 'w-full min-w-0' : 'w-[3rem] shrink-0'}>
           <input
             type="number"
             min={0}
@@ -264,10 +302,10 @@ function ParametriVitaliBlock({
               if (!Number.isFinite(n)) return
               onPatch(row.id, { spo2_aa: Math.min(100, Math.max(0, Math.floor(n))) })
             }}
-            className={PV_IN_ROW}
+            className={pvFieldInput}
           />
         </MonitorCell>
-        <MonitorCell as={cellAs} hideLabel={cellAs === 'td'} label="SpO₂ O₂" tone={t.spo2 ?? null} boxClassName={layout === 'stack' ? 'w-full min-w-0' : 'w-[3rem] shrink-0'}>
+        <MonitorCell as={cellAs} hideLabel={cellAs === 'td'} emphasizeLabel={emphasizeLabels} label="SpO₂ O₂" tone={t.spo2 ?? null} boxClassName={layout === 'stack' ? 'w-full min-w-0' : 'w-[3rem] shrink-0'}>
           <input
             type="number"
             min={0}
@@ -284,10 +322,10 @@ function ParametriVitaliBlock({
               if (!Number.isFinite(n)) return
               onPatch(row.id, { spo2_o2: Math.min(100, Math.max(0, Math.floor(n))) })
             }}
-            className={PV_IN_ROW}
+            className={pvFieldInput}
           />
         </MonitorCell>
-        <MonitorCell as={cellAs} hideLabel={cellAs === 'td'} label="FC" tone={t.fc ?? null} boxClassName={layout === 'stack' ? 'w-full min-w-0' : 'w-[3rem] shrink-0'}>
+        <MonitorCell as={cellAs} hideLabel={cellAs === 'td'} emphasizeLabel={emphasizeLabels} label="FC" tone={t.fc ?? null} boxClassName={layout === 'stack' ? 'w-full min-w-0' : 'w-[3rem] shrink-0'}>
           <input
             type="number"
             min={0}
@@ -298,10 +336,10 @@ function ParametriVitaliBlock({
               if (!Number.isFinite(n)) return
               onPatch(row.id, { fc: Math.max(0, Math.floor(n)) })
             }}
-            className={PV_IN_ROW}
+            className={pvFieldInput}
           />
         </MonitorCell>
-        <MonitorCell as={cellAs} hideLabel={cellAs === 'td'} label="PA sys" tone={t.pa_sys ?? null} boxClassName={layout === 'stack' ? 'w-full min-w-0' : 'w-[3.1rem] shrink-0'}>
+        <MonitorCell as={cellAs} hideLabel={cellAs === 'td'} emphasizeLabel={emphasizeLabels} label="PA sys" tone={t.pa_sys ?? null} boxClassName={layout === 'stack' ? 'w-full min-w-0' : 'w-[3.1rem] shrink-0'}>
           <input
             type="number"
             min={0}
@@ -313,10 +351,10 @@ function ParametriVitaliBlock({
               if (!Number.isFinite(n)) return
               onPatch(row.id, { pa_sistolica: Math.max(0, Math.min(999, Math.floor(n))) })
             }}
-            className={PV_IN_ROW}
+            className={pvFieldInput}
           />
         </MonitorCell>
-        <MonitorCell as={cellAs} hideLabel={cellAs === 'td'} label="PA dia" tone={t.pa_dia ?? null} boxClassName={layout === 'stack' ? 'w-full min-w-0' : 'w-[3.1rem] shrink-0'}>
+        <MonitorCell as={cellAs} hideLabel={cellAs === 'td'} emphasizeLabel={emphasizeLabels} label="PA dia" tone={t.pa_dia ?? null} boxClassName={layout === 'stack' ? 'w-full min-w-0' : 'w-[3.1rem] shrink-0'}>
           <input
             type="number"
             min={0}
@@ -328,10 +366,10 @@ function ParametriVitaliBlock({
               if (!Number.isFinite(n)) return
               onPatch(row.id, { pa_diastolica: Math.max(0, Math.min(999, Math.floor(n))) })
             }}
-            className={PV_IN_ROW}
+            className={pvFieldInput}
           />
         </MonitorCell>
-        <MonitorCell as={cellAs} hideLabel={cellAs === 'td'} label="T °C" tone={t.temp ?? null} boxClassName={layout === 'stack' ? 'w-full min-w-0' : 'w-[3.25rem] shrink-0'}>
+        <MonitorCell as={cellAs} hideLabel={cellAs === 'td'} emphasizeLabel={emphasizeLabels} label="T °C" tone={t.temp ?? null} boxClassName={layout === 'stack' ? 'w-full min-w-0' : 'w-[3.25rem] shrink-0'}>
           <input
             type="number"
             step="0.1"
@@ -347,10 +385,10 @@ function ParametriVitaliBlock({
               if (!Number.isFinite(n)) return
               onPatch(row.id, { temperatura: n })
             }}
-            className={PV_IN_ROW}
+            className={pvFieldInput}
           />
         </MonitorCell>
-        <MonitorCell as={cellAs} hideLabel={cellAs === 'td'} label="NRS" tone={t.nrs ?? null} boxClassName={layout === 'stack' ? 'w-full min-w-0' : 'w-[2.85rem] shrink-0'}>
+        <MonitorCell as={cellAs} hideLabel={cellAs === 'td'} emphasizeLabel={emphasizeLabels} label="NRS" tone={t.nrs ?? null} boxClassName={layout === 'stack' ? 'w-full min-w-0' : 'w-[2.85rem] shrink-0'}>
           <input
             type="number"
             min={0}
@@ -370,13 +408,13 @@ function ParametriVitaliBlock({
             className={PV_IN_ROW}
           />
         </MonitorCell>
-        <MonitorCell as={cellAs} hideLabel={cellAs === 'td'} label="Operatore" tone={null} boxClassName={layout === 'stack' ? 'w-full min-w-0' : 'min-w-[8.5rem] max-w-[18rem] shrink-0'}>
+        <MonitorCell as={cellAs} hideLabel={cellAs === 'td'} emphasizeLabel={emphasizeLabels} label="Operatore" tone={null} boxClassName={layout === 'stack' ? 'w-full min-w-0' : 'min-w-[8.5rem] max-w-[18rem] shrink-0'}>
           {canEdit ? (
             <input
               type="text"
               defaultValue={row.operatore_nome}
               onBlur={(e) => onPatch(row.id, { operatore_nome: e.target.value.trim() || '—' })}
-              className={`${PV_IN_ROW} text-left text-xs font-medium normal-case`}
+              className={`${pvFieldInput} text-left normal-case`}
             />
           ) : (
             <div
@@ -395,11 +433,21 @@ function ParametriVitaliBlock({
   )
 
   if (variant === 'tableRow') {
-    return <tr className="border-b border-slate-200 odd:bg-white even:bg-slate-50/70">{inner}</tr>
+    return (
+      <tr className="border-b border-slate-200 odd:bg-white even:bg-slate-50/70">
+        {inner}
+        {removeButton ? (
+          <td className="border border-slate-200 p-1 text-center align-middle">{removeButton}</td>
+        ) : null}
+      </tr>
+    )
   }
 
   return (
     <div className="rounded-md border border-slate-300 bg-slate-200/40 p-1.5 shadow-sm">
+      {layout === 'stack' && removeButton ? (
+        <div className="mb-1 flex justify-end">{removeButton}</div>
+      ) : null}
       <div
         className={
           layout === 'stack'
@@ -408,6 +456,7 @@ function ParametriVitaliBlock({
         }
       >
         {inner}
+        {layout !== 'stack' ? removeButton : null}
       </div>
     </div>
   )
@@ -752,6 +801,13 @@ export function CartellaClinicaSection({
       void write({
         parametri_vitali: p.parametri_vitali.map((r) => (r.id === id ? next : r)),
       })
+    },
+    [p.parametri_vitali, write],
+  )
+
+  const removePv = useCallback(
+    (id: string) => {
+      void write({ parametri_vitali: p.parametri_vitali.filter((r) => r.id !== id) })
     },
     [p.parametri_vitali, write],
   )
@@ -1161,7 +1217,7 @@ export function CartellaClinicaSection({
             <button
               type="button"
               onClick={() => (pmaMobile ? openPvModal() : void aggiungiPv())}
-              className={`${btnPrimary} mt-2 inline-flex h-10 items-center justify-center`}
+              className={`${btnPrimary} mx-auto mt-2 flex h-10 w-full max-w-md items-center justify-center`}
             >
               Aggiungi parametri
             </button>
@@ -1177,6 +1233,7 @@ export function CartellaClinicaSection({
                     row={row}
                     canEdit={schedaClinicalEdit}
                     onPatch={patchPv}
+                    onRemove={schedaClinicalEdit ? removePv : undefined}
                     layout="stack"
                     variant="block"
                   />
@@ -1199,6 +1256,11 @@ export function CartellaClinicaSection({
                     <th className="border border-slate-200 p-1">T °C</th>
                     <th className="border border-slate-200 p-1">NRS</th>
                     <th className="border border-slate-200 p-1">Operatore</th>
+                    {schedaClinicalEdit ? (
+                      <th className="border border-slate-200 p-1 text-center" scope="col">
+                        <span className="sr-only">Elimina</span>
+                      </th>
+                    ) : null}
                   </tr>
                 </thead>
                 <tbody>
@@ -1208,6 +1270,7 @@ export function CartellaClinicaSection({
                       row={row}
                       canEdit={schedaClinicalEdit}
                       onPatch={patchPv}
+                      onRemove={schedaClinicalEdit ? removePv : undefined}
                       layout="row"
                       variant="tableRow"
                     />
@@ -1519,13 +1582,9 @@ export function CartellaClinicaSection({
               <button
                 type="button"
                 onClick={openFarmModal}
-                title="Aggiungi farmaco"
-                aria-label="Aggiungi farmaco"
-                className={`${btnPrimary} mt-4 inline-flex h-10 w-full max-w-md items-center justify-center`}
+                className={`${btnPrimary} mx-auto mt-4 flex h-10 w-full max-w-md items-center justify-center`}
               >
-                <span className="text-2xl font-light leading-none" aria-hidden>
-                  +
-                </span>
+                Aggiungi farmaco
               </button>
             ) : null}
           </div>
@@ -1550,7 +1609,7 @@ export function CartellaClinicaSection({
               />
             }
           >
-            <div className="[&_input[type='number']]:pma-mobile-input [&_input[type='number']]:min-h-[2.75rem]">
+            <div className="[&_input]:pma-mobile-input [&_input]:min-h-[2.75rem]">
               <ParametriVitaliBlock
                 key={pvDraft.id}
                 row={pvDraft}
@@ -1559,6 +1618,7 @@ export function CartellaClinicaSection({
                   setPvDraft((d) => (d ? { ...d, ...partial } : d))
                 }}
                 layout="stack"
+                emphasizeLabels
               />
             </div>
           </PmaMobileSheet>

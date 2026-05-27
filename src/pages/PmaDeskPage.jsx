@@ -22,6 +22,7 @@ import { PmaInCaricoCard } from '../components/pma/PmaInCaricoCard';
 import { PmaCodiciMinoriPanel } from '../components/pma/PmaCodiciMinoriPanel';
 import { PmaIpadFirmaInfoPanel } from '../components/pma/PmaIpadFirmaInfoPanel';
 import { btnPrimary, btnSecondary } from '../components/ui/FormField';
+import { DiarioImportantTicker } from '../components/diario/DiarioImportantTicker';
 import { prendiInCaricoPma } from '../services/pmaStatoService';
 import {
   createPazienteCodiceMinore,
@@ -42,6 +43,9 @@ export default function PmaDeskPage() {
   const { accessiblePma, scopeId, fullCentrale } = usePmaAccess();
   const { data: pazienti, loading } = useManifestazioneCollection(COLLECTIONS.pazienti);
   const { data: eventi } = useManifestazioneCollection(COLLECTIONS.eventi);
+  const { data: noteDiario, loading: loadingDiario } = useManifestazioneCollection(
+    COLLECTIONS.note_diario,
+  );
   const [showCreate, setShowCreate] = useState(false);
   const [showCodiciMinori, setShowCodiciMinori] = useState(false);
   const [showIpadFirma, setShowIpadFirma] = useState(false);
@@ -138,6 +142,12 @@ export default function PmaDeskPage() {
           </button>
         </div>
       </div>
+
+      <DiarioImportantTicker
+        note={noteDiario}
+        loading={loadingDiario}
+        onOpenNota={() => navigate('/diario')}
+      />
 
       {showIpadFirma && (
         <Modal title="Ipad firma" wide onClose={() => setShowIpadFirma(false)}>

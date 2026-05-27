@@ -1,7 +1,9 @@
 import { useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { COLLECTIONS } from '../../lib/firestorePaths';
 import { useManifestazioneCollection } from '../../hooks/useManifestazioneCollection';
+import { DiarioImportantTicker } from '../../components/diario/DiarioImportantTicker';
 import { findEvento, missioniPerEvento } from '../../lib/eventoLinks';
 import { canViewPmaScheda, pmaIdPerPaziente } from '../../lib/pmaModule';
 import { usePazienteDocument } from '../../hooks/usePazienteDocument';
@@ -32,10 +34,14 @@ type Props = {
 
 /** Vista PMA a schermo intero: tab anagrafica / dati centrale / cartella / dimissioni (default cartella). */
 export function PmaSchedaShell({ pazienteDocId, pmaId, pmaNome, onClose }: Props) {
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const initialTab = parseShellTab(searchParams.get('tab'));
   const { data: eventi } = useManifestazioneCollection(COLLECTIONS.eventi);
   const { data: missioni } = useManifestazioneCollection(COLLECTIONS.missioni);
+  const { data: noteDiario, loading: loadingDiario } = useManifestazioneCollection(
+    COLLECTIONS.note_diario,
+  );
   const { rawDoc, loading } = usePazienteDocument(pazienteDocId);
 
   const evento = useMemo(
@@ -103,6 +109,12 @@ export function PmaSchedaShell({ pazienteDocId, pmaId, pmaNome, onClose }: Props
           Scheda paziente
         </span>
       </header>
+
+      <DiarioImportantTicker
+        note={noteDiario}
+        loading={loadingDiario}
+        onOpenNota={() => navigate('/diario')}
+      />
 
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
         <PazienteModuloPma
