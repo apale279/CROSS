@@ -751,7 +751,7 @@
   display: none;
 }
 
-@media (max-width: 640px) {
+@media (max-width: 768px) {
   .pma-tabs {
     justify-content: center;
     gap: 2px;

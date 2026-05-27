@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { COLLECTIONS } from '../lib/firestorePaths';
 import { useManifestazioneCollection } from '../hooks/useManifestazioneCollection';
 import { findEvento, missioniPerEvento } from '../lib/eventoLinks';
@@ -13,6 +13,10 @@ import {
   pazienteInElencoAperti,
   pazienteInElencoChiusi,
 } from '../lib/pazienteStati';
+import { usePmaAccess } from '../hooks/usePmaAccess';
+import { usePmaFieldUx } from '../pma/hooks/usePmaFieldUx';
+import { pazienteHaDestinazionePma, pmaIdPerPaziente } from '../lib/pmaModule';
+import { PazientiMobileList } from '../components/pazienti/PazientiMobileList';
 
 const thClass =
   'bg-slate-100 px-4 py-3 text-left text-xs font-bold uppercase text-slate-600';
@@ -74,6 +78,9 @@ function PazientiTable({ rows, eventi, onRow, emptyLabel }) {
 }
 
 export default function PazientiPage() {
+  const navigate = useNavigate();
+  const fieldUx = usePmaFieldUx();
+  const { scopeId } = usePmaAccess();
   const { data: pazienti, loading: loadingP } = useManifestazioneCollection(COLLECTIONS.pazienti);
   const { data: eventi } = useManifestazioneCollection(COLLECTIONS.eventi);
   const { data: missioni } = useManifestazioneCollection(COLLECTIONS.missioni);
@@ -109,11 +116,31 @@ export default function PazientiPage() {
     };
   };
 
-  const handleRow = (p) => setSelected(p);
+  const handleRow = (p) => {
+    if (fieldUx && scopeId && pazienteHaDestinazionePma(p)) {
+      const pid = pmaIdPerPaziente(p) || scopeId;
+      navigate(`/pma/${encodeURIComponent(pid)}/paziente/${encodeURIComponent(p._docId)}?tab=cartella`);
+      return;
+    }
+    setSelected(p);
+  };
+
+  const List = fieldUx ? PazientiMobileList : PazientiTable;
 
   return (
-    <div className="mx-auto max-w-6xl pb-8">
-      <h2 className="mb-4 text-xl font-bold uppercase text-slate-900">Pazienti</h2>
+    <div className={`mx-auto max-w-6xl ${fieldUx ? 'px-3 pb-4' : 'pb-8'}`}>
+      <h2 className={`font-bold uppercase text-slate-900 ${fieldUx ? 'mb-2 text-lg' : 'mb-4 text-xl'}`}>
+        Pazienti
+      </h2>
+      {fieldUx && scopeId ? (
+        <p className="mb-3 text-xs text-slate-600">
+          Per compilare la cartella usa il{' '}
+          <Link to={`/pma/${encodeURIComponent(scopeId)}`} className="font-semibold text-sky-700 underline">
+            desk PMA
+          </Link>
+          . Qui puoi cercare e aprire una scheda.
+        </p>
+      ) : null}
 
       {loadingP ? (
         <p className="text-sm text-slate-600">Caricamento…</p>
@@ -121,7 +148,7 @@ export default function PazientiPage() {
         <div className="space-y-10">
           <section>
             <h3 className="mb-3 text-sm font-bold uppercase text-sky-800">Aperti</h3>
-            <PazientiTable
+            <List
               rows={aperti}
               eventi={eventi}
               onRow={handleRow}
@@ -134,7 +161,7 @@ export default function PazientiPage() {
               Chiusi per centrale e PMA (dimissione completata). Chi è in tenda dopo ARRIVATO H
               resta in «Aperti» finché non è dimesso dal PMA.
             </p>
-            <PazientiTable
+            <List
               rows={chiusi}
               eventi={eventi}
               onRow={handleRow}

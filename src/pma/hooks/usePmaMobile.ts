@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react'
 
-/** Breakpoint allineato al design system PMA (smartphone / tablet stretto). */
-export const PMA_MOBILE_MEDIA = '(max-width: 640px)'
+/**
+ * Viewport touch PMA: smartphone e tablet in portrait (operatori tenda).
+ * La centrale usa sempre PC — le ottimizzazioni `usePmaMobile` vanno abbinate a `restrictedNav`.
+ */
+export const PMA_MOBILE_MEDIA = '(max-width: 768px)'
 
 function readMatches(): boolean {
   if (typeof window === 'undefined') return false

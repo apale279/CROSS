@@ -23,6 +23,7 @@ import { PmaCodiciMinoriPanel } from '../components/pma/PmaCodiciMinoriPanel';
 import { PmaIpadFirmaInfoPanel } from '../components/pma/PmaIpadFirmaInfoPanel';
 import { btnPrimary, btnSecondary } from '../components/ui/FormField';
 import { DiarioImportantTicker } from '../components/diario/DiarioImportantTicker';
+import { usePmaFieldUx } from '../pma/hooks/usePmaFieldUx';
 import { prendiInCaricoPma } from '../services/pmaStatoService';
 import {
   createPazienteCodiceMinore,
@@ -42,6 +43,7 @@ export default function PmaDeskPage() {
   const manifestationId = useManifestazioneId();
   const { impostazioni } = useImpostazioni();
   const { accessiblePma, scopeId, fullCentrale } = usePmaAccess();
+  const fieldUx = usePmaFieldUx();
   const { data: pazienti, loading } = useManifestazioneCollection(COLLECTIONS.pazienti);
   const { data: eventi } = useManifestazioneCollection(COLLECTIONS.eventi);
   const { data: noteDiario, loading: loadingDiario } = useManifestazioneCollection(
@@ -120,33 +122,72 @@ export default function PmaDeskPage() {
   };
 
   return (
-    <div className="pma-viewport mx-auto flex min-h-[calc(100vh-8rem)] w-full min-w-0 max-w-[1600px] flex-col overflow-x-clip px-3 py-4 lg:px-6">
-      <div className="mb-4 flex flex-wrap items-start justify-between gap-3 border-b border-slate-200 pb-4">
-        <div>
+    <div
+      className={`pma-viewport mx-auto flex w-full min-w-0 max-w-[1600px] flex-col overflow-x-clip px-3 py-3 lg:px-6 ${
+        fieldUx ? 'min-h-0' : 'min-h-[calc(100vh-8rem)] py-4'
+      }`}
+    >
+      <div
+        className={`mb-3 flex flex-wrap items-start justify-between gap-2 border-b border-slate-200 ${
+          fieldUx ? 'pb-2' : 'mb-4 gap-3 pb-4'
+        }`}
+      >
+        <div className="min-w-0">
           {fullCentrale && (
             <Link to="/pma" className="text-xs font-medium text-sky-700 hover:underline">
               ← Tutti i PMA
             </Link>
           )}
-          <h1 className="text-2xl font-bold text-slate-900">{pma.nome}</h1>
-          <p className="font-mono text-xs text-slate-500">Posto medico avanzato — dashboard operativa</p>
+          <h1 className={fieldUx ? 'truncate text-lg font-bold text-slate-900' : 'text-2xl font-bold text-slate-900'}>
+            {pma.nome}
+          </h1>
+          {!fieldUx ? (
+            <p className="font-mono text-xs text-slate-500">Posto medico avanzato — dashboard operativa</p>
+          ) : null}
         </div>
-        <div className="flex flex-wrap gap-2">
-          <button type="button" className={btnSecondary} onClick={() => setShowCodiciMinori(true)}>
-            Tabella codici minori
+        <div className={`flex flex-wrap gap-2 ${fieldUx ? 'w-full' : ''}`}>
+          <button
+            type="button"
+            className={`${fieldUx ? `${btnPrimary} min-h-[44px] flex-1` : btnSecondary}`}
+            onClick={() => setShowCreate(true)}
+          >
+            + Autopresentato
           </button>
-          <button type="button" className={btnSecondary} onClick={() => setShowIpadFirma(true)}>
-            Ipad firma
-          </button>
-          <button type="button" className={btnSecondary} onClick={() => setShowCreate(true)}>
-            + Paziente autopresentato
-          </button>
+          {!fieldUx ? (
+            <>
+              <button type="button" className={btnSecondary} onClick={() => setShowCodiciMinori(true)}>
+                Tabella codici minori
+              </button>
+              <button type="button" className={btnSecondary} onClick={() => setShowIpadFirma(true)}>
+                Ipad firma
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                type="button"
+                className={`${btnSecondary} min-h-[44px] flex-1 text-xs`}
+                onClick={() => setShowCodiciMinori(true)}
+              >
+                Codici minori
+              </button>
+              <button
+                type="button"
+                className={`${btnSecondary} min-h-[44px] shrink-0 px-3 text-xs`}
+                onClick={() => setShowIpadFirma(true)}
+                title="Ipad firma"
+              >
+                Firma
+              </button>
+            </>
+          )}
         </div>
       </div>
 
       <DiarioImportantTicker
         note={noteDiario}
         loading={loadingDiario}
+        hideWhenEmpty={fieldUx}
         onOpenNota={() => navigate('/diario')}
       />
 
@@ -242,7 +283,37 @@ export default function PmaDeskPage() {
       )}
 
       {!loading && list.length > 0 && (
-        <div className="grid min-h-0 min-w-0 flex-1 gap-4 lg:grid-cols-[minmax(260px,320px)_1fr]">
+        <div
+          className={`grid min-h-0 min-w-0 flex-1 gap-4 ${
+            fieldUx ? 'grid-cols-1' : 'lg:grid-cols-[minmax(260px,320px)_1fr]'
+          }`}
+        >
+          {fieldUx ? (
+            <main className="flex min-h-0 flex-col overflow-hidden rounded-lg border border-slate-300 bg-slate-50 p-3">
+              <h2 className="mb-3 text-sm font-bold uppercase text-slate-800">
+                In carico ({inCarico.length})
+              </h2>
+              {inCarico.length === 0 ? (
+                <p className="text-sm text-slate-500">
+                  Nessun paziente in carico. Usa la sezione sotto per prendere in carico un paziente in
+                  arrivo o in attesa.
+                </p>
+              ) : (
+                <ul className="grid gap-3 overflow-y-auto sm:grid-cols-2">
+                  {inCarico.map((p) => (
+                    <li key={p._docId}>
+                      <PmaInCaricoCard
+                        paziente={p}
+                        evento={eventoFor(p)}
+                        onOpen={() => navigate(openPazientePath(pma.id, p._docId))}
+                      />
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </main>
+          ) : null}
+
           <aside className="flex flex-col gap-4 overflow-y-auto rounded-lg border border-amber-200 bg-amber-50/30 p-3">
             <section>
               <h2 className="mb-2 text-xs font-bold uppercase text-amber-900">
@@ -319,29 +390,31 @@ export default function PmaDeskPage() {
             </section>
           </aside>
 
-          <main className="flex min-h-0 flex-col overflow-hidden rounded-lg border border-slate-300 bg-slate-50 p-3">
-            <h2 className="mb-3 text-sm font-bold uppercase text-slate-800">
-              In carico ({inCarico.length})
-            </h2>
-            {inCarico.length === 0 ? (
-              <p className="text-sm text-slate-500">
-                Nessun paziente in carico. Prendi in carico un paziente dalla colonna di sinistra
-                oppure attendi l&apos;aggiornamento ARRIVATO H dalla centrale.
-              </p>
-            ) : (
-              <ul className="grid gap-3 overflow-y-auto sm:grid-cols-2 xl:grid-cols-3">
-                {inCarico.map((p) => (
-                  <li key={p._docId}>
-                    <PmaInCaricoCard
-                      paziente={p}
-                      evento={eventoFor(p)}
-                      onOpen={() => navigate(openPazientePath(pma.id, p._docId))}
-                    />
-                  </li>
-                ))}
-              </ul>
-            )}
-          </main>
+          {!fieldUx ? (
+            <main className="flex min-h-0 flex-col overflow-hidden rounded-lg border border-slate-300 bg-slate-50 p-3">
+              <h2 className="mb-3 text-sm font-bold uppercase text-slate-800">
+                In carico ({inCarico.length})
+              </h2>
+              {inCarico.length === 0 ? (
+                <p className="text-sm text-slate-500">
+                  Nessun paziente in carico. Prendi in carico un paziente dalla colonna di sinistra
+                  oppure attendi l&apos;aggiornamento ARRIVATO H dalla centrale.
+                </p>
+              ) : (
+                <ul className="grid gap-3 overflow-y-auto sm:grid-cols-2 xl:grid-cols-3">
+                  {inCarico.map((p) => (
+                    <li key={p._docId}>
+                      <PmaInCaricoCard
+                        paziente={p}
+                        evento={eventoFor(p)}
+                        onOpen={() => navigate(openPazientePath(pma.id, p._docId))}
+                      />
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </main>
+          ) : null}
         </div>
       )}
 

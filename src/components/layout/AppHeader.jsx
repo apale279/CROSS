@@ -12,6 +12,7 @@ import { usePmaAccess } from '../../hooks/usePmaAccess';
 import { isPmaMedicoAccount } from '../../lib/userAccess';
 import { AccessDebugStrip } from './AccessDebugStrip';
 import { AppVersionBadge } from '../ui/AppVersionBadge';
+import { usePmaFieldUx } from '../../pma/hooks/usePmaFieldUx';
 
 const navClass = ({ isActive }) =>
   `rounded border px-3 py-2 text-sm font-bold uppercase tracking-wide ${
@@ -47,6 +48,7 @@ export function AppHeader() {
   const { fullCentrale, scopeId, restrictedNav, accessiblePma } = usePmaAccess();
   const [syncLabel, setSyncLabel] = useState('—');
   const pmaOnly = Boolean(restrictedNav);
+  const pmaFieldUx = usePmaFieldUx();
   const showMedicoAccount = Boolean(isPmaMedicoAccount(profile));
 
   useEffect(() => {
@@ -63,8 +65,12 @@ export function AppHeader() {
   return (
     <>
       <AccessDebugStrip />
-      <header className="flex shrink-0 flex-wrap items-center gap-2 border-b border-slate-300 bg-white px-4 py-2">
-      <AppVersionBadge className="order-first" />
+      <header
+        className={`flex shrink-0 flex-wrap items-center gap-2 border-b border-slate-300 bg-white px-3 py-2 sm:px-4 ${
+          pmaFieldUx ? 'justify-between' : ''
+        }`}
+      >
+      {!pmaFieldUx ? <AppVersionBadge className="order-first" /> : null}
       <Link
         to={pmaOnly ? (scopeId ? `/pma/${encodeURIComponent(scopeId)}` : '/pma') : '/'}
         className="flex items-center gap-2"
@@ -72,12 +78,12 @@ export function AppHeader() {
         <AppLogo className="h-9 w-auto" />
         <span className="text-sm font-bold uppercase tracking-wide text-slate-800">CROSS</span>
       </Link>
-      {showMedicoAccount ? (
+      {showMedicoAccount && !pmaFieldUx ? (
         <NavLink to="/account" className={navClass}>
           Account
         </NavLink>
       ) : null}
-      <div className="flex flex-wrap items-center gap-2">
+      <div className={`flex flex-wrap items-center gap-2 ${pmaFieldUx ? 'ml-auto' : ''}`}>
         <span
           className={`h-2.5 w-2.5 shrink-0 rounded-full ${
             online ? 'bg-emerald-500' : 'bg-red-500'
@@ -122,7 +128,7 @@ export function AppHeader() {
             )}
           </div>
         )}
-        {pmaOnly ? (
+        {pmaOnly && !pmaFieldUx ? (
           <>
             <NavLink
               to={scopeId ? `/pma/${encodeURIComponent(scopeId)}` : '/pma'}
@@ -137,7 +143,7 @@ export function AppHeader() {
               Diario
             </NavLink>
           </>
-        ) : (
+        ) : pmaOnly && pmaFieldUx ? null : (
           <>
             <NavLink to="/" end className={navClass}>
               Dashboard
@@ -178,14 +184,16 @@ export function AppHeader() {
             )}
           </>
         )}
-        <button
-          type="button"
-          className={navButtonClass}
-          onClick={() => void logout()}
-          title="Esci da questo dispositivo"
-        >
-          Logout
-        </button>
+        {!pmaFieldUx ? (
+          <button
+            type="button"
+            className={navButtonClass}
+            onClick={() => void logout()}
+            title="Esci da questo dispositivo"
+          >
+            Logout
+          </button>
+        ) : null}
       </nav>
     </header>
     </>

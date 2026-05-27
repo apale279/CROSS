@@ -47,7 +47,7 @@ import { findEvento } from '../../../lib/eventoLinks';
 import { COLLECTIONS } from '../../../lib/firestorePaths';
 import { useManifestazioneCollection } from '../../../hooks/useManifestazioneCollection';
 import { DiarioImportantTicker } from '../../diario/DiarioImportantTicker';
-import { usePmaMobile } from '../../../pma/hooks/usePmaMobile';
+import { usePmaFieldUx } from '../../../pma/hooks/usePmaFieldUx';
 
 /**
  * Modulo PMA unificato (4 tab).
@@ -75,8 +75,7 @@ export function PazienteModuloPma({
   const resolvedVista = vistaScheda ?? contesto ?? VISTA_SCHEDA.CENTRALE;
   const vistaPma = isVistaPma(resolvedVista);
   const vistaCentrale = isVistaCentrale(resolvedVista);
-  const pmaMobile = usePmaMobile();
-  const mobileVistaPma = vistaPma && pmaMobile;
+  const mobileVistaPma = usePmaFieldUx() && vistaPma;
   const navigate = useNavigate();
   const { openEventoScheda } = useEventoScheda();
 
