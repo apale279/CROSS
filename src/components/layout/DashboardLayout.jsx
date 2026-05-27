@@ -25,7 +25,7 @@ export function DashboardLayout() {
         <PmaOperatorBottomNav />
         <main
           className={`min-h-0 flex-1 ${isDashboard ? 'overflow-hidden' : 'overflow-y-auto'} ${
-            pmaFieldUx ? 'pb-[3.5rem]' : ''
+            pmaFieldUx ? 'pb-[calc(3.75rem+env(safe-area-inset-bottom,0px))]' : ''
           }`}
         >
           <RouteErrorBoundary>

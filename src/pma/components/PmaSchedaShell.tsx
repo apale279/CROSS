@@ -8,7 +8,7 @@ import { canViewPmaScheda, pmaIdPerPaziente } from '../../lib/pmaModule';
 import { usePazienteDocument } from '../../hooks/usePazienteDocument';
 import { PazienteModuloPma } from '../../components/pazienti/moduli/PazienteModuloPma';
 import { VISTA_SCHEDA } from '../../lib/pazienteSchedaModuli';
-import { usePmaMobile } from '../hooks/usePmaMobile';
+import { usePmaFieldUx } from '../hooks/usePmaFieldUx';
 import type { SchedaPazienteTabId } from './scheda-paziente/schedaPazienteTabs';
 
 const SHELL_TAB_IDS: SchedaPazienteTabId[] = [
@@ -36,7 +36,7 @@ type Props = {
 export function PmaSchedaShell({ pazienteDocId, pmaId, pmaNome, onClose }: Props) {
   const [searchParams] = useSearchParams();
   const initialTab = parseShellTab(searchParams.get('tab'));
-  const mobile = usePmaMobile();
+  const mobile = usePmaFieldUx();
   const { data: eventi } = useManifestazioneCollection(COLLECTIONS.eventi);
   const { data: missioni } = useManifestazioneCollection(COLLECTIONS.missioni);
   const { rawDoc, loading } = usePazienteDocument(pazienteDocId);
@@ -94,7 +94,7 @@ export function PmaSchedaShell({ pazienteDocId, pmaId, pmaNome, onClose }: Props
       <header
         className={
           mobile
-            ? 'flex shrink-0 items-center border-b border-slate-200 bg-white px-1 py-0.5'
+            ? 'flex shrink-0 items-center border-b border-slate-200 bg-white px-1 pb-0.5 pt-[max(0.25rem,env(safe-area-inset-top))]'
             : 'flex shrink-0 items-center justify-between gap-3 border-b border-slate-300 bg-slate-50 px-4 py-2'
         }
       >

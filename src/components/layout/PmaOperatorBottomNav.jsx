@@ -1,5 +1,5 @@
 import { NavLink, useLocation } from 'react-router-dom';
-import { ClipboardList, BookOpen, User, LogOut } from 'lucide-react';
+import { ClipboardList, BookOpen, User, LogOut, Users } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { usePmaAccess } from '../../hooks/usePmaAccess';
 import { isPmaMedicoAccount } from '../../lib/userAccess';
@@ -38,6 +38,10 @@ export function PmaOperatorBottomNav() {
       <NavLink to="/diario" className={linkClass}>
         <BookOpen className="h-5 w-5 shrink-0" aria-hidden />
         Diario
+      </NavLink>
+      <NavLink to="/pazienti" className={linkClass}>
+        <Users className="h-5 w-5 shrink-0" aria-hidden />
+        Pazienti
       </NavLink>
       {showAccount ? (
         <NavLink to="/account" className={linkClass}>

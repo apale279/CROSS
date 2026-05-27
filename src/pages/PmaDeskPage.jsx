@@ -146,24 +146,15 @@ export default function PmaDeskPage() {
           ) : null}
         </div>
         <div className={`flex flex-wrap gap-2 ${fieldUx ? 'w-full' : ''}`}>
-          <button
-            type="button"
-            className={`${fieldUx ? `${btnPrimary} min-h-[44px] flex-1` : btnSecondary}`}
-            onClick={() => setShowCreate(true)}
-          >
-            + Autopresentato
-          </button>
-          {!fieldUx ? (
+          {fieldUx ? (
             <>
-              <button type="button" className={btnSecondary} onClick={() => setShowCodiciMinori(true)}>
-                Tabella codici minori
+              <button
+                type="button"
+                className={`${btnPrimary} min-h-[44px] flex-1`}
+                onClick={() => setShowCreate(true)}
+              >
+                + Autopresentato
               </button>
-              <button type="button" className={btnSecondary} onClick={() => setShowIpadFirma(true)}>
-                Ipad firma
-              </button>
-            </>
-          ) : (
-            <>
               <button
                 type="button"
                 className={`${btnSecondary} min-h-[44px] flex-1 text-xs`}
@@ -178,6 +169,18 @@ export default function PmaDeskPage() {
                 title="Ipad firma"
               >
                 Firma
+              </button>
+            </>
+          ) : (
+            <>
+              <button type="button" className={btnSecondary} onClick={() => setShowCodiciMinori(true)}>
+                Tabella codici minori
+              </button>
+              <button type="button" className={btnSecondary} onClick={() => setShowIpadFirma(true)}>
+                Ipad firma
+              </button>
+              <button type="button" className={btnSecondary} onClick={() => setShowCreate(true)}>
+                + Paziente autopresentato
               </button>
             </>
           )}

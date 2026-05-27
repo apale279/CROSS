@@ -68,7 +68,7 @@ export function DettaglioPaziente({
       <div
         className={
           compact
-            ? 'pma-scheda-mobile-chrome sticky top-0 z-20 shrink-0 border-b border-slate-200 bg-white shadow-sm'
+            ? 'pma-scheda-mobile-chrome sticky top-0 z-20 shrink-0 border-b border-slate-200 bg-white pt-[env(safe-area-inset-top,0px)] shadow-sm'
             : 'shrink-0 border-b border-slate-200 bg-white py-2'
         }
       >
