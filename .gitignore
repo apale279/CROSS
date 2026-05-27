@@ -7,3 +7,4 @@ dist
 *firebase-adminsdk*.json
 .firebase-sa.tmp.json
 .env*
+Datiexport_local/

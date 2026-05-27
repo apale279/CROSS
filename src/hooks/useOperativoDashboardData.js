@@ -1,6 +1,8 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
+import { serverTimestamp } from 'firebase/firestore';
 import { DEFAULT_IMPOSTAZIONI, ESITO_TRASPORTA } from '../constants';
 import { COLLECTIONS } from '../lib/firestorePaths';
+import { useManifestazioneId } from '../context/ManifestazioneContext';
 import { useManifestazioneCollection } from './useManifestazioneCollection';
 import {
   missioniPerEvento,
@@ -8,6 +10,8 @@ import {
   eventoSenzaCoperturaMissione,
   sortEventiAperti,
 } from '../lib/eventoLinks';
+import { shouldAutoCloseEvento } from '../utils/eventoAutoClose';
+import { patchEvento } from '../services/eventiService';
 
 function pazientiTrasportoPerMissione(pazienti, mis) {
   if (!mis) return [];
@@ -20,6 +24,7 @@ function pazientiTrasportoPerMissione(pazienti, mis) {
 }
 
 export function useOperativoDashboardData() {
+  const manifestationId = useManifestazioneId();
   const { data: eventi, loading: loadingE } = useManifestazioneCollection(COLLECTIONS.eventi);
   const { data: missioni, loading: loadingM } = useManifestazioneCollection(COLLECTIONS.missioni);
   const { data: mezzi, loading: loadingZ } = useManifestazioneCollection(COLLECTIONS.mezzi);
@@ -64,14 +69,19 @@ export function useOperativoDashboardData() {
 
     for (const ev of eventiAperti) {
       const missions = sortMissioni(missioniPerEvento(missioniAperte, ev));
+      const missioniEvento = missioniPerEvento(missioni, ev);
+      const pazientiEvento = pazientiPerEvento(pazienti, ev);
+      const prontoOperativoTerminato =
+        ev.operativoTerminato === true || shouldAutoCloseEvento(missioniEvento, pazientiEvento);
       missions.forEach((m) => usedMissionIds.add(m._docId));
       blocks.push({
         key: `ev-${ev._docId}`,
         ev,
         missions,
+        prontoOperativoTerminato,
         orfano:
           ev.stato !== false &&
-          ev.operativoTerminato !== true &&
+          !prontoOperativoTerminato &&
           eventoSenzaCoperturaMissione(missioni, ev),
       });
     }
@@ -82,7 +92,27 @@ export function useOperativoDashboardData() {
     }
 
     return blocks;
-  }, [eventiAperti, missioniAperte, missioni]);
+  }, [eventiAperti, missioniAperte, missioni, pazienti]);
+
+  const reconciledOperativoRef = useRef(new Set());
+
+  useEffect(() => {
+    if (loadingE || loadingM || loadingP || !manifestationId) return;
+    for (const ev of eventiAperti) {
+      if (ev.operativoTerminato === true) continue;
+      if (reconciledOperativoRef.current.has(ev._docId)) continue;
+      const missioniEvento = missioniPerEvento(missioni, ev);
+      const pazientiEvento = pazientiPerEvento(pazienti, ev);
+      if (!shouldAutoCloseEvento(missioniEvento, pazientiEvento)) continue;
+      reconciledOperativoRef.current.add(ev._docId);
+      void patchEvento(manifestationId, ev._docId, {
+        operativoTerminato: true,
+        operativoTerminatoIl: serverTimestamp(),
+      }).catch(() => {
+        reconciledOperativoRef.current.delete(ev._docId);
+      });
+    }
+  }, [eventiAperti, missioni, pazienti, manifestationId, loadingE, loadingM, loadingP]);
 
   const operativoStats = useMemo(() => {
     const eventCount = operativoBlocks.filter((b) => b.ev).length;

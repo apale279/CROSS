@@ -1,32 +1,29 @@
 import { collection, doc, getDoc, getDocs, query, serverTimestamp, where } from 'firebase/firestore';
 import { db } from '../firebaseConfig';
 import { eventiPath, missioniPath, pazientiPath } from '../lib/firestorePaths';
-import { pazientiPerEvento } from '../lib/eventoLinks';
+import { missioniPerEvento, pazientiPerEvento } from '../lib/eventoLinks';
 import { shouldAutoCloseEvento } from '../utils/eventoAutoClose';
 import { patchEvento } from './eventiService';
 
 export async function tryAutoCloseEvento(manifestationId, eventoRef) {
   if (!eventoRef?.idUnivoco && !eventoRef?.idEvento) return;
 
-  let missioni = [];
-
-  if (eventoRef.idUnivoco) {
-    const snap = await getDocs(
-      query(
-        collection(db, ...missioniPath(manifestationId)),
-        where('eventoIdUnivoco', '==', eventoRef.idUnivoco),
-      ),
-    );
-    missioni = snap.docs.map((d) => d.data());
-  } else {
-    const snap = await getDocs(
-      query(
-        collection(db, ...missioniPath(manifestationId)),
-        where('eventoCorrelato', '==', eventoRef.idEvento),
-      ),
-    );
-    missioni = snap.docs.map((d) => d.data());
+  const missioniCol = collection(db, ...missioniPath(manifestationId));
+  const missionSnaps = await Promise.all([
+    eventoRef.idUnivoco
+      ? getDocs(query(missioniCol, where('eventoIdUnivoco', '==', eventoRef.idUnivoco)))
+      : Promise.resolve({ docs: [] }),
+    eventoRef.idEvento
+      ? getDocs(query(missioniCol, where('eventoCorrelato', '==', eventoRef.idEvento)))
+      : Promise.resolve({ docs: [] }),
+  ]);
+  const missioniById = new Map();
+  for (const snap of missionSnaps) {
+    for (const d of snap.docs) {
+      missioniById.set(d.id, { _docId: d.id, ...d.data() });
+    }
   }
+  let missioni = [...missioniById.values()];
 
   let pazienti = [];
   const pazSnap = await getDocs(collection(db, ...pazientiPath(manifestationId)));
@@ -59,10 +56,12 @@ export async function tryAutoCloseEvento(manifestationId, eventoRef) {
 
   if (!eventoDoc || eventoDoc.stato === false || eventoDoc.operativoTerminato === true) return;
 
-  const pazientiEvento = pazientiPerEvento(pazienti, {
+  const eventoForLink = {
     idUnivoco: eventoDoc.idUnivoco,
     idEvento: eventoDoc.idEvento,
-  });
+  };
+  missioni = missioniPerEvento(missioni, eventoForLink);
+  const pazientiEvento = pazientiPerEvento(pazienti, eventoForLink);
   if (!shouldAutoCloseEvento(missioni, pazientiEvento)) return;
 
   await patchEvento(manifestationId, eventoDoc.id, {

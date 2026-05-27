@@ -23,6 +23,39 @@ const tdClass =
   'border-t border-slate-200/80 px-2 py-0.5 text-sm leading-tight text-slate-900';
 const terminatoRowBg = 'bg-slate-200/85';
 
+/** E / M / T sulla stessa riga (niente andata a capo nelle colonne strette). */
+function ColoriEmtCell({ coloreE, coloreM, coloreT, className = '' }) {
+  return (
+    <td
+      className={`${tdClass} border-r-2 border-slate-300 text-center align-middle ${className}`}
+    >
+      <div className="flex items-center justify-center gap-1 whitespace-nowrap">
+        {coloreE != null ? (
+          <ColoreIndicator colore={coloreE} size="md" />
+        ) : (
+          <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center text-xs text-slate-400">
+            —
+          </span>
+        )}
+        {coloreM != null ? (
+          <ColoreIndicator colore={coloreM} size="md" />
+        ) : (
+          <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center text-xs text-slate-400">
+            —
+          </span>
+        )}
+        {coloreT != null && String(coloreT).trim() !== '' ? (
+          <ColoreIndicator colore={coloreT} size="md" />
+        ) : (
+          <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center text-xs text-slate-400">
+            —
+          </span>
+        )}
+      </div>
+    </td>
+  );
+}
+
 function MissioneStatoCell({ mis, onAdvance, readOnly }) {
   const elapsed = useElapsedSince(mis.statoDa ?? mis.apertura);
   return (
@@ -54,6 +87,7 @@ function EventoCells({
   ev,
   rowSpan,
   orfano,
+  prontoOperativoTerminato = false,
   pazientiCount,
   multiMission,
   onOpenEvento,
@@ -65,8 +99,7 @@ function EventoCells({
     if (ev && canOpenEvento) onOpenEvento(ev);
   };
   const evBorder = multiMission ? 'border-r border-r-violet-200/60' : 'border-r-2 border-slate-200';
-  const evTd = `${canOpenEvento ? 'cursor-pointer hover:brightness-95 ' : ''}${tdClass} ${evBorder} align-top`;
-  const coloreE = ev ? resolveCodiceColoreEvento(ev) : null;
+  const evTd = `${canOpenEvento ? 'cursor-pointer hover:brightness-95 ' : ''}${tdClass} ${evBorder} align-middle`;
 
   return (
     <>
@@ -80,7 +113,7 @@ function EventoCells({
                 className="[&_svg]:h-4 [&_svg]:w-4"
               />
             )}
-            {ev.operativoTerminato === true && (
+            {(ev.operativoTerminato === true || prontoOperativoTerminato) && (
               <span
                 className="rounded bg-amber-200 px-1 py-0.5 text-[9px] font-bold uppercase text-amber-950"
                 title="Operatività terminata — archiviare con Termina evento"
@@ -121,14 +154,6 @@ function EventoCells({
           '—'
         )}
       </td>
-      <td
-        rowSpan={rowSpan}
-        className={`${evTd} border-r-2 border-slate-300 text-center ${multiMission ? 'border-r-violet-200/70' : ''}`}
-        onClick={open}
-        title="Codice colore evento"
-      >
-        {coloreE ? <ColoreIndicator colore={coloreE} size="md" /> : '—'}
-      </td>
     </>
   );
 }
@@ -155,9 +180,7 @@ export function EventiMissioniTable({
         <col />
         <col className="w-[10%]" />
         <col className="w-[3.5%]" />
-        <col className="w-[1.75rem]" />
-        <col className="w-[1.75rem]" />
-        <col className="w-[1.75rem]" />
+        <col className="w-[4.5rem]" />
         <col className="w-[9%]" />
         <col className="w-[6%]" />
         <col className="w-[8%]" />
@@ -171,14 +194,15 @@ export function EventiMissioniTable({
           <th className={thClass}>Indirizzo</th>
           <th className={`${thClass} whitespace-nowrap`}>Tipo</th>
           <th className={`${thClass} text-center`}>Pz</th>
-          <th className={`${thClass} border-r-2 border-slate-300 text-center`} title="Colore evento">
-            E
-          </th>
-          <th className={`${thClass} border-r border-slate-300 bg-slate-50/90 text-center`} title="Colore missione">
-            M
-          </th>
-          <th className={`${thClass} border-r-2 border-slate-300 bg-slate-50/90 text-center`} title="Colore trasporto">
-            T
+          <th
+            className={`${thClass} border-r-2 border-slate-300 text-center`}
+            title="Colore evento · missione · trasporto"
+          >
+            <span className="inline-flex items-center justify-center gap-1 whitespace-nowrap">
+              <span>E</span>
+              <span>M</span>
+              <span>T</span>
+            </span>
           </th>
           <th className={`${thClass} border-l-2 border-slate-300 bg-slate-50/90 whitespace-nowrap`}>
             Missione
@@ -194,13 +218,14 @@ export function EventiMissioniTable({
       <tbody>
         {loading && (
           <tr>
-            <td colSpan={readOnly ? 12 : 13} className={tdClass} />
+            <td colSpan={readOnly ? 10 : 11} className={tdClass} />
           </tr>
         )}
         {!loading &&
           blocks.flatMap((block) => {
-            const { ev, missions, orfano } = block;
-            const terminato = ev?.operativoTerminato === true;
+            const { ev, missions, orfano, prontoOperativoTerminato } = block;
+            const terminato =
+              ev?.operativoTerminato === true || prontoOperativoTerminato === true;
             const multiMission = missions.length > 1;
             const blockBorder = multiMission ? 'border-l-2 border-l-violet-500/70' : '';
             const pz = ev ? (pazientiCountByEvento.get(ev._docId) ?? 0) : 0;
@@ -222,14 +247,16 @@ export function EventiMissioniTable({
                     ev={ev}
                     rowSpan={1}
                     orfano={orfano}
+                    prontoOperativoTerminato={prontoOperativoTerminato}
                     pazientiCount={pz}
                     multiMission={false}
                     onOpenEvento={onOpenEvento}
                   />
-                  <td className={`${tdClass} text-center text-slate-400`}>—</td>
-                  <td className={`${tdClass} border-r-2 border-slate-300 text-center text-slate-400`}>
-                    —
-                  </td>
+                  <ColoriEmtCell
+                    coloreE={coloreE}
+                    coloreM={null}
+                    coloreT={null}
+                  />
                   <td
                     colSpan={missionColSpan}
                     className={`${tdClass} border-l-2 border-slate-300 bg-slate-50/50 text-center text-sm italic text-slate-500`}
@@ -263,6 +290,7 @@ export function EventiMissioniTable({
                         ev={ev}
                         rowSpan={missions.length}
                         orfano={orfano}
+                        prontoOperativoTerminato={prontoOperativoTerminato}
                         pazientiCount={pz}
                         multiMission={multiMission}
                         onOpenEvento={onOpenEvento}
@@ -278,19 +306,12 @@ export function EventiMissioniTable({
                       onOpenEvento={onOpenEvento}
                     />
                   )}
-                  <td className={`${tdClass} text-center`} title="Colore missione">
-                    <ColoreIndicator colore={coloreM} size="md" />
-                  </td>
-                  <td
-                    className={`${tdClass} border-r-2 border-slate-300 text-center`}
-                    title="Colore trasporto"
-                  >
-                    {coloreT ? (
-                      <ColoreIndicator colore={coloreT} size="md" />
-                    ) : (
-                      <span className="text-xs text-slate-400">—</span>
-                    )}
-                  </td>
+                  <ColoriEmtCell
+                    coloreE={idx === 0 ? resolveCodiceColoreEvento(ev) : null}
+                    coloreM={coloreM}
+                    coloreT={coloreT}
+                    className={multiMission ? 'border-r-violet-200/70' : ''}
+                  />
                   <td
                     className={`${tdClass} border-l-2 border-slate-300 font-mono font-bold whitespace-nowrap`}
                   >

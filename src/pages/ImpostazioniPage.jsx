@@ -17,6 +17,7 @@ import { TelegramLoggedUsersPanel } from '../components/impostazioni/TelegramLog
 import { ActiveUsersPanel } from '../components/impostazioni/ActiveUsersPanel';
 import { UserAccountsEditor } from '../components/impostazioni/UserAccountsEditor';
 import { PmaClinicaImpostazioniPanel } from '../components/impostazioni/PmaClinicaImpostazioniPanel';
+import { ChangelogLogPanel } from '../components/impostazioni/ChangelogLogPanel';
 import { ImpostazioniEditProvider, useImpostazioniEdit } from '../context/ImpostazioniEditContext';
 
 const ALTRE_LISTE = {
@@ -70,6 +71,9 @@ function ImpostazioniPageContent() {
         <button type="button" className={tabClass(tab === 'pma')} onClick={() => setTab('pma')}>
           Impostazioni PMA
         </button>
+        <button type="button" className={tabClass(tab === 'log')} onClick={() => setTab('log')}>
+          Log
+        </button>
       </nav>
 
       {tab === 'utenti' && (
@@ -79,9 +83,13 @@ function ImpostazioniPageContent() {
         </div>
       )}
 
+      {tab === 'log' && <ChangelogLogPanel />}
+
       <fieldset
-        disabled={!canEdit}
-        className={!canEdit ? 'min-w-0 border-0 p-0 opacity-95' : 'min-w-0 border-0 p-0'}
+        disabled={tab !== 'log' && !canEdit}
+        className={
+          tab !== 'log' && !canEdit ? 'min-w-0 border-0 p-0 opacity-95' : 'min-w-0 border-0 p-0'
+        }
       >
         {tab === 'eventi' && <ImpostazioniEventiPanel />}
 

@@ -244,6 +244,22 @@ function pazienteInElencoApertiAdmin(p) {
   return String(p.statoPzPma ?? '').trim().toUpperCase() !== 'DIMESSO';
 }
 
+/** Come client: PMA aperta dopo ARRIVATO H non blocca operativo terminato. */
+function pazienteBloccaChiusuraOperativaEventoAdmin(p) {
+  if (!pazienteInElencoApertiAdmin(p)) return false;
+  const chiusoCentrale = p.aperta === false || p.stato === 'ARRIVATO H';
+  const tipo = String(p.tipoPz ?? '')
+    .trim()
+    .toUpperCase();
+  const haPma =
+    tipo === 'PMA' ||
+    tipo === 'CODICE MINORE' ||
+    Boolean(String(p.destinazionePmaId ?? '').trim());
+  const pmaAperto = String(p.statoPzPma ?? '').trim().toUpperCase() !== 'DIMESSO';
+  if (chiusoCentrale && haPma && pmaAperto) return false;
+  return true;
+}
+
 function missioneConsenteChiusuraEventoAdmin(m) {
   if (!m) return false;
   if (m.aperta === false) return true;
@@ -253,7 +269,7 @@ function missioneConsenteChiusuraEventoAdmin(m) {
 
 function shouldAutoCloseEventoAdmin(missioni, pazientiEvento) {
   if (!missioni?.length) return false;
-  if ((pazientiEvento ?? []).some(pazienteInElencoApertiAdmin)) return false;
+  if ((pazientiEvento ?? []).some(pazienteBloccaChiusuraOperativaEventoAdmin)) return false;
   if (!missioni.every(missioneConsenteChiusuraEventoAdmin)) return false;
   return missioni.some((m) => m.stato === 'FINE MISSIONE' || m.stato === 'RIENTRO');
 }

@@ -1,0 +1,91 @@
+/**
+ * Registro modifiche CROSS (sola lettura in Impostazioni → LOG).
+ * Solo funzionalità introdotte o migliorate; voci su rimozioni non incluse.
+ * @type {{ date: string, version?: string, description: string }[]}
+ */
+export const CROSS_CHANGE_LOG = [
+  { date: '2026-05-15', description: 'Creazione applicazione CROSS: dashboard operativa (Vite/React, Firebase), login e activity log.' },
+  { date: '2026-05-15', description: 'Impostazioni: centro mappa dashboard da geocoding; username senza spazi (formato nome.cognome).' },
+  { date: '2026-05-15', description: 'Login: redirect sempre alla dashboard operativa.' },
+  { date: '2026-05-16', description: 'Dashboard: pannello unico Eventi e Missioni con raggruppamento rowSpan.' },
+  { date: '2026-05-16', description: 'Tabella eventi/missioni: font allineato al pannello mezzi; tipo evento su una riga (table-fixed).' },
+  { date: '2026-05-17', description: 'Integrazione bot Telegram su Vercel: invio missioni, password equipaggio, UI in dashboard.' },
+  { date: '2026-05-17', description: 'Telegram: logout al cambio password; /start come nuova sessione; indirizzo apribile su Maps.' },
+  { date: '2026-05-17', description: 'Telegram: equipaggio aggiorna stato missione con /stato (allineato alla centrale).' },
+  { date: '2026-05-17', description: 'Telegram: notifica equipaggio quando la centrale forza lo stato missione.' },
+  { date: '2026-05-17', description: 'Mappa tattica Leaflet: piantina evento, drag-drop mezzi, luogo fisico.' },
+  { date: '2026-05-17', description: 'Impostazioni INFO LUOGO: gestione piantina (URL immagine ospitato).' },
+  { date: '2026-05-17', description: 'Dashboard: luogo fisico in tabella; tab Missioni dopo creazione evento; orologio sugli stati missione.' },
+  { date: '2026-05-17', description: 'Mappa tattica: icone mezzo compatte; modal scheda missione sulla piantina.' },
+  { date: '2026-05-17', description: 'Mappa tattica: sidebar eventi; creazione rapida evento+missione; icone mezzo verde/rosso.' },
+  { date: '2026-05-17', description: 'Mappa tattica: eventi su piantina e stati rapidi; chiusura Telegram su missione ANNULLATA.' },
+  { date: '2026-05-17', description: 'Diario operativo; logout globale con wipe sessioni Telegram; sessioni revocabili.' },
+  { date: '2026-05-17', description: 'Deploy API Vercel e completamento comandi Telegram.' },
+  { date: '2026-05-17', version: 'v1', description: 'Release v1 — flusso operativo end-to-end funzionante.' },
+  { date: '2026-05-17', description: 'Kiosk pop-out; tipi mezzo con emoji; mappa operativa; Telegram multi-tenant.' },
+  { date: '2026-05-17', description: 'Tabella Stato mezzi: emoji tipo mezzo.' },
+  { date: '2026-05-17', version: 'v1.2', description: 'Release v1.2.' },
+  { date: '2026-05-17', description: 'Import massivo tipi evento e dettagli da Excel.' },
+  { date: '2026-05-17', description: 'GPS mezzo da Telegram con consenso equipaggio.' },
+  { date: '2026-05-17', description: 'GPS solo per mezzi fuori piantina; posizione su mappa operativa per missione.' },
+  { date: '2026-05-17', description: 'Impostazioni Telegram: toggle TRACKING GPS ON/OFF.' },
+  { date: '2026-05-17', version: 'v1.3', description: 'Release v1.3.' },
+  { date: '2026-05-17', description: 'Ticker note diario importanti a loop; elenco utenti bot loggati; invio nota a tutti.' },
+  { date: '2026-05-17', description: 'Fix matching sigle missione, GPS e broadcast diario.' },
+  { date: '2026-05-17', description: 'Stazionamento/GPS: evita sovrascritture; pulizia posizioni con tracking OFF.' },
+  { date: '2026-05-17', description: 'Utenti web attivi; guida PDF su Cloudinary; script upload guida.' },
+  { date: '2026-05-17', version: 'v1.4', description: 'Release v1.4 — guida operativa riscritta e generazione PDF.' },
+  { date: '2026-05-23', version: 'v1.5', description: 'Dashboard operativa PMA; invio missione Telegram; integrazione con PMApp.' },
+  { date: '2026-05-23', description: 'PMA interno in CROSS: cartella clinica, scrittura granulare campi, presenza operatore, CRUD utenti.' },
+  { date: '2026-05-24', description: 'Flussi PMA/centrale e stabilità operativa.' },
+  { date: '2026-05-25', description: 'Flussi paziente centrale/PMA, eventi e scheda clinica.' },
+  { date: '2026-05-25', description: 'Dashboard centrale: pannello PMA; codici colore missione (M) e trasporto (T); flussi mezzo/evento.' },
+  { date: '2026-05-25', description: 'Invio PS con ospedale; UX PMA mobile; logout per inattività; fix dashboard.' },
+  { date: '2026-05-26', description: 'Firma paziente su iPad PMA: account automatico, coda PDF, popup su desk PMA.' },
+  { date: '2026-05-26', description: 'PMA: catalogo farmaci separato da consumati; fix rete iPad in LAN; redirect login.' },
+  { date: '2026-05-26', description: 'Farmaci PMA su Firestore: fix race condition su elenco consumati.' },
+  { date: '2026-05-26', description: 'Messaggi errore Cloudinary chiari in sviluppo (VITE_ vs proxy Vercel).' },
+  { date: '2026-05-26', version: 'v2.1', description: 'Versione mostrata in UI (header, login, iPad).' },
+  { date: '2026-05-26', version: 'v2.2', description: 'iPad: PDF e firma impilati; dimissione senza firma medico obbligatoria.' },
+  { date: '2026-05-26', version: 'v2.3', description: 'PMA: nasconde pulsante Dimetti se paziente già dimesso.' },
+  { date: '2026-05-26', version: 'v2.4', description: 'iPad: PDF a tutto schermo; firma solo su richiesta.' },
+  { date: '2026-05-26', version: 'v2.5', description: 'Pazienti dimessi modificabili (Medico PMA); PDF iPad adattato.' },
+  { date: '2026-05-26', description: 'Codice colore missione (M): solo campo dedicato; Telegram e dirottamento allineati.' },
+  { date: '2026-05-26', description: 'Invio PS da PMA: colore missione da codice trasporto PMA; evento senza colore forzato.' },
+  { date: '2026-05-26', description: 'Firestore: patch senza campi undefined; chiusura operativa evento con gestione errori.' },
+  { date: '2026-05-26', description: 'Scheda paziente: banner errore snapshot; sync ARRIVATO H più robusto; guard sessione revocata.' },
+  { date: '2026-05-26', description: 'Missioni/mezzi: sigla canonica; rilascio mezzo solo se nessuna altra missione attiva; match sigle fuzzy.' },
+  { date: '2026-05-26', description: 'Scheda missione/evento: dettaglio con codici colore M/T; filtro mezzi disponibili per nuova missione.' },
+  { date: '2026-05-26', description: 'Paziente: export/viewer campi corretti; sync destinazione PMA tardiva; aggiornamento missione su cambio mezzo.' },
+  { date: '2026-05-26', description: 'PMA: permessi per rank (Triage, dimissione); desk con pazienti legacy in arrivo; tab scheda per profilo.' },
+  { date: '2026-05-26', description: 'Chiusura forzata evento: missioni ANNULLATA non riaperte; Telegram allineato su pazienti PMA e auto-chiusura evento.' },
+  { date: '2026-05-26', description: 'Manifestazione singola automatica; blocco nuova missione se mezzo già impegnato (con conferma su rientro).' },
+  { date: '2026-05-26', description: 'Operatore PMA: dati filtrati per ambito PMA; lock campi transazionale; validazione dimissione completa.' },
+  { date: '2026-05-26', description: 'Firma iPad: validazione transazionale coda/stato prima del salvataggio.' },
+  { date: '2026-05-26', description: 'Eventi: colonna indirizzo unificata; colore E normalizzato; export Firebase campi evento corretti.' },
+  { date: '2026-05-26', version: 'v2.8', description: 'Tab Centrale/PMA su scheda paziente; sblocco dimessi; fix invio PS.' },
+  { date: '2026-05-27', version: 'v2.9', description: 'Lock PMA transazionale; tenant unico; scope operatore; blocco missioni; fix audit.' },
+  { date: '2026-05-27', version: 'v2.10', description: 'UI mobile PMA: modali contenute nel viewport; tab e allergie allineate alla scheda.' },
+  { date: '2026-05-27', version: 'v2.11', description: 'Parametri vitali eliminabili; dimetti solo medico; ticker desk PMA; cartella clinica mobile.' },
+  { date: '2026-05-27', version: 'v2.12', description: 'Modali centrale più ampie; foto codici minori; seed prova 5 eventi dashboard.' },
+  { date: '2026-05-27', version: 'v2.13', description: 'PMA smartphone: scheda compatta; ACC MSB/MSA; fix collegamento missioni–evento (orfani logistici).' },
+  { date: '2026-05-27', version: 'v2.14', description: 'PMA touch fino a 768px; desk operativo; navigazione inferiore operatori PMA.' },
+  { date: '2026-05-27', version: 'v2.15', description: 'Fix header PMA mobile, desk desktop, safe-area e bottom nav.' },
+  { date: '2026-05-27', version: 'v2.16', description: 'Centrale: flag «Modifica impostazioni» per account (sola lettura opzionale); superadmin sempre edit.' },
+  { date: '2026-05-27', version: 'v2.17', description: 'Scheda paziente: nascosta data/ora creazione; tipo e dettaglio evento in tab Dati centrale (anche PMA).' },
+  { date: '2026-05-27', version: 'v2.18', description: 'Modali centrale (evento/missione/paziente): dimensione scheda uniforme; popup PV PMA etichetta a sinistra.' },
+  { date: '2026-05-27', version: 'v2.19', description: 'Modale evento: larghezza e altezza fisse tra tab Dettaglio/Missioni/Pazienti.' },
+  { date: '2026-05-27', description: 'Evento operativo terminato: pazienti solo in tenda PMA non bloccano più la chiusura operativa centrale; riconciliazione in dashboard.' },
+  { date: '2026-05-27', description: 'Dashboard eventi: codici colore E, M e T sulla stessa riga.' },
+  { date: '2026-05-27', description: 'Impostazioni: tab LOG (sola lettura) con registro modifiche dall’avvio applicazione.' },
+];
+
+/** Raggruppa voci per data (ordine cronologico ascendente). */
+export function changeLogByDate() {
+  const map = new Map();
+  for (const entry of CROSS_CHANGE_LOG) {
+    if (!map.has(entry.date)) map.set(entry.date, []);
+    map.get(entry.date).push(entry);
+  }
+  return [...map.entries()].sort(([a], [b]) => a.localeCompare(b));
+}

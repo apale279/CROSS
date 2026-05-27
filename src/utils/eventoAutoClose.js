@@ -1,4 +1,5 @@
-import { pazienteInElencoAperti } from '../lib/pazienteStati';
+import { isChiusoCentrale, pazienteInElencoAperti } from '../lib/pazienteStati';
+import { pazienteHaSchedaPma, pazientePmaAperto } from '../lib/pmaModule';
 
 /** Missione considerata terminata (fine regolare o annullamento eccezione). */
 export function isMissioneTerminata(missione) {
@@ -30,14 +31,31 @@ export function missioneConsenteChiusuraEvento(missione) {
   return s === 'RIENTRO' || s === 'FINE MISSIONE' || s === 'ANNULLATA';
 }
 
+/**
+ * Paziente che impedisce la chiusura operativa centrale dell’evento.
+ * Chi è già concluso in missione/trasporto ma ancora in tenda PMA non blocca
+ * (come E68/E70 con ARRIVATO H + IN ARRIVO / in carico).
+ */
+export function pazienteBloccaChiusuraOperativaEvento(paziente) {
+  if (!pazienteInElencoAperti(paziente)) return false;
+  if (
+    isChiusoCentrale(paziente) &&
+    pazienteHaSchedaPma(paziente) &&
+    pazientePmaAperto(paziente)
+  ) {
+    return false;
+  }
+  return true;
+}
+
 export function eventoHaPazientiAperti(pazientiCollegate) {
-  return (pazientiCollegate ?? []).some(pazienteInElencoAperti);
+  return (pazientiCollegate ?? []).some(pazienteBloccaChiusuraOperativaEvento);
 }
 
 /**
  * `operativoTerminato` quando tutte le missioni sono in rientro/fine/annullo,
  * almeno una in RIENTRO o FINE MISSIONE (non solo ANNULLATE),
- * e nessun paziente ancora aperto sull’evento.
+ * e nessun paziente ancora in gestione centrale sull’evento.
  */
 export function shouldAutoCloseEvento(missioniCollegate, pazientiCollegate = []) {
   if (!missioniCollegate?.length) return false;
