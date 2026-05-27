@@ -266,7 +266,7 @@ export function EventoScheda({
       ];
 
   return (
-    <div className="space-y-4">
+    <div className="flex min-h-full flex-col gap-4">
       {!isCreate && (
         <div className="flex flex-wrap items-center gap-3 border-b border-slate-200 pb-3">
           <span
@@ -326,6 +326,7 @@ export function EventoScheda({
         ))}
       </nav>
 
+      <div className="min-h-0 flex-1">
       {tab === 'dettaglio' && (
         <div>
           <EventoDettaglioForm
@@ -555,6 +556,7 @@ export function EventoScheda({
           )}
         </div>
       )}
+      </div>
 
       {!readOnly && pazienteModal && (
         <Modal

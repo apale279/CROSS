@@ -16,7 +16,7 @@ export function Modal({
   scheda = false,
 }) {
   const widthClass = scheda
-    ? 'w-full max-w-3xl'
+    ? 'w-[min(100%,48rem)] max-w-3xl'
     : fitViewport
       ? 'max-w-[calc(100vw-1rem)]'
       : extraWide
@@ -25,13 +25,16 @@ export function Modal({
           ? 'max-w-3xl'
           : 'max-w-lg';
 
+  /** Altezza fissa: il pannello non si riduce al cambio tab (es. Dettaglio → Missioni). */
   const panelClass = scheda
-    ? 'flex max-h-[min(90dvh,960px)] min-h-[min(72dvh,700px)] w-full flex-col overflow-hidden'
+    ? 'flex h-[min(88dvh,920px)] w-full flex-col overflow-hidden'
     : 'max-h-[min(90vh,100dvh)] overflow-x-hidden overflow-y-auto';
 
   const bodyClass = scheda
     ? 'min-h-0 flex-1 overflow-x-hidden overflow-y-auto p-5'
     : 'p-5';
+
+  const panelWidthBehavior = scheda ? '' : 'sm:w-auto';
 
   return createPortal(
     <div
@@ -40,7 +43,7 @@ export function Modal({
       role="presentation"
     >
       <div
-        className={`rounded-xl border border-slate-200 bg-white shadow-xl sm:w-auto ${panelClass} ${widthClass}`}
+        className={`rounded-xl border border-slate-200 bg-white shadow-xl ${panelWidthBehavior} ${panelClass} ${widthClass}`}
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
