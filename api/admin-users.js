@@ -3,23 +3,33 @@ import { createAuthUserWithEmailReclaim, deleteAuthUserCompletely } from './_lib
 import { requireTenant } from './_lib/resolveTenant.js';
 import { verifyFirebaseUser } from './_lib/verifyFirebaseUser.js';
 import { requireWebAdmin } from './_lib/requireWebAdmin.js';
+import { requireImpostazioniEditor } from './_lib/requireImpostazioniEditor.js';
 
 function profileRef(tenantId, uid) {
   return getAdminDb().doc(`manifestazioni/${tenantId}/userProfiles/${uid}`);
+}
+
+function parseCanEditImpostazioni(body, accessType) {
+  if (accessType !== 'CENTRALE') return false;
+  const raw = body.canEditImpostazioni;
+  if (raw === false || raw === 'false' || raw === 0 || raw === '0') return false;
+  return true;
 }
 
 function normalizeBody(body) {
   const accessType = String(body.accessType ?? 'CENTRALE').trim().toUpperCase();
   const pmaRank = String(body.pmaRank ?? '').trim().toUpperCase();
   const pmaScopeId = String(body.pmaScopeId ?? '').trim();
+  const tipo = accessType === 'PMA' ? 'PMA' : 'CENTRALE';
   return {
     email: String(body.email ?? '').trim().toLowerCase(),
     password: String(body.password ?? ''),
     nome: String(body.nome ?? '').trim(),
     nomeUtente: String(body.nomeUtente ?? '').trim(),
-    accessType: accessType === 'PMA' ? 'PMA' : 'CENTRALE',
-    pmaRank: accessType === 'PMA' ? pmaRank : '',
-    pmaScopeId: accessType === 'PMA' ? pmaScopeId : '',
+    accessType: tipo,
+    pmaRank: tipo === 'PMA' ? pmaRank : '',
+    pmaScopeId: tipo === 'PMA' ? pmaScopeId : '',
+    canEditImpostazioni: parseCanEditImpostazioni(body, tipo),
   };
 }
 
@@ -45,6 +55,14 @@ async function listUsers(tenantId) {
       accessType: data.accessType ?? (data.pmaScopeId ? 'PMA' : 'CENTRALE'),
       pmaRank: data.pmaRank ?? '',
       pmaScopeId: data.pmaScopeId ?? '',
+      canEditImpostazioni: (() => {
+        const tipo = String(data.accessType ?? '').trim().toUpperCase();
+        if (tipo === 'PMA') return false;
+        if (tipo === 'CENTRALE' || (!tipo && !data.pmaScopeId)) {
+          return data.canEditImpostazioni !== false;
+        }
+        return data.canEditImpostazioni === true;
+      })(),
     });
   }
 
@@ -64,6 +82,7 @@ export default async function handler(req, res) {
     }
 
     if (req.method === 'POST') {
+      await requireImpostazioniEditor(decoded, tenantId);
       const b = normalizeBody(req.body ?? {});
       if (!b.email || !b.password || b.password.length < 6) {
         return res.status(400).json({ error: 'Email e password (min 6 caratteri) obbligatori.' });
@@ -82,7 +101,7 @@ export default async function handler(req, res) {
         },
       });
 
-      await profileRef(tenantId, userRecord.uid).set({
+      const profileData = {
         email: b.email,
         nome: b.nome,
         nomeUtente: b.nomeUtente,
@@ -90,12 +109,17 @@ export default async function handler(req, res) {
         pmaRank: b.pmaRank,
         pmaScopeId: b.pmaScopeId,
         creatoIl: new Date(),
-      });
+      };
+      if (b.accessType === 'CENTRALE') {
+        profileData.canEditImpostazioni = b.canEditImpostazioni;
+      }
+      await profileRef(tenantId, userRecord.uid).set(profileData);
 
       return res.status(201).json({ ok: true, uid: userRecord.uid });
     }
 
     if (req.method === 'PATCH') {
+      await requireImpostazioniEditor(decoded, tenantId);
       const uid = String(req.body?.uid ?? '').trim();
       if (!uid) return res.status(400).json({ error: 'uid obbligatorio' });
 
@@ -133,6 +157,11 @@ export default async function handler(req, res) {
         aggiornatoIl: new Date(),
       };
       if (b.email) profilePatch.email = b.email;
+      if (b.accessType === 'CENTRALE') {
+        profilePatch.canEditImpostazioni = b.canEditImpostazioni;
+      } else {
+        profilePatch.canEditImpostazioni = false;
+      }
 
       await profileRef(tenantId, uid).set(profilePatch, { merge: true });
 
@@ -140,6 +169,7 @@ export default async function handler(req, res) {
     }
 
     if (req.method === 'DELETE') {
+      await requireImpostazioniEditor(decoded, tenantId);
       const uid = String(req.query?.uid ?? req.body?.uid ?? '').trim();
       if (!uid) return res.status(400).json({ error: 'uid obbligatorio' });
       if (uid === decoded.uid) {

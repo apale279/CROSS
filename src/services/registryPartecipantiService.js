@@ -9,6 +9,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../firebaseConfig';
 import { registryPartecipantiPathSegments } from '../lib/firestorePaths';
+import { assertCanEditImpostazioniConfig } from '../lib/impostazioniEditGate';
 import { impostazioniDocRef } from './impostazioniService';
 
 function registryColRef(manifestationId) {
@@ -60,6 +61,7 @@ async function runBatchedSets(entries) {
 
 /** Elimina solo i documenti del registry (campo legacy sul doc Impostazioni resta eventualmente alla clear successiva). */
 export async function clearRegistryPartecipanti(manifestationId) {
+  assertCanEditImpostazioniConfig();
   const col = registryColRef(manifestationId);
   const snap = await getDocs(col);
   const refs = snap.docs.map((d) => d.ref);
@@ -73,6 +75,7 @@ export async function clearRegistryPartecipanti(manifestationId) {
  * sono comunque più piccole degli array monolitici su `impostazioni`.
  */
 export async function replaceRegistryPartecipanti(manifestationId, rows) {
+  assertCanEditImpostazioniConfig();
   const col = registryColRef(manifestationId);
   const snap = await getDocs(col);
   await runBatchedDeletes(snap.docs.map((d) => d.ref));
@@ -102,6 +105,7 @@ export async function replaceRegistryPartecipanti(manifestationId, rows) {
 }
 
 async function dropLegacyRegistryFieldIfPresent(manifestationId) {
+  assertCanEditImpostazioniConfig();
   const impRef = impostazioniDocRef(manifestationId);
   const s = await getDoc(impRef);
   if (s.exists() && s.data()?.registryPartecipanti !== undefined) {

@@ -1,5 +1,6 @@
 import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../firebaseConfig';
+import { assertCanEditImpostazioniConfig } from '../lib/impostazioniEditGate';
 import { impostazioniPath } from '../lib/firestorePaths';
 
 export function impostazioniDocRef(manifestationId) {
@@ -17,6 +18,7 @@ export async function ensureImpostazioniDocument(manifestationId) {
 
 /** Salva un solo campo top-level con updateDoc (o setDoc merge se il doc non esiste). */
 export async function saveImpostazioniField(manifestationId, fieldKey, value) {
+  assertCanEditImpostazioniConfig();
   if (fieldKey == null || fieldKey === '') return;
   const docRef = impostazioniDocRef(manifestationId);
   const snap = await getDoc(docRef);
@@ -29,6 +31,7 @@ export async function saveImpostazioniField(manifestationId, fieldKey, value) {
 
 /** Aggiorna solo una voce di dettagliPerTipoEvento senza riscrivere l'intero oggetto. */
 export async function saveDettaglioTipoEvento(manifestationId, tipo, list) {
+  assertCanEditImpostazioniConfig();
   if (!tipo) return;
   const docRef = impostazioniDocRef(manifestationId);
   const snap = await getDoc(docRef);
@@ -46,6 +49,7 @@ export async function saveDettaglioTipoEvento(manifestationId, tipo, list) {
 
 /** Aggiorna solo una voce di dettagliPerTipoLuogo senza riscrivere l'intero oggetto. */
 export async function saveDettaglioTipoLuogo(manifestationId, tipo, list) {
+  assertCanEditImpostazioniConfig();
   if (!tipo) return;
   const docRef = impostazioniDocRef(manifestationId);
   const snap = await getDoc(docRef);
@@ -63,6 +67,7 @@ export async function saveDettaglioTipoLuogo(manifestationId, tipo, list) {
 
 /** @deprecated usa saveImpostazioniField */
 export async function updateImpostazioniDocument(manifestationId, partialFields) {
+  assertCanEditImpostazioniConfig();
   const keys = Object.keys(partialFields ?? {});
   if (keys.length === 0) return;
   if (keys.length === 1) {

@@ -71,3 +71,23 @@ export function isPmaMedicoAccount(profile) {
   if (!isPmaOperatorProfile(profile)) return false;
   return normalizePmaRank(profile?.pmaRank) === 'Medico';
 }
+
+/**
+ * Può modificare il documento impostazioni (config manifestazione).
+ * - Superadmin env: sempre sì
+ * - Centrale: sì se `canEditImpostazioni` non è esplicitamente false (utenti esistenti: default sì)
+ * - PMA: no (non gestiscono impostazioni globali)
+ */
+export function userCanEditImpostazioni(profile, isSuperAdmin = false) {
+  if (isSuperAdmin) return true;
+  if (!profile) return false;
+  if (!userHasFullCentraleAccess(profile, false)) return false;
+  if (profile.canEditImpostazioni === false) return false;
+  return true;
+}
+
+/** Normalizza flag da form/API (checkbox). */
+export function normalizeCanEditImpostazioni(value) {
+  if (value === false || value === 'false' || value === 0 || value === '0') return false;
+  return true;
+}

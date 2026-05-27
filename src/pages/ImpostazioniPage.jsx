@@ -17,6 +17,7 @@ import { TelegramLoggedUsersPanel } from '../components/impostazioni/TelegramLog
 import { ActiveUsersPanel } from '../components/impostazioni/ActiveUsersPanel';
 import { UserAccountsEditor } from '../components/impostazioni/UserAccountsEditor';
 import { PmaClinicaImpostazioniPanel } from '../components/impostazioni/PmaClinicaImpostazioniPanel';
+import { ImpostazioniEditProvider, useImpostazioniEdit } from '../context/ImpostazioniEditContext';
 
 const ALTRE_LISTE = {
   listaOspedali: 'Lista ospedali',
@@ -29,12 +30,23 @@ const tabClass = (active) =>
       : 'border-transparent text-slate-500 hover:text-slate-700'
   }`;
 
-export default function ImpostazioniPage() {
+function ImpostazioniPageContent() {
   const [tab, setTab] = useState('eventi');
+  const { canEdit, profileLoading } = useImpostazioniEdit();
 
   return (
     <div className="mx-auto max-w-3xl px-4 pb-8 pt-2">
       <h2 className="mb-4 text-xl font-bold uppercase text-slate-900">Impostazioni</h2>
+
+      {!profileLoading && !canEdit ? (
+        <p
+          className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950"
+          role="status"
+        >
+          <strong>Sola lettura.</strong> Puoi consultare tutte le impostazioni; le modifiche sono
+          disabilitate per il tuo account centrale.
+        </p>
+      ) : null}
 
       <nav className="mb-6 flex gap-1 border-b border-slate-200">
         <button type="button" className={tabClass(tab === 'eventi')} onClick={() => setTab('eventi')}>
@@ -60,14 +72,6 @@ export default function ImpostazioniPage() {
         </button>
       </nav>
 
-      {tab === 'eventi' && <ImpostazioniEventiPanel />}
-
-      {tab === 'infoLuogo' && <InfoLuogoPanel />}
-
-      {tab === 'guida' && <GuidaPdfPanel />}
-
-      {tab === 'pma' && <PmaClinicaImpostazioniPanel />}
-
       {tab === 'utenti' && (
         <div className="grid gap-4">
           <UserAccountsEditor />
@@ -75,29 +79,50 @@ export default function ImpostazioniPage() {
         </div>
       )}
 
-      {tab === 'telegram' && (
-        <div className="grid gap-4">
-          <TelegramGpsTrackingToggle />
-          <TelegramLoggedUsersPanel />
-          <TelegramBotPasswordEditor />
-          <TelegramForceLogoutPanel />
-          <GlobalLogoutPuliziaPanel />
-        </div>
-      )}
+      <fieldset
+        disabled={!canEdit}
+        className={!canEdit ? 'min-w-0 border-0 p-0 opacity-95' : 'min-w-0 border-0 p-0'}
+      >
+        {tab === 'eventi' && <ImpostazioniEventiPanel />}
 
-      {tab === 'altro' && (
-        <div className="grid gap-4">
-          <TipiMezzoEditor />
-          {Object.entries(ALTRE_LISTE).map(([key, label]) => (
-            <ListEditorField key={key} fieldKey={key} label={label} />
-          ))}
-          <StazionamentiEditor />
-          <PmaEditor />
-          <MappaDashboardCentroEditor />
-          <PartecipantiRegistryEditor />
-          <WipeOpsDangerZone />
-        </div>
-      )}
+        {tab === 'infoLuogo' && <InfoLuogoPanel />}
+
+        {tab === 'guida' && <GuidaPdfPanel />}
+
+        {tab === 'pma' && <PmaClinicaImpostazioniPanel />}
+
+        {tab === 'telegram' && (
+          <div className="grid gap-4">
+            <TelegramGpsTrackingToggle />
+            <TelegramLoggedUsersPanel />
+            <TelegramBotPasswordEditor />
+            <TelegramForceLogoutPanel />
+            <GlobalLogoutPuliziaPanel />
+          </div>
+        )}
+
+        {tab === 'altro' && (
+          <div className="grid gap-4">
+            <TipiMezzoEditor />
+            {Object.entries(ALTRE_LISTE).map(([key, label]) => (
+              <ListEditorField key={key} fieldKey={key} label={label} />
+            ))}
+            <StazionamentiEditor />
+            <PmaEditor />
+            <MappaDashboardCentroEditor />
+            <PartecipantiRegistryEditor />
+            <WipeOpsDangerZone />
+          </div>
+        )}
+      </fieldset>
     </div>
+  );
+}
+
+export default function ImpostazioniPage() {
+  return (
+    <ImpostazioniEditProvider>
+      <ImpostazioniPageContent />
+    </ImpostazioniEditProvider>
   );
 }

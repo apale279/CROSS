@@ -2,7 +2,13 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useManifestazioneId } from '../../context/ManifestazioneContext';
 import { useImpostazioni } from '../../hooks/useImpostazioni';
 import { listaPmaImpostazioni } from '../../lib/pmaModule';
-import { ACCESS_TYPE, PMA_RANK, PMA_RANK_LABEL } from '../../lib/userAccess';
+import {
+  ACCESS_TYPE,
+  PMA_RANK,
+  PMA_RANK_LABEL,
+  normalizeCanEditImpostazioni,
+} from '../../lib/userAccess';
+import { useImpostazioniEdit } from '../../context/ImpostazioniEditContext';
 import {
   createAdminUser,
   deleteAdminUser,
@@ -20,10 +26,12 @@ const emptyForm = () => ({
   accessType: ACCESS_TYPE.PMA,
   pmaRank: PMA_RANK.MEDICO,
   pmaScopeId: '',
+  canEditImpostazioni: true,
 });
 
 export function UserAccountsEditor() {
   const manifestationId = useManifestazioneId();
+  const { canEdit: canEditImpostazioniUi } = useImpostazioniEdit();
   const { impostazioni } = useImpostazioni();
   const pmaList = listaPmaImpostazioni(impostazioni);
   const formRef = useRef(null);
@@ -80,6 +88,10 @@ export function UserAccountsEditor() {
           : ACCESS_TYPE.CENTRALE,
       pmaRank: row.pmaRank || PMA_RANK.MEDICO,
       pmaScopeId: row.pmaScopeId ?? '',
+      canEditImpostazioni:
+        String(row.accessType ?? '').toUpperCase() === ACCESS_TYPE.CENTRALE
+          ? row.canEditImpostazioni !== false
+          : false,
     });
     scrollToForm();
   };
@@ -104,6 +116,8 @@ export function UserAccountsEditor() {
           accessType: form.accessType,
           pmaRank: form.pmaRank,
           pmaScopeId: form.pmaScopeId,
+          canEditImpostazioni:
+            form.accessType === ACCESS_TYPE.CENTRALE ? form.canEditImpostazioni : false,
           password: form.password?.trim() ? form.password : undefined,
         });
       } else {
@@ -114,7 +128,11 @@ export function UserAccountsEditor() {
         if (form.accessType === ACCESS_TYPE.PMA && !form.pmaScopeId) {
           throw new Error('Seleziona un PMA per utenti con accesso PMA.');
         }
-        await createAdminUser(manifestationId, form);
+        await createAdminUser(manifestationId, {
+          ...form,
+          canEditImpostazioni:
+            form.accessType === ACCESS_TYPE.CENTRALE ? form.canEditImpostazioni : false,
+        });
       }
       setForm(emptyForm());
       setEditing(false);
@@ -159,9 +177,11 @@ export function UserAccountsEditor() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <button type="button" className={btnSecondary} onClick={openNew}>
-            Nuovo utente
-          </button>
+          {canEditImpostazioniUi ? (
+            <button type="button" className={btnSecondary} onClick={openNew}>
+              Nuovo utente
+            </button>
+          ) : null}
           <button type="button" className={btnSecondary} onClick={() => void load()}>
             Aggiorna
           </button>
@@ -185,6 +205,7 @@ export function UserAccountsEditor() {
                 <th className="px-3 py-2">Email</th>
                 <th className="px-3 py-2">Tipo</th>
                 <th className="px-3 py-2">PMA / Rank</th>
+                <th className="px-3 py-2">Mod. imp.</th>
                 <th className="px-3 py-2 text-right">Azioni</th>
               </tr>
             </thead>
@@ -209,21 +230,34 @@ export function UserAccountsEditor() {
                       ? `${pmaList.find((p) => p.id === r.pmaScopeId)?.nome ?? (r.pmaScopeId || '—')} · ${PMA_RANK_LABEL[r.pmaRank] ?? (r.pmaRank || '—')}`
                       : '—'}
                   </td>
+                  <td className="px-3 py-2 text-xs text-slate-600">
+                    {String(r.accessType).toUpperCase() === ACCESS_TYPE.CENTRALE
+                      ? r.canEditImpostazioni !== false
+                        ? 'Sì'
+                        : 'Solo lettura'
+                      : '—'}
+                  </td>
                   <td className="px-3 py-2 text-right whitespace-nowrap">
-                    <button
-                      type="button"
-                      className="rounded px-2 py-1 font-semibold text-violet-800 hover:bg-violet-100"
-                      onClick={() => openEdit(r)}
-                    >
-                      Modifica
-                    </button>
-                    <button
-                      type="button"
-                      className="ml-1 rounded px-2 py-1 font-semibold text-red-800 hover:bg-red-100"
-                      onClick={() => void onDelete(r)}
-                    >
-                      Elimina
-                    </button>
+                    {canEditImpostazioniUi ? (
+                      <>
+                        <button
+                          type="button"
+                          className="rounded px-2 py-1 font-semibold text-violet-800 hover:bg-violet-100"
+                          onClick={() => openEdit(r)}
+                        >
+                          Modifica
+                        </button>
+                        <button
+                          type="button"
+                          className="ml-1 rounded px-2 py-1 font-semibold text-red-800 hover:bg-red-100"
+                          onClick={() => void onDelete(r)}
+                        >
+                          Elimina
+                        </button>
+                      </>
+                    ) : (
+                      <span className="text-xs text-slate-400">—</span>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -236,6 +270,7 @@ export function UserAccountsEditor() {
         <p className="mb-4 text-sm text-slate-500">Nessun utente registrato.</p>
       )}
 
+      {canEditImpostazioniUi && (
       <form
         ref={formRef}
         onSubmit={(e) => void submit(e)}
@@ -296,7 +331,15 @@ export function UserAccountsEditor() {
             <select
               className={`${selectClass} mt-1`}
               value={form.accessType}
-              onChange={(e) => setForm((f) => ({ ...f, accessType: e.target.value }))}
+              onChange={(e) => {
+                const accessType = e.target.value;
+                setForm((f) => ({
+                  ...f,
+                  accessType,
+                  canEditImpostazioni:
+                    accessType === ACCESS_TYPE.CENTRALE ? f.canEditImpostazioni : false,
+                }));
+              }}
             >
               <option value={ACCESS_TYPE.PMA}>PMA — solo PMA, Pazienti, Diario</option>
               <option value={ACCESS_TYPE.CENTRALE}>Centrale — vede tutto (dashboard completa)</option>
@@ -305,6 +348,28 @@ export function UserAccountsEditor() {
               Medico / Infermiere / Soccorritore in tenda: scegli <strong>PMA</strong> e assegna il PMA.
             </span>
           </label>
+          {form.accessType === ACCESS_TYPE.CENTRALE && (
+            <label className="flex cursor-pointer items-start gap-2 sm:col-span-2">
+              <input
+                type="checkbox"
+                className="mt-1 h-4 w-4 shrink-0 rounded border-slate-300"
+                checked={form.canEditImpostazioni !== false}
+                onChange={(e) =>
+                  setForm((f) => ({
+                    ...f,
+                    canEditImpostazioni: normalizeCanEditImpostazioni(e.target.checked),
+                  }))
+                }
+              />
+              <span className="text-xs text-slate-800">
+                <strong className="uppercase">Modifica impostazioni</strong>
+                <span className="mt-0.5 block font-normal text-slate-600">
+                  Se disattivato, l&apos;utente centrale può consultare le impostazioni ma non
+                  modificarle né gestire altri account.
+                </span>
+              </span>
+            </label>
+          )}
           {form.accessType === ACCESS_TYPE.PMA && (
             <>
               <label className="block text-xs font-bold text-slate-700">
@@ -351,6 +416,14 @@ export function UserAccountsEditor() {
           )}
         </div>
       </form>
+      )}
+
+      {!canEditImpostazioniUi && (
+        <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">
+          Il tuo account è in <strong>sola lettura</strong> sulle impostazioni: puoi consultare
+          l&apos;elenco utenti ma non crearli o modificarli.
+        </p>
+      )}
     </section>
   );
 }

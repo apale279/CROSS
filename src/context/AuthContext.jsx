@@ -20,6 +20,9 @@ import {
   initSessionDeviceClass,
   writeLastActivity,
 } from '../lib/inactivityLogout';
+import { setImpostazioniConfigCanEdit } from '../lib/impostazioniEditGate';
+import { userCanEditImpostazioni } from '../lib/userAccess';
+import { IS_SUPERADMIN } from '../constants';
 
 const AuthContext = createContext(null);
 
@@ -65,6 +68,15 @@ export function AuthProvider({ children }) {
       unsub();
     };
   }, [user, tenantId]);
+
+  useEffect(() => {
+    if (!user) {
+      setImpostazioniConfigCanEdit(false);
+      return;
+    }
+    if (profileLoading) return;
+    setImpostazioniConfigCanEdit(userCanEditImpostazioni(profile, IS_SUPERADMIN));
+  }, [user, profile, profileLoading]);
 
   const logActivity = useCallback(
     async (type, detail) => {
