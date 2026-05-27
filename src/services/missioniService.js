@@ -12,7 +12,8 @@ import {
   where,
 } from 'firebase/firestore';
 import { db } from '../firebaseConfig';
-import { missioniPath } from '../lib/firestorePaths';
+import { mezziPath, missioniPath } from '../lib/firestorePaths';
+import { formatEquipaggioText } from '../lib/missionEquipaggio';
 import { newIdUnivoco } from '../lib/ids';
 import { allocateProgressiveId } from './progressiveIdService';
 import { omitUndefinedFields } from '../lib/firestorePatch';
@@ -79,23 +80,18 @@ async function terminaMissioniRientroPrecedenti(manifestationId, mezzoSigla, exi
   }
 }
 
-function formatEquipaggio(equipaggio) {
-  if (!equipaggio) return '';
-  const roles = [
-    ['Autista', equipaggio.autista],
-    ['Medico/CE', equipaggio.medico],
-    ['Soccorritore 1', equipaggio.soccorritore1],
-    ['Soccorritore 2', equipaggio.soccorritore2],
-  ];
-  return roles
-    .map(([label, p]) => {
-      if (!p?.nome && !p?.cognome) return null;
-      const nome = [p.nome, p.cognome].filter(Boolean).join(' ');
-      const tel = p.telefono ? ` — ${p.telefono}` : '';
-      return `${label}: ${nome}${tel}`;
-    })
-    .filter(Boolean)
-    .join(' | ');
+/** Equipaggio del mezzo al momento dell’ingaggio (da Firestore se non passato in memoria). */
+async function equipaggioTestoAlLegameMezzo(manifestationId, mezzoSigla, mezzoInMemoria) {
+  if (!mezzoSigla) return '';
+  let record = mezzoInMemoria;
+  if (!record?.equipaggio) {
+    const docId = await resolveMezzoDocIdFirestore(manifestationId, mezzoSigla);
+    if (docId) {
+      const snap = await getDoc(doc(db, ...mezziPath(manifestationId), docId));
+      if (snap.exists()) record = { _docId: snap.id, ...snap.data() };
+    }
+  }
+  return formatEquipaggioText(record?.equipaggio);
 }
 
 export async function createMissione(manifestationId, payload, existingMissioni, mezzo) {
@@ -129,6 +125,7 @@ export async function createMissione(manifestationId, payload, existingMissioni,
   const coloreMissione = parseCodiceColoreOptional(payload.codiceColoreMissione);
   const ospedaleDest = String(payload.ospedaleDestinazione ?? '').trim();
   const mezzoSigla = mezzoSiglaEarly;
+  const equipaggio = await equipaggioTestoAlLegameMezzo(manifestationId, mezzoSigla, mezzo);
   const colRef = collection(db, ...missioniPath(manifestationId));
   const docRef = await addDoc(colRef, {
     manifestationId,
@@ -141,7 +138,7 @@ export async function createMissione(manifestationId, payload, existingMissioni,
     statoDa: serverTimestamp(),
     storicoStati: { [statoIniziale]: serverTimestamp() },
     pazienteAutopresentato: autopresentato,
-    equipaggio: formatEquipaggio(mezzo?.equipaggio),
+    equipaggio,
     aperta: true,
     apertura: serverTimestamp(),
     noteMissione: payload.noteMissione ?? '',

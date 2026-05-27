@@ -53,10 +53,16 @@ export async function createMezzo(manifestationId, sigla, payload) {
       idUnivoco: newIdUnivoco(),
       sigla,
       tipo: payload.tipo ?? '',
-      stazionamento: payload.stazionamento ?? { indirizzo: '', coordinate: null, luogo_fisico: '' },
+      stazionamentoId: payload.stazionamentoId ?? '',
+      stazionamento: payload.stazionamento ?? {
+        indirizzo: '',
+        coordinate: null,
+        luogo_fisico: '',
+        note: '',
+      },
       coordinate_stazionamento: null,
       dettaglio_stazionamento: '',
-      stazionamentoPredefinito: payload.stazionamentoPredefinito ?? false,
+      stazionamentoPredefinito: payload.stazionamentoPredefinito === true,
       targa: payload.targa ?? '',
       radio: payload.radio ?? '',
       statoMezzo: 'Disponibile',
@@ -73,10 +79,17 @@ export async function patchMezzo(manifestationId, sigla, fields) {
   const payload = omitUndefinedFields(fields);
   if (!sigla || Object.keys(payload).length === 0) return;
   const docId = await resolveMezzoDocIdFirestore(manifestationId, sigla);
+  if (!docId) return;
   const docRef = doc(db, ...mezziPath(manifestationId), docId);
+  const snap = await getDoc(docRef);
+  if (!snap.exists()) return;
   await updateDoc(docRef, payload);
 }
 
 export async function deleteMezzo(manifestationId, sigla) {
-  await deleteDoc(doc(db, ...mezziPath(manifestationId), sigla));
+  const docId = await resolveMezzoDocIdFirestore(manifestationId, sigla);
+  if (!docId) return;
+  const docRef = doc(db, ...mezziPath(manifestationId), docId);
+  const snap = await getDoc(docRef);
+  if (snap.exists()) await deleteDoc(docRef);
 }

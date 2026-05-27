@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Evento E41 — CROSS</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Inter',Arial,sans-serif;font-size:11pt;color:#1a1a1a;background:#fff;line-height:1.4}
+  .page{max-width:210mm;margin:0 auto;padding:12mm 14mm}
+  h1{font-size:16pt;font-weight:700;color:#1a237e;border-bottom:3px solid #1a237e;padding-bottom:4mm;margin-bottom:5mm}
+  h2{font-size:12pt;font-weight:600;color:#283593;margin:5mm 0 2mm;border-left:4px solid #3949ab;padding-left:3mm}
+  h3{font-size:10pt;font-weight:600;color:#37474f;margin:3mm 0 1mm}
+  .header-row{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:5mm;gap:4mm}
+  .header-left{flex:1}
+  .header-right{text-align:right;font-size:9pt;color:#555}
+  .badge{display:inline-block;padding:3px 12px;border-radius:12px;font-weight:700;font-size:11pt;border:1px solid rgba(0,0,0,.2);margin-right:4px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:3mm}
+  .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:3mm}
+  .field{margin-bottom:2mm}
+  .field .lbl{font-size:8pt;font-weight:600;color:#546e7a;text-transform:uppercase;letter-spacing:.4px}
+  .field .val{font-size:10.5pt;color:#1a1a1a;border-bottom:1px solid #e0e0e0;padding-bottom:1mm;min-height:6mm}
+  table{width:100%;border-collapse:collapse;margin-bottom:3mm;font-size:9.5pt}
+  th{background:#3949ab;color:#fff;padding:3mm 3mm;text-align:left;font-weight:600;font-size:9pt}
+  td{padding:2.5mm 3mm;border-bottom:1px solid #eeeeee;vertical-align:top}
+  tr:nth-child(even) td{background:#f8f9ff}
+  tr:last-child td{border-bottom:none}
+  .section-box{background:#f5f7ff;border:1px solid #c5cae9;border-radius:4px;padding:3mm 4mm;margin-bottom:3mm}
+  .no-data{color:#9e9e9e;font-style:italic;font-size:9pt}
+  .tag{display:inline-block;background:#e8eaf6;color:#3949ab;border-radius:3px;padding:1px 6px;font-size:9pt;margin:1px}
+  .footer{margin-top:8mm;padding-top:3mm;border-top:1px solid #ccc;font-size:8pt;color:#888;display:flex;justify-content:space-between}
+  @media print{
+    body{background:#fff}
+    .no-print{display:none!important}
+    .page{padding:8mm 10mm;max-width:none}
+    h2{break-inside:avoid;break-after:avoid}
+    table{break-inside:auto}
+    tr{break-inside:avoid}
+  }
+  .print-btn{position:fixed;bottom:20px;right:20px;background:#1a237e;color:#fff;border:none;
+    padding:10px 20px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600;
+    box-shadow:0 3px 10px rgba(0,0,0,.3);z-index:999}
+  .print-btn:hover{background:#283593}
+
+  .stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(80px,1fr));gap:3mm;margin:3mm 0}
+  .stat-card{background:#f5f7ff;border:1px solid #c5cae9;border-radius:4px;padding:3mm;text-align:center}
+  .stat-card .num{font-size:22pt;font-weight:800;color:#1a237e;line-height:1}
+  .stat-card .lbl{font-size:8pt;color:#555;margin-top:1mm}
+  .rosso-card .num{color:#c62828} .giallo-card .num{color:#f57f17} .verde-card .num{color:#2e7d32}
+</style>
+</head>
+<body>
+<button class="print-btn no-print" onclick="window.print()">🖨️ Stampa / PDF</button>
+<div class="page">
+
+  <div class="header-row">
+    <div class="header-left">
+      <h1>📋 Report Evento — E41</h1>
+      <div style="margin-top:2mm;font-size:12pt">
+         &nbsp;
+        <b>MEDICO ACUTO</b>
+         — CARDIOCIRCOLATORIA
+        &nbsp;|&nbsp; <b>CASA</b>
+        
+      </div>
+    </div>
+    <div class="header-right">
+      Stato: <b>CHIUSO</b><br>
+      Aperto: <b>—</b><br>
+      Chiuso: <b>25/05/2026, 18:20:14</b><br>
+      <span style="color:#888;font-size:8pt">Export: 26/05/2026, 19:49:16</span>
+    </div>
+  </div>
+
+  <!-- STATISTICHE -->
+  <div class="stat-grid">
+    <div class="stat-card"><div class="num">0</div><div class="lbl">Missioni</div></div>
+    <div class="stat-card"><div class="num">0</div><div class="lbl">Pazienti</div></div>
+    <div class="stat-card rosso-card"><div class="num">0</div><div class="lbl">🔴 Rossi</div></div>
+    <div class="stat-card giallo-card"><div class="num">0</div><div class="lbl">🟡 Gialli</div></div>
+    <div class="stat-card verde-card"><div class="num">0</div><div class="lbl">🟢 Verdi</div></div>
+    <div class="stat-card"><div class="num">0</div><div class="lbl">⚪ Bianchi</div></div>
+    <div class="stat-card"><div class="num">0</div><div class="lbl">Trasportati</div></div>
+    <div class="stat-card"><div class="num">0</div><div class="lbl">Arrivati H</div></div>
+  </div>
+
+  
+
+  <!-- MISSIONI -->
+  <h2>Missioni (0)</h2>
+  <table>
+    <thead><tr>
+      <th>ID</th><th>Mezzo</th><th>Stato</th><th>Colore</th>
+      <th>Ospedale</th><th>Esito</th><th>Equipaggio</th><th>Apertura</th>
+    </tr></thead>
+    <tbody><tr><td colspan="8" class="no-data" style="text-align:center">Nessuna missione</td></tr></tbody>
+  </table>
+
+  <!-- PAZIENTI -->
+  <h2>Pazienti (0)</h2>
+  <table>
+    <thead><tr>
+      <th>Pet.</th><th>Nome</th><th>Colore</th><th>Stato</th><th>PMA</th>
+      <th>Esito</th><th>Mezzo</th><th>Ospedale</th><th>Ultimi param.</th><th>Valut.</th><th>Dimissione</th>
+    </tr></thead>
+    <tbody><tr><td colspan="11" class="no-data" style="text-align:center">Nessun paziente collegato</td></tr></tbody>
+  </table>
+
+  <div class="footer">
+    <span>CROSS — Evento E41 — MEDICO ACUTO @ CASA</span>
+    <span>Generato il 26/05/2026, 19:49:16</span>
+  </div>
+</div>
+</body>
+</html>

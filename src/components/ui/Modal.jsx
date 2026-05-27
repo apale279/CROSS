@@ -1,8 +1,22 @@
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 
-export function Modal({ title, onClose, children, wide = false, extraWide = false }) {
-  const widthClass = extraWide ? 'max-w-6xl' : wide ? 'max-w-3xl' : 'max-w-lg';
+export function Modal({
+  title,
+  onClose,
+  children,
+  wide = false,
+  extraWide = false,
+  /** Su smartphone/tablet PMA: limita larghezza al viewport senza forzare full-screen su desktop. */
+  fitViewport = false,
+}) {
+  const widthClass = fitViewport
+    ? 'max-w-[calc(100vw-1rem)]'
+    : extraWide
+      ? 'max-w-6xl'
+      : wide
+        ? 'max-w-3xl'
+        : 'max-w-lg';
 
   return createPortal(
     <div
@@ -11,7 +25,7 @@ export function Modal({ title, onClose, children, wide = false, extraWide = fals
       role="presentation"
     >
       <div
-        className={`max-h-[90vh] w-full overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-xl ${widthClass}`}
+        className={`max-h-[min(90vh,100dvh)] w-full overflow-x-hidden overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-xl sm:w-auto ${widthClass}`}
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"

@@ -5,6 +5,7 @@ import {
   deleteNotaDiario,
   patchNotaDiario,
 } from '../services/diarioService';
+import { inviaPmaAlertDiario } from '../services/diarioPmaAlertService';
 
 export function useDiarioNotaActions({ onAfterSave, onAfterDelete } = {}) {
   const manifestationId = useManifestazioneId();
@@ -71,6 +72,15 @@ export function useDiarioNotaActions({ onAfterSave, onAfterDelete } = {}) {
     [manifestationId, onAfterDelete, run],
   );
 
+  const allertaPmaNota = useCallback(
+    async (nota) => {
+      await run(async () => {
+        await inviaPmaAlertDiario(manifestationId, nota._docId);
+      });
+    },
+    [manifestationId, run],
+  );
+
   return {
     saving,
     createNota,
@@ -78,5 +88,6 @@ export function useDiarioNotaActions({ onAfterSave, onAfterDelete } = {}) {
     toggleChiusa,
     toggleImportante,
     removeNota,
+    allertaPmaNota,
   };
 }

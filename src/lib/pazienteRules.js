@@ -7,7 +7,7 @@ import { emptySoreuFirestoreClear } from './soreuTrasporto';
  * Modello trasporto (centrale / evento):
  * - Una **missione aperta** è legata a **un mezzo**.
  * - **Più pazienti** possono avere esito «Trasporta» sullo **stesso mezzo**: condividono
- *   `mezzo`, `idMissione` e `missioneIdUnivoco` (stessa missione in corso).
+ *   `mezzo`, `idMissione`, `missioneIdUnivoco` e la **stessa destinazione** (ospedale/PMA).
  * - Qui si risolve «quale missione» usare quando l’operatore sceglie la sigla mezzo:
  *   la prima missione **aperta** dell’evento che usa quel mezzo (in dati puliti ce n’è una sola).
  */

@@ -6,6 +6,7 @@ export function mergeStazionamento(existing, partial) {
     indirizzo: next.indirizzo !== undefined ? next.indirizzo : (base.indirizzo ?? ''),
     luogo_fisico:
       next.luogo_fisico !== undefined ? next.luogo_fisico : (base.luogo_fisico ?? ''),
+    note: next.note !== undefined ? next.note : (base.note ?? ''),
     coordinate:
       next.coordinate !== undefined ? next.coordinate : (base.coordinate ?? null),
   };

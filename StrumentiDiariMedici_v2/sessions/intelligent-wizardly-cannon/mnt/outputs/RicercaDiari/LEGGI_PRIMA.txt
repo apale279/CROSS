@@ -1,0 +1,183 @@
+══════════════════════════════════════════════════════════
+  STRUMENTI DIARI MEDICI  v2.0
+  Istruzioni per l'uso
+══════════════════════════════════════════════════════════
+
+INSTALLAZIONE (una sola volta)
+────────────────────────────────
+1. Estrai questa cartella dove vuoi sul tuo PC
+   (es. Desktop, Documenti — NON serve l'admin)
+
+2. Doppio clic su  AVVIA.bat
+
+3. Al PRIMO avvio lo script:
+   • verifica che Java sia installato
+   • se il JDK non c'è, lo scarica automaticamente (~100 MB)
+   • scarica le librerie PDF (~10 MB)
+   • compila il programma
+   • lancia l'applicazione
+   (Serve connessione internet SOLO la prima volta)
+
+4. Dai successivi avvii: doppio clic su AVVIA.bat
+   → il programma parte in 1-2 secondi.
+
+REQUISITI
+────────────────────────────────
+• Windows 7/10/11
+• Java 8 o superiore (se non hai Java il bat lo scarica)
+• Connessione internet al primo avvio
+• NON servono diritti di amministratore
+
+
+══════════════════════════════════════════════════════════
+  SCHEDA 1 — RICERCA NEI PDF
+══════════════════════════════════════════════════════════
+
+STRUTTURA CARTELLE RICHIESTA
+  Diari Medici\
+      Mario Rossi\
+          2024-01-15.pdf
+          2024-01-16.pdf
+          ...
+      Anna Bianchi\
+          ...
+  Diari Infermieristici\
+      Mario Rossi\
+          ...
+
+  → Ogni paziente ha una propria sottocartella.
+    I PDF devono contenere date nel nome file
+    (formati supportati: YYYYMMDD, YYYY-MM-DD, DD-MM-YYYY,
+     DD.MM.YYYY, ecc.)
+
+COME USARE LA RICERCA
+1. Seleziona le cartelle "Diari Medici" e/o "Diari Infermieristici"
+2. Inserisci i termini da cercare separati da virgola
+   Es:  febbre, dispnea
+3. Scegli AND (tutti i termini nel STESSO pdf)
+   oppure OR (basta uno qualsiasi)
+4. Imposta eventuale intervallo di date (opzionale)
+5. Scegli se leggere dall'inizio, dalla fine,
+   o solo le ultime N pagine
+6. Scegli se fermarsi al primo PDF positivo
+   o analizzare tutti i PDF del paziente
+7. Premi AVVIA RICERCA
+
+RISULTATI
+• Elenco pazienti positivi con link cliccabile a ogni PDF
+• Clic sul nome file → si apre direttamente il PDF
+
+
+══════════════════════════════════════════════════════════
+  SCHEDA 2 — PARAMETRI VITALI (OCR)
+══════════════════════════════════════════════════════════
+
+A CHE SERVE
+  Permette di fotografare/screenshottare la tabella dei
+  parametri vitali dal software del reparto e trasformarla
+  in una tabella navigabile e esportabile in CSV.
+
+  La tabella risultante ha:
+  • RIGHE = parametri (PAS, PAD, PAM, FC, SpO2, T°, ecc.)
+  • COLONNE = ore della giornata (ogni screenshot aggiunge
+    nuove colonne)
+
+COME FUNZIONA — PASSO PER PASSO
+
+  PASSO 1 — API Key OCR
+    Nel campo in alto a destra è già inserita la chiave
+    di prova gratuita "helloworld" (OCR.Space).
+    Funziona subito, senza registrazione.
+    Se fai molte ricerche al giorno, registrati gratis su
+    https://ocr.space/ocrapi  e usa la tua chiave personale
+    (500 richieste/giorno gratis, poi piani a pagamento).
+
+    PRIVACY: l'immagine viene inviata ai server di OCR.Space
+    solo per l'OCR. Non usare se il tuo ospedale vieta
+    l'invio di dati a servizi esterni. In quel caso, chiedi
+    all'IT di installare Tesseract OCR in locale (ti forniamo
+    supporto su richiesta).
+
+  PASSO 2 — Nuovo paziente
+    Clicca "Nuovo Paziente" e inserisci il nome/ID.
+
+  PASSO 3 — Carica lo screenshot
+    OPZIONE A: Premi "Sfoglia file immagine..." e scegli
+               il file PNG/JPG già salvato sul PC.
+
+    OPZIONE B: Fai uno screenshot della tabella parametri
+               nel software del reparto (tasto Stamp o
+               strumento di ritaglio), poi premi
+               "Incolla dagli Appunti".
+
+  PASSO 4 — Esegui OCR
+    Premi "Esegui OCR".
+    Attendi 5-15 secondi (dipende dalla connessione).
+
+  PASSO 5 — Verifica e correggi
+    Il testo estratto appare nella casella "Testo grezzo OCR".
+    Se qualcosa è sbagliato, puoi correggerlo direttamente
+    lì e premere "Aggiorna tabella dal testo modificato".
+
+  PASSO 6 — Ora prima colonna
+    Ti viene chiesto l'orario della prima colonna
+    (es. 08:00). Le colonne successive vengono calcolate
+    automaticamente (+1 ora ciascuna).
+
+  PASSO 7 — Screenshot successivi
+    Per aggiungere le ore successive dello stesso paziente,
+    carica un nuovo screenshot e scegli:
+      → "Aggiungi a: [nome paziente]"
+    Per un paziente diverso:
+      → "Nuovo paziente"
+
+  PASSO 8 — Esporta
+    Premi "Esporta CSV" per salvare la tabella come file
+    CSV apribile con Excel.
+
+ARCHIVIO PAZIENTI
+    I pazienti elaborati nella sessione corrente appaiono
+    nel riquadro in basso a destra.
+    Doppio clic su un nome → ricarica quella tabella.
+    (L'archivio viene perso alla chiusura dell'app;
+     esporta il CSV prima di chiudere!)
+
+SUGGERIMENTO SCREENSHOT
+    Per ottenere i migliori risultati con l'OCR:
+    • Ingrandisci la tabella al massimo nel software
+    • Usa lo strumento di ritaglio (Win + Maiusc + S)
+      per selezionare SOLO la tabella, senza barre di menù
+    • Evita tabelle con molto rumore di sfondo
+
+
+══════════════════════════════════════════════════════════
+  PROBLEMI COMUNI
+══════════════════════════════════════════════════════════
+
+"Java non trovato"
+   → Chiedi all'IT di installare Java, oppure lascia che
+     AVVIA.bat lo scarichi automaticamente.
+
+"Errore di compilazione"
+   → Assicurati che il file AVVIA.bat sia nella stessa
+     cartella della sottocartella  src\
+
+"OCR non funziona / chiave non valida"
+   → Prova con la chiave "helloworld" (già preimpostata)
+   → Se esaurisci le chiamate, registrati su ocr.space
+
+"Il PDF non si apre al clic"
+   → Il percorso viene copiato negli appunti: incollalo
+     nel browser dei file o in Adobe Reader.
+
+"I parametri non sono ben allineati nella tabella"
+   → Correggi il testo nell'area "Testo grezzo OCR" e
+     premi "Aggiorna tabella".
+
+══════════════════════════════════════════════════════════
+  CONTATTI E SUPPORTO
+══════════════════════════════════════════════════════════
+  Versione: 2.0
+  Sviluppato con assistenza Claude (Anthropic)
+  Distribuzione libera per uso ospedaliero interno.
+══════════════════════════════════════════════════════════

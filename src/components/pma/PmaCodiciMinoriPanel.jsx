@@ -1,49 +1,103 @@
 import { useMemo, useState } from 'react';
-import { Timestamp } from 'firebase/firestore';
-import { btnDanger, btnPrimary, btnSecondary } from '../ui/FormField';
-import { toDatetimeLocalValue, fromDatetimeLocalValue } from '../../lib/datetimeLocal';
+import { Pencil, Trash2 } from 'lucide-react';
+import { btnDanger, btnSecondary } from '../ui/FormField';
 import { formatTimestamp } from '../../utils/formatters';
 import { codiceMinoreFromPaziente } from '../../services/pmaCodiceMinoreService';
+import { PmaCodiceMinoreFormModal } from './PmaCodiceMinoreFormModal';
+import { PmaCodiceMinoreFotoStrip } from './PmaCodiceMinoreFotoStrip';
 
-const thClass =
-  'whitespace-nowrap bg-slate-100 px-3 py-2 text-left text-xs font-bold uppercase text-slate-600';
-const tdClass = 'whitespace-nowrap border-t border-slate-200 px-3 py-2 align-middle text-sm';
-const tdWrapClass =
-  'max-w-[14rem] truncate border-t border-slate-200 px-3 py-2 align-middle text-sm';
-const inputClass =
-  'w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20';
+function CodiceMinoreCard({ row, busy, manifestationId, onEdit, onDelete }) {
+  const cm = codiceMinoreFromPaziente(row);
+  const chiuso = cm.oraFine != null;
 
-function emptyDraft() {
-  return {
-    pettorale: '',
-    motivoArrivo: '',
-    trattamento: '',
-    oraArrivo: toDatetimeLocalValue(Timestamp.now()),
-    oraFine: '',
-  };
+  return (
+    <article className="min-w-0 rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
+      <div className="mb-2 flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <p className="font-mono text-lg font-bold text-slate-900">
+            Pett. {row.pettorale ?? '—'}
+          </p>
+          {chiuso ? (
+            <span className="mt-0.5 inline-block rounded bg-slate-200 px-1.5 py-0.5 text-[10px] font-bold uppercase text-slate-600">
+              Chiuso
+            </span>
+          ) : (
+            <span className="mt-0.5 inline-block rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-bold uppercase text-emerald-800">
+              Aperto
+            </span>
+          )}
+        </div>
+        <div className="flex shrink-0 gap-1">
+          <button
+            type="button"
+            className={`${btnSecondary} inline-flex items-center gap-1 px-2 py-1.5 text-xs`}
+            disabled={busy}
+            onClick={() => onEdit(row)}
+            aria-label="Modifica"
+          >
+            <Pencil className="h-3.5 w-3.5" aria-hidden />
+            Modifica
+          </button>
+          <button
+            type="button"
+            className={`${btnDanger} inline-flex items-center gap-1 px-2 py-1.5 text-xs`}
+            disabled={busy}
+            onClick={() => void onDelete(row)}
+            aria-label="Elimina"
+          >
+            <Trash2 className="h-3.5 w-3.5" aria-hidden />
+          </button>
+        </div>
+      </div>
+
+      <dl className="grid gap-1.5 text-sm">
+        <div className="min-w-0">
+          <dt className="text-[10px] font-bold uppercase text-slate-500">Motivo arrivo</dt>
+          <dd className="break-words text-slate-800">{cm.motivoArrivo || '—'}</dd>
+        </div>
+        <div className="min-w-0">
+          <dt className="text-[10px] font-bold uppercase text-slate-500">Trattamento</dt>
+          <dd className="whitespace-pre-wrap break-words text-slate-800">
+            {cm.trattamento || '—'}
+          </dd>
+        </div>
+        <div className="grid grid-cols-2 gap-2 text-xs">
+          <div>
+            <dt className="font-bold uppercase text-slate-500">Ora arrivo</dt>
+            <dd className="font-mono text-slate-800">{formatTimestamp(cm.oraArrivo)}</dd>
+          </div>
+          <div>
+            <dt className="font-bold uppercase text-slate-500">Ora fine</dt>
+            <dd className="font-mono text-slate-800">
+              {cm.oraFine ? formatTimestamp(cm.oraFine) : '—'}
+            </dd>
+          </div>
+        </div>
+      </dl>
+
+      <div className="mt-3 border-t border-slate-100 pt-2">
+        <PmaCodiceMinoreFotoStrip
+          manifestationId={manifestationId}
+          pazienteDocId={row._docId}
+          row={row}
+          busy={busy}
+          compact
+        />
+      </div>
+    </article>
+  );
 }
 
-function draftFromPaziente(p) {
-  const cm = codiceMinoreFromPaziente(p);
-  return {
-    pettorale: cm.pettorale != null ? String(cm.pettorale) : '',
-    motivoArrivo: cm.motivoArrivo,
-    trattamento: cm.trattamento,
-    oraArrivo: toDatetimeLocalValue(cm.oraArrivo),
-    oraFine: toDatetimeLocalValue(cm.oraFine),
-  };
-}
-
-function tsFromLocal(value, fallbackNow = true) {
-  const d = fromDatetimeLocalValue(value);
-  if (d) return Timestamp.fromDate(d);
-  return fallbackNow ? Timestamp.now() : null;
-}
-
-export function PmaCodiciMinoriPanel({ rows, busy, onCreate, onUpdate, onDelete }) {
-  const [editingId, setEditingId] = useState(null);
-  const [draft, setDraft] = useState(emptyDraft);
-  const [showForm, setShowForm] = useState(false);
+export function PmaCodiciMinoriPanel({
+  rows,
+  busy,
+  manifestationId,
+  onCreate,
+  onUpdate,
+  onDelete,
+}) {
+  const [formDocId, setFormDocId] = useState(null);
+  const [formOpen, setFormOpen] = useState(false);
 
   const sorted = useMemo(
     () =>
@@ -56,194 +110,88 @@ export function PmaCodiciMinoriPanel({ rows, busy, onCreate, onUpdate, onDelete 
     [rows],
   );
 
-  const resetForm = () => {
-    setEditingId(null);
-    setDraft(emptyDraft());
-    setShowForm(false);
+  const formRow = formDocId ? sorted.find((r) => r._docId === formDocId) ?? null : null;
+
+  const openCreate = () => {
+    setFormDocId(null);
+    setFormOpen(true);
   };
 
-  const startCreate = () => {
-    setEditingId(null);
-    setDraft(emptyDraft());
-    setShowForm(true);
+  const openEdit = (row) => {
+    setFormDocId(row._docId);
+    setFormOpen(true);
   };
 
-  const startEdit = (row) => {
-    setEditingId(row._docId);
-    setDraft(draftFromPaziente(row));
-    setShowForm(true);
+  const closeForm = () => {
+    setFormOpen(false);
+    setFormDocId(null);
   };
 
-  const handleSave = async () => {
-    const payload = {
-      pettorale: draft.pettorale,
-      motivoArrivo: draft.motivoArrivo,
-      trattamento: draft.trattamento,
-      oraArrivo: tsFromLocal(draft.oraArrivo, true),
-      oraFine: draft.oraFine ? tsFromLocal(draft.oraFine, false) : null,
-    };
-    if (editingId) {
-      await onUpdate(editingId, payload);
-    } else {
-      await onCreate(payload);
+  const handleSave = async (payload, existingRow) => {
+    if (existingRow?._docId) {
+      await onUpdate(existingRow._docId, payload, existingRow);
+      return;
     }
-    resetForm();
+    const result = await onCreate(payload);
+    if (result?.docId) {
+      setFormDocId(result.docId);
+    } else {
+      closeForm();
+    }
   };
 
   const handleDelete = async (row) => {
     if (!window.confirm(`Eliminare codice minore pettorale ${row.pettorale ?? '—'}?`)) return;
-    await onDelete(row._docId);
-    if (editingId === row._docId) resetForm();
+    await onDelete(row._docId, row);
+    if (formDocId === row._docId) closeForm();
   };
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-sm text-slate-600">
-          Pazienti in astanteria con piccole medicazioni. Campi: pettorale, motivo arrivo,
-          trattamento, ora arrivo e ora fine.
+    <div className="min-w-0 space-y-4">
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <p className="min-w-0 max-w-prose text-sm text-slate-600">
+          Astanteria per piccole medicazioni: pettorale, motivo, trattamento, orari e foto
+          documentazione.
         </p>
-        <button type="button" className={btnSecondary} disabled={busy} onClick={startCreate}>
+        <button
+          type="button"
+          className={`${btnSecondary} shrink-0`}
+          disabled={busy}
+          onClick={openCreate}
+        >
           + Codice minore
         </button>
       </div>
 
-      {showForm ? (
-        <div className="rounded border border-slate-200 bg-slate-50 p-4">
-          <p className="mb-3 text-xs font-bold uppercase text-slate-600">
-            {editingId ? 'Modifica codice minore' : 'Nuovo codice minore'}
-          </p>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <label className="block text-sm">
-              <span className="mb-1 block font-medium text-slate-700">N. pettorale</span>
-              <input
-                type="number"
-                min={1}
-                className={inputClass}
-                value={draft.pettorale}
-                onChange={(e) => setDraft((d) => ({ ...d, pettorale: e.target.value }))}
+      {sorted.length === 0 ? (
+        <p className="rounded-lg border border-dashed border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">
+          Nessun codice minore registrato.
+        </p>
+      ) : (
+        <ul className="grid min-w-0 gap-3 sm:grid-cols-2">
+          {sorted.map((row) => (
+            <li key={row._docId} className="min-w-0">
+              <CodiceMinoreCard
+                row={row}
+                busy={busy}
+                manifestationId={manifestationId}
+                onEdit={openEdit}
+                onDelete={handleDelete}
               />
-            </label>
-            <label className="block text-sm">
-              <span className="mb-1 block font-medium text-slate-700">Ora arrivo</span>
-              <input
-                type="datetime-local"
-                className={inputClass}
-                value={draft.oraArrivo}
-                onChange={(e) => setDraft((d) => ({ ...d, oraArrivo: e.target.value }))}
-              />
-            </label>
-            <label className="block text-sm sm:col-span-2">
-              <span className="mb-1 block font-medium text-slate-700">Motivo arrivo</span>
-              <input
-                type="text"
-                className={inputClass}
-                value={draft.motivoArrivo}
-                onChange={(e) => setDraft((d) => ({ ...d, motivoArrivo: e.target.value }))}
-              />
-            </label>
-            <label className="block text-sm sm:col-span-2">
-              <span className="mb-1 block font-medium text-slate-700">Trattamento</span>
-              <textarea
-                rows={2}
-                className={inputClass}
-                value={draft.trattamento}
-                onChange={(e) => setDraft((d) => ({ ...d, trattamento: e.target.value }))}
-              />
-            </label>
-            <label className="block text-sm">
-              <span className="mb-1 block font-medium text-slate-700">Ora fine</span>
-              <input
-                type="datetime-local"
-                className={inputClass}
-                value={draft.oraFine}
-                onChange={(e) => setDraft((d) => ({ ...d, oraFine: e.target.value }))}
-              />
-            </label>
-          </div>
-          <div className="mt-4 flex flex-wrap gap-2">
-            <button type="button" className={btnPrimary} disabled={busy} onClick={() => void handleSave()}>
-              {editingId ? 'Salva' : 'Crea'}
-            </button>
-            <button type="button" className={btnSecondary} disabled={busy} onClick={resetForm}>
-              Annulla
-            </button>
-          </div>
-        </div>
-      ) : null}
+            </li>
+          ))}
+        </ul>
+      )}
 
-      <div className="overflow-x-auto rounded border border-slate-300 bg-white">
-        <table className="w-full min-w-[52rem] table-fixed border-collapse">
-          <colgroup>
-            <col className="w-[5rem]" />
-            <col className="w-[18%]" />
-            <col className="w-[26%]" />
-            <col className="w-[11rem]" />
-            <col className="w-[11rem]" />
-            <col className="w-[11.5rem]" />
-          </colgroup>
-          <thead>
-            <tr>
-              <th className={thClass}>Pettorale</th>
-              <th className={thClass}>Motivo arrivo</th>
-              <th className={thClass}>Trattamento</th>
-              <th className={thClass}>Ora arrivo</th>
-              <th className={thClass}>Ora fine</th>
-              <th className={`${thClass} text-right`}>Azioni</th>
-            </tr>
-          </thead>
-          <tbody>
-            {sorted.length === 0 ? (
-              <tr>
-                <td colSpan={6} className={`${tdClass} whitespace-normal text-slate-500`}>
-                  Nessun codice minore registrato.
-                </td>
-              </tr>
-            ) : (
-              sorted.map((row) => {
-                const cm = codiceMinoreFromPaziente(row);
-                return (
-                  <tr key={row._docId} className="hover:bg-sky-50/50">
-                    <td className={`${tdClass} font-mono font-bold`}>{row.pettorale ?? '—'}</td>
-                    <td className={tdWrapClass} title={cm.motivoArrivo}>
-                      {cm.motivoArrivo || '—'}
-                    </td>
-                    <td className={tdWrapClass} title={cm.trattamento}>
-                      {cm.trattamento || '—'}
-                    </td>
-                    <td className={`${tdClass} font-mono text-xs`}>
-                      {formatTimestamp(cm.oraArrivo)}
-                    </td>
-                    <td className={`${tdClass} font-mono text-xs`}>
-                      {cm.oraFine ? formatTimestamp(cm.oraFine) : '—'}
-                    </td>
-                    <td className={tdClass}>
-                      <div className="flex flex-nowrap items-center justify-end gap-2">
-                        <button
-                          type="button"
-                          className={`${btnSecondary} shrink-0 whitespace-nowrap`}
-                          disabled={busy}
-                          onClick={() => startEdit(row)}
-                        >
-                          Modifica
-                        </button>
-                        <button
-                          type="button"
-                          className={`${btnDanger} shrink-0 whitespace-nowrap`}
-                          disabled={busy}
-                          onClick={() => void handleDelete(row)}
-                        >
-                          Elimina
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })
-            )}
-          </tbody>
-        </table>
-      </div>
+      <PmaCodiceMinoreFormModal
+        open={formOpen}
+        row={formRow}
+        busy={busy}
+        manifestationId={manifestationId}
+        onClose={closeForm}
+        onSave={handleSave}
+        onFotoChange={() => {}}
+      />
     </div>
   );
 }

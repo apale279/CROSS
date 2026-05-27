@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Send, Star, FileText } from 'lucide-react';
+import { AlertTriangle, Send, Star, FileText } from 'lucide-react';
 import { Modal } from '../ui/Modal';
 import { DiarioNotaForm } from './DiarioNotaForm';
 import { btnDanger, btnPrimary, btnSecondary } from '../ui/FormField';
@@ -17,6 +17,7 @@ export function DiarioNotaModal({
   onToggleChiusa,
   onToggleImportante,
   onBroadcastTelegram,
+  onAllertaPma,
   broadcasting = false,
 }) {
   const [editing, setEditing] = useState(mode === 'edit' || mode === 'create');
@@ -92,6 +93,17 @@ export function DiarioNotaModal({
             >
               {nota.importante ? 'Rimuovi importante' : 'Segna importante'}
             </button>
+            {nota.importante && onAllertaPma && (
+              <button
+                type="button"
+                className={`${btnPrimary} inline-flex items-center gap-1.5 bg-amber-600 hover:bg-amber-700`}
+                disabled={saving}
+                onClick={() => onAllertaPma?.(nota)}
+              >
+                <AlertTriangle className="h-4 w-4 shrink-0" aria-hidden />
+                ALLERTA PMA
+              </button>
+            )}
             {onBroadcastTelegram && (
               <button
                 type="button"

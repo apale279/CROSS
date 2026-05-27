@@ -4,7 +4,15 @@ import { useAuth } from '../../../context/AuthContext';
 import { useEventoScheda } from '../../../context/EventoSchedaContext';
 import { useImpostazioni } from '../../../hooks/useImpostazioni';
 import { usePazienteDocument } from '../../../hooks/usePazienteDocument';
-import { findPmaById, isPazienteOriginePma, pazientePmaChiuso, STATO_PZ_PMA, statoPzPmaLabel } from '../../../lib/pmaModule';
+import {
+  findPmaById,
+  isPazienteOriginePma,
+  normalizeStatoPzPma,
+  pazienteHaDestinazionePma,
+  pazientePmaChiuso,
+  STATO_PZ_PMA,
+  statoPzPmaLabel,
+} from '../../../lib/pmaModule';
 import { chiusuraCentraleLabel, isChiusoCentrale, statoCentraleLabel } from '../../../lib/pazienteStati';
 import { invioPsSoreuPatchForScheda, invioPsSoreuFieldsFromScheda } from '../../../lib/invioPsSoreu';
 import { isSchedaModificabile } from '../../../lib/schedaSolaVisione';
@@ -388,6 +396,17 @@ export function PazienteModuloPma({
           <dd className="font-semibold text-slate-800">{p.infermiere_rif?.trim() || '—'}</dd>
         </div>
       </dl>
+
+      {vistaPma &&
+        !isPazienteOriginePma(rawDoc) &&
+        pazienteHaDestinazionePma(rawDoc) &&
+        (normalizeStatoPzPma(rawDoc.statoPzPma) === STATO_PZ_PMA.IN_ARRIVO ||
+          normalizeStatoPzPma(rawDoc.statoPzPma) == null) && (
+          <p className="rounded-lg bg-sky-50 px-3 py-2 text-xs text-sky-900">
+            Paziente <strong>in arrivo</strong>: puoi consultare i dati centrale in sola lettura. Per
+            modificare la cartella PMA usa <strong>Prendi in carico</strong> dal desk.
+          </p>
+        )}
 
       {schedaReadonly && (
         <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900">

@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Scheda Paziente — P398 PZ4 PZ4</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Inter',Arial,sans-serif;font-size:11pt;color:#1a1a1a;background:#fff;line-height:1.4}
+  .page{max-width:210mm;margin:0 auto;padding:12mm 14mm}
+  h1{font-size:16pt;font-weight:700;color:#1a237e;border-bottom:3px solid #1a237e;padding-bottom:4mm;margin-bottom:5mm}
+  h2{font-size:12pt;font-weight:600;color:#283593;margin:5mm 0 2mm;border-left:4px solid #3949ab;padding-left:3mm}
+  h3{font-size:10pt;font-weight:600;color:#37474f;margin:3mm 0 1mm}
+  .header-row{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:5mm;gap:4mm}
+  .header-left{flex:1}
+  .header-right{text-align:right;font-size:9pt;color:#555}
+  .badge{display:inline-block;padding:3px 12px;border-radius:12px;font-weight:700;font-size:11pt;border:1px solid rgba(0,0,0,.2);margin-right:4px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:3mm}
+  .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:3mm}
+  .field{margin-bottom:2mm}
+  .field .lbl{font-size:8pt;font-weight:600;color:#546e7a;text-transform:uppercase;letter-spacing:.4px}
+  .field .val{font-size:10.5pt;color:#1a1a1a;border-bottom:1px solid #e0e0e0;padding-bottom:1mm;min-height:6mm}
+  table{width:100%;border-collapse:collapse;margin-bottom:3mm;font-size:9.5pt}
+  th{background:#3949ab;color:#fff;padding:3mm 3mm;text-align:left;font-weight:600;font-size:9pt}
+  td{padding:2.5mm 3mm;border-bottom:1px solid #eeeeee;vertical-align:top}
+  tr:nth-child(even) td{background:#f8f9ff}
+  tr:last-child td{border-bottom:none}
+  .section-box{background:#f5f7ff;border:1px solid #c5cae9;border-radius:4px;padding:3mm 4mm;margin-bottom:3mm}
+  .no-data{color:#9e9e9e;font-style:italic;font-size:9pt}
+  .tag{display:inline-block;background:#e8eaf6;color:#3949ab;border-radius:3px;padding:1px 6px;font-size:9pt;margin:1px}
+  .footer{margin-top:8mm;padding-top:3mm;border-top:1px solid #ccc;font-size:8pt;color:#888;display:flex;justify-content:space-between}
+  @media print{
+    body{background:#fff}
+    .no-print{display:none!important}
+    .page{padding:8mm 10mm;max-width:none}
+    h2{break-inside:avoid;break-after:avoid}
+    table{break-inside:auto}
+    tr{break-inside:avoid}
+  }
+  .print-btn{position:fixed;bottom:20px;right:20px;background:#1a237e;color:#fff;border:none;
+    padding:10px 20px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600;
+    box-shadow:0 3px 10px rgba(0,0,0,.3);z-index:999}
+  .print-btn:hover{background:#283593}
+</style>
+</head>
+<body>
+<button class="print-btn no-print" onclick="window.print()">🖨️ Stampa / PDF</button>
+<div class="page">
+
+  <!-- INTESTAZIONE -->
+  <div class="header-row">
+    <div class="header-left">
+      <h1>🏥 Scheda Paziente CROSS</h1>
+      <div style="margin-top:2mm;font-size:13pt">
+        <b>ID:</b> P398 &nbsp;|&nbsp;
+        <b>Pettorale:</b> — &nbsp;|&nbsp;
+        <span style="display:inline-block;padding:2px 10px;border-radius:12px;background:#f9a825;color:#333;font-weight:700;font-size:12px;border:1px solid rgba(0,0,0,.15)">giallo</span> &nbsp;
+        <span style="font-size:11pt;font-weight:600;color:#37474f">
+          Stato Centrale: <b>ARRIVATO H</b>
+           &nbsp;|&nbsp; PMA: <b>in carico</b>
+        </span>
+      </div>
+    </div>
+    <div class="header-right">
+      Evento: <b>E55</b><br>
+      Mezzo: <b>CRI_LC_191.C</b><br>
+      Esito: <b>Trasporta</b><br>
+      Ospedale: <b>PMA_RESEGUP_PROVA</b><br>
+      <span style="color:#888;font-size:8pt">Export: 26/05/2026, 19:49:16</span>
+    </div>
+  </div>
+
+  <!-- ANAGRAFICA -->
+  <h2>Dati anagrafici</h2>
+  <div class="grid3">
+    <div class="field"><div class="lbl">Nome</div><div class="val">PZ4</div></div>
+    <div class="field"><div class="lbl">Cognome</div><div class="val">PZ4</div></div>
+    <div class="field"><div class="lbl">Pettorale</div><div class="val"><span class="no-data">—</span></div></div>
+    <div class="field"><div class="lbl">Età</div><div class="val"><span class="no-data">—</span></div></div>
+    <div class="field"><div class="lbl">Sesso</div><div class="val"><span class="no-data">—</span></div></div>
+    <div class="field"><div class="lbl">Data nascita</div><div class="val"><span class="no-data">—</span></div></div>
+    <div class="field"><div class="lbl">Codice fiscale</div><div class="val"><span class="no-data">—</span></div></div>
+    <div class="field"><div class="lbl">Telefono</div><div class="val"><span class="no-data">—</span></div></div>
+    <div class="field"><div class="lbl">Email</div><div class="val"><span class="no-data">—</span></div></div>
+  </div>
+  
+
+  <!-- DATI EVENTO/MISSIONE -->
+  <h2>Evento / Missione</h2>
+  <div class="grid3">
+    <div class="field"><div class="lbl">Evento</div><div class="val">E55</div></div>
+    <div class="field"><div class="lbl">Missione</div><div class="val">M77</div></div>
+    <div class="field"><div class="lbl">Mezzo</div><div class="val">CRI_LC_191.C</div></div>
+    <div class="field"><div class="lbl">Ospedale destinazione</div><div class="val">PMA_RESEGUP_PROVA</div></div>
+    <div class="field"><div class="lbl">Esito</div><div class="val">Trasporta</div></div>
+    <div class="field"><div class="lbl">Arrivato H</div><div class="val">25/05/2026, 22:54:16</div></div>
+  </div>
+
+  
+
+  <!-- CARTELLA CLINICA PMA -->
+  <h2>Cartella clinica PMA</h2>
+
+  <div class="grid3">
+    <div class="field"><div class="lbl">Tipo paziente</div><div class="val">MEDICO ACUTO</div></div>
+    <div class="field"><div class="lbl">Dettaglio evento</div><div class="val">CARDIOCIRCOLATORIA</div></div>
+    <div class="field"><div class="lbl">Breve descrizione</div><div class="val"><span class="no-data">—</span></div></div>
+  </div>
+
+  <div class="grid2" style="margin-top:2mm">
+    <div class="field"><div class="lbl">APR (Anamnesi Patologica Remota)</div><div class="val"><span class="no-data">—</span></div></div>
+    <div class="field"><div class="lbl">APP (Anamnesi Patologica Prossima)</div><div class="val"><span class="no-data">—</span></div></div>
+  </div>
+  <div class="grid2">
+    <div class="field"><div class="lbl">Allergie verificate</div><div class="val"><span class="no-data">—</span></div></div>
+    <div class="field"><div class="lbl">Allergie</div><div class="val"><span class="no-data">—</span></div></div>
+  </div>
+  
+
+  <h3>Esame obiettivo rapido</h3>
+  <div class="section-box" style="padding:2mm 3mm">
+    <div style="margin-bottom:2mm"><b>Generale:</b> <span class="tag">NELLA NORMA</span></div><div style="margin-bottom:2mm"><b>Neurologico:</b> <span class="tag">NELLA NORMA</span></div><div style="margin-bottom:2mm"><b>Cute:</b> <span class="tag">NELLA NORMA</span></div><div style="margin-bottom:2mm"><b>Torace:</b> <span class="tag">NELLA NORMA</span></div><div style="margin-bottom:2mm"><b>Addome:</b> <span class="tag">NELLA NORMA</span></div><div style="margin-bottom:2mm"><b>Capo/Collo:</b> <span class="tag">NELLA NORMA</span></div>
+  </div>
+
+  <h3>Parametri vitali</h3>
+  <table>
+    <thead><tr>
+      <th>Data/ora</th><th>Operatore</th><th>GCS</th><th>FR</th>
+      <th>SpO₂ aa</th><th>SpO₂ O₂</th><th>FC</th><th>PA</th><th>T°C</th><th>NRS</th>
+    </tr></thead>
+    <tbody><tr><td colspan="10" class="no-data" style="text-align:center">Nessun parametro registrato</td></tr></tbody>
+  </table>
+
+  <h3>Prestazioni</h3>
+  <div class="section-box" style="padding:2mm 3mm"><span class="no-data">Nessuna prestazione selezionata</span></div>
+
+  <h3>Farmaci somministrati</h3>
+  <table>
+    <thead><tr><th>Data/ora</th><th>Farmaco</th><th>Dose</th><th>Via</th></tr></thead>
+    <tbody><tr><td colspan="4" class="no-data" style="text-align:center">Nessun farmaco somministrato</td></tr></tbody>
+  </table>
+
+  <h3>Rivalutazioni</h3>
+  <table>
+    <thead><tr><th>Data/ora</th><th>Firma</th><th>Nota</th></tr></thead>
+    <tbody><tr><td colspan="3" class="no-data" style="text-align:center">Nessuna rivalutazione</td></tr></tbody>
+  </table>
+
+  <h3>Lesioni (schema)</h3>
+  <div class="section-box" style="padding:2mm 3mm"><p class="no-data">Nessun marker lesioni</p></div>
+
+  <!-- DIMISSIONE -->
+  <h2>Dimissione</h2>
+  <div class="grid3">
+    <div class="field"><div class="lbl">Esito dimissione</div><div class="val">—</div></div>
+    <div class="field"><div class="lbl">Dimesso il</div><div class="val"><span class="no-data">—</span></div></div>
+    <div class="field"><div class="lbl">Medico rif.</div><div class="val">Andrea Paleari</div></div>
+  </div>
+  
+  
+  
+
+  
+
+  <!-- VALUTAZIONI SOCCORSO -->
+  <h2>Valutazioni soccorso (MSA / MSB)</h2>
+  
+      <div class="section-box" style="margin-bottom:3mm">
+        <h3>🚑 MSB — Supporto Base
+          — 25/05/2026, 22:53:41
+          <span style="display:inline-block;padding:2px 10px;border-radius:12px;background:#f9a825;color:#333;font-weight:700;font-size:12px;border:1px solid rgba(0,0,0,.15)">Giallo</span>
+        </h3>
+        <div class="grid3" style="margin-top:2mm">
+          <div class="field"><div class="lbl">Mezzo</div><div class="val"><span class="no-data">—</span></div></div>
+          <div class="field"><div class="lbl">AVPU</div><div class="val">A</div></div>
+          <div class="field"><div class="lbl">FC</div><div class="val">70</div></div>
+          <div class="field"><div class="lbl">PA</div><div class="val">120/80</div></div>
+          <div class="field"><div class="lbl">SpO₂ aa</div><div class="val">100</div></div>
+          <div class="field"><div class="lbl">SpO₂ O₂</div><div class="val">100</div></div>
+          <div class="field"><div class="lbl">FR</div><div class="val">12</div></div>
+          <div class="field"><div class="lbl">GCS</div><div class="val"><span class="no-data">—</span></div></div>
+          <div class="field"><div class="lbl">Glicemia</div><div class="val"><span class="no-data">—</span></div></div>
+          <div class="field"><div class="lbl">Temperatura</div><div class="val">37</div></div>
+        </div>
+        
+        
+        
+      </div>
+      <div class="section-box" style="margin-bottom:3mm">
+        <h3>🚨 MSA — Supporto Avanzato
+          — 25/05/2026, 22:53:42
+          <span style="display:inline-block;padding:2px 10px;border-radius:12px;background:#f9a825;color:#333;font-weight:700;font-size:12px;border:1px solid rgba(0,0,0,.15)">Giallo</span>
+        </h3>
+        <div class="grid3" style="margin-top:2mm">
+          <div class="field"><div class="lbl">Mezzo</div><div class="val"><span class="no-data">—</span></div></div>
+          
+          <div class="field"><div class="lbl">FC</div><div class="val">70</div></div>
+          <div class="field"><div class="lbl">PA</div><div class="val">120/80</div></div>
+          <div class="field"><div class="lbl">SpO₂ aa</div><div class="val">100</div></div>
+          <div class="field"><div class="lbl">SpO₂ O₂</div><div class="val">100</div></div>
+          <div class="field"><div class="lbl">FR</div><div class="val">12</div></div>
+          <div class="field"><div class="lbl">GCS</div><div class="val">15</div></div>
+          <div class="field"><div class="lbl">Glicemia</div><div class="val"><span class="no-data">—</span></div></div>
+          <div class="field"><div class="lbl">Temperatura</div><div class="val">37</div></div>
+        </div>
+        
+        
+        
+      </div>
+
+  <div class="footer">
+    <span>CROSS PMA — Scheda paziente P398</span>
+    <span>Generato il 26/05/2026, 19:49:16</span>
+  </div>
+</div>
+</body>
+</html>

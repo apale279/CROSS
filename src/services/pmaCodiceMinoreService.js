@@ -2,6 +2,7 @@ import { Timestamp } from 'firebase/firestore';
 import { STATO_PAZIENTE_PMA } from '../constants';
 import { STATO_PZ_PMA, TIPO_PZ } from '../lib/pmaModule';
 import { createPaziente, deletePazienteCascade, patchPaziente } from './pazientiService';
+import { deleteAllCodiceMinoreFoto } from './pmaCodiceMinoreFotoService';
 
 function normalizeCodiceMinorePayload(payload = {}) {
   const pettoraleRaw = payload.pettorale ?? payload.numeroPettorale;
@@ -15,14 +16,19 @@ function normalizeCodiceMinorePayload(payload = {}) {
         ? Timestamp.fromDate(new Date(payload.oraFine))
         : null;
 
+  const codiceMinore = {
+    motivoArrivo: String(payload.motivoArrivo ?? '').trim(),
+    trattamento: String(payload.trattamento ?? '').trim(),
+    oraArrivo,
+    oraFine,
+  };
+  if (Array.isArray(payload.foto)) {
+    codiceMinore.foto = payload.foto;
+  }
+
   return {
     pettorale: Number.isFinite(pettorale) ? pettorale : null,
-    codiceMinore: {
-      motivoArrivo: String(payload.motivoArrivo ?? '').trim(),
-      trattamento: String(payload.trattamento ?? '').trim(),
-      oraArrivo,
-      oraFine,
-    },
+    codiceMinore,
   };
 }
 
@@ -64,11 +70,15 @@ export async function createPazienteCodiceMinore(
 }
 
 /** Aggiorna paziente «codice minore». */
-export async function updatePazienteCodiceMinore(manifestationId, docId, payload) {
+export async function updatePazienteCodiceMinore(manifestationId, docId, payload, existingRow) {
   const { pettorale, codiceMinore } = normalizeCodiceMinorePayload(payload);
   if (pettorale == null) throw new Error('Numero pettorale obbligatorio');
 
   const chiuso = codiceMinore.oraFine != null;
+  const existingFoto = existingRow?.codiceMinore?.foto;
+  if (!Array.isArray(codiceMinore.foto) && Array.isArray(existingFoto)) {
+    codiceMinore.foto = existingFoto;
+  }
 
   await patchPaziente(manifestationId, docId, {
     pettorale,
@@ -79,17 +89,22 @@ export async function updatePazienteCodiceMinore(manifestationId, docId, payload
   });
 }
 
-export async function deletePazienteCodiceMinore(manifestationId, docId) {
+export async function deletePazienteCodiceMinore(manifestationId, docId, existingRow) {
+  if (existingRow) {
+    await deleteAllCodiceMinoreFoto(manifestationId, docId, existingRow);
+  }
   await deletePazienteCascade(manifestationId, docId);
 }
 
 export function codiceMinoreFromPaziente(paziente) {
   const cm = paziente?.codiceMinore ?? {};
+  const foto = Array.isArray(cm.foto) ? cm.foto.filter((f) => f?.url) : [];
   return {
     pettorale: paziente?.pettorale ?? null,
     motivoArrivo: cm.motivoArrivo ?? '',
     trattamento: cm.trattamento ?? '',
     oraArrivo: cm.oraArrivo ?? paziente?.apertura ?? null,
     oraFine: cm.oraFine ?? null,
+    foto,
   };
 }

@@ -96,6 +96,11 @@ export function missioniAperteSuMezzo(missioni, mezzoSigla) {
   );
 }
 
+/** Missioni che impediscono l’eliminazione del mezzo (esclude RIENTRO / ARRIVATO H ancora «aperte»). */
+export function missioniBloccantiEliminazioneMezzo(missioni, mezzoSigla) {
+  return missioniAperteSuMezzo(missioni, mezzoSigla).filter((m) => missioneBloccaMezzo(m));
+}
+
 /** Stati in cui il mezzo è selezionabile per nuovo ingaggio (missione precedente resta aperta/visibile). */
 export function isStatoMissioneRientroOLiberato(stato) {
   const s = String(stato ?? '').trim();

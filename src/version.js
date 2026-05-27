@@ -1,5 +1,9 @@
 /**
  * Versione rilascio (UI e messaggi commit).
- * Incrementare il numero progressivo a ogni push: v2.1 → v2.2 → v2.3 …
+ * Incremento automatico con `npm run push` (v2.11 → v2.12 …).
+ *
+ * Formato messaggio commit (da ora in poi):
+ *   v2.N — YYYY-MM-DD HH:mm — descrizione opzionale
+ * Esempio: v2.12 — 2026-05-27 14:30 — Codici minori: foto e UI mobile
  */
-export const APP_VERSION = 'v2.11';
+export const APP_VERSION = 'v2.12';

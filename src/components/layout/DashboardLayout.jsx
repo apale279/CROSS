@@ -3,6 +3,8 @@ import { KioskPopOutProvider } from '../../context/KioskPopOutContext';
 import { RouteErrorBoundary } from '../ui/RouteErrorFallback';
 import { AppHeader } from './AppHeader';
 import { ActivityRouteListener } from '../auth/ActivityRouteListener';
+import { PmaArrivoAlertListener } from '../pma/PmaArrivoAlertListener';
+import { PmaDiarioAlertListener } from '../pma/PmaDiarioAlertListener';
 import { SosAlertListener } from '../sos/SosAlertListener';
 
 export function DashboardLayout() {
@@ -13,6 +15,8 @@ export function DashboardLayout() {
     <KioskPopOutProvider>
       <ActivityRouteListener />
       <SosAlertListener />
+      <PmaDiarioAlertListener />
+      <PmaArrivoAlertListener />
       <div className="flex h-screen flex-col bg-slate-100">
         <AppHeader />
         <main

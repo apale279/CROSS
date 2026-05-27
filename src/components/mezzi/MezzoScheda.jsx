@@ -15,6 +15,10 @@ import {
   mezzoPosizioneRealeCoordinate,
 } from '../../lib/mezzoPosizione';
 import { formatPercentPosition, mezzoOnTacticalBoard } from '../../lib/tacticalBoard';
+import {
+  findStazionamentoById,
+  resolveMezzoStazionamentoId,
+} from '../../lib/mezzoStazionamentoAssign';
 import { deleteField } from 'firebase/firestore';
 import { deleteMezzo, patchMezzo } from '../../services/mezziService';
 import { confirmDelete } from '../../utils/confirmDelete';
@@ -43,6 +47,12 @@ export function MezzoScheda({ mezzo, onDeleted, readOnly = false }) {
   const onBoard = mezzoOnTacticalBoard(mezzo);
   const posLabel = formatPercentPosition(mezzo.coordinate_stazionamento);
   const stato = mezzo.statoMezzo ?? MEZZO_STATO_DISPONIBILE;
+  const stazionamenti = impostazioni?.stazionamenti ?? [];
+  const sede = findStazionamentoById(
+    resolveMezzoStazionamentoId(mezzo, stazionamenti),
+    stazionamenti,
+  );
+  const sedeLabel = sede?.nome ?? '—';
 
   const setStatoMezzo = async (statoMezzo) => {
     if (statoMezzo === (mezzo.statoMezzo ?? MEZZO_STATO_DISPONIBILE)) return;
@@ -92,10 +102,7 @@ export function MezzoScheda({ mezzo, onDeleted, readOnly = false }) {
         <Row label="Tipo" value={mezzo.tipo} />
         <Row label="Targa" value={mezzo.targa || '—'} />
         <Row label="Radio" value={mezzo.radio || '—'} />
-        <Row
-          label="Staz. predefinito"
-          value={mezzo.stazionamentoPredefinito === true ? 'Sì' : 'No'}
-        />
+        <Row label="Sede (stazionamento)" value={sedeLabel} />
         <Row label="Stato mezzo" value={stato} />
         <Row label="Operativo" value={mezzo.operativo !== false ? 'Sì' : 'No'} />
         {mezzo.operativo === false && <Row label="Note" value={mezzo.noteOperativo || '—'} />}
@@ -137,10 +144,7 @@ export function MezzoScheda({ mezzo, onDeleted, readOnly = false }) {
       <Row label="Tipo" value={mezzo.tipo} />
       <Row label="Targa" value={mezzo.targa || '—'} />
       <Row label="Radio" value={mezzo.radio || '—'} />
-      <Row
-        label="Staz. predefinito"
-        value={mezzo.stazionamentoPredefinito === true ? 'Sì' : 'No'}
-      />
+      <Row label="Sede (stazionamento)" value={sedeLabel} />
       <Row label="Stato mezzo">
         <div className="flex flex-wrap gap-2">
           <button

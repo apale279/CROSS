@@ -7,6 +7,7 @@ import { useEventoScheda } from '../context/EventoSchedaContext';
 import { useManifestazioneId } from '../context/ManifestazioneContext';
 import { useImpostazioni } from '../hooks/useImpostazioni';
 import { useOperativoDashboardData } from '../hooks/useOperativoDashboardData';
+import { usePmaAccess } from '../hooks/usePmaAccess';
 import { PopOutButton } from '../components/ui/PopOutButton';
 import { MinimizeToDockButton } from '../components/ui/MinimizeToDockButton';
 import { KioskDockBar } from '../components/dashboard/KioskDockBar';
@@ -42,6 +43,7 @@ export default function DashboardPage() {
   const navigate = useNavigate();
   const manifestationId = useManifestazioneId();
   const { impostazioni } = useImpostazioni();
+  const { fullCentrale } = usePmaAccess();
   const telegramEnabled = impostazioni?.telegramBotEnabled === true;
   const {
     eventi,
@@ -69,6 +71,7 @@ export default function DashboardPage() {
     toggleChiusa: toggleChiusaDiario,
     toggleImportante: toggleImportanteDiario,
     removeNota: removeNotaDiario,
+    allertaPmaNota: allertaPmaDiario,
   } = useDiarioNotaActions({
     onAfterDelete: (docId) => {
       setDiarioModal((m) => (m?.nota?._docId === docId ? null : m));
@@ -376,6 +379,13 @@ export default function DashboardPage() {
           onToggleImportante={async (importante) => {
             await toggleImportanteDiario(diarioModalNota, importante);
           }}
+          onAllertaPma={
+            fullCentrale && diarioModal?.mode === 'view'
+              ? async (nota) => {
+                  await allertaPmaDiario(nota);
+                }
+              : undefined
+          }
           onBroadcastTelegram={diarioModal?.mode === 'view' ? broadcastDiario : undefined}
           broadcasting={broadcastingDiario}
         />

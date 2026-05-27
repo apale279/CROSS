@@ -1,0 +1,5 @@
+#!/bin/sh
+# Aggiunge data e ora al messaggio se inizia con v2.N — (senza timestamp già presente).
+# Abilitazione (una tantum): git config core.hooksPath .githooks
+COMMIT_MSG_FILE=$1
+node scripts/lib/apply-commit-timestamp.mjs "$COMMIT_MSG_FILE"

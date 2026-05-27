@@ -1,15 +1,13 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Plus } from 'lucide-react';
 import { DEFAULT_IMPOSTAZIONI } from '../constants';
 import { useImpostazioni } from '../hooks/useImpostazioni';
 import { useManifestazioneId } from '../context/ManifestazioneContext';
 import { COLLECTIONS } from '../lib/firestorePaths';
 import { getMezzoDeleteBlockReason } from '../lib/mezzoDeleteGuard';
-import { applyStazionamentoPresetIfNeeded } from '../lib/mezzoStazionamentoPreset';
+import { applyStazionamentoOnMezzoCreate } from '../lib/mezzoStazionamentoAssign';
 import { useManifestazioneCollection } from '../hooks/useManifestazioneCollection';
-import { AddressPicker } from '../components/maps/AddressPicker';
-import { LuogoFisicoField } from '../components/maps/LuogoFisicoField';
-import { StazionamentoImport } from '../components/mezzi/StazionamentoImport';
+import { MezzoStazionamentoSelect } from '../components/mezzi/MezzoStazionamentoSelect';
 import { EquipaggioForm } from '../components/mezzi/EquipaggioForm';
 import {
   createMezzo,
@@ -20,8 +18,14 @@ import {
 import { confirmDelete } from '../utils/confirmDelete';
 import { MezzoStatoSelect } from '../components/mezzi/MezzoStatoSelect';
 import { MEZZO_STATO_DISPONIBILE } from '../lib/mezzoStati';
-import { mergeStazionamento } from '../lib/mezzoStazionamento';
+import {
+  findStazionamentoById,
+  mezzoPatchFromStazionamentoPreset,
+  resolveMezzoStazionamentoId,
+} from '../lib/mezzoStazionamentoAssign';
 import { normalizeTipiMezzo } from '../lib/tipiMezzo';
+import { parseFlottaMezziExcel } from '../lib/parseFlottaMezziExcel';
+import { importMezziFromFlottaExcel } from '../services/mezziImportService';
 import {
   FormField,
   btnDanger,
@@ -34,7 +38,8 @@ import {
 const emptyForm = (tipiMezzo) => ({
   sigla: '',
   tipo: tipiMezzo[0]?.nome ?? '',
-  stazionamento: { indirizzo: '', luogo_fisico: '', coordinate: null },
+  stazionamentoId: '',
+  stazionamento: { indirizzo: '', luogo_fisico: '', note: '', coordinate: null },
   stazionamentoPredefinito: false,
   targa: '',
   radio: '',
@@ -66,6 +71,9 @@ export default function MezziPage() {
   }, [tipiMezzo]);
 
   const [saving, setSaving] = useState(false);
+  const [importBusy, setImportBusy] = useState(false);
+  const [importFeedback, setImportFeedback] = useState('');
+  const fileRef = useRef(null);
   const [expanded, setExpanded] = useState(null);
 
   const handleCreate = async (e) => {
@@ -81,7 +89,7 @@ export default function MezziPage() {
     }
     setSaving(true);
     try {
-      const payload = applyStazionamentoPresetIfNeeded(form, stazionamentiPreset);
+      const payload = applyStazionamentoOnMezzoCreate(form, stazionamentiPreset);
       await createMezzo(manifestazioneId, sigla, payload);
       setForm(emptyForm(tipiMezzo));
       setShowForm(false);
@@ -95,27 +103,116 @@ export default function MezziPage() {
 
   const patch = (sigla, fields) => patchMezzo(manifestazioneId, sigla, fields);
 
-  const patchStazionamento = (sigla, mezzo, partial) =>
-    patch(sigla, { stazionamento: mergeStazionamento(mezzo?.stazionamento, partial) });
+  const assignStazionamento = (sigla, presetId) => {
+    const preset = findStazionamentoById(presetId, stazionamentiPreset);
+    patch(sigla, mezzoPatchFromStazionamentoPreset(preset));
+  };
+
+  const onImportExcel = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const lower = file.name.toLowerCase();
+    if (!lower.endsWith('.xlsx') && !lower.endsWith('.xls')) {
+      alert('Seleziona un file Excel (.xlsx o .xls).');
+      e.target.value = '';
+      return;
+    }
+    if (!stazionamentiPreset.length) {
+      alert(
+        'Importa prima gli stazionamenti da Impostazioni (foglio STAZIONAMENTI dello stesso file Excel).',
+      );
+      e.target.value = '';
+      return;
+    }
+    setImportBusy(true);
+    setImportFeedback('');
+    try {
+      const buf = await file.arrayBuffer();
+      const { sheetName, entries } = parseFlottaMezziExcel(buf);
+      if (!entries.length) {
+        alert('Nessuna riga valida nel foglio FLOTTA (A=sigla, B=tipo, C=stazionamento).');
+        return;
+      }
+      if (
+        !window.confirm(
+          `Importare fino a ${entries.length} mezzi dal foglio «${sheetName}»? Le sigle già presenti verranno saltate. I tipi mezzo mancanti verranno creati in Impostazioni.`,
+        )
+      ) {
+        return;
+      }
+      const result = await importMezziFromFlottaExcel(manifestazioneId, buf, {
+        stazionamenti: stazionamentiPreset,
+        tipiMezzo,
+        existingMezzi: mezzi,
+      });
+      let msg = `Creati ${result.created} mezzi da «${result.sheetName}».`;
+      if (result.tipiAggiunti.length) {
+        msg += ` Tipi aggiunti: ${result.tipiAggiunti.join(', ')}.`;
+      }
+      if (result.skipped.length) {
+        msg += ` Saltate ${result.skipped.length} sigle già presenti.`;
+      }
+      if (result.missingStazionamenti.length) {
+        msg += ` Attenzione: stazionamenti non trovati (${result.missingStazionamenti.join(', ')}).`;
+      }
+      setImportFeedback(msg);
+      if (result.missingStazionamenti.length) {
+        console.warn('Stazionamenti mancanti', result.missingStazionamenti);
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Errore import: ' + (err?.message ?? err));
+    } finally {
+      setImportBusy(false);
+      e.target.value = '';
+    }
+  };
 
   return (
     <div className="mx-auto max-w-6xl pb-8">
-      <header className="mb-4 flex items-center justify-between">
+      <header className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-xl font-bold uppercase text-slate-900">Mezzi</h2>
-        <button
-          type="button"
-          className={`${btnPrimary} flex items-center gap-2`}
-          onClick={() => {
-            setShowForm((v) => {
-              if (!v) setForm(emptyForm(tipiMezzo));
-              return !v;
-            });
-          }}
-        >
-          <Plus className="h-4 w-4" />
-          Nuovo mezzo
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            className={btnSecondary}
+            disabled={importBusy || saving}
+            onClick={() => fileRef.current?.click()}
+          >
+            {importBusy ? 'Import…' : 'Importa Excel FLOTTA'}
+          </button>
+          <input
+            ref={fileRef}
+            type="file"
+            accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            className="hidden"
+            onChange={onImportExcel}
+          />
+          <button
+            type="button"
+            className={`${btnPrimary} flex items-center gap-2`}
+            onClick={() => {
+              setShowForm((v) => {
+                if (!v) setForm(emptyForm(tipiMezzo));
+                return !v;
+              });
+            }}
+          >
+            <Plus className="h-4 w-4" />
+            Nuovo mezzo
+          </button>
+        </div>
       </header>
+      <p className="mb-2 text-xs text-slate-600">
+        Import da foglio <strong>FLOTTA</strong> (es. FLOTTA RESEGUP): <strong>A</strong> sigla,{' '}
+        <strong>B</strong> tipo mezzo (creato in impostazioni se assente), <strong>C</strong> nome
+        stazionamento (col. C) = sede del mezzo dall’elenco STAZIONAMENTI in Impostazioni.
+      </p>
+      {importFeedback && (
+        <p className="mb-4 rounded border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-900">
+          {importFeedback}
+        </p>
+      )}
 
       {showForm && (
         <form
@@ -161,54 +258,16 @@ export default function MezziPage() {
                 onChange={(e) => setForm((f) => ({ ...f, radio: e.target.value }))}
               />
             </FormField>
-            <div className="md:col-span-2 space-y-3">
-              <p className="text-sm font-medium text-slate-700">Stazionamento</p>
-              <StazionamentoImport
+            <div className="md:col-span-2">
+              <MezzoStazionamentoSelect
                 stazionamenti={stazionamentiPreset}
-                onImport={(partial) =>
-                  setForm((f) => ({
-                    ...f,
-                    stazionamento: mergeStazionamento(f.stazionamento, partial),
-                  }))
-                }
-              />
-              <LuogoFisicoField
-                value={form.stazionamento.luogo_fisico}
-                onChange={(luogo_fisico) =>
-                  setForm((f) => ({
-                    ...f,
-                    stazionamento: { ...f.stazionamento, luogo_fisico },
-                  }))
-                }
-              />
-              <AddressPicker
-                indirizzo={form.stazionamento.indirizzo}
-                coordinate={form.stazionamento.coordinate}
-                onCommit={({ indirizzo, coordinate }) =>
-                  setForm((f) => ({
-                    ...f,
-                    stazionamento: { ...f.stazionamento, indirizzo, coordinate },
-                  }))
-                }
+                valueId={form.stazionamentoId}
+                onSelectId={(id) => {
+                  const preset = findStazionamentoById(id, stazionamentiPreset);
+                  setForm((f) => ({ ...f, ...mezzoPatchFromStazionamentoPreset(preset) }));
+                }}
               />
             </div>
-            <label className="flex items-start gap-2 md:col-span-2">
-              <input
-                type="checkbox"
-                className="mt-0.5"
-                checked={form.stazionamentoPredefinito}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, stazionamentoPredefinito: e.target.checked }))
-                }
-              />
-              <span className="text-sm text-slate-700">
-                Stazionamento predefinito
-                <span className="mt-0.5 block text-xs text-slate-500">
-                  Se non compili il luogo sotto, alla creazione verrà usato il primo stazionamento
-                  dalle Impostazioni.
-                </span>
-              </span>
-            </label>
             <div className="md:col-span-2">
               <EquipaggioForm
                 equipaggio={form.equipaggio}
@@ -298,43 +357,11 @@ export default function MezziPage() {
                         </select>
                       </FormField>
                     </div>
-                    <div className="space-y-3">
-                      <p className="text-sm font-medium text-slate-700">Stazionamento</p>
-                      <StazionamentoImport
-                        stazionamenti={stazionamentiPreset}
-                        onImport={(partial) => patchStazionamento(sigla, m, partial)}
-                      />
-                      <LuogoFisicoField
-                        value={m.stazionamento?.luogo_fisico ?? ''}
-                        onChange={(luogo_fisico) =>
-                          patchStazionamento(sigla, m, { luogo_fisico })
-                        }
-                      />
-                      <AddressPicker
-                        indirizzo={m.stazionamento?.indirizzo ?? ''}
-                        coordinate={m.stazionamento?.coordinate}
-                        onCommit={({ indirizzo, coordinate }) =>
-                          patchStazionamento(sigla, m, { indirizzo, coordinate })
-                        }
-                      />
-                    </div>
-                    <label className="flex items-start gap-2">
-                      <input
-                        type="checkbox"
-                        className="mt-0.5"
-                        checked={m.stazionamentoPredefinito === true}
-                        onChange={(e) =>
-                          patch(sigla, { stazionamentoPredefinito: e.target.checked })
-                        }
-                      />
-                      <span className="text-sm text-slate-700">
-                        Stazionamento predefinito
-                        <span className="mt-0.5 block text-xs text-slate-500">
-                          Alla creazione, se il luogo era vuoto, copia il primo preset da
-                          Impostazioni.
-                        </span>
-                      </span>
-                    </label>
+                    <MezzoStazionamentoSelect
+                      stazionamenti={stazionamentiPreset}
+                      valueId={resolveMezzoStazionamentoId(m, stazionamentiPreset)}
+                      onSelectId={(id) => assignStazionamento(sigla, id)}
+                    />
                     <EquipaggioForm
                       equipaggio={m.equipaggio ?? emptyEquipaggio()}
                       onChange={(equipaggio) => patch(sigla, { equipaggio })}

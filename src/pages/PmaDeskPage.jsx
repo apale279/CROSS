@@ -30,8 +30,9 @@ import {
   updatePazienteCodiceMinore,
 } from '../services/pmaCodiceMinoreService';
 
-function openPazientePath(pmaId, docId) {
-  return `/pma/${encodeURIComponent(pmaId)}/paziente/${encodeURIComponent(docId)}?tab=cartella`;
+function openPazientePath(pmaId, docId, tab = 'cartella') {
+  const q = new URLSearchParams({ tab });
+  return `/pma/${encodeURIComponent(pmaId)}/paziente/${encodeURIComponent(docId)}?${q}`;
 }
 
 export default function PmaDeskPage() {
@@ -150,13 +151,18 @@ export default function PmaDeskPage() {
       />
 
       {showIpadFirma && (
-        <Modal title="Ipad firma" wide onClose={() => setShowIpadFirma(false)}>
+        <Modal title="Ipad firma" wide fitViewport onClose={() => setShowIpadFirma(false)}>
           <PmaIpadFirmaInfoPanel pma={pma} />
         </Modal>
       )}
 
       {showCreate && (
-        <Modal title="Nuovo paziente autopresentato" wide onClose={() => setShowCreate(false)}>
+        <Modal
+          title="Nuovo paziente autopresentato"
+          wide
+          fitViewport
+          onClose={() => setShowCreate(false)}
+        >
           <PmaPatientQuickForm
             manifestationId={manifestationId}
             pma={pma}
@@ -173,14 +179,15 @@ export default function PmaDeskPage() {
       )}
 
       {showCodiciMinori && (
-        <Modal title="Tabella codici minori" extraWide onClose={() => setShowCodiciMinori(false)}>
+        <Modal title="Codici minori" wide fitViewport onClose={() => setShowCodiciMinori(false)}>
           <PmaCodiciMinoriPanel
             rows={codiciMinori}
             busy={codiciBusy}
+            manifestationId={manifestationId}
             onCreate={async (payload) => {
               setCodiciBusy(true);
               try {
-                await createPazienteCodiceMinore(
+                return await createPazienteCodiceMinore(
                   manifestationId,
                   pma.id,
                   pma.nome,
@@ -194,10 +201,15 @@ export default function PmaDeskPage() {
                 setCodiciBusy(false);
               }
             }}
-            onUpdate={async (docId, payload) => {
+            onUpdate={async (docId, payload, existingRow) => {
               setCodiciBusy(true);
               try {
-                await updatePazienteCodiceMinore(manifestationId, docId, payload);
+                await updatePazienteCodiceMinore(
+                  manifestationId,
+                  docId,
+                  payload,
+                  existingRow,
+                );
               } catch (err) {
                 alert(err?.message ?? 'Errore aggiornamento');
                 throw err;
@@ -205,10 +217,10 @@ export default function PmaDeskPage() {
                 setCodiciBusy(false);
               }
             }}
-            onDelete={async (docId) => {
+            onDelete={async (docId, existingRow) => {
               setCodiciBusy(true);
               try {
-                await deletePazienteCodiceMinore(manifestationId, docId);
+                await deletePazienteCodiceMinore(manifestationId, docId, existingRow);
               } catch (err) {
                 alert(err?.message ?? 'Errore eliminazione');
                 throw err;
@@ -240,23 +252,39 @@ export default function PmaDeskPage() {
                 <p className="text-xs text-slate-500">Nessuno in arrivo.</p>
               ) : (
                 <ul className="space-y-2">
-                  {inArrivo.map((p) => (
-                    <li key={p._docId}>
-                      <PmaPatientReadonlyCard
-                        paziente={p}
-                        footer={
-                          <button
-                            type="button"
-                            className={`${btnPrimary} mt-2 w-full text-xs`}
-                            disabled={busyId === p._docId}
-                            onClick={() => void handlePrendiInCarico(p._docId)}
-                          >
-                            {busyId === p._docId ? '…' : 'Prendi in carico'}
-                          </button>
-                        }
-                      />
-                    </li>
-                  ))}
+                  {inArrivo.map((p) => {
+                    const daCentrale = !isPazienteOriginePma(p);
+                    return (
+                      <li key={p._docId}>
+                        <PmaPatientReadonlyCard
+                          paziente={p}
+                          footer={
+                            <div className="mt-2 flex flex-col gap-1.5">
+                              {daCentrale ? (
+                                <button
+                                  type="button"
+                                  className={`${btnSecondary} w-full text-xs`}
+                                  onClick={() =>
+                                    navigate(openPazientePath(pma.id, p._docId, 'dati_centrale'))
+                                  }
+                                >
+                                  Visualizza dati centrale
+                                </button>
+                              ) : null}
+                              <button
+                                type="button"
+                                className={`${btnPrimary} w-full text-xs`}
+                                disabled={busyId === p._docId}
+                                onClick={() => void handlePrendiInCarico(p._docId)}
+                              >
+                                {busyId === p._docId ? '…' : 'Prendi in carico'}
+                              </button>
+                            </div>
+                          }
+                        />
+                      </li>
+                    );
+                  })}
                 </ul>
               )}
             </section>
