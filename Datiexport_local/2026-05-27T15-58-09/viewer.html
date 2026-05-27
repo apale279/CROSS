@@ -1,0 +1,242 @@
+<!DOCTYPE html><html lang="it"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CROSS Export — 27/05/2026, 17:58:09</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:13px;background:#f0f2f5;color:#222}
+.top{background:#1a237e;color:#fff;padding:12px 18px;display:flex;align-items:center;justify-content:space-between}
+.top h1{font-size:17px;font-weight:700}.top .meta{font-size:11px;opacity:.7}
+.btn{background:#fff;color:#1a237e;border:none;padding:5px 13px;border-radius:4px;cursor:pointer;font-weight:600;font-size:12px;margin-left:6px}
+.tabs{display:flex;background:#283593}
+.tab{padding:10px 20px;cursor:pointer;color:rgba(255,255,255,.6);font-weight:600;font-size:13px;border-bottom:3px solid transparent;user-select:none}
+.tab:hover{color:#fff}.tab.active{color:#fff;border-bottom-color:#ff9800}
+.bar{background:#fff;padding:8px 14px;border-bottom:1px solid #e0e0e0;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.bar input{flex:1;min-width:160px;border:1px solid #ccc;border-radius:4px;padding:5px 9px;font-size:13px}
+.bar input:focus{outline:none;border-color:#3949ab}
+.cnt{background:#e8eaf6;color:#3949ab;border-radius:12px;padding:2px 10px;font-size:12px;font-weight:600;white-space:nowrap}
+.tc{display:none;padding:12px;overflow-x:auto}.tc.active{display:block}
+table{width:100%;border-collapse:collapse;background:#fff;border-radius:6px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.1)}
+th{background:#3949ab;color:#fff;padding:8px 10px;text-align:left;font-size:12px;cursor:pointer;white-space:nowrap;user-select:none}
+th:hover{background:#1a237e}
+td{padding:6px 10px;border-bottom:1px solid #f0f0f0;vertical-align:top;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+tr:hover td{background:#f5f7ff}tr:last-child td{border-bottom:none}
+.stats{display:flex;gap:10px;margin-bottom:10px;flex-wrap:wrap}
+.sc{background:#fff;border-radius:6px;padding:9px 14px;box-shadow:0 1px 3px rgba(0,0,0,.08);flex:1;min-width:90px}
+.sc .n{font-size:22px;font-weight:800;color:#1a237e;line-height:1}.sc .l{font-size:11px;color:#777;margin-top:1px}
+.nd{text-align:center;padding:25px;color:#999;font-size:14px}
+.err{background:#ffebee;color:#c62828;padding:12px 16px;border-radius:4px;margin:10px;font-size:13px}
+</style></head><body>
+<div class="top">
+  <div><h1>🚑 CROSS — Export dati</h1>
+    <div class="meta">Tenant: Lr4XjZMr4UWWJWD2m0iW &nbsp;|&nbsp; 27/05/2026, 17:58:09</div>
+  </div>
+  <div><button class="btn" onclick="window.print()">🖨️ Stampa</button></div>
+</div>
+<div class="tabs">
+  <div class="tab active" onclick="sw('eventi')">📋 Eventi (<span id="c-eventi">…</span>)</div>
+  <div class="tab" onclick="sw('missioni')">🚑 Missioni (<span id="c-missioni">…</span>)</div>
+  <div class="tab" onclick="sw('pazienti')">🏥 Pazienti (<span id="c-pazienti">…</span>)</div>
+  <div class="tab" onclick="sw('valutazioni')">🔬 Valutazioni (<span id="c-valutazioni">…</span>)</div>
+</div>
+<div id="global-err" style="display:none"></div>
+
+<div id="t-eventi" class="tc active">
+  <div class="bar">
+    <input type="text" id="s-eventi" placeholder="🔍 Cerca in tutti i campi…" oninput="ft('eventi')">
+    <span class="cnt" id="b-eventi">caricamento…</span>
+  </div>
+  <div class="stats" id="st-eventi"></div>
+  <div style="overflow-x:auto"><table><thead id="h-eventi"></thead><tbody id="bd-eventi"><tr><td class="nd">Caricamento…</td></tr></tbody></table></div>
+</div>
+<div id="t-missioni" class="tc">
+  <div class="bar">
+    <input type="text" id="s-missioni" placeholder="🔍 Cerca in tutti i campi…" oninput="ft('missioni')">
+    <span class="cnt" id="b-missioni">caricamento…</span>
+  </div>
+  <div class="stats" id="st-missioni"></div>
+  <div style="overflow-x:auto"><table><thead id="h-missioni"></thead><tbody id="bd-missioni"><tr><td class="nd">Caricamento…</td></tr></tbody></table></div>
+</div>
+<div id="t-pazienti" class="tc">
+  <div class="bar">
+    <input type="text" id="s-pazienti" placeholder="🔍 Cerca in tutti i campi…" oninput="ft('pazienti')">
+    <span class="cnt" id="b-pazienti">caricamento…</span>
+  </div>
+  <div class="stats" id="st-pazienti"></div>
+  <div style="overflow-x:auto"><table><thead id="h-pazienti"></thead><tbody id="bd-pazienti"><tr><td class="nd">Caricamento…</td></tr></tbody></table></div>
+</div>
+<div id="t-valutazioni" class="tc">
+  <div class="bar">
+    <input type="text" id="s-valutazioni" placeholder="🔍 Cerca in tutti i campi…" oninput="ft('valutazioni')">
+    <span class="cnt" id="b-valutazioni">caricamento…</span>
+  </div>
+  <div class="stats" id="st-valutazioni"></div>
+  <div style="overflow-x:auto"><table><thead id="h-valutazioni"></thead><tbody id="bd-valutazioni"><tr><td class="nd">Caricamento…</td></tr></tbody></table></div>
+</div>
+<script>
+(function(){
+try {
+  var D = {
+    eventi:      [{"_docId":"AFbNklMx65KeF1ouF3xp","idUnivoco":"f322b5e6-fbe8-4886-b9a8-fa121e7f5988","idEvento":"E71","stato":true,"indirizzo":"[Prova] Via test 8, settore C","tipoEvento":"Intossicazione","dettaglioEvento":"Seed prova centrale • Prova centrale C","colore":"Verde","noteEvento":"Creato da seed:prova (dashboard centrale)","noteProvaSeed":true,"apertura":"27/05/2026, 17:10:08","_report":"reports/evento_E71.html"},{"_docId":"AKpdNiU7BjCsgUS2nbXN","idUnivoco":"c44af3e8-2967-4f00-bd65-f717addfbd69","idEvento":"E69","stato":true,"indirizzo":"[Prova] Via test 91, settore A","tipoEvento":"Malore","dettaglioEvento":"Seed prova centrale • Prova centrale A","colore":"Giallo","noteEvento":"Creato da seed:prova (dashboard centrale)","noteProvaSeed":true,"apertura":"27/05/2026, 17:10:08","operativoTerminatoIl":"27/05/2026, 17:34:35","operativoTerminato":true,"_report":"reports/evento_E69.html"},{"_docId":"MBNmBbbVwmN1KYaPYUYR","idUnivoco":"0e1092ce-b1ed-4cb1-99db-6bb2f1d58c5f","idEvento":"E70","stato":true,"indirizzo":"[Prova] Via test 57, settore B","tipoEvento":"Trauma","dettaglioEvento":"Seed prova centrale • Prova centrale B","colore":"Rosso","noteEvento":"Creato da seed:prova (dashboard centrale)","noteProvaSeed":true,"apertura":"27/05/2026, 17:10:08","_report":"reports/evento_E70.html"},{"_docId":"RHMAWnskTwwpikvUIMYn","idUnivoco":"ffcf7f92-3144-4859-954d-4f20d58f74f7","idEvento":"E68","stato":true,"indirizzo":"Via Jacopo Rezia, 8, 22100 Como CO, Italia","luogo_fisico":"","chiamante":"ORGANIZZAZIONE","tipoEvento":"INC INFORTUNIO","dettaglioEvento":"LAVORATIVO","luogo":"CASA","tipoLuogo":"","meteo":"","colore":"Verde","noteEvento":"","coordinate":"lat:45.80294823497023 | lng:9.088067496630869","apertura":"27/05/2026, 17:06:17","_report":"reports/evento_E68.html"},{"_docId":"ujW3eMYAdAHMszXbYiMV","idUnivoco":"2f63c8c0-80ac-4102-bf5e-da875d3a53db","idEvento":"E73","stato":true,"indirizzo":"[Prova] Via test 53, settore E","tipoEvento":"Altro","dettaglioEvento":"Seed prova centrale • Prova centrale E","colore":"Bianco","noteEvento":"Creato da seed:prova (dashboard centrale)","noteProvaSeed":true,"apertura":"27/05/2026, 17:10:09","_report":"reports/evento_E73.html"},{"_docId":"zqmD23x7Xg3arxeuFtAt","idUnivoco":"13ede329-beb9-4a50-b8cb-27a56c9129d9","idEvento":"E72","stato":true,"indirizzo":"[Prova] Via test 42, settore D","tipoEvento":"Caduta","dettaglioEvento":"Seed prova centrale • Prova centrale D","colore":"Rosso","noteEvento":"Creato da seed:prova (dashboard centrale)","noteProvaSeed":true,"apertura":"27/05/2026, 17:10:09","_report":"reports/evento_E72.html"}],
+    missioni:    [{"_docId":"45PM4iN0KSFDmtBlakcr","idUnivoco":"c81dc64a-46b7-40a6-a4db-4dedd49d2533","idMissione":"M97","eventoIdUnivoco":"2f63c8c0-80ac-4102-bf5e-da875d3a53db","eventoCorrelato":"E73","mezzo":"NAVETTA_01","stato":"IN POSTO","statoDa":"27/05/2026, 17:08:08","pazienteAutopresentato":false,"aperta":true,"noteProvaSeed":true,"apertura":"27/05/2026, 17:10:09"},{"_docId":"8imHJaHFGHqVoKzzo0nu","idUnivoco":"7976ebd1-a7f5-491c-b5a6-5f24eeba3a99","idMissione":"M96","eventoIdUnivoco":"13ede329-beb9-4a50-b8cb-27a56c9129d9","eventoCorrelato":"E72","mezzo":"ELI_BS","stato":"IN POSTO","statoDa":"27/05/2026, 17:08:08","pazienteAutopresentato":false,"aperta":true,"noteProvaSeed":true,"apertura":"27/05/2026, 17:10:09"},{"_docId":"Kq3S2owP6gLKzvVlRRzu","idUnivoco":"8d08c108-5950-456d-8843-15dc7c24ad2c","idMissione":"M92","eventoIdUnivoco":"ffcf7f92-3144-4859-954d-4f20d58f74f7","eventoCorrelato":"E68","mezzo":"CRI_LC_3177","pazienteAutopresentato":false,"equipaggio":"","noteMissione":"","codiceColoreMissione":"Verde","esitoMissione":"REGOLARE","apertura":"27/05/2026, 17:06:34","stato":"FINE MISSIONE","statoDa":"27/05/2026, 17:33:40","aperta":false},{"_docId":"T9W4QXTNUgx6F8CBk9fm","idUnivoco":"668acac2-8824-45d0-bd0b-71dd4eb3a431","idMissione":"M95","eventoIdUnivoco":"f322b5e6-fbe8-4886-b9a8-fa121e7f5988","eventoCorrelato":"E71","mezzo":"CRI_LC_VETTA","stato":"IN POSTO","statoDa":"27/05/2026, 17:08:08","pazienteAutopresentato":false,"aperta":true,"noteProvaSeed":true,"apertura":"27/05/2026, 17:10:09"},{"_docId":"er8ZH1RD8NWCAjp4LLOt","idUnivoco":"2cfe1f9d-c7a0-41fd-819a-67172e799c51","idMissione":"M94","eventoIdUnivoco":"0e1092ce-b1ed-4cb1-99db-6bb2f1d58c5f","eventoCorrelato":"E70","mezzo":"CRI_LC_OPEM","pazienteAutopresentato":false,"noteProvaSeed":true,"apertura":"27/05/2026, 17:10:08","stato":"FINE MISSIONE","statoDa":"27/05/2026, 17:33:49","aperta":false},{"_docId":"u8NC7ALCVZ1BCuvgzCFS","idUnivoco":"35eb5bf8-be3e-4cdb-bce1-6ddf81ae190b","idMissione":"M93","eventoIdUnivoco":"c44af3e8-2967-4f00-bd65-f717addfbd69","eventoCorrelato":"E69","mezzo":"CRI_LC_COORD","pazienteAutopresentato":false,"noteProvaSeed":true,"apertura":"27/05/2026, 17:10:08","stato":"FINE MISSIONE","statoDa":"27/05/2026, 17:34:39","aperta":false}],
+    pazienti:    [{"_docId":"73MlmNTe5ED4Q6Hi4QVw","idUnivoco":"1330958d-4d35-45f3-95e4-6d0a589f6b8c","idPaziente":"P422","eventoIdUnivoco":"2f63c8c0-80ac-4102-bf5e-da875d3a53db","eventoCorrelato":"E73","aperta":true,"apertura":"27/05/2026, 17:10:10","esito":"Trasporta","stato":"TRASPORTO","mezzo":"NAVETTA_01","idMissione":"M97","missioneIdUnivoco":"c81dc64a-46b7-40a6-a4db-4dedd49d2533","nome":"Prova","cognome":"E73_Pz1","eta":51,"sesso":"M","notePaziente":"Seed prova • Prova centrale E","noteProvaSeed":true,"_report":"reports/paziente_P422.html","codiceColoreSanitario":"","pma_codice_colore":"","pma_dimissione_esito":"","pma_dimesso_at":"","pma_allergie":"","pma_apr":"","pma_app":"","pma_eo_note":"","pma_parametri_n":0,"pma_farmaci_n":0,"pma_rivalutazioni_n":0,"pma_prestazioni":"","pma_ultimi_par":""},{"_docId":"9B504knuB4IIQb4UgIqJ","idUnivoco":"50316899-b400-4b58-83b0-ea13a875202f","idPaziente":"P418","eventoIdUnivoco":"0e1092ce-b1ed-4cb1-99db-6bb2f1d58c5f","eventoCorrelato":"E70","apertura":"27/05/2026, 17:10:09","esito":"Trasporta","mezzo":"CRI_LC_OPEM","idMissione":"M94","missioneIdUnivoco":"2cfe1f9d-c7a0-41fd-819a-67172e799c51","nome":"Prova","cognome":"E70_Pz1","eta":62,"sesso":"F","notePaziente":"Seed prova • Prova centrale B","noteProvaSeed":true,"soreuOraMissione":"27/05/2026, 17:26:45","pmaId":"95ca4acb-d263-4231-bb09-8f0128cb927f","destinazionePmaId":"95ca4acb-d263-4231-bb09-8f0128cb927f","ospedaleDestinazione":"PMA_RESEGUP_PROVA","tipoPz":"CENTRALE","arrivatoHAt":"27/05/2026, 17:27:01","stato":"ARRIVATO H","aperta":false,"schedaModificaForzata":true,"statoPzPma":"in carico","_report":"reports/paziente_P418.html","codiceColoreSanitario":"Verde","pma_codice_colore":"verde","pma_dimissione_esito":"","pma_dimesso_at":"","pma_allergie":"","pma_apr":"","pma_app":"","pma_eo_note":"","pma_parametri_n":0,"pma_farmaci_n":0,"pma_rivalutazioni_n":0,"pma_prestazioni":"","pma_ultimi_par":""},{"_docId":"IXIDtsbOXpDF9HSQPBhd","idUnivoco":"51257be0-bd2f-4fa6-8979-4881e49c4ddc","idPaziente":"P420","eventoIdUnivoco":"13ede329-beb9-4a50-b8cb-27a56c9129d9","eventoCorrelato":"E72","aperta":true,"apertura":"27/05/2026, 17:10:09","esito":"Trasporta","stato":"TRASPORTO","mezzo":"ELI_BS","idMissione":"M96","missioneIdUnivoco":"7976ebd1-a7f5-491c-b5a6-5f24eeba3a99","nome":"Prova","cognome":"E72_Pz1","eta":21,"sesso":"F","notePaziente":"Seed prova • Prova centrale D","noteProvaSeed":true,"_report":"reports/paziente_P420.html","codiceColoreSanitario":"","pma_codice_colore":"","pma_dimissione_esito":"","pma_dimesso_at":"","pma_allergie":"","pma_apr":"","pma_app":"","pma_eo_note":"","pma_parametri_n":0,"pma_farmaci_n":0,"pma_rivalutazioni_n":0,"pma_prestazioni":"","pma_ultimi_par":""},{"_docId":"JWGWfuLPvuKYpo2YgwiT","idUnivoco":"8b3e0582-a28d-4ee9-b009-a1d5fbd33395","idPaziente":"P421","eventoIdUnivoco":"13ede329-beb9-4a50-b8cb-27a56c9129d9","eventoCorrelato":"E72","aperta":true,"apertura":"27/05/2026, 17:10:10","esito":"Non trasporta","stato":"ATTESA","mezzo":"","idMissione":"","missioneIdUnivoco":"","nome":"Prova","cognome":"E72_Pz2","eta":61,"sesso":"F","notePaziente":"Seed prova • Prova centrale D","noteProvaSeed":true,"_report":"reports/paziente_P421.html","codiceColoreSanitario":"","pma_codice_colore":"","pma_dimissione_esito":"","pma_dimesso_at":"","pma_allergie":"","pma_apr":"","pma_app":"","pma_eo_note":"","pma_parametri_n":0,"pma_farmaci_n":0,"pma_rivalutazioni_n":0,"pma_prestazioni":"","pma_ultimi_par":""},{"_docId":"kSJPxn2wl5CYheLvSRMb","idUnivoco":"89e9a27a-dbc8-4b89-bc6c-15a9a93a4bb9","idPaziente":"P417","eventoIdUnivoco":"c44af3e8-2967-4f00-bd65-f717addfbd69","eventoCorrelato":"E69","apertura":"27/05/2026, 17:10:08","esito":"Trasporta","mezzo":"CRI_LC_COORD","idMissione":"M93","missioneIdUnivoco":"35eb5bf8-be3e-4cdb-bce1-6ddf81ae190b","nome":"Prova","cognome":"E69_Pz1","eta":29,"sesso":"M","notePaziente":"Seed prova • Prova centrale A","noteProvaSeed":true,"arrivatoHAt":"27/05/2026, 17:34:35","stato":"ARRIVATO H","aperta":false,"_report":"reports/paziente_P417.html","codiceColoreSanitario":"","pma_codice_colore":"","pma_dimissione_esito":"","pma_dimesso_at":"","pma_allergie":"","pma_apr":"","pma_app":"","pma_eo_note":"","pma_parametri_n":0,"pma_farmaci_n":0,"pma_rivalutazioni_n":0,"pma_prestazioni":"","pma_ultimi_par":""},{"_docId":"mYTysFNZc3vS0P1wtADM","idUnivoco":"415226e5-b622-4f57-86cf-a458f4dec3c3","idPaziente":"P419","eventoIdUnivoco":"f322b5e6-fbe8-4886-b9a8-fa121e7f5988","eventoCorrelato":"E71","aperta":true,"apertura":"27/05/2026, 17:10:09","esito":"Trasporta","stato":"TRASPORTO","mezzo":"CRI_LC_VETTA","idMissione":"M95","missioneIdUnivoco":"668acac2-8824-45d0-bd0b-71dd4eb3a431","nome":"Prova","cognome":"E71_Pz1","eta":25,"sesso":"M","notePaziente":"Seed prova • Prova centrale C","noteProvaSeed":true,"_report":"reports/paziente_P419.html","codiceColoreSanitario":"","pma_codice_colore":"","pma_dimissione_esito":"","pma_dimesso_at":"","pma_allergie":"","pma_apr":"","pma_app":"","pma_eo_note":"","pma_parametri_n":0,"pma_farmaci_n":0,"pma_rivalutazioni_n":0,"pma_prestazioni":"","pma_ultimi_par":""},{"_docId":"rbrf45F6zDsPQtvFlcQT","idUnivoco":"b51a6176-18c4-4a48-a1a2-4023887b2ce8","idPaziente":"P416","eventoIdUnivoco":"ffcf7f92-3144-4859-954d-4f20d58f74f7","eventoCorrelato":"E68","apertura":"27/05/2026, 17:06:00","tipoPz":"CENTRALE","esitoAltro":"","telefono":"","dataNascita":"","sesso":"","notePaziente":"","pettorale":"","eta":"","soreuNumeroMissione":"","soreuAccompagnato":"NO","soreuCodice":"","nome":"A","cognome":"A","esito":"Trasporta","idMissione":"M92","mezzo":"CRI_LC_3177","missioneIdUnivoco":"8d08c108-5950-456d-8843-15dc7c24ad2c","soreuOraMissione":"27/05/2026, 17:13:41","statoPzPma":"IN ARRIVO","pmaId":"95ca4acb-d263-4231-bb09-8f0128cb927f","destinazionePmaId":"95ca4acb-d263-4231-bb09-8f0128cb927f","ospedaleDestinazione":"PMA_RESEGUP_PROVA","arrivatoHAt":"27/05/2026, 17:14:15","stato":"ARRIVATO H","aperta":false,"schedaModificaForzata":true,"_report":"reports/paziente_P416.html","codiceColoreSanitario":"Verde","pma_codice_colore":"verde","pma_dimissione_esito":"","pma_dimesso_at":"","pma_allergie":"","pma_apr":"","pma_app":"","pma_eo_note":"","pma_parametri_n":0,"pma_farmaci_n":0,"pma_rivalutazioni_n":0,"pma_prestazioni":"","pma_ultimi_par":""},{"_docId":"vzrhQplsZCKVriyvomNf","idUnivoco":"4f2a4551-b050-4869-8be7-2b77dabbb540","idPaziente":"P423","eventoIdUnivoco":"2f63c8c0-80ac-4102-bf5e-da875d3a53db","eventoCorrelato":"E73","aperta":true,"apertura":"27/05/2026, 17:10:10","esito":"Trasporta","stato":"TRASPORTO","mezzo":"NAVETTA_01","idMissione":"M97","missioneIdUnivoco":"c81dc64a-46b7-40a6-a4db-4dedd49d2533","nome":"Prova","cognome":"E73_Pz2","eta":62,"sesso":"F","notePaziente":"Seed prova • Prova centrale E","noteProvaSeed":true,"_report":"reports/paziente_P423.html","codiceColoreSanitario":"","pma_codice_colore":"","pma_dimissione_esito":"","pma_dimesso_at":"","pma_allergie":"","pma_apr":"","pma_app":"","pma_eo_note":"","pma_parametri_n":0,"pma_farmaci_n":0,"pma_rivalutazioni_n":0,"pma_prestazioni":"","pma_ultimi_par":""}],
+    valutazioni: [{"_docId":"446068d8-1540-4093-878d-567b97624614","pazienteDocId":"9B504knuB4IIQb4UgIqJ","pazienteId":"P418","pettorale":"","nome":"Prova","cognome":"E70_Pz1","tipo":"MSB","testo":"","creatoIl":"27/05/2026, 17:27:28","msaDetails":"","mezzo":"","msbDetails":"avpu:A | fr:12 | meccanicaRespiratoria:Eupnoico | cute: | spo2Aa:100 | spo2O2:100 | fc:70 | paSis:120"},{"_docId":"bf7a22f8-fd04-44d6-95de-238d128d658f","pazienteDocId":"9B504knuB4IIQb4UgIqJ","pazienteId":"P418","pettorale":"","nome":"Prova","cognome":"E70_Pz1","tipo":"MSA","testo":"","creatoIl":"27/05/2026, 17:27:33","msbDetails":"","mezzo":"","msaDetails":"acc:attivo:true | dataOraAcc:27/05/2026, 17:27:34 | testimoniato:NO | bystanderRcp:NO | bystanderInizio: | bystanderEfficace:NO | ritmoPresentazione: | inizioBlsd: | parametri:fr:12 | meccanicaRespiratoria:Eupnoico | cute: | spo2Aa:100 | spo2O2:100 | fc:70 | paSis:120 | paDia:80 | farmaci: | noteMsa: | codiceColore: | mezzoMsa:"},{"_docId":"4a83b92e-f8a8-4eeb-be66-1d3ec35033d8","pazienteDocId":"kSJPxn2wl5CYheLvSRMb","pazienteId":"P417","pettorale":"","nome":"Prova","cognome":"E69_Pz1","tipo":"MSA","testo":"","creatoIl":"27/05/2026, 17:19:05","msbDetails":"","mezzo":"","msaDetails":"acc:attivo:true | dataOraAcc:27/05/2026, 17:19:08 | testimoniato:NO | bystanderRcp:NO | bystanderInizio: | bystanderEfficace:NO | ritmoPresentazione: | inizioBlsd: | parametri:fr:12 | meccanicaRespiratoria:Eupnoico | cute: | spo2Aa:100 | spo2O2:100 | fc:70 | paSis:120 | paDia:80 | farmaci: | noteMsa: | codiceColore: | mezzoMsa:"},{"_docId":"58d9a9f3-5ef9-475e-8614-600a89182dcd","pazienteDocId":"kSJPxn2wl5CYheLvSRMb","pazienteId":"P417","pettorale":"","nome":"Prova","cognome":"E69_Pz1","tipo":"MSA","testo":"","creatoIl":"27/05/2026, 17:18:57","msbDetails":"","mezzo":"","msaDetails":"acc:attivo:true | dataOraAcc:27/05/2026, 17:19:00 | testimoniato:NO | bystanderRcp:NO | bystanderInizio: | bystanderEfficace:NO | ritmoPresentazione: | inizioBlsd: | parametri:fr:12 | meccanicaRespiratoria:Eupnoico | cute: | spo2Aa:100 | spo2O2:100 | fc:70 | paSis:120 | paDia:80 | farmaci: | noteMsa: | codiceColore: | mezzoMsa:"},{"_docId":"5a6e0b38-c271-4345-815a-3cbf413e6365","pazienteDocId":"kSJPxn2wl5CYheLvSRMb","pazienteId":"P417","pettorale":"","nome":"Prova","cognome":"E69_Pz1","tipo":"MSB","testo":"","creatoIl":"27/05/2026, 17:19:03","msbDetails":"avpu:A | fr:12 | meccanicaRespiratoria:Eupnoico | cute: | spo2Aa:100 | spo2O2:100 | fc:70 | paSis:120","msaDetails":"","mezzo":""},{"_docId":"60dd3251-41ad-4a66-bfba-0b3596e461ea","pazienteDocId":"kSJPxn2wl5CYheLvSRMb","pazienteId":"P417","pettorale":"","nome":"Prova","cognome":"E69_Pz1","tipo":"MSA","testo":"","creatoIl":"27/05/2026, 17:19:07","msbDetails":"","msaDetails":"acc:attivo:false | dataOraAcc: | testimoniato:NO | bystanderRcp:NO | bystanderInizio: | bystanderEfficace:NO | ritmoPresentazione: | inizioBlsd: | parametri:fr:12 | meccanicaRespiratoria:Eupnoico | cute: | spo2Aa:100 | spo2O2:100 | fc:70 | paSis:120 | paDia:80 | farmaci: | noteMsa: | codiceColore: | mezzoMsa:","mezzo":""},{"_docId":"30726040-0fe7-44a9-84c8-5122f20eae2f","pazienteDocId":"rbrf45F6zDsPQtvFlcQT","pazienteId":"P416","pettorale":"","nome":"A","cognome":"A","tipo":"MSB","testo":"","creatoIl":"27/05/2026, 17:13:44","msbDetails":"avpu:A | fr:12 | meccanicaRespiratoria:Eupnoico | cute: | spo2Aa:100 | spo2O2:100 | fc:70 | paSis:120","msaDetails":"","mezzo":""},{"_docId":"c7e9a4ef-0904-46f9-93d8-518f5fec20f8","pazienteDocId":"rbrf45F6zDsPQtvFlcQT","pazienteId":"P416","pettorale":"","nome":"A","cognome":"A","tipo":"MSA","testo":"","creatoIl":"27/05/2026, 17:13:44","msbDetails":"","mezzo":"","msaDetails":"acc:attivo:true | dataOraAcc:27/05/2026, 17:13:47 | testimoniato:SI | bystanderRcp:SI | bystanderInizio:27/05/2026, 17:13:52 | bystanderEfficace:SI | ritmoPresentazione:defibrillabile | inizioBlsd:27/05/2026, 12:13:00 | parametri:fr:12 | meccanicaRespiratoria:Eupnoico | cute: | spo2Aa:100 | spo2O2:100 | fc:70 | paSis:120 | paDia:80 | farmaci: | noteMsa: | codiceColore: | mezzoMsa:"}]
+  };
+  var P = {"eventi":["_report","idEvento","tipoEvento","luogo","colore","codiceColore","stato","apertura","createdAt","chiusuraIl"],"missioni":["idMissione","mezzo","stato","eventoCorrelato","codiceColoreMissione","ospedaleDestinazione","apertura","esitoMissione"],"pazienti":["_report","idPaziente","tipoPz","eventoCorrelato","pettorale","nome","cognome","codiceColoreSanitario","stato","statoPzPma","esito","mezzo","idMissione","ospedaleDestinazione","apertura","arrivatoHAt","pma_codice_colore","pma_dimissione_esito","pma_parametri_n","pma_farmaci_n"],"valutazioni":["pazienteId","pettorale","nome","cognome","tipo","creatoIl","mezzo","testo"]};
+  var HID = new Set(['_docId','idUnivoco','eventoIdUnivoco','missioneIdUnivoco','manifestationId',
+    'storicoStati','tratteMissione','idPazienteRef','pmaSchedaInizializzata',
+    'aperta','noteDiario','telegramChatId']);
+  var ST = {sc:{}, sd:{}};
+  var CBG = {
+    bianco:'background:#e8e8e8;color:#333', Bianco:'background:#e8e8e8;color:#333',
+    verde:'background:#4caf50;color:#fff',  Verde:'background:#4caf50;color:#fff',
+    giallo:'background:#f9a825;color:#333', Giallo:'background:#f9a825;color:#333',
+    rosso:'background:#d32f2f;color:#fff',  Rosso:'background:#d32f2f;color:#fff',
+    nero:'background:#212121;color:#fff',   Nero:'background:#212121;color:#fff'
+  };
+
+  function fs(v) {
+    if (v == null || v === '') return '';
+    if (typeof v === 'boolean') return v ? 'Si' : 'No';
+    if (typeof v === 'number') return String(v);
+    if (typeof v === 'object') return JSON.stringify(v).slice(0,80);
+    return String(v);
+  }
+
+  function badge(v) {
+    var s = CBG[v];
+    if (!s) return v || '';
+    return '<span style="display:inline-block;padding:1px 9px;border-radius:9px;' + s + ';font-weight:700;font-size:11px;border:1px solid rgba(0,0,0,.15)">' + v + '</span>';
+  }
+
+  function cell(col, val) {
+    if (col === '_report') {
+      if (!val) return '<span style="color:#ccc">—</span>';
+      return '<a href="' + val + '" target="_blank" style="display:inline-block;background:#1a237e;color:#fff;padding:3px 10px;border-radius:4px;font-size:11px;font-weight:600;text-decoration:none;white-space:nowrap">📄 Apri PDF</a>';
+    }
+    var COLORE_COLS = ['colore','codiceColore','codiceColoreSanitario','codiceColoreMissione','pma_codice_colore'];
+    if (COLORE_COLS.indexOf(col) !== -1) return badge(val);
+    var s = fs(val);
+    if (!s) return '<span style="color:#ccc">—</span>';
+    var escaped = s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    if (escaped.length > 70) return '<span title="' + escaped + '">' + escaped.slice(0,70) + '…</span>';
+    return escaped;
+  }
+
+  function getCols(tab) {
+    var rows = D[tab];
+    if (!rows || !rows.length) return [];
+    var all = [], seen = {};
+    rows.forEach(function(r) { Object.keys(r).forEach(function(k){ if(!seen[k]){ seen[k]=1; all.push(k); } }); });
+    all = all.filter(function(c){ return !HID.has(c); });
+    var prio = (P[tab] || []).filter(function(c){ return seen[c]; });
+    var rest = all.filter(function(c){ return prio.indexOf(c) === -1; });
+    return prio.concat(rest);
+  }
+
+  function renderTable(tab) {
+    var rows = D[tab] || [];
+    var cols = getCols(tab);
+    var hdr = document.getElementById('h-'+tab);
+    var body = document.getElementById('bd-'+tab);
+    var badge_el = document.getElementById('b-'+tab);
+    var cnt_el = document.getElementById('c-'+tab);
+
+    if (!cols.length) {
+      body.innerHTML = '<tr><td class="nd">Nessun dato disponibile (0 record)</td></tr>';
+      if (cnt_el) cnt_el.textContent = '0';
+      if (badge_el) badge_el.textContent = '0 righe';
+      return;
+    }
+
+    hdr.innerHTML = '<tr>' + cols.map(function(c){
+      var icon = ST.sc[tab]===c ? (ST.sd[tab]===1 ? '▲' : '▼') : '↕';
+      var label = c === '_report' ? '📄 PDF' : c;
+      var sortAttr = c === '_report' ? '' : ' onclick="sortBy(&quot;'+tab+'&quot;,&quot;'+c+'&quot;)"';
+      var style = c === '_report' ? ' style="min-width:90px;cursor:default"' : '';
+      return '<th'+sortAttr+style+' title="'+c+'">' + label + (c === '_report' ? '' : ' <span style="opacity:.5;font-size:9px">'+icon+'</span>') + '</th>';
+    }).join('') + '</tr>';
+
+    var q = (document.getElementById('s-'+tab)||{value:''}).value.toLowerCase();
+    var vis = rows.filter(function(r){
+      if (!q) return true;
+      return cols.some(function(c){ return fs(r[c]).toLowerCase().indexOf(q) !== -1; });
+    });
+
+    var sc = ST.sc[tab];
+    if (sc) {
+      var d = ST.sd[tab] || 1;
+      vis = vis.slice().sort(function(a,b){
+        var av = fs(a[sc]), bv = fs(b[sc]);
+        return av < bv ? -d : av > bv ? d : 0;
+      });
+    }
+
+    if (!vis.length) {
+      body.innerHTML = '<tr><td colspan="'+cols.length+'" class="nd">Nessun risultato per "'+q+'"</td></tr>';
+    } else {
+      body.innerHTML = vis.map(function(r){
+        return '<tr>'+cols.map(function(c){ return '<td>'+cell(c,r[c])+'</td>'; }).join('')+'</tr>';
+      }).join('');
+    }
+
+    if (badge_el) badge_el.textContent = vis.length + ' / ' + rows.length + ' righe';
+    if (cnt_el)   cnt_el.textContent = rows.length;
+  }
+
+  function renderStats(tab) {
+    var rows = D[tab] || [];
+    var el = document.getElementById('st-'+tab);
+    if (!el) return;
+    var cards = [];
+    if (tab === 'pazienti') {
+      var bc = {};
+      rows.forEach(function(p){ var c = p.codiceColoreSanitario||p.pma_codice_colore||'N/D'; bc[c]=(bc[c]||0)+1; });
+      cards.push({n:rows.length,l:'Totale'});
+      cards.push({n:rows.filter(function(p){return p.esito==='Trasporta';}).length,l:'Trasportati'});
+      ['Rosso','Giallo','Verde','Bianco'].forEach(function(c){ if(bc[c]) cards.push({n:bc[c],l:'Cod.'+c}); });
+    } else if (tab === 'missioni') {
+      var bs = {};
+      rows.forEach(function(m){ bs[m.stato]=(bs[m.stato]||0)+1; });
+      cards.push({n:rows.length,l:'Totale'});
+      Object.keys(bs).sort(function(a,b){return bs[b]-bs[a];}).slice(0,5).forEach(function(s){ cards.push({n:bs[s],l:s}); });
+    } else if (tab === 'eventi') {
+      cards.push({n:rows.length,l:'Totale'});
+      cards.push({n:rows.filter(function(e){return e.stato!==false&&e.stato!=='false';}).length,l:'Aperti'});
+      cards.push({n:rows.filter(function(e){return e.stato===false||e.stato==='false';}).length,l:'Chiusi'});
+    } else if (tab === 'valutazioni') {
+      var bt = {};
+      rows.forEach(function(v){ bt[v.tipo]=(bt[v.tipo]||0)+1; });
+      cards.push({n:rows.length,l:'Totale'});
+      Object.keys(bt).forEach(function(t){ cards.push({n:bt[t],l:t}); });
+    }
+    el.innerHTML = cards.map(function(c){
+      return '<div class="sc"><div class="n">'+c.n+'</div><div class="l">'+c.l+'</div></div>';
+    }).join('');
+  }
+
+  window.sortBy = function(tab, col) {
+    if (ST.sc[tab]===col) ST.sd[tab]=(ST.sd[tab]||1)*-1;
+    else { ST.sc[tab]=col; ST.sd[tab]=1; }
+    renderTable(tab);
+  };
+  window.ft = function(tab) { renderTable(tab); };
+  window.sw = function(tab) {
+    var tabs = ['eventi','missioni','pazienti','valutazioni'];
+    document.querySelectorAll('.tab').forEach(function(t,i){ t.classList.toggle('active', tabs[i]===tab); });
+    document.querySelectorAll('.tc').forEach(function(c){ c.classList.remove('active'); });
+    var el = document.getElementById('t-'+tab);
+    if (el) el.classList.add('active');
+  };
+
+  ['eventi','missioni','pazienti','valutazioni'].forEach(function(t){ renderStats(t); renderTable(t); });
+
+} catch(e) {
+  var errEl = document.getElementById('global-err');
+  if (errEl) {
+    errEl.style.display = 'block';
+    errEl.innerHTML = '<div class="err">&#9888; Errore JavaScript: <b>' + e.message + '</b><br><small>' + e.stack + '</small></div>';
+  }
+  console.error('Viewer error:', e);
+}
+})();
+</script></body></html>

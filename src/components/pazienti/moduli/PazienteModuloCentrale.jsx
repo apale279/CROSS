@@ -10,6 +10,7 @@ import { MsaValutazioneForm } from '../MsaValutazioneForm';
 import { SoreuTrasportoFields } from '../SoreuTrasportoFields';
 import { destinazioneRichiedeSoreu, soreuFieldsFromPatient } from '../../../lib/soreuTrasporto';
 import { useImpostazioni } from '../../../hooks/useImpostazioni';
+import { pazienteEventoTipoDettaglio } from '../../../lib/eventoDisplay';
 
 /**
  * Modulo soccorso/centrale in sola lettura (per scheda PMA su pazienti inviati da centrale).
@@ -47,6 +48,10 @@ export function PazienteModuloCentrale({
       (missioniEvento ?? []).map((m) => m.mezzo).filter(Boolean),
     ),
   ];
+  const { tipo: tipoEvento, dettaglio: dettaglioEvento } = pazienteEventoTipoDettaglio(
+    paziente,
+    evento,
+  );
 
   return (
     <section className="mb-6 space-y-4 rounded-lg border border-teal-200 bg-teal-50/30 p-4">
@@ -66,8 +71,12 @@ export function PazienteModuloCentrale({
           </div>
         )}
         <div>
-          <dt className="text-xs font-medium text-slate-500">Creato</dt>
-          <dd>{formatTimestamp(paziente.apertura)}</dd>
+          <dt className="text-xs font-medium text-slate-500">Tipo evento</dt>
+          <dd className="font-medium text-slate-900">{tipoEvento || '—'}</dd>
+        </div>
+        <div className="sm:col-span-2">
+          <dt className="text-xs font-medium text-slate-500">Dettaglio evento</dt>
+          <dd className="whitespace-pre-wrap text-slate-900">{dettaglioEvento || '—'}</dd>
         </div>
         {paziente.stato === 'ARRIVATO H' && (
           <div>

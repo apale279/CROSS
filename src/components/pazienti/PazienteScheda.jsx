@@ -69,7 +69,8 @@ import { codiceColoreSanitarioFromValutazioni } from '../../lib/codiciColore';
 import { patchMissioneCodiceColoreFromPaziente } from '../../services/missioniService';
 import { pazienteSameEventoAsMissione } from '../../lib/pazientiTrasportoQuery';
 import { normalizeMezzoKey, sameMezzoSigla } from '../../lib/mezzoMissione';
-import { pazientiPerEvento } from '../../lib/eventoLinks';
+import { findEvento, pazientiPerEvento } from '../../lib/eventoLinks';
+import { pazienteEventoTipoDettaglio } from '../../lib/eventoDisplay';
 import {
   findDestinazioneTrasportoSuMezzoEvento,
   mapDestinazionePerMezzoEvento,
@@ -155,6 +156,11 @@ export function PazienteScheda({
       evento ??
       findEvento(eventiAll, displayPatient?.eventoIdUnivoco ?? displayPatient?.eventoCorrelato),
     [evento, eventiAll, displayPatient?.eventoIdUnivoco, displayPatient?.eventoCorrelato],
+  );
+
+  const eventoTipoDettaglio = useMemo(
+    () => pazienteEventoTipoDettaglio(displayPatient, eventoCollegato),
+    [displayPatient, eventoCollegato],
   );
 
   const [draft, setDraft] = useState(() => {
@@ -715,39 +721,14 @@ export function PazienteScheda({
     }
   };
 
-  const onCreatoBlur = async () => {
-    if (isCreate) return;
-    const date = fromDatetimeLocalValue(draft.creatoLocal);
-    const prev = toDatetimeLocalValue(displayPatient?.apertura);
-    if (draft.creatoLocal === prev) return;
-    await patchPatientFields(
-      { apertura: date ? Timestamp.fromDate(date) : deleteField() },
-      ['creatoLocal'],
-    );
-  };
-
   const anagraficaCentralePanel = (
     <div className="space-y-4 p-1">
       {isOriginePma && (
-        <dl className="grid gap-3 md:grid-cols-2">
-          <FormField label="Creato">
-            <input
-              type="datetime-local"
-              className={`${inputClass} font-mono`}
-              value={draft.creatoLocal}
-              onChange={(e) => {
-                touchDirty('creatoLocal');
-                setDraft((d) => ({ ...d, creatoLocal: e.target.value }));
-              }}
-              onBlur={onCreatoBlur}
-            />
-          </FormField>
-          <FormField label="Stato PMA">
-            <p className="font-semibold text-violet-900">
-              {statoPzPmaLabel(displayPatient?.statoPzPma) ?? '—'}
-            </p>
-          </FormField>
-        </dl>
+        <FormField label="Stato PMA">
+          <p className="font-semibold text-violet-900">
+            {statoPzPmaLabel(displayPatient?.statoPzPma) ?? '—'}
+          </p>
+        </FormField>
       )}
       <div className={isOriginePma ? 'border-t border-slate-200 pt-3' : ''}>
         <p className="mb-2 text-xs font-bold uppercase text-slate-600">Anagrafica</p>
@@ -807,11 +788,11 @@ export function PazienteScheda({
             </p>
           </FormField>
           <FormField label="Tipo evento">
-            <p className="text-slate-800">{eventoCollegato?.tipoEvento?.trim() || '—'}</p>
+            <p className="text-slate-800">{eventoTipoDettaglio.tipo || '—'}</p>
           </FormField>
           <FormField label="Dettaglio evento" className="md:col-span-2">
             <p className="whitespace-pre-wrap text-slate-800">
-              {eventoCollegato?.dettaglioEvento?.trim() || '—'}
+              {eventoTipoDettaglio.dettaglio || '—'}
             </p>
           </FormField>
           {!isCreate && displayPatient?.idMissione && (
@@ -819,18 +800,6 @@ export function PazienteScheda({
               <p className="font-mono text-slate-800">{displayPatient.idMissione}</p>
             </FormField>
           )}
-          <FormField label="Creato">
-            <input
-              type="datetime-local"
-              className={`${inputClass} font-mono`}
-              value={draft.creatoLocal}
-              onChange={(e) => {
-                touchDirty('creatoLocal');
-                setDraft((d) => ({ ...d, creatoLocal: e.target.value }));
-              }}
-              onBlur={onCreatoBlur}
-            />
-          </FormField>
           {!isCreate && displayPatient?.stato === 'ARRIVATO H' && (
             <FormField label="Arrivato in H">
               <p className="text-slate-800">{formatTimestamp(displayPatient.arrivatoHAt)}</p>
