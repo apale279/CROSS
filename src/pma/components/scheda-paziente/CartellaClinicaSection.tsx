@@ -146,6 +146,7 @@ function MonitorCell({
   /** In tabella l’header della colonna basta: niente etichetta ripetuta nella cella. */
   hideLabel = false,
   emphasizeLabel = false,
+  labelInline = false,
 }: {
   as?: 'div' | 'td'
   label: string
@@ -156,6 +157,8 @@ function MonitorCell({
   hideLabel?: boolean
   /** Etichette più leggibili (modale PV smartphone). */
   emphasizeLabel?: boolean
+  /** Etichetta a sinistra, campo a destra (modale PV smartphone). */
+  labelInline?: boolean
 }) {
   const shell =
     tone === 'critical'
@@ -189,6 +192,16 @@ function MonitorCell({
       </td>
     )
   }
+  if (labelInline && !hideLabel) {
+    return (
+      <div
+        className={`flex min-h-[2.75rem] w-full min-w-0 items-center gap-2 border-b border-slate-200 py-1 ${boxClassName ?? ''}`}
+      >
+        <div className="w-[38%] max-w-[9.5rem] shrink-0">{labelEl}</div>
+        <div className="min-w-0 flex-1">{children}</div>
+      </div>
+    )
+  }
   return (
     <div className={`shrink-0 rounded-md border px-1 py-0.5 ${shell} ${boxClassName ?? ''}`}>
       {!hideLabel ? labelEl : null}
@@ -210,13 +223,14 @@ function ParametriVitaliBlock({
   canEdit: boolean
   onPatch: (id: string, partial: Partial<ParametroVitaleRilevazione>) => void
   onRemove?: (id: string) => void
-  /** `stack`: colonne in verticale (infermiere smartphone). */
-  layout?: 'row' | 'stack'
+  /** `stack`: etichetta sopra campo. `inline`: etichetta a sinistra (modale PV smartphone). */
+  layout?: 'row' | 'stack' | 'inline'
   /** Riga tabellare (thead separato nel genitore). */
   variant?: 'block' | 'tableRow'
   emphasizeLabels?: boolean
 }) {
   const cellAs = variant === 'tableRow' ? 'td' : 'div'
+  const labelInline = layout === 'inline'
   const t = pvTones(row)
   const opNome = (row.operatore_nome ?? '').trim() || '—'
   const pvFieldInput = emphasizeLabels
@@ -244,7 +258,7 @@ function ParametriVitaliBlock({
     ) : null
   const inner = (
     <>
-        <MonitorCell as={cellAs} hideLabel={cellAs === 'td'} emphasizeLabel={emphasizeLabels} label="Data/ora" tone={null} boxClassName={layout === 'stack' ? 'w-full min-w-0' : 'w-[11.5rem] shrink-0'}>
+        <MonitorCell as={cellAs} hideLabel={cellAs === 'td'} emphasizeLabel={emphasizeLabels} labelInline={labelInline} label="Data/ora" tone={null} boxClassName={layout === 'stack' || labelInline ? 'w-full min-w-0' : 'w-[11.5rem] shrink-0'}>
           <input
             type="datetime-local"
             disabled={!canEdit}
@@ -256,7 +270,7 @@ function ParametriVitaliBlock({
             className={`${pvFieldInput} text-left`}
           />
         </MonitorCell>
-        <MonitorCell as={cellAs} hideLabel={cellAs === 'td'} emphasizeLabel={emphasizeLabels} label="GCS" tone={t.gcs ?? null} boxClassName={layout === 'stack' ? 'w-full min-w-0' : 'w-[2.85rem] shrink-0'}>
+        <MonitorCell as={cellAs} hideLabel={cellAs === 'td'} emphasizeLabel={emphasizeLabels} labelInline={labelInline} label="GCS" tone={t.gcs ?? null} boxClassName={layout === 'stack' || labelInline ? 'w-full min-w-0' : 'w-[2.85rem] shrink-0'}>
           <input
             type="number"
             min={1}
@@ -271,7 +285,7 @@ function ParametriVitaliBlock({
             className={pvFieldInput}
           />
         </MonitorCell>
-        <MonitorCell as={cellAs} hideLabel={cellAs === 'td'} emphasizeLabel={emphasizeLabels} label="FR" tone={t.fr ?? null} boxClassName={layout === 'stack' ? 'w-full min-w-0' : 'w-[3rem] shrink-0'}>
+        <MonitorCell as={cellAs} hideLabel={cellAs === 'td'} emphasizeLabel={emphasizeLabels} labelInline={labelInline} label="FR" tone={t.fr ?? null} boxClassName={layout === 'stack' || labelInline ? 'w-full min-w-0' : 'w-[3rem] shrink-0'}>
           <input
             type="number"
             min={0}
@@ -285,7 +299,7 @@ function ParametriVitaliBlock({
             className={pvFieldInput}
           />
         </MonitorCell>
-        <MonitorCell as={cellAs} hideLabel={cellAs === 'td'} emphasizeLabel={emphasizeLabels} label="SpO₂ aa" tone={t.spo2 ?? null} boxClassName={layout === 'stack' ? 'w-full min-w-0' : 'w-[3rem] shrink-0'}>
+        <MonitorCell as={cellAs} hideLabel={cellAs === 'td'} emphasizeLabel={emphasizeLabels} labelInline={labelInline} label="SpO₂ aa" tone={t.spo2 ?? null} boxClassName={layout === 'stack' || labelInline ? 'w-full min-w-0' : 'w-[3rem] shrink-0'}>
           <input
             type="number"
             min={0}
@@ -305,7 +319,7 @@ function ParametriVitaliBlock({
             className={pvFieldInput}
           />
         </MonitorCell>
-        <MonitorCell as={cellAs} hideLabel={cellAs === 'td'} emphasizeLabel={emphasizeLabels} label="SpO₂ O₂" tone={t.spo2 ?? null} boxClassName={layout === 'stack' ? 'w-full min-w-0' : 'w-[3rem] shrink-0'}>
+        <MonitorCell as={cellAs} hideLabel={cellAs === 'td'} emphasizeLabel={emphasizeLabels} labelInline={labelInline} label="SpO₂ O₂" tone={t.spo2 ?? null} boxClassName={layout === 'stack' || labelInline ? 'w-full min-w-0' : 'w-[3rem] shrink-0'}>
           <input
             type="number"
             min={0}
@@ -325,7 +339,7 @@ function ParametriVitaliBlock({
             className={pvFieldInput}
           />
         </MonitorCell>
-        <MonitorCell as={cellAs} hideLabel={cellAs === 'td'} emphasizeLabel={emphasizeLabels} label="FC" tone={t.fc ?? null} boxClassName={layout === 'stack' ? 'w-full min-w-0' : 'w-[3rem] shrink-0'}>
+        <MonitorCell as={cellAs} hideLabel={cellAs === 'td'} emphasizeLabel={emphasizeLabels} labelInline={labelInline} label="FC" tone={t.fc ?? null} boxClassName={layout === 'stack' || labelInline ? 'w-full min-w-0' : 'w-[3rem] shrink-0'}>
           <input
             type="number"
             min={0}
@@ -339,7 +353,7 @@ function ParametriVitaliBlock({
             className={pvFieldInput}
           />
         </MonitorCell>
-        <MonitorCell as={cellAs} hideLabel={cellAs === 'td'} emphasizeLabel={emphasizeLabels} label="PA sys" tone={t.pa_sys ?? null} boxClassName={layout === 'stack' ? 'w-full min-w-0' : 'w-[3.1rem] shrink-0'}>
+        <MonitorCell as={cellAs} hideLabel={cellAs === 'td'} emphasizeLabel={emphasizeLabels} labelInline={labelInline} label="PA sys" tone={t.pa_sys ?? null} boxClassName={layout === 'stack' || labelInline ? 'w-full min-w-0' : 'w-[3.1rem] shrink-0'}>
           <input
             type="number"
             min={0}
@@ -354,7 +368,7 @@ function ParametriVitaliBlock({
             className={pvFieldInput}
           />
         </MonitorCell>
-        <MonitorCell as={cellAs} hideLabel={cellAs === 'td'} emphasizeLabel={emphasizeLabels} label="PA dia" tone={t.pa_dia ?? null} boxClassName={layout === 'stack' ? 'w-full min-w-0' : 'w-[3.1rem] shrink-0'}>
+        <MonitorCell as={cellAs} hideLabel={cellAs === 'td'} emphasizeLabel={emphasizeLabels} labelInline={labelInline} label="PA dia" tone={t.pa_dia ?? null} boxClassName={layout === 'stack' || labelInline ? 'w-full min-w-0' : 'w-[3.1rem] shrink-0'}>
           <input
             type="number"
             min={0}
@@ -369,7 +383,7 @@ function ParametriVitaliBlock({
             className={pvFieldInput}
           />
         </MonitorCell>
-        <MonitorCell as={cellAs} hideLabel={cellAs === 'td'} emphasizeLabel={emphasizeLabels} label="T °C" tone={t.temp ?? null} boxClassName={layout === 'stack' ? 'w-full min-w-0' : 'w-[3.25rem] shrink-0'}>
+        <MonitorCell as={cellAs} hideLabel={cellAs === 'td'} emphasizeLabel={emphasizeLabels} labelInline={labelInline} label="T °C" tone={t.temp ?? null} boxClassName={layout === 'stack' || labelInline ? 'w-full min-w-0' : 'w-[3.25rem] shrink-0'}>
           <input
             type="number"
             step="0.1"
@@ -388,7 +402,7 @@ function ParametriVitaliBlock({
             className={pvFieldInput}
           />
         </MonitorCell>
-        <MonitorCell as={cellAs} hideLabel={cellAs === 'td'} emphasizeLabel={emphasizeLabels} label="NRS" tone={t.nrs ?? null} boxClassName={layout === 'stack' ? 'w-full min-w-0' : 'w-[2.85rem] shrink-0'}>
+        <MonitorCell as={cellAs} hideLabel={cellAs === 'td'} emphasizeLabel={emphasizeLabels} labelInline={labelInline} label="NRS" tone={t.nrs ?? null} boxClassName={layout === 'stack' || labelInline ? 'w-full min-w-0' : 'w-[2.85rem] shrink-0'}>
           <input
             type="number"
             min={0}
@@ -408,7 +422,7 @@ function ParametriVitaliBlock({
             className={PV_IN_ROW}
           />
         </MonitorCell>
-        <MonitorCell as={cellAs} hideLabel={cellAs === 'td'} emphasizeLabel={emphasizeLabels} label="Operatore" tone={null} boxClassName={layout === 'stack' ? 'w-full min-w-0' : 'min-w-[8.5rem] max-w-[18rem] shrink-0'}>
+        <MonitorCell as={cellAs} hideLabel={cellAs === 'td'} emphasizeLabel={emphasizeLabels} labelInline={labelInline} label="Operatore" tone={null} boxClassName={layout === 'stack' || labelInline ? 'w-full min-w-0' : 'min-w-[8.5rem] max-w-[18rem] shrink-0'}>
           {canEdit ? (
             <input
               type="text"
@@ -419,7 +433,7 @@ function ParametriVitaliBlock({
           ) : (
             <div
               className={
-                layout === 'stack'
+                layout === 'stack' || layout === 'inline'
                   ? 'break-words px-0.5 text-xs font-medium leading-tight text-slate-900'
                   : 'max-w-full overflow-x-auto whitespace-nowrap px-0.5 text-xs font-medium leading-tight text-slate-900'
               }
@@ -444,19 +458,27 @@ function ParametriVitaliBlock({
   }
 
   return (
-    <div className="rounded-md border border-slate-300 bg-slate-200/40 p-1.5 shadow-sm">
-      {layout === 'stack' && removeButton ? (
+    <div
+      className={
+        layout === 'inline'
+          ? 'min-w-0'
+          : 'rounded-md border border-slate-300 bg-slate-200/40 p-1.5 shadow-sm'
+      }
+    >
+      {(layout === 'stack' || layout === 'inline') && removeButton ? (
         <div className="mb-1 flex justify-end">{removeButton}</div>
       ) : null}
       <div
         className={
           layout === 'stack'
             ? 'flex flex-col gap-2'
-            : 'flex min-w-0 flex-wrap items-end gap-1.5 pb-0.5'
+            : layout === 'inline'
+              ? 'flex flex-col gap-0'
+              : 'flex min-w-0 flex-wrap items-end gap-1.5 pb-0.5'
         }
       >
         {inner}
-        {layout !== 'stack' ? removeButton : null}
+        {layout !== 'stack' && layout !== 'inline' ? removeButton : null}
       </div>
     </div>
   )
@@ -1617,7 +1639,7 @@ export function CartellaClinicaSection({
                 onPatch={(_id, partial) => {
                   setPvDraft((d) => (d ? { ...d, ...partial } : d))
                 }}
-                layout="stack"
+                layout="inline"
                 emphasizeLabels
               />
             </div>
@@ -1644,11 +1666,11 @@ export function CartellaClinicaSection({
                 prestazioniLista.map((label) => (
                   <label
                     key={label}
-                    className="flex cursor-pointer items-start gap-2 rounded-md px-1 py-2.5 text-sm hover:bg-slate-50"
+                    className="flex min-h-[44px] cursor-pointer items-center gap-3 rounded-md px-1 py-2 text-sm hover:bg-slate-50"
                   >
                     <input
                       type="checkbox"
-                      className="mt-0.5 h-4 w-4 shrink-0 rounded border-slate-300 text-emerald-700 focus:ring-emerald-600"
+                      className="h-5 w-5 shrink-0 rounded border-slate-300 text-emerald-700 focus:ring-emerald-600"
                       checked={selPrest.has(label)}
                       disabled={!schedaClinicalEdit}
                       onChange={() => togglePrestazione(label)}
@@ -1698,15 +1720,15 @@ export function CartellaClinicaSection({
               onDoseChange={setFarmModalDose}
               inputClassName={PMA_MODAL_INPUT}
             />
-            <label className="block min-w-0 text-xs">
-              <span className="font-semibold uppercase tracking-wider text-slate-500">Via</span>
+            <label className="pma-sheet-field-row min-w-0 text-xs">
+              <span className="pma-sheet-field-row__label font-semibold uppercase tracking-wider text-slate-500">Via</span>
               <select
                 value={farmModalVia}
                 onChange={(e) => {
                   const v = e.target.value
                   if (isFarmacoVia(v)) setFarmModalVia(v)
                 }}
-                className={`${PMA_MODAL_INPUT} mt-1 min-h-[2.75rem]`}
+                className={`${PMA_MODAL_INPUT} min-h-[2.75rem]`}
               >
                 {FARMACO_VIE.map((via) => (
                   <option key={via} value={via}>
@@ -1715,13 +1737,13 @@ export function CartellaClinicaSection({
                 ))}
               </select>
             </label>
-            <label className="block min-w-0 text-xs">
-              <span className="font-semibold uppercase tracking-wider text-slate-500">Orario</span>
+            <label className="pma-sheet-field-row min-w-0 text-xs">
+              <span className="pma-sheet-field-row__label font-semibold uppercase tracking-wider text-slate-500">Orario</span>
               <input
                 type="datetime-local"
                 value={farmModalTs}
                 onChange={(e) => setFarmModalTs(e.target.value)}
-                className={`${PMA_MODAL_INPUT} mt-1 min-h-[2.75rem]`}
+                className={`${PMA_MODAL_INPUT} min-h-[2.75rem]`}
               />
             </label>
           </PmaMobileSheet>

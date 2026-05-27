@@ -175,7 +175,7 @@ export default function PazientiPage() {
         <Modal
           title={`Paziente ${selected.idPaziente}`}
           onClose={() => setSelected(null)}
-          wide
+          scheda
         >
           <PazienteScheda
             evento={eventoForPaziente(selected)}

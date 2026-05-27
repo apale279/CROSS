@@ -177,7 +177,7 @@ export function DettaglioPaziente({
               onClick={() => onTabChange(tab.id)}
               className={
                 compact
-                  ? `shrink-0 whitespace-nowrap rounded-t px-3 py-2.5 text-[11px] font-bold uppercase ${
+                  ? `shrink-0 min-h-[44px] whitespace-nowrap rounded-t px-3 py-2.5 text-[11px] font-bold uppercase ${
                       selected
                         ? 'border-b-2 border-sky-600 text-sky-800'
                         : 'text-slate-600'

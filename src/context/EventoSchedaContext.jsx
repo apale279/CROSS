@@ -86,7 +86,7 @@ export function EventoSchedaProvider({ children }) {
     <EventoSchedaContext.Provider value={{ openNuovoEvento, openEventoScheda, closeModal }}>
       {children}
       {modal && (
-        <Modal title={title} onClose={closeModal} wide>
+        <Modal title={title} onClose={closeModal} scheda>
           <EventoScheda
             evento={eventoLive}
             missioni={missioni}

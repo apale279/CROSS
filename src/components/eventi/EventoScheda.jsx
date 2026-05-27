@@ -564,7 +564,7 @@ export function EventoScheda({
               : `Paziente ${pazienteModal.paziente?.idPaziente ?? ''}`
           }
           onClose={() => setPazienteModal(null)}
-          wide
+          scheda
         >
           <PazienteScheda
             evento={evento}

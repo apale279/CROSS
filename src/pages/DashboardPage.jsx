@@ -341,6 +341,7 @@ export default function DashboardPage() {
         <Modal
           title={`Missione ${modal.data.idMissione}`}
           onClose={() => setModal(null)}
+          scheda
         >
           <MissioneScheda
             missione={

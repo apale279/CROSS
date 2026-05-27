@@ -110,6 +110,7 @@ export default function MissioniPage() {
         <Modal
           title={`Missione ${missioneModal.idMissione}`}
           onClose={() => setMissioneModal(null)}
+          scheda
         >
           <MissioneScheda
             missione={
@@ -132,7 +133,7 @@ export default function MissioniPage() {
         <Modal
           title={`Paziente ${pazienteModal.idPaziente}`}
           onClose={() => setPazienteModal(null)}
-          wide
+          scheda
         >
           <PazienteScheda
             evento={

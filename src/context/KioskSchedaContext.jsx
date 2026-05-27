@@ -69,7 +69,7 @@ export function KioskSchedaProvider({ children }) {
     <KioskSchedaContext.Provider value={ctx}>
       {children}
       {modal && (
-        <Modal title={modalTitle} onClose={closeModal} wide>
+        <Modal title={modalTitle} onClose={closeModal} scheda>
           {modal.type === 'evento' && eventoLive && (
             <EventoScheda
               readOnly
