@@ -1,10 +1,15 @@
-import { STATI_MISSIONE_NUMERATI } from '../../lib/tacticalStatiMissione';
+import { useMemo } from 'react';
+import { useImpostazioni } from '../../hooks/useImpostazioni';
+import { statiMissioneNumerati } from '../../lib/impostazioniLists';
 
 /** Pulsantini 0…n per cambio stato missione dalla sidebar tattica. */
 export function EventoStatoRapidoButtons({ missione, onStato, disabled }) {
+  const { impostazioni } = useImpostazioni();
+  const stati = useMemo(() => statiMissioneNumerati(impostazioni), [impostazioni]);
+
   if (!missione) return null;
 
-  const currentIdx = STATI_MISSIONE_NUMERATI.indexOf(missione.stato ?? '');
+  const currentIdx = stati.indexOf(missione.stato ?? '');
 
   return (
     <div
@@ -12,7 +17,7 @@ export function EventoStatoRapidoButtons({ missione, onStato, disabled }) {
       onClick={(e) => e.stopPropagation()}
       onMouseDown={(e) => e.stopPropagation()}
     >
-      {STATI_MISSIONE_NUMERATI.map((stato, i) => {
+      {stati.map((stato, i) => {
         const active = currentIdx === i;
         return (
           <button

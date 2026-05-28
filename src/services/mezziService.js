@@ -12,6 +12,7 @@ import { db } from '../firebaseConfig';
 import { mezziPath } from '../lib/firestorePaths';
 import { normalizeMezzoKey } from '../lib/mezzoMissione';
 import { omitUndefinedFields } from '../lib/firestorePatch';
+import { flattenMezzoPatchFields } from '../lib/granularFirestorePatch';
 import { newIdUnivoco } from '../lib/ids';
 
 /** Doc id mezzi in Firestore (gestisce BRAVO_1 vs BRAVO1). */
@@ -76,7 +77,7 @@ export async function createMezzo(manifestationId, sigla, payload) {
 }
 
 export async function patchMezzo(manifestationId, sigla, fields) {
-  const payload = omitUndefinedFields(fields);
+  const payload = flattenMezzoPatchFields(fields);
   if (!sigla || Object.keys(payload).length === 0) return;
   const docId = await resolveMezzoDocIdFirestore(manifestationId, sigla);
   if (!docId) return;

@@ -23,13 +23,15 @@ export function normalizeTratteMissione(raw) {
   return raw
     .filter((t) => t && typeof t === 'object')
     .map((t) => {
-      const quando = quandoToDate(t.quando) ?? new Date();
+      const quando = quandoToDate(t.quando);
+      if (!quando) return null;
       return {
         id: typeof t.id === 'string' && t.id ? t.id : newId(),
         descrizione: String(t.descrizione ?? ''),
         quando,
       };
     })
+    .filter(Boolean)
     .sort((a, b) => a.quando.getTime() - b.quando.getTime());
 }
 

@@ -20,6 +20,12 @@ import {
 import { isStatoMissioneTerminale, nextStatoMissione } from './missionStati.js';
 import { promptGpsAfterStatoAdvance } from './telegramGpsFlow.js';
 
+function normalizeMezzoKey(sigla) {
+  return String(sigla ?? '')
+    .replace(/_/g, '')
+    .toLowerCase();
+}
+
 async function requireRegisteredUser(chatId, tenantId) {
   const settings = await getTelegramAuthSettings(tenantId);
   const user = await getTelegramUser(tenantId, chatId);
@@ -82,7 +88,11 @@ export async function handleStatoSelectCallback(callbackQuery, tenantId) {
   }
 
   const missione = await getMissioneById(tenantId, missionDocId);
-  if (!missione || missione.mezzo !== ctx.mezzo) {
+  if (
+    !missione ||
+    !normalizeMezzoKey(missione.mezzo) ||
+    normalizeMezzoKey(missione.mezzo) !== normalizeMezzoKey(ctx.mezzo)
+  ) {
     await answerCallbackQuery(callbackQuery.id, 'Missione non valida');
     return true;
   }

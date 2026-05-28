@@ -1,8 +1,11 @@
-import { collection, getDocs, limit, query, where } from 'firebase/firestore';
+import { collection, getDocs, limit, query, startAfter, where } from 'firebase/firestore';
 import { db } from '../firebaseConfig';
 import { ESITO_TRASPORTA } from '../constants';
 import { eventiPath, pazientiPath } from '../lib/firestorePaths';
+import { pazienteSameEventoAsMissione } from './eventoMissioneMatch';
 import { normalizeMezzoKey } from './mezzoMissione';
+
+const TRASPORTO_FALLBACK_PAGE = 200;
 
 /** Pazienti in trasporto sul mezzo (query Firestore filtrata, sigla esatta). */
 export async function fetchPazientiTrasportoOnMezzo(manifestationId, mezzo) {
@@ -43,11 +46,22 @@ export async function fetchPazientiTrasportoForMissione(manifestationId, mission
   } else {
     return [];
   }
-  const snap = await getDocs(query(colRef, ...constraints, limit(100)));
-  return snap.docs
-    .map((d) => ({ _docId: d.id, ...d.data() }))
-    .filter((p) => normalizeMezzoKey(p.mezzo) === nk);
+  const all = [];
+  let lastDoc = null;
+  for (;;) {
+    const q = lastDoc
+      ? query(colRef, ...constraints, startAfter(lastDoc), limit(TRASPORTO_FALLBACK_PAGE))
+      : query(colRef, ...constraints, limit(TRASPORTO_FALLBACK_PAGE));
+    const snap = await getDocs(q);
+    if (snap.empty) break;
+    all.push(...snap.docs.map((d) => ({ _docId: d.id, ...d.data() })));
+    lastDoc = snap.docs[snap.docs.length - 1];
+    if (snap.size < TRASPORTO_FALLBACK_PAGE) break;
+  }
+  return all.filter((p) => normalizeMezzoKey(p.mezzo) === nk);
 }
+
+export { pazienteSameEventoAsMissione };
 
 /** Evento collegato alla missione (una lettura mirata). */
 export async function fetchEventoForMissione(manifestationId, missione) {
@@ -65,13 +79,6 @@ export async function fetchEventoForMissione(manifestationId, missione) {
     if (!snap.empty) return { _docId: snap.docs[0].id, ...snap.docs[0].data() };
   }
   return null;
-}
-
-export function pazienteSameEventoAsMissione(paziente, missione) {
-  return (
-    (missione.eventoIdUnivoco && paziente.eventoIdUnivoco === missione.eventoIdUnivoco) ||
-    paziente.eventoCorrelato === missione.eventoCorrelato
-  );
 }
 
 export function pazientiTrasportoPerMissione(pazienti, mis) {

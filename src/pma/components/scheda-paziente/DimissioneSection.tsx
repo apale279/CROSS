@@ -17,6 +17,7 @@ import { PdfPreviewModal } from './PdfPreviewModal'
 import type { PresetDimissioneVoce } from '@pma/types/manifestazioneImpostazioni'
 import { canChiudiDimissionePaziente, schedaTabDimissioneAllows } from '@pma/lib/rankMatrix'
 import { validateDimissioneBeforeClose } from '@pma/lib/dimissioneValidate'
+import { staffSoftRefFromUser } from '@pma/lib/staffSoftRef'
 import { btnDanger, btnPrimary, btnSecondary } from '@pma/cross/uiTokens'
 import {
   parsePmaIpadQueueRequest,
@@ -52,6 +53,8 @@ type Props = {
   presetDimissione?: PresetDimissioneVoce[]
   /** Elenco prestazioni manifestazione: stesso ordine della cartella clinica nel PDF. */
   prestazioniManifestazioneLista?: string[]
+  /** Ospedale destinazione centrale (se non ancora in `invio_ps_ospedale`). */
+  ospedaleDestinazioneCentrale?: string | null
   /** Invio documento all'iPad PMA (coda condivisa, sostituisce richiesta precedente). */
   pmaIpadFirma?: PmaIpadFirmaSender | null
 }
@@ -76,13 +79,17 @@ export function DimissioneSection({
   presetDimissione = [],
   prestazioniManifestazioneLista = [],
   pmaIpadFirma = null,
+  ospedaleDestinazioneCentrale = null,
 }: Props) {
   const dimissioneEdit = canEditDimissioneTab && canEditScheda
-  const pazienteGiaDimesso = p.stato === 'dimesso' || p.dimesso_at != null
+  const pazienteGiaDimesso = p.stato === 'dimesso'
   const canChiudiDimetti = Boolean(
     canEditScheda && user && canChiudiDimissionePaziente(user.rank) && !pazienteGiaDimesso,
   )
   const [noteDraft, setNoteDraft] = useState(p.dimissione_note)
+  const [emailDraft, setEmailDraft] = useState(p.email)
+  const [affidatarioNomeDraft, setAffidatarioNomeDraft] = useState(p.affidatario_nome ?? '')
+  const [affidatarioCognomeDraft, setAffidatarioCognomeDraft] = useState(p.affidatario_cognome ?? '')
   const [dimettiOpen, setDimettiOpen] = useState(false)
   const [dimettiBusy, setDimettiBusy] = useState(false)
   const [dimettiErr, setDimettiErr] = useState<string | null>(null)
@@ -103,10 +110,24 @@ export function DimissioneSection({
 
   useEffect(() => {
     setNoteDraft(p.dimissione_note)
+    setEmailDraft(p.email)
+    setAffidatarioNomeDraft(p.affidatario_nome ?? '')
+    setAffidatarioCognomeDraft(p.affidatario_cognome ?? '')
   }, [p.id])
   useEffect(() => {
-    if (!dimissioneEdit) setNoteDraft(p.dimissione_note)
-  }, [dimissioneEdit, p.dimissione_note])
+    if (!dimissioneEdit) {
+      setNoteDraft(p.dimissione_note)
+      setEmailDraft(p.email)
+      setAffidatarioNomeDraft(p.affidatario_nome ?? '')
+      setAffidatarioCognomeDraft(p.affidatario_cognome ?? '')
+    }
+  }, [
+    dimissioneEdit,
+    p.dimissione_note,
+    p.email,
+    p.affidatario_nome,
+    p.affidatario_cognome,
+  ])
 
   useEffect(() => {
     if (!pmaIpadFirma?.manifestationId || !pmaIpadFirma?.pmaId) return undefined
@@ -172,7 +193,11 @@ export function DimissioneSection({
 
   async function handleDimettiConfirm() {
     if (!canChiudiDimetti || !user || pazienteGiaDimesso) return
-    const validationErrors = validateDimissioneBeforeClose(p)
+    const medicoRif = String(p.medico_rif ?? '').trim() || staffSoftRefFromUser(user) || ''
+    const validationErrors = validateDimissioneBeforeClose({
+      dimissione_esito: p.dimissione_esito,
+      medico_rif: medicoRif,
+    })
     if (validationErrors.length > 0) {
       setDimettiErr(validationErrors.join(' '))
       return
@@ -196,6 +221,10 @@ export function DimissioneSection({
         aperto: false,
         stato: 'dimesso',
         dimesso_at: serverTimestamp(),
+      }
+      const medicoRif = String(p.medico_rif ?? '').trim() || staffSoftRefFromUser(user) || ''
+      if (medicoRif && !String(p.medico_rif ?? '').trim()) {
+        patch.medico_rif = medicoRif
       }
       if (snap) {
         patch.dimissione_firma_medico_base64 = snap
@@ -259,19 +288,35 @@ export function DimissioneSection({
     }
   }
 
+  function handleSendMail() {
+    const to = String(emailDraft ?? '').trim()
+    if (!to) {
+      setPdfErr('Inserisci Email paziente per aprire un nuovo messaggio.')
+      return
+    }
+    const subject = encodeURIComponent(`Referto dimissione ${p.id_paziente_visibile}`)
+    const body = encodeURIComponent(
+      'In allegato il PDF di dimissione.\n\nNota: se l\'allegato non compare automaticamente, aggiungilo manualmente dal file appena scaricato/aperto.',
+    )
+    window.location.href = `mailto:${encodeURIComponent(to)}?subject=${subject}&body=${body}`
+  }
+
   const firmaPaz = p.firma_paziente_base64
 
   const showPresetMenuMedico = Boolean(isMedico && dimissioneEdit && presetDimissione.length > 0)
 
-  function appendPresetTesto(testoPreset: string) {
+  async function appendPresetTesto(testoPreset: string) {
     const t = testoPreset.trim()
     if (!t) return
-    setNoteDraft((prev) => {
-      const base = prev.trimEnd()
-      const next = base ? `${base}\n\n${t}` : t
-      void write({ dimissione_note: next })
-      return next
-    })
+    const base = noteDraft.trimEnd()
+    const next = base ? `${base}\n\n${t}` : t
+    setNoteDraft(next)
+    try {
+      await write({ dimissione_note: next })
+    } catch {
+      setNoteDraft(p.dimissione_note)
+      throw new Error('Salvataggio preset dimissione non riuscito.')
+    }
   }
 
   return (
@@ -324,21 +369,21 @@ export function DimissioneSection({
               <label className="pma-field pma-field--br">
                 <span className="pma-field__label">Nome</span>
                 <input
-                  key={`afn-${p.id}-${p.affidatario_nome}`}
                   type="text"
                   disabled={!dimissioneEdit}
-                  defaultValue={p.affidatario_nome}
-                  onBlur={(e) => void write({ affidatario_nome: e.target.value })}
+                  value={affidatarioNomeDraft}
+                  onChange={(e) => setAffidatarioNomeDraft(e.target.value)}
+                  onBlur={() => void write({ affidatario_nome: affidatarioNomeDraft })}
                 />
               </label>
               <label className="pma-field">
                 <span className="pma-field__label">Cognome</span>
                 <input
-                  key={`afc-${p.id}-${p.affidatario_cognome}`}
                   type="text"
                   disabled={!dimissioneEdit}
-                  defaultValue={p.affidatario_cognome}
-                  onBlur={(e) => void write({ affidatario_cognome: e.target.value })}
+                  value={affidatarioCognomeDraft}
+                  onChange={(e) => setAffidatarioCognomeDraft(e.target.value)}
+                  onBlur={() => void write({ affidatario_cognome: affidatarioCognomeDraft })}
                 />
               </label>
             </div>
@@ -403,6 +448,19 @@ export function DimissioneSection({
             value={noteDraft}
             onChange={(e) => setNoteDraft(e.target.value)}
             onBlur={() => void write({ dimissione_note: noteDraft })}
+          />
+          <label htmlFor={`dimissione-email-${p.id}`} className="mt-3 block pma-field__label">
+            Email paziente
+          </label>
+          <input
+            id={`dimissione-email-${p.id}`}
+            type="email"
+            disabled={!dimissioneEdit}
+            value={emailDraft}
+            onChange={(e) => setEmailDraft(e.target.value)}
+            onBlur={() => void write({ email: emailDraft.trim() })}
+            placeholder="nome@esempio.it"
+            className="mt-1 block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:border-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900"
           />
         </PmaFieldGuard>
 
@@ -587,6 +645,14 @@ export function DimissioneSection({
             <button
               type="button"
               disabled={pdfBusy}
+              onClick={handleSendMail}
+              className={`${btnSecondary} flex-1`}
+            >
+              Invia via mail
+            </button>
+            <button
+              type="button"
+              disabled={pdfBusy}
               onClick={() => void handlePrintPdf()}
               className={`${btnPrimary} flex-1`}
             >
@@ -637,8 +703,8 @@ export function DimissioneSection({
               dati. Resti sulla scheda in sola lettura.
             </p>
             <p className="mt-2 text-xs text-slate-500">
-              Prima di confermare servono: esito dimissione, note, firma paziente e (se applicabile) ospedale
-              PS o dati affidatario.
+              Prima di confermare servono: esito dimissione e medico di riferimento. Ospedale PS,
+              dati affidatario e firme possono essere completati dopo (scheda sbloccabile).
             </p>
             {dimettiErr ? (
               <p className="mt-3 text-sm text-red-700" role="alert">

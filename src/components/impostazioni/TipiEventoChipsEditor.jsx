@@ -1,19 +1,22 @@
 import { useState } from 'react';
 import { X } from 'lucide-react';
+import { useManifestazioneId } from '../../context/ManifestazioneContext';
 import { useImpostazioniField } from '../../hooks/useImpostazioniField';
+import { deleteImpostazioniMapEntry, appendImpostazioniScalarArrayItem, removeImpostazioniScalarArrayItem } from '../../services/impostazioniService';
 import { btnPrimary, btnSecondary, inputClass } from '../ui/FormField';
 import { SaveFeedback } from './SaveFeedback';
 
 export function TipiEventoChipsEditor() {
-  const { value: tipi, saveField, saving, loading } = useImpostazioniField('tipiEvento');
+  const manifestationId = useManifestazioneId();
+  const { value: tipi, saving, loading } = useImpostazioniField('tipiEvento');
   const list = tipi ?? [];
   const [nuovo, setNuovo] = useState('');
   const [feedback, setFeedback] = useState('');
 
-  const persist = async (next, message) => {
+  const persistAdd = async (nome, message) => {
     setFeedback('');
     try {
-      await saveField(next);
+      await appendImpostazioniScalarArrayItem(manifestationId, 'tipiEvento', nome);
       if (message) setFeedback(message);
     } catch (err) {
       alert('Errore: ' + err.message);
@@ -29,16 +32,24 @@ export function TipiEventoChipsEditor() {
       alert('Tipo evento già presente.');
       return;
     }
-    await persist([...list, nome], 'Tipo evento aggiunto.');
+    await persistAdd(nome, 'Tipo evento aggiunto.');
     setNuovo('');
   };
 
   const remove = async (tipo) => {
     if (!window.confirm(`Rimuovere il tipo «${tipo}»?`)) return;
-    await persist(
-      list.filter((t) => t !== tipo),
-      'Tipo evento rimosso.',
-    );
+    try {
+      await removeImpostazioniScalarArrayItem(manifestationId, 'tipiEvento', tipo);
+      setFeedback('Tipo evento rimosso.');
+    } catch (err) {
+      alert('Errore: ' + err.message);
+      return;
+    }
+    try {
+      await deleteImpostazioniMapEntry(manifestationId, 'dettagliPerTipoEvento', tipo);
+    } catch (err) {
+      console.warn('Rimozione dettagli tipo evento:', err);
+    }
   };
 
   if (loading) {

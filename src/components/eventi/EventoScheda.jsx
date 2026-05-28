@@ -3,6 +3,7 @@ import { serverTimestamp } from 'firebase/firestore';
 import { Plus } from 'lucide-react';
 import { DEFAULT_IMPOSTAZIONI } from '../../constants';
 import { useImpostazioni } from '../../hooks/useImpostazioni';
+import { resolveStatiMissione } from '../../lib/impostazioniLists';
 import { useManifestazioneId } from '../../context/ManifestazioneContext';
 import {
   closeEventoForzato,
@@ -466,7 +467,7 @@ export function EventoScheda({
                         disabled={mis.aperta === false}
                         onChange={(e) => changeStatoMissione(mis, e.target.value)}
                       >
-                        {DEFAULT_IMPOSTAZIONI.statiMissione.map((s) => (
+                        {resolveStatiMissione(impostazioni).map((s) => (
                           <option key={s} value={s}>
                             {s}
                           </option>

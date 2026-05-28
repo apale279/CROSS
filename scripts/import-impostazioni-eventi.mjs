@@ -13,7 +13,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import XLSX from 'xlsx';
 import { cert, getApps, initializeApp } from 'firebase-admin/app';
-import { getFirestore } from 'firebase-admin/firestore';
+import { FieldPath, getFirestore } from 'firebase-admin/firestore';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, '..');
@@ -86,14 +86,11 @@ const { tipiEvento, dettagliPerTipoEvento } = parseExcel(excelPath);
 const db = initAdmin();
 const ref = db.doc(`manifestazioni/${tenantId}/settings/impostazioni`);
 
-await ref.set(
-  {
-    manifestationId: tenantId,
-    tipiEvento,
-    dettagliPerTipoEvento,
-  },
-  { merge: true },
-);
+await ref.set({ manifestationId: tenantId, tipiEvento }, { merge: true });
+
+for (const [tipo, dettagli] of Object.entries(dettagliPerTipoEvento)) {
+  await ref.update(new FieldPath('dettagliPerTipoEvento', tipo), dettagli);
+}
 
 console.log('Import completato su', ref.path);
 console.log('Tipi evento:', tipiEvento.length);

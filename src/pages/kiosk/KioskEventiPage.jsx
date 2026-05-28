@@ -20,7 +20,7 @@ export default function KioskEventiPage() {
     pazientiTrasportoByMissione,
     eventi,
     loading,
-  } = useOperativoDashboardData();
+  } = useOperativoDashboardData({ autoReconcileOperativo: false });
 
   const blocks = eventoIdFilter
     ? operativoBlocks.filter((b) => b.ev?._docId === eventoIdFilter)

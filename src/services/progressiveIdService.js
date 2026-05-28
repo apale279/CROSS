@@ -45,7 +45,9 @@ export async function allocateProgressiveId(
       return `${prefix}${next}`;
     });
   } catch (err) {
-    console.warn('[allocateProgressiveId] fallback client-side:', err);
-    return nextProgressiveId(prefix, seedItems ?? [], displayField);
+    console.error('[allocateProgressiveId] transazione fallita:', err);
+    throw new Error(
+      'Impossibile assegnare un ID progressivo: riprova. Se il problema persiste, verifica la connessione.',
+    );
   }
 }

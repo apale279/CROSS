@@ -71,7 +71,9 @@ export function PmaFieldPresenceProvider({
   const heartbeat = useCallback(
     (fieldKey: string) => {
       if (!fieldKey || !operator.uid) return;
-      void claimPmaFieldLock(manifestationId, pazienteDocId, fieldKey, operator).catch(() => {});
+      void claimPmaFieldLock(manifestationId, pazienteDocId, fieldKey, operator).catch((err) => {
+        console.warn('[PMA lock]', fieldKey, err);
+      });
     },
     [manifestationId, pazienteDocId, operator],
   );
@@ -97,7 +99,9 @@ export function PmaFieldPresenceProvider({
 
       const onFocus = () => {
         focusedKeysRef.current.add(fieldKey);
-        void claimPmaFieldLock(manifestationId, pazienteDocId, fieldKey, operator).catch(() => {});
+        void claimPmaFieldLock(manifestationId, pazienteDocId, fieldKey, operator).catch((err) => {
+        console.warn('[PMA lock]', fieldKey, err);
+      });
       };
 
       const onBlur = () => {

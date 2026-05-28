@@ -5,14 +5,48 @@ export function mezzoPosizioneRealeCoordinate(mezzo) {
   return parseCoordinate(mezzo?.posizioneReale?.coordinate);
 }
 
+function toDateSafe(ts) {
+  if (!ts) return null;
+  if (typeof ts?.toDate === 'function') return ts.toDate();
+  if (ts instanceof Date) return ts;
+  if (typeof ts === 'object' && ts.seconds != null) {
+    const d = new Date(Number(ts.seconds) * 1000);
+    return Number.isNaN(d.getTime()) ? null : d;
+  }
+  const d = new Date(ts);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+/** Ultimo timestamp posizione reale convertito in Date (se valido). */
+export function mezzoPosizioneRealeAggiornatoIlDate(mezzo) {
+  return toDateSafe(mezzo?.posizioneReale?.aggiornatoIl);
+}
+
+/** Posizione reale considerata valida solo se recente (evita GPS stale in nuova missione). */
+export function mezzoPosizioneRealeIsFresh(mezzo, maxAgeMinutes = 90) {
+  const when = mezzoPosizioneRealeAggiornatoIlDate(mezzo);
+  if (!when) return false;
+  const ageMs = Date.now() - when.getTime();
+  if (!Number.isFinite(ageMs) || ageMs < 0) return false;
+  return ageMs <= maxAgeMinutes * 60 * 1000;
+}
+
 /**
  * Coordinate per mappa operativa.
  * - In missione attiva: posizione reale GPS (Telegram), altrimenti stazionamento.
  * - Senza missione: solo stazionamento.
  */
-export function mezzoMapCoordinate(mezzo, onMission = false, gpsTrackingEnabled = true) {
+export function mezzoMapCoordinate(
+  mezzo,
+  onMission = false,
+  gpsTrackingEnabled = true,
+  gpsMaxAgeMinutes = 90,
+) {
   const stazionamento = parseCoordinate(mezzo?.stazionamento?.coordinate);
-  const posizioneReale = gpsTrackingEnabled ? mezzoPosizioneRealeCoordinate(mezzo) : null;
+  const posizioneReale =
+    gpsTrackingEnabled && mezzoPosizioneRealeIsFresh(mezzo, gpsMaxAgeMinutes)
+      ? mezzoPosizioneRealeCoordinate(mezzo)
+      : null;
   if (onMission) {
     return posizioneReale ?? stazionamento ?? null;
   }
@@ -20,9 +54,17 @@ export function mezzoMapCoordinate(mezzo, onMission = false, gpsTrackingEnabled 
 }
 
 /** Marker mappa usa GPS reale (solo se tracking ON, in missione e coordinate presenti). */
-export function mezzoMapUsesPosizioneReale(mezzo, onMission, gpsTrackingEnabled = true) {
+export function mezzoMapUsesPosizioneReale(
+  mezzo,
+  onMission,
+  gpsTrackingEnabled = true,
+  gpsMaxAgeMinutes = 90,
+) {
   return (
-    gpsTrackingEnabled && onMission && Boolean(mezzoPosizioneRealeCoordinate(mezzo))
+    gpsTrackingEnabled &&
+    onMission &&
+    mezzoPosizioneRealeIsFresh(mezzo, gpsMaxAgeMinutes) &&
+    Boolean(mezzoPosizioneRealeCoordinate(mezzo))
   );
 }
 

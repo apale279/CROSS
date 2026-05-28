@@ -40,6 +40,19 @@ export async function ensurePmaSchedaOnDestinazione(manifestationId, docId, pazi
   await initPmaSchedaIfMissing(manifestationId, docId, Object.keys(seed).length ? seed : null);
 }
 
+/** Stato PMA da impostare solo se non già avanzato in tenda. */
+export function statoPzPmaInArrivoIfAllowed(paziente) {
+  const cur = normalizeStatoPzPma(paziente?.statoPzPma);
+  if (
+    cur === STATO_PZ_PMA.DIMESSO ||
+    cur === STATO_PZ_PMA.IN_CARICO ||
+    cur === STATO_PZ_PMA.IN_ATTESA
+  ) {
+    return null;
+  }
+  return STATO_PZ_PMA.IN_ARRIVO;
+}
+
 /**
  * Centrale invia verso PMA: stato tenda «IN ARRIVO» (presa in carico solo da desk PMA).
  * Non sovrascrive «in carico» o «DIMESSO».

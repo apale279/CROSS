@@ -41,16 +41,12 @@ export function PazienteAnagraficaPmaTab({
   eventoEditable = false,
 }) {
   const [draft, setDraft] = useState(() => patientDocToDraftFields(rawDoc ?? {}));
-  const [statoPma, setStatoPma] = useState(rawDoc?.statoPzPma ?? STATO_PZ_PMA.IN_ATTESA);
   const [savingStato, setSavingStato] = useState(false);
+  const statoPma = rawDoc?.statoPzPma ?? STATO_PZ_PMA.IN_ATTESA;
 
   useEffect(() => {
     if (rawDoc) setDraft(patientDocToDraftFields(rawDoc));
   }, [rawDoc?._docId, rawDoc?.nome, rawDoc?.cognome, rawDoc?.pettorale, rawDoc?.telefono]);
-
-  useEffect(() => {
-    if (rawDoc?.statoPzPma) setStatoPma(rawDoc.statoPzPma);
-  }, [rawDoc?.statoPzPma]);
 
   const patchAnagrafica = useCallback(
     async (fields) => {
@@ -92,12 +88,10 @@ export function PazienteAnagraficaPmaTab({
 
   const onStatoPmaChange = async (next) => {
     if (!canEditStatoPma || !manifestationId || !patientDocId) return;
-    setStatoPma(next);
     setSavingStato(true);
     try {
       await setStatoPmaAutopresentato(manifestationId, patientDocId, next);
     } catch (err) {
-      setStatoPma(rawDoc?.statoPzPma ?? STATO_PZ_PMA.IN_ATTESA);
       alert(err.message ?? 'Errore aggiornamento stato PMA');
     } finally {
       setSavingStato(false);

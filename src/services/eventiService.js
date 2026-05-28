@@ -82,14 +82,16 @@ async function deleteRecordiCollegati(manifestationId, idUnivoco, idEvento) {
 
   const delMissioni = missioniSnap.docs.filter((d) => {
     const m = d.data();
-    if (idUnivoco && m.eventoIdUnivoco) return m.eventoIdUnivoco === idUnivoco;
-    return m.eventoCorrelato === idEvento;
+    const byUid = Boolean(idUnivoco && m.eventoIdUnivoco && m.eventoIdUnivoco === idUnivoco);
+    const byDisplay = Boolean(idEvento && m.eventoCorrelato === idEvento);
+    return byUid || byDisplay;
   });
 
   const delPazienti = pazientiSnap.docs.filter((d) => {
     const p = d.data();
-    if (idUnivoco && p.eventoIdUnivoco) return p.eventoIdUnivoco === idUnivoco;
-    return p.eventoCorrelato === idEvento;
+    const byUid = Boolean(idUnivoco && p.eventoIdUnivoco && p.eventoIdUnivoco === idUnivoco);
+    const byDisplay = Boolean(idEvento && p.eventoCorrelato === idEvento);
+    return byUid || byDisplay;
   });
 
   const deletedMissionIds = new Set(delMissioni.map((d) => d.id));

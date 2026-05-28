@@ -52,7 +52,17 @@ export function InvioPsSoreuTrasportoBlock({
       String(paziente?.pmaScheda?.invio_ps_ospedale ?? paziente?.ospedaleDestinazione ?? '').trim();
     if (!pre) return;
     setOspedaleSel((cur) => (cur ? cur : pre));
-  }, [paziente?._docId, paziente?.pmaScheda?.invio_ps_ospedale, paziente?.ospedaleDestinazione]);
+    const inScheda = String(paziente?.pmaScheda?.invio_ps_ospedale ?? '').trim();
+    if (!inScheda && pre && !soreuReadOnly) {
+      void onWriteSoreu?.({ invio_ps_ospedale: pre });
+    }
+  }, [
+    paziente?._docId,
+    paziente?.pmaScheda?.invio_ps_ospedale,
+    paziente?.ospedaleDestinazione,
+    soreuReadOnly,
+    onWriteSoreu,
+  ]);
 
   const trasportoEsistente = useMemo(
     () => missionePmaInvioPsApertaPerPaziente(missioni, paziente?._docId),

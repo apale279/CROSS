@@ -129,9 +129,12 @@ export function pazienteEsclusoDaSyncMissioneAdmin(paziente) {
 }
 
 export function pazienteMatchesMissioneTrasporto(p, missione) {
+  const uidP = String(p?.eventoIdUnivoco ?? '').trim();
+  const uidM = String(missione?.eventoIdUnivoco ?? '').trim();
+  const dispP = String(p?.eventoCorrelato ?? '').trim();
+  const dispM = String(missione?.eventoCorrelato ?? '').trim();
   const sameEvento =
-    (missione.eventoIdUnivoco && p.eventoIdUnivoco === missione.eventoIdUnivoco) ||
-    p.eventoCorrelato === missione.eventoCorrelato;
+    (uidM && uidP && uidP === uidM) || (dispM && dispP && dispP === dispM);
   return sameEvento && p.mezzo === missione.mezzo && p.esito === ESITO_TRASPORTA;
 }
 

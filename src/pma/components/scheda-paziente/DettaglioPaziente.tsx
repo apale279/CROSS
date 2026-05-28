@@ -50,6 +50,8 @@ export function DettaglioPaziente({
   const cross = variant === 'cross'
   const haStatoPma = Boolean(statoPmaLabel)
   const haStatoCentrale = Boolean(statoCentraleLabel)
+  const schedaPmaAttiva =
+    (p as Paziente & { scheda_pma_modificabile?: boolean }).scheda_pma_modificabile ?? p.aperto
   const compact = mobileFocused && cross
 
   const statusParts: string[] = [CODICE_COLORE_LABEL[p.codice_colore]]
@@ -126,12 +128,18 @@ export function DettaglioPaziente({
                   className={
                     cross
                       ? `rounded px-2 py-0.5 text-xs font-semibold ${
-                          p.aperto ? 'bg-emerald-100 text-emerald-900' : 'bg-slate-200 text-slate-700'
+                          schedaPmaAttiva ? 'bg-emerald-100 text-emerald-900' : 'bg-slate-200 text-slate-700'
                         }`
-                      : `pma-bar__badge ${p.aperto ? 'pma-bar__badge--open' : 'pma-bar__badge--closed'}`
+                      : `pma-bar__badge ${schedaPmaAttiva ? 'pma-bar__badge--open' : 'pma-bar__badge--closed'}`
                   }
                 >
-                  {p.aperto ? (cross ? 'Scheda PMA attiva' : 'Aperta') : cross ? 'Scheda PMA chiusa' : 'Chiusa'}
+                  {schedaPmaAttiva
+                    ? cross
+                      ? 'Scheda PMA attiva'
+                      : 'Aperta'
+                    : cross
+                      ? 'Scheda PMA chiusa'
+                      : 'Chiusa'}
                 </span>
               ) : (
                 <span

@@ -3,7 +3,8 @@
  * Blocca solo scritture di configurazione su `impostazioni`, non i dati operativi
  * (es. statistiche farmaci consumati in tenda).
  */
-let canEditImpostazioniConfig = true;
+/** Default conservativo finché il profilo non conferma i permessi. */
+let canEditImpostazioniConfig = false;
 
 export function setImpostazioniConfigCanEdit(allowed) {
   canEditImpostazioniConfig = Boolean(allowed);

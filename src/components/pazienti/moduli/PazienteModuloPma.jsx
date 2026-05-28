@@ -128,9 +128,14 @@ export function PazienteModuloPma({
     : null;
   const schedaReadonly = rawDoc ? isPmaSchedaReadonly(rawDoc) : false;
   const schedaEditAllowed = p && rawDoc ? canEditPmaScheda(p, rawDoc) : false;
+  const canEditPmaCentraleInCarico =
+    !vistaPma &&
+    rawDoc?.statoPzPma === STATO_PZ_PMA.IN_CARICO &&
+    pmaUser &&
+    schedaTabDimissioneAllows(pmaUser.rank, 'UPDATE');
   const canEditPma =
     schedaEditAllowed &&
-    (vistaPma || rawDoc?.schedaModificaForzata === true);
+    (vistaPma || rawDoc?.schedaModificaForzata === true || canEditPmaCentraleInCarico);
   const isAutopresentato = rawDoc ? isPazienteOriginePma(rawDoc) : false;
   const shellTabs = useMemo(() => {
     const base = clinicalOnly ? PMA_CLINICAL_SHELL_TABS : pmaShellTabsFor(isAutopresentato);
@@ -189,7 +194,9 @@ export function PazienteModuloPma({
       patch.medico_rif = ref;
     }
     if (Object.keys(patch).length === 0) return;
-    void patchPazientePmaGranular(manifestationId, patientDocId, patch).catch((err) => {
+    void patchPazientePmaGranular(manifestationId, patientDocId, patch, {
+      operatorUid: user?.uid ?? null,
+    }).catch((err) => {
       console.warn('Aggiornamento riferimento staff PMA non riuscito:', err);
     });
   }, [
@@ -332,6 +339,7 @@ export function PazienteModuloPma({
           presetDimissione={liste.presetDimissione}
           prestazioniManifestazioneLista={liste.prestazioni}
           pmaIpadFirma={pmaIpadFirma}
+          ospedaleDestinazioneCentrale={rawDoc?.ospedaleDestinazione ?? null}
         />
         <InvioPsSoreuTrasportoBlock
           manifestationId={manifestationId}

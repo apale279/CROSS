@@ -26,8 +26,10 @@ import {
 import { MezzoRientroMissioneApertaError } from '../lib/missioneRientroCreate';
 import { patchMezzo, resolveMezzoDocIdFirestore } from './mezziService';
 import { tryAutoCloseEventoForMissione } from './eventoAutoCloseService';
-import { DEFAULT_IMPOSTAZIONI } from '../constants';
+import { normalizeImpostazioni } from '../lib/impostazioniNormalize';
+import { coloriEventoValidiSet, resolveStatiMissione } from '../lib/impostazioniLists';
 import { pickGravestColore, parseCodiceColoreOptional } from '../lib/codiciColore';
+import { impostazioniDocRef } from './impostazioniService';
 import { ESITO_MISSIONE_DEFAULT } from '../lib/missioneEsito';
 import { MISSIONE_ECCEZIONE_MOTIVO, MEZZO_STATO_AVARIA_SINISTRO } from '../lib/missionEccezioni';
 import { buildStatoChangeFields } from '../lib/missionStoricoStati';
@@ -115,7 +117,9 @@ export async function createMissione(manifestationId, payload, existingMissioni,
   const idUnivoco = newIdUnivoco();
   const autopresentato = !!payload.pazienteAutopresentato;
   const forzato = payload.statoInizialeForzato;
-  const statiAmmessi = DEFAULT_IMPOSTAZIONI.statiMissione;
+  const impSnap = await getDoc(impostazioniDocRef(manifestationId));
+  const imp = impSnap.exists() ? normalizeImpostazioni(impSnap.data()) : null;
+  const statiAmmessi = resolveStatiMissione(imp);
   const statoIniziale =
     forzato && statiAmmessi.includes(forzato)
       ? forzato
@@ -155,8 +159,6 @@ export async function createMissione(manifestationId, payload, existingMissioni,
   return { docId: docRef.id, idMissione, idUnivoco };
 }
 
-const COLORI_VALIDI = new Set(DEFAULT_IMPOSTAZIONI.coloriEvento);
-
 async function findMissioneDocForPaziente(manifestationId, paziente) {
   const colRef = collection(db, ...missioniPath(manifestationId));
   if (paziente.missioneIdUnivoco) {
@@ -186,13 +188,17 @@ async function findMissioneDocForPaziente(manifestationId, paziente) {
 /** Ricalcola codice colore trasporto dai pazienti in trasporto sul mezzo (se non impostato manualmente). */
 export async function refreshMissioneCodiceColoreTrasporto(manifestationId, missionDocId, missione) {
   if (!missionDocId || !missione || missione.codiceColoreTrasportoManuale === true) return;
+  const impSnap = await getDoc(impostazioniDocRef(manifestationId));
+  const coloriValidi = coloriEventoValidiSet(
+    impSnap.exists() ? normalizeImpostazioni(impSnap.data()) : null,
+  );
   const candidati = missione.mezzo
     ? await fetchPazientiTrasportoForMissione(manifestationId, missione)
     : [];
   const colori = [];
   for (const p of candidati) {
     const c = String(p.codiceColoreSanitario ?? '').trim();
-    if (c && COLORI_VALIDI.has(c)) colori.push(c);
+    if (c && coloriValidi.has(c)) colori.push(c);
   }
   if (colori.length) {
     await updateDoc(doc(db, ...missioniPath(manifestationId), missionDocId), {
@@ -213,8 +219,12 @@ export async function refreshMissioneCodiceColoreTrasporto(manifestationId, miss
 export async function patchMissioneCodiceColoreFromPaziente(manifestationId, paziente, codiceColore) {
   if (!manifestationId || !paziente) return;
 
+  const impSnap = await getDoc(impostazioniDocRef(manifestationId));
+  const coloriValidi = coloriEventoValidiSet(
+    impSnap.exists() ? normalizeImpostazioni(impSnap.data()) : null,
+  );
   const esplicito =
-    codiceColore != null && codiceColore !== '' && COLORI_VALIDI.has(codiceColore);
+    codiceColore != null && codiceColore !== '' && coloriValidi.has(codiceColore);
 
   if (paziente._docId) {
     await patchPaziente(

@@ -1,6 +1,11 @@
-import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+import { doc, FieldPath, getDoc, runTransaction, setDoc } from 'firebase/firestore';
 import { db } from '../firebaseConfig';
 import { assertCanEditImpostazioniConfig } from '../lib/impostazioniEditGate';
+import {
+  isImpostazioniFieldSaveBlocked,
+  isImpostazioniNestedObjectField,
+  isImpostazioniTransactionalArrayField,
+} from '../lib/impostazioniFieldAccess';
 import { impostazioniPath } from '../lib/firestorePaths';
 
 export function impostazioniDocRef(manifestationId) {
@@ -16,67 +21,237 @@ export async function ensureImpostazioniDocument(manifestationId) {
   }
 }
 
-/** Salva un solo campo top-level con updateDoc (o setDoc merge se il doc non esiste). */
+function assertGranularField(fieldKey) {
+  if (isImpostazioniNestedObjectField(fieldKey)) {
+    throw new Error(
+      `Salvataggio intero di «${fieldKey}» non consentito: usare update puntati (es. saveDettaglioTipoLuogo / savePmaClinicaDotFields).`,
+    );
+  }
+  if (isImpostazioniTransactionalArrayField(fieldKey)) {
+    throw new Error(
+      `Salvataggio intero di «${fieldKey}» non consentito: usare saveImpostazioniArrayEntryById / deleteImpostazioniArrayEntryById.`,
+    );
+  }
+}
+
+function readArrayFieldRaw(data, fieldKey) {
+  const raw = data?.[fieldKey];
+  return Array.isArray(raw) ? [...raw] : [];
+}
+
+/** Aggiunge/rimuove voci in array scalare (tipiLuogo, tipiEvento) partendo dallo snapshot server. */
+export async function appendImpostazioniScalarArrayItem(manifestationId, fieldKey, item) {
+  assertCanEditImpostazioniConfig();
+  assertGranularField(fieldKey);
+  const value = String(item ?? '').trim();
+  if (!value) return;
+
+  const docRef = impostazioniDocRef(manifestationId);
+  await runTransaction(db, async (transaction) => {
+    const snap = await transaction.get(docRef);
+    const current = readArrayFieldRaw(snap.exists() ? snap.data() : null, fieldKey);
+    if (current.some((x) => String(x).toLowerCase() === value.toLowerCase())) return;
+    if (!snap.exists()) {
+      transaction.set(docRef, { manifestationId, [fieldKey]: [...current, value] }, { merge: true });
+      return;
+    }
+    transaction.update(docRef, { [fieldKey]: [...current, value] });
+  });
+}
+
+export async function removeImpostazioniScalarArrayItem(manifestationId, fieldKey, item) {
+  assertCanEditImpostazioniConfig();
+  assertGranularField(fieldKey);
+  const needle = String(item ?? '').trim();
+  if (!needle) return;
+
+  const docRef = impostazioniDocRef(manifestationId);
+  await runTransaction(db, async (transaction) => {
+    const snap = await transaction.get(docRef);
+    if (!snap.exists()) return;
+    const current = readArrayFieldRaw(snap.data(), fieldKey);
+    const next = current.filter((x) => String(x) !== needle);
+    if (next.length === current.length) return;
+    transaction.update(docRef, { [fieldKey]: next });
+  });
+}
+
+/** Upsert di una voce in array di oggetti con `id` (stazionamenti, pma). */
+export async function saveImpostazioniArrayEntryById(manifestationId, arrayField, entry) {
+  assertCanEditImpostazioniConfig();
+  if (!isImpostazioniTransactionalArrayField(arrayField)) {
+    throw new Error(`saveImpostazioniArrayEntryById: campo «${arrayField}» non supportato.`);
+  }
+  const id = String(entry?.id ?? '').trim();
+  if (!id) throw new Error('Voce impostazioni senza id.');
+
+  const docRef = impostazioniDocRef(manifestationId);
+  await runTransaction(db, async (transaction) => {
+    const snap = await transaction.get(docRef);
+    const current = readArrayFieldRaw(snap.exists() ? snap.data() : null, arrayField);
+    const idx = current.findIndex((x) => String(x?.id ?? '') === id);
+    const next = [...current];
+    if (idx >= 0) next[idx] = { ...next[idx], ...entry, id };
+    else next.push({ ...entry, id });
+
+    if (!snap.exists()) {
+      transaction.set(docRef, { manifestationId, [arrayField]: next }, { merge: true });
+      return;
+    }
+    transaction.update(docRef, { [arrayField]: next });
+  });
+}
+
+export async function deleteImpostazioniArrayEntryById(manifestationId, arrayField, entryId) {
+  assertCanEditImpostazioniConfig();
+  if (!isImpostazioniTransactionalArrayField(arrayField)) {
+    throw new Error(`deleteImpostazioniArrayEntryById: campo «${arrayField}» non supportato.`);
+  }
+  const id = String(entryId ?? '').trim();
+  if (!id) return;
+
+  const docRef = impostazioniDocRef(manifestationId);
+  await runTransaction(db, async (transaction) => {
+    const snap = await transaction.get(docRef);
+    if (!snap.exists()) return;
+    const current = readArrayFieldRaw(snap.data(), arrayField);
+    const next = current.filter((x) => String(x?.id ?? '') !== id);
+    if (next.length === current.length) return;
+    transaction.update(docRef, { [arrayField]: next });
+  });
+}
+
+/** Sostituzione esplicita di un intero array (solo import bulk confermato dall'operatore). */
+export async function replaceImpostazioniArrayField(manifestationId, arrayField, nextArray) {
+  assertCanEditImpostazioniConfig();
+  if (!isImpostazioniTransactionalArrayField(arrayField)) {
+    throw new Error(`replaceImpostazioniArrayField: campo «${arrayField}» non supportato.`);
+  }
+  await saveImpostazioniDotPath(manifestationId, arrayField, Array.isArray(nextArray) ? nextArray : []);
+}
+
+/**
+ * Aggiorna una voce in mappa annidata con FieldPath (supporta «/» nel nome tipo).
+ */
+export async function saveImpostazioniMapEntry(manifestationId, parentField, entryKey, value) {
+  assertCanEditImpostazioniConfig();
+  const key = String(entryKey ?? '').trim();
+  if (!key) return;
+
+  const docRef = impostazioniDocRef(manifestationId);
+  const fieldPath = new FieldPath(parentField, key);
+
+  await runTransaction(db, async (transaction) => {
+    const snap = await transaction.get(docRef);
+    if (!snap.exists()) {
+      transaction.set(
+        docRef,
+        { manifestationId, [parentField]: { [key]: value } },
+        { merge: true },
+      );
+      return;
+    }
+    transaction.update(docRef, fieldPath, value);
+  });
+}
+
+/** Elimina una voce in mappa annidata. */
+export async function deleteImpostazioniMapEntry(manifestationId, parentField, entryKey) {
+  const { deleteField } = await import('firebase/firestore');
+  return saveImpostazioniMapEntry(manifestationId, parentField, entryKey, deleteField());
+}
+
+/**
+ * Aggiorna un solo path top-level o `pmaClinica.sottochiave`.
+ */
+export async function saveImpostazioniDotPath(manifestationId, dotPath, value) {
+  assertCanEditImpostazioniConfig();
+  const path = String(dotPath ?? '').trim();
+  if (!path) return;
+
+  const docRef = impostazioniDocRef(manifestationId);
+  await runTransaction(db, async (transaction) => {
+    const snap = await transaction.get(docRef);
+    if (!snap.exists()) {
+      transaction.set(docRef, { manifestationId, [path]: value }, { merge: true });
+      return;
+    }
+    transaction.update(docRef, { [path]: value });
+  });
+}
+
+/**
+ * Salva un solo campo top-level scalare/array (mai mappe annidate intere).
+ */
 export async function saveImpostazioniField(manifestationId, fieldKey, value) {
   assertCanEditImpostazioniConfig();
   if (fieldKey == null || fieldKey === '') return;
-  const docRef = impostazioniDocRef(manifestationId);
-  const snap = await getDoc(docRef);
-  if (!snap.exists()) {
-    await setDoc(docRef, { manifestationId, [fieldKey]: value }, { merge: true });
-    return;
-  }
-  await updateDoc(docRef, { [fieldKey]: value });
+  assertGranularField(fieldKey);
+  await saveImpostazioniDotPath(manifestationId, fieldKey, value);
 }
 
-/** Aggiorna solo una voce di dettagliPerTipoEvento senza riscrivere l'intero oggetto. */
+/** Aggiorna solo `pmaClinica.{sottochiave}` — non tocca altre sottochiavi sul server. */
+export async function savePmaClinicaDotFields(manifestationId, subfields) {
+  assertCanEditImpostazioniConfig();
+  const entries = Object.entries(subfields ?? {}).filter(([k]) => k);
+  if (entries.length === 0) return;
+
+  const docRef = impostazioniDocRef(manifestationId);
+  const updates = Object.fromEntries(
+    entries.map(([key, value]) => [`pmaClinica.${key}`, value]),
+  );
+
+  await runTransaction(db, async (transaction) => {
+    const snap = await transaction.get(docRef);
+    if (!snap.exists()) {
+      transaction.set(
+        docRef,
+        {
+          manifestationId,
+          pmaClinica: Object.fromEntries(entries),
+        },
+        { merge: true },
+      );
+      return;
+    }
+    transaction.update(docRef, updates);
+  });
+}
+
+/** Aggiorna solo una voce di dettagliPerTipoEvento. */
 export async function saveDettaglioTipoEvento(manifestationId, tipo, list) {
-  assertCanEditImpostazioniConfig();
   if (!tipo) return;
-  const docRef = impostazioniDocRef(manifestationId);
-  const snap = await getDoc(docRef);
-  const patch = { [`dettagliPerTipoEvento.${tipo}`]: list };
-  if (!snap.exists()) {
-    await setDoc(
-      docRef,
-      { manifestationId, dettagliPerTipoEvento: { [tipo]: list } },
-      { merge: true },
-    );
-    return;
-  }
-  await updateDoc(docRef, patch);
+  await saveImpostazioniMapEntry(manifestationId, 'dettagliPerTipoEvento', tipo, list);
 }
 
-/** Aggiorna solo una voce di dettagliPerTipoLuogo senza riscrivere l'intero oggetto. */
+/** Aggiorna solo una voce di dettagliPerTipoLuogo. */
 export async function saveDettaglioTipoLuogo(manifestationId, tipo, list) {
-  assertCanEditImpostazioniConfig();
   if (!tipo) return;
-  const docRef = impostazioniDocRef(manifestationId);
-  const snap = await getDoc(docRef);
-  const patch = { [`dettagliPerTipoLuogo.${tipo}`]: list };
-  if (!snap.exists()) {
-    await setDoc(
-      docRef,
-      { manifestationId, dettagliPerTipoLuogo: { [tipo]: list } },
-      { merge: true },
-    );
-    return;
-  }
-  await updateDoc(docRef, patch);
+  await saveImpostazioniMapEntry(manifestationId, 'dettagliPerTipoLuogo', tipo, list);
 }
 
-/** @deprecated usa saveImpostazioniField */
+/** @deprecated usa saveImpostazioniField / saveImpostazioniDotPath / saveImpostazioniMapEntry */
 export async function updateImpostazioniDocument(manifestationId, partialFields) {
   assertCanEditImpostazioniConfig();
-  const keys = Object.keys(partialFields ?? {});
-  if (keys.length === 0) return;
-  if (keys.length === 1) {
-    await saveImpostazioniField(manifestationId, keys[0], partialFields[keys[0]]);
-    return;
+  const entries = Object.entries(partialFields ?? {});
+  if (entries.length === 0) return;
+
+  for (const [key, value] of entries) {
+    if (key.includes('.')) {
+      const [parent, ...rest] = key.split('.');
+      const mapKey = rest.join('.');
+      if (rest.length > 0 && isImpostazioniNestedObjectField(parent)) {
+        await saveImpostazioniMapEntry(manifestationId, parent, mapKey, value);
+        continue;
+      }
+      await saveImpostazioniDotPath(manifestationId, key, value);
+      continue;
+    }
+    if (isImpostazioniFieldSaveBlocked(key)) {
+      throw new Error(`updateImpostazioniDocument: campo «${key}» richiede API puntate.`);
+    }
+    await saveImpostazioniField(manifestationId, key, value);
   }
-  await ensureImpostazioniDocument(manifestationId);
-  const docRef = impostazioniDocRef(manifestationId);
-  await updateDoc(docRef, partialFields);
 }
 
 export async function patchImpostazioni(manifestationId, fields) {

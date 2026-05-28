@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useImpostazioni } from '../../hooks/useImpostazioni';
+import { useImpostazioniEdit } from '../../context/ImpostazioniEditContext';
 import { useManifestazioneId } from '../../context/ManifestazioneContext';
 import { saveImpostazioniField } from '../../services/impostazioniService';
 
@@ -8,11 +9,14 @@ const BOT_USERNAME = (import.meta.env.VITE_TELEGRAM_BOT_USERNAME ?? '').trim().r
 export function TelegramBotToggle() {
   const manifestationId = useManifestazioneId();
   const { impostazioni, loading } = useImpostazioni();
+  const { canEdit, profileLoading } = useImpostazioniEdit();
   const [saving, setSaving] = useState(false);
 
   const enabled = impostazioni?.telegramBotEnabled === true;
+  const toggleDisabled = loading || saving || profileLoading || !canEdit;
 
   const toggle = async () => {
+    if (!canEdit) return;
     setSaving(true);
     try {
       await saveImpostazioniField(manifestationId, 'telegramBotEnabled', !enabled);
@@ -30,13 +34,19 @@ export function TelegramBotToggle() {
       <button
         type="button"
         onClick={() => void toggle()}
-        disabled={loading || saving}
+        disabled={toggleDisabled}
+        title={
+          !canEdit
+            ? 'Sola lettura: non puoi modificare le impostazioni'
+            : enabled
+              ? 'Disattiva invio missioni su Telegram'
+              : 'Attiva invio missioni su Telegram'
+        }
         className={`rounded px-2 py-1 text-xs font-bold uppercase ${
           enabled
             ? 'border border-emerald-400 bg-emerald-100 text-emerald-900'
             : 'border border-slate-300 bg-white text-slate-600'
         } disabled:opacity-50`}
-        title={enabled ? 'Disattiva invio missioni su Telegram' : 'Attiva invio missioni su Telegram'}
       >
         {saving ? '…' : enabled ? 'Attivo' : 'Spento'}
       </button>

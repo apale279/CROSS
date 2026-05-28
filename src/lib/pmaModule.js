@@ -40,10 +40,11 @@ export function isPazienteCodiceMinore(paziente) {
 
 export function normalizeStatoPzPma(value) {
   const v = String(value ?? '').trim();
-  if (v === STATO_PZ_PMA.IN_ARRIVO) return STATO_PZ_PMA.IN_ARRIVO;
-  if (v === STATO_PZ_PMA.IN_ATTESA) return STATO_PZ_PMA.IN_ATTESA;
-  if (v === STATO_PZ_PMA.IN_CARICO) return STATO_PZ_PMA.IN_CARICO;
-  if (v === STATO_PZ_PMA.DIMESSO) return STATO_PZ_PMA.DIMESSO;
+  const upper = v.toUpperCase();
+  if (v === STATO_PZ_PMA.IN_ARRIVO || upper === 'IN ARRIVO') return STATO_PZ_PMA.IN_ARRIVO;
+  if (v === STATO_PZ_PMA.IN_ATTESA || upper === 'IN ATTESA') return STATO_PZ_PMA.IN_ATTESA;
+  if (v === STATO_PZ_PMA.IN_CARICO || upper === 'IN CARICO') return STATO_PZ_PMA.IN_CARICO;
+  if (v === STATO_PZ_PMA.DIMESSO || upper === 'DIMESSO') return STATO_PZ_PMA.DIMESSO;
   return null;
 }
 

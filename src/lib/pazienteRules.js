@@ -1,5 +1,6 @@
 import { Timestamp } from 'firebase/firestore';
 import { ESITO_TRASPORTA } from '../constants';
+import { eventoRefForMissioneMatch, pazienteSameEventoAsMissione } from './eventoMissioneMatch';
 import { normalizeMezzoKey } from './mezzoMissione';
 import { emptySoreuFirestoreClear } from './soreuTrasporto';
 
@@ -11,15 +12,20 @@ import { emptySoreuFirestoreClear } from './soreuTrasporto';
  * - Qui si risolve «quale missione» usare quando l’operatore sceglie la sigla mezzo:
  *   la prima missione **aperta** dell’evento che usa quel mezzo (in dati puliti ce n’è una sola).
  */
-export function missionePerMezzo(missioni, mezzo) {
+export function missionePerMezzo(missioni, mezzo, evento = null) {
   if (!mezzo) return null;
   const nk = normalizeMezzoKey(mezzo);
   if (!nk) return null;
-  return (
-    (missioni ?? []).find(
-      (m) => m.mezzo && m.aperta !== false && normalizeMezzoKey(m.mezzo) === nk,
-    ) ?? null
+  const open = (missioni ?? []).filter(
+    (m) => m.mezzo && m.aperta !== false && normalizeMezzoKey(m.mezzo) === nk,
   );
+  if (open.length === 0) return null;
+  const evRef = eventoRefForMissioneMatch(evento);
+  if (evRef) {
+    const matched = open.find((m) => pazienteSameEventoAsMissione(evRef, m));
+    if (matched) return matched;
+  }
+  return open[0] ?? null;
 }
 
 /** Elenco sigle mezzo con almeno una missione aperta sull’evento (stesso mezzo = carico multiplo ammesso). */

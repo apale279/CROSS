@@ -34,6 +34,9 @@ export async function eseguiDirottamentoMissione({
   mezzoRecord,
   note,
 }) {
+  const allMissioniNext = (allMissioni ?? []).map((m) =>
+    m?._docId === missione?._docId ? { ...m, aperta: false, stato: 'ANNULLATA' } : m,
+  );
   const fields = buildAnnullaMissioneFields(
     missione,
     MISSIONE_ECCEZIONE_MOTIVO.DIROTTAMENTO,
@@ -50,7 +53,7 @@ export async function eseguiDirottamentoMissione({
       statoInizialeForzato: 'ALLERTATO',
       ...optionalColoreMissionePayload(eventoDestinazione.colore),
     },
-    allMissioni,
+    allMissioniNext,
     mezzoRecord,
   );
 }
@@ -68,6 +71,9 @@ export async function eseguiFlagDownMissione({
   mezzoRecord,
   noteAnnullamento,
 }) {
+  const allMissioniNext = (allMissioni ?? []).map((m) =>
+    m?._docId === missione?._docId ? { ...m, aperta: false, stato: 'ANNULLATA' } : m,
+  );
   const fields = buildAnnullaMissioneFields(
     missione,
     MISSIONE_ECCEZIONE_MOTIVO.FLAG_DOWN,
@@ -93,7 +99,7 @@ export async function eseguiFlagDownMissione({
       statoInizialeForzato: 'IN POSTO',
       ...optionalColoreMissionePayload(nuovoEventoFields.colore),
     },
-    allMissioni,
+    allMissioniNext,
     mezzoRecord,
   );
 }

@@ -19,6 +19,7 @@ import { newValutazioneSoccorsoItem, payloadValutazioneRow } from '../lib/valuta
 import { defaultsForPatientCreate } from '../lib/pazienteDefaults';
 import { patchPazienteArrivatoHConPma } from './pazientePmaMissionSync';
 import { omitUndefinedFields } from '../lib/firestorePatch';
+import { assertPazientePatchGranular } from '../lib/granularFirestorePatch';
 import { initPmaSchedaIfMissing } from '../pma/lib/pazientePmaPatch';
 import {
   fetchEventoForMissione,
@@ -145,6 +146,7 @@ export async function createPaziente(manifestationId, payload, existingPazienti)
 
 export async function patchPaziente(manifestationId, docId, fields) {
   if (!docId || !fields || Object.keys(fields).length === 0) return;
+  assertPazientePatchGranular(fields);
   const payload = omitUndefinedFields(fields);
   if (Object.keys(payload).length === 0) return;
   const docRef = doc(db, ...pazientiPath(manifestationId), docId);

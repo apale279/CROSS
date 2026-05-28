@@ -32,6 +32,20 @@ function normalizeMezzoKey(sigla) {
     .toLowerCase();
 }
 
+function normalizeStatoPzPmaAdmin(stato) {
+  const v = String(stato ?? '').trim();
+  if (v === 'IN ARRIVO') return 'IN ARRIVO';
+  if (v === 'IN ATTESA') return 'IN ATTESA';
+  if (v === 'in carico') return 'in carico';
+  if (v === 'DIMESSO') return 'DIMESSO';
+  return null;
+}
+
+function pazientePmaApertoAdmin(p) {
+  const stato = normalizeStatoPzPmaAdmin(p?.statoPzPma);
+  return stato === 'IN ARRIVO' || stato === 'IN ATTESA' || stato === 'in carico';
+}
+
 function missioneBloccaMezzo(missione) {
   if (!missione || missione.aperta === false) return false;
   const s = missione.stato ?? '';
@@ -100,11 +114,14 @@ export async function getMissioneById(tenantId, missionDocId) {
 }
 
 export async function listMissioniAperteByMezzo(tenantId, mezzo) {
-  const snap = await missioniCol(tenantId).where('mezzo', '==', mezzo).get();
+  const mezzoCanonico = await resolveMezzoSiglaForTelegram(tenantId, mezzo);
+  const nk = normalizeMezzoKey(mezzoCanonico || mezzo);
+  const snap = await missioniCol(tenantId).get();
   return snap.docs
     .map((d) => ({ _docId: d.id, ...d.data() }))
     .filter(
       (m) =>
+        normalizeMezzoKey(m.mezzo) === nk &&
         m.aperta !== false &&
         !isStatoMissioneTerminale(m.stato) &&
         (m.stato ?? '') !== 'RIENTRO',
@@ -158,10 +175,19 @@ async function fetchPazientiTrasportoForMissioneAdmin(tenantId, missione) {
   } else {
     return [];
   }
-  const snap = await q.limit(100).get();
-  return snap.docs
-    .map((d) => ({ _docId: d.id, ...d.data() }))
-    .filter((p) => normalizeMezzoKey(p.mezzo) === nk);
+  const pageSize = 200;
+  const all = [];
+  let last = null;
+  for (;;) {
+    let query = q.limit(pageSize);
+    if (last) query = query.startAfter(last);
+    const snap = await query.get();
+    if (snap.empty) break;
+    all.push(...snap.docs.map((d) => ({ _docId: d.id, ...d.data() })));
+    last = snap.docs[snap.docs.length - 1];
+    if (snap.size < pageSize) break;
+  }
+  return all.filter((p) => normalizeMezzoKey(p.mezzo) === nk);
 }
 
 async function findEventoForMissioneAdmin(tenantId, missione) {
@@ -214,15 +240,12 @@ async function syncPazientiPmaOnDirettoHAdmin(tenantId, missione) {
 
     if (!p.pmaScheda) {
       const evento = await findEventoForPazienteAdmin(tenantId, p);
-      await pazientiCol(tenantId).doc(p._docId).set(
-        {
-          pmaScheda: {
-            ...EMPTY_PMA_SCHEDA,
-            ...seedFromPazienteEvento(p, evento),
-          },
-        },
-        { merge: true },
-      );
+      const merged = { ...EMPTY_PMA_SCHEDA, ...seedFromPazienteEvento(p, evento) };
+      const initFields = {};
+      for (const [key, value] of Object.entries(merged)) {
+        initFields[`pmaScheda.${key}`] = value;
+      }
+      await pazientiCol(tenantId).doc(p._docId).update(initFields);
     }
   }
 }
@@ -255,7 +278,7 @@ function pazienteBloccaChiusuraOperativaEventoAdmin(p) {
     tipo === 'PMA' ||
     tipo === 'CODICE MINORE' ||
     Boolean(String(p.destinazionePmaId ?? '').trim());
-  const pmaAperto = String(p.statoPzPma ?? '').trim().toUpperCase() !== 'DIMESSO';
+  const pmaAperto = pazientePmaApertoAdmin(p);
   if (chiusoCentrale && haPma && pmaAperto) return false;
   return true;
 }

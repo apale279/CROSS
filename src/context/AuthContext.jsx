@@ -28,17 +28,26 @@ const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
   const { tenantId } = useTenantContext();
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState(() => auth.currentUser ?? null);
   const [profile, setProfile] = useState(null);
   const [profileLoading, setProfileLoading] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => !auth.currentUser);
 
   useEffect(() => {
+    // Popup kiosk: evita schermata "Verifica accesso..." bloccata se il callback auth ritarda.
+    const fallbackTimer = window.setTimeout(() => {
+      setUser((prev) => prev ?? auth.currentUser ?? null);
+      setLoading(false);
+    }, 4000);
     const unsub = onAuthStateChanged(auth, (u) => {
+      window.clearTimeout(fallbackTimer);
       setUser(u);
       setLoading(false);
     });
-    return () => unsub();
+    return () => {
+      window.clearTimeout(fallbackTimer);
+      unsub();
+    };
   }, []);
 
   useEffect(() => {
@@ -74,7 +83,10 @@ export function AuthProvider({ children }) {
       setImpostazioniConfigCanEdit(false);
       return;
     }
-    if (profileLoading) return;
+    if (profileLoading) {
+      setImpostazioniConfigCanEdit(false);
+      return;
+    }
     setImpostazioniConfigCanEdit(userCanEditImpostazioni(profile, IS_SUPERADMIN));
   }, [user, profile, profileLoading]);
 

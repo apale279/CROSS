@@ -11,6 +11,7 @@ import {
   setTelegramUserAwaitingGpsAfterStato,
   setTelegramUserGpsConsent,
 } from './telegramFirestore.js';
+import { TG_MENU_GPS } from './telegramKeyboard.js';
 
 export const GPS_CONSENT_PREFIX = 'gps_consent:';
 
@@ -27,9 +28,7 @@ async function gpsTrackingAttivo(tenantId, chatId) {
 
 export function buildLocationRequestKeyboard() {
   return {
-    keyboard: [[{ text: '📍 Invia posizione GPS', request_location: true }]],
-    resize_keyboard: true,
-    one_time_keyboard: true,
+    inline_keyboard: [[{ text: '📍 Come inviare posizione', callback_data: 'gps_send_now' }]],
   };
 }
 
@@ -100,8 +99,7 @@ export async function handleGpsConsentCallback(callbackQuery, tenantId) {
     await sendMessage(
       chatId,
       '✅ <b>GPS attivo.</b> Dopo ogni aggiornamento stato ti chiederemo la posizione.\n\n' +
-        'Puoi inviare una <b>posizione live</b> (condividi posizione → durata) per aggiornamenti automatici, ' +
-        'oppure usare il pulsante <b>Invia posizione GPS</b> ogni volta.',
+        'Puoi inviare una <b>posizione live</b> (Condividi → Posizione) oppure una posizione puntuale dal menu allegati.',
       { reply_markup: buildLocationRequestKeyboard() },
     );
   } else {
@@ -256,8 +254,18 @@ export async function handleGpsSendNowCallback(callbackQuery, tenantId) {
   }
 
   await answerCallbackQuery(callbackQuery.id);
-  await sendMessage(chatId, '📍 Invia la posizione attuale:', {
-    reply_markup: buildLocationRequestKeyboard(),
-  });
+  await sendMessage(
+    chatId,
+    '📍 Invia ora la posizione dal client Telegram:\n' +
+      '1) Apri <b>Allegati</b> (graffetta)\n' +
+      '2) Seleziona <b>Posizione</b>\n' +
+      '3) Invia posizione attuale o live\n\n' +
+      'Quando arriva una location, CROSS aggiorna subito il mezzo.',
+    {
+      reply_markup: {
+        inline_keyboard: [[{ text: '📍 GPS mezzo', callback_data: TG_MENU_GPS }]],
+      },
+    },
+  );
   return true;
 }

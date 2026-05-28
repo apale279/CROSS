@@ -1,8 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { onSnapshot } from 'firebase/firestore';
-import { DEFAULT_IMPOSTAZIONI } from '../constants';
 import { impostazioniValuesMatch } from '../lib/impostazioniEqual';
-import { normalizeImpostazioni } from '../lib/impostazioniNormalize';
+import {
+  isImpostazioniFieldSaveBlocked,
+  readImpostazioniFieldForDisplay,
+  readImpostazioniFieldRaw,
+} from '../lib/impostazioniFieldAccess';
 import { useManifestationId } from '../context/ManifestazioneContext';
 import { useFirestoreSync } from '../context/FirestoreSyncContext';
 import {
@@ -10,24 +13,15 @@ import {
   saveImpostazioniField,
 } from '../services/impostazioniService';
 
-function defaultForField(fieldKey) {
-  if (fieldKey === 'dettagliPerTipoEvento' || fieldKey === 'dettagliPerTipoLuogo') return {};
-  if (fieldKey === 'pma' || fieldKey === 'stazionamenti') return [];
-  if (fieldKey === 'mappaDashboardDefault' || fieldKey === 'piantina_url' || fieldKey === 'guida_pdf_url') {
-    return null;
-  }
-  if (fieldKey === 'luogo_fisico') return '';
-  if (fieldKey === 'pmaClinica') return DEFAULT_IMPOSTAZIONI.pmaClinica;
-  return DEFAULT_IMPOSTAZIONI[fieldKey] ?? null;
-}
-
 /**
- * Ascolta Firestore e salva un solo campo per volta (updateDoc su quella chiave).
+ * Ascolta Firestore e salva un solo campo scalare/array per volta.
+ * Mappe annidate (dettagli*, pmaClinica): sola lettura qui — usare API puntate dedicate.
  */
 export function useImpostazioniField(fieldKey) {
   const manifestationId = useManifestationId();
   const { reportSync, reportError } = useFirestoreSync();
-  const [value, setValue] = useState(() => defaultForField(fieldKey));
+  const nestedObjectField = isImpostazioniFieldSaveBlocked(fieldKey);
+  const [value, setValue] = useState(() => readImpostazioniFieldForDisplay(null, fieldKey));
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const valueRef = useRef(value);
@@ -50,12 +44,14 @@ export function useImpostazioniField(fieldKey) {
         if (cancelled) return;
         reportSync();
 
-        const serverValue = snap.exists()
-          ? (normalizeImpostazioni(snap.data())[fieldKey] ?? defaultForField(fieldKey))
-          : defaultForField(fieldKey);
+        const raw = snap.exists() ? readImpostazioniFieldRaw(snap.data(), fieldKey) : undefined;
+        const serverValue = readImpostazioniFieldForDisplay(
+          snap.exists() ? snap.data() : null,
+          fieldKey,
+        );
 
         if (pendingRef.current !== null) {
-          if (impostazioniValuesMatch(serverValue, pendingRef.current)) {
+          if (impostazioniValuesMatch(raw ?? serverValue, pendingRef.current)) {
             pendingRef.current = null;
             setValue(serverValue);
           } else {
@@ -82,6 +78,12 @@ export function useImpostazioniField(fieldKey) {
 
   const saveField = useCallback(
     async (nextValueOrUpdater) => {
+      if (nestedObjectField) {
+        throw new Error(
+          `Salvataggio di «${fieldKey}» bloccato: usare update puntati (es. saveDettaglioTipoLuogo).`,
+        );
+      }
+
       const prev = valueRef.current;
       const resolved =
         typeof nextValueOrUpdater === 'function'
@@ -102,8 +104,14 @@ export function useImpostazioniField(fieldKey) {
         setSaving(false);
       }
     },
-    [manifestationId, fieldKey],
+    [manifestationId, fieldKey, nestedObjectField],
   );
 
-  return { value, saveField, saving, loading };
+  return {
+    value,
+    saveField,
+    saving,
+    loading,
+    readOnly: nestedObjectField,
+  };
 }

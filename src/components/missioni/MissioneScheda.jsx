@@ -58,7 +58,10 @@ export function MissioneScheda({
   const manifestationId = useManifestazioneId();
   const { impostazioni } = useImpostazioni();
   const telegramEnabled = impostazioni?.telegramBotEnabled === true;
-  const stati = DEFAULT_IMPOSTAZIONI.statiMissione;
+  const stati =
+    Array.isArray(impostazioni?.statiMissione) && impostazioni.statiMissione.length > 0
+      ? impostazioni.statiMissione
+      : DEFAULT_IMPOSTAZIONI.statiMissione;
   const elapsed = useElapsedSince(missione.statoDa ?? missione.apertura);
   const storico = missione.storicoStati ?? {};
   const statoMissioneBloccato =

@@ -7,7 +7,7 @@ import { useKioskScheda } from '../../context/KioskSchedaContext';
 export default function KioskMezziPage() {
   const readOnly = useReadOnlyMode();
   const { openMezzo } = useKioskScheda();
-  const { mezziSorted, loading } = useOperativoDashboardData();
+  const { mezziSorted, loading } = useOperativoDashboardData({ autoReconcileOperativo: false });
 
   return (
     <div className="flex h-full min-h-0 flex-col">

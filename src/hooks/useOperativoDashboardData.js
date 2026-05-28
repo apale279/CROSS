@@ -1,30 +1,24 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { serverTimestamp } from 'firebase/firestore';
-import { DEFAULT_IMPOSTAZIONI, ESITO_TRASPORTA } from '../constants';
+import { DEFAULT_IMPOSTAZIONI } from '../constants';
 import { COLLECTIONS } from '../lib/firestorePaths';
 import { useManifestazioneId } from '../context/ManifestazioneContext';
 import { useManifestazioneCollection } from './useManifestazioneCollection';
+import { useImpostazioni } from './useImpostazioni';
 import {
   missioniPerEvento,
   pazientiPerEvento,
   eventoSenzaCoperturaMissione,
   sortEventiAperti,
 } from '../lib/eventoLinks';
+import { pazientiTrasportoPerMissione as pazientiTrasportoPerMissioneMatch } from '../lib/pazientiTrasportoQuery';
 import { shouldAutoCloseEvento } from '../utils/eventoAutoClose';
 import { patchEvento } from '../services/eventiService';
 
-function pazientiTrasportoPerMissione(pazienti, mis) {
-  if (!mis) return [];
-  return (pazienti ?? []).filter((p) => {
-    const sameEvento =
-      (mis.eventoIdUnivoco && p.eventoIdUnivoco === mis.eventoIdUnivoco) ||
-      p.eventoCorrelato === mis.eventoCorrelato;
-    return sameEvento && p.mezzo === mis.mezzo && p.esito === ESITO_TRASPORTA;
-  });
-}
-
-export function useOperativoDashboardData() {
+export function useOperativoDashboardData(options = {}) {
+  const { autoReconcileOperativo = true } = options;
   const manifestationId = useManifestazioneId();
+  const { impostazioni } = useImpostazioni();
   const { data: eventi, loading: loadingE } = useManifestazioneCollection(COLLECTIONS.eventi);
   const { data: missioni, loading: loadingM } = useManifestazioneCollection(COLLECTIONS.missioni);
   const { data: mezzi, loading: loadingZ } = useManifestazioneCollection(COLLECTIONS.mezzi);
@@ -43,7 +37,7 @@ export function useOperativoDashboardData() {
   const pazientiTrasportoByMissione = useMemo(() => {
     const m = new Map();
     for (const mis of missioni) {
-      m.set(mis._docId, pazientiTrasportoPerMissione(pazienti, mis));
+      m.set(mis._docId, pazientiTrasportoPerMissioneMatch(pazienti, mis));
     }
     return m;
   }, [missioni, pazienti]);
@@ -97,7 +91,7 @@ export function useOperativoDashboardData() {
   const reconciledOperativoRef = useRef(new Set());
 
   useEffect(() => {
-    if (loadingE || loadingM || loadingP || !manifestationId) return;
+    if (!autoReconcileOperativo || loadingE || loadingM || loadingP || !manifestationId) return;
     for (const ev of eventiAperti) {
       if (ev.operativoTerminato === true) continue;
       if (reconciledOperativoRef.current.has(ev._docId)) continue;
@@ -112,7 +106,7 @@ export function useOperativoDashboardData() {
         reconciledOperativoRef.current.delete(ev._docId);
       });
     }
-  }, [eventiAperti, missioni, pazienti, manifestationId, loadingE, loadingM, loadingP]);
+  }, [eventiAperti, missioni, pazienti, manifestationId, loadingE, loadingM, loadingP, autoReconcileOperativo]);
 
   const operativoStats = useMemo(() => {
     const eventCount = operativoBlocks.filter((b) => b.ev).length;
@@ -129,7 +123,9 @@ export function useOperativoDashboardData() {
   );
 
   const loading = loadingE || loadingM || loadingZ || loadingP;
-  const stati = DEFAULT_IMPOSTAZIONI.statiMissione;
+  const stati = Array.isArray(impostazioni?.statiMissione) && impostazioni.statiMissione.length > 0
+    ? impostazioni.statiMissione
+    : DEFAULT_IMPOSTAZIONI.statiMissione;
 
   return {
     eventi,

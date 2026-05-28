@@ -1,19 +1,22 @@
 import { useState } from 'react';
 import { X } from 'lucide-react';
+import { useManifestazioneId } from '../../context/ManifestazioneContext';
 import { useImpostazioniField } from '../../hooks/useImpostazioniField';
+import { deleteImpostazioniMapEntry, appendImpostazioniScalarArrayItem, removeImpostazioniScalarArrayItem } from '../../services/impostazioniService';
 import { btnPrimary, inputClass } from '../ui/FormField';
 import { SaveFeedback } from './SaveFeedback';
 
 export function TipiLuogoChipsEditor() {
-  const { value: tipi, saveField, saving, loading } = useImpostazioniField('tipiLuogo');
+  const manifestationId = useManifestazioneId();
+  const { value: tipi, saving, loading } = useImpostazioniField('tipiLuogo');
   const list = tipi ?? [];
   const [nuovo, setNuovo] = useState('');
   const [feedback, setFeedback] = useState('');
 
-  const persist = async (next, message) => {
+  const persistAdd = async (nome, message) => {
     setFeedback('');
     try {
-      await saveField(next);
+      await appendImpostazioniScalarArrayItem(manifestationId, 'tipiLuogo', nome);
       if (message) setFeedback(message);
     } catch (err) {
       alert('Errore: ' + err.message);
@@ -29,16 +32,24 @@ export function TipiLuogoChipsEditor() {
       alert('Tipo luogo già presente.');
       return;
     }
-    await persist([...list, nome], 'Tipo luogo aggiunto.');
+    await persistAdd(nome, 'Tipo luogo aggiunto.');
     setNuovo('');
   };
 
   const remove = async (tipo) => {
     if (!window.confirm(`Rimuovere il tipo luogo «${tipo}»?`)) return;
-    await persist(
-      list.filter((t) => t !== tipo),
-      'Tipo luogo rimosso.',
-    );
+    try {
+      await removeImpostazioniScalarArrayItem(manifestationId, 'tipiLuogo', tipo);
+      setFeedback('Tipo luogo rimosso.');
+    } catch (err) {
+      alert('Errore: ' + err.message);
+      return;
+    }
+    try {
+      await deleteImpostazioniMapEntry(manifestationId, 'dettagliPerTipoLuogo', tipo);
+    } catch (err) {
+      console.warn('Rimozione dettagli tipo luogo:', err);
+    }
   };
 
   if (loading) {

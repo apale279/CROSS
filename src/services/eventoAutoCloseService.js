@@ -5,6 +5,36 @@ import { missioniPerEvento, pazientiPerEvento } from '../lib/eventoLinks';
 import { shouldAutoCloseEvento } from '../utils/eventoAutoClose';
 import { patchEvento } from './eventiService';
 
+async function resolveEventoDoc(manifestationId, eventoRef) {
+  let byDocId = null;
+  let byUid = null;
+  let byDisplay = null;
+
+  if (eventoRef.docId) {
+    const ref = doc(db, ...eventiPath(manifestationId), eventoRef.docId);
+    const s = await getDoc(ref);
+    if (s.exists()) byDocId = { id: s.id, ...s.data() };
+  }
+  if (eventoRef.idUnivoco) {
+    const snap = await getDocs(
+      query(collection(db, ...eventiPath(manifestationId)), where('idUnivoco', '==', eventoRef.idUnivoco)),
+    );
+    if (!snap.empty) byUid = { id: snap.docs[0].id, ...snap.docs[0].data() };
+  }
+  if (eventoRef.idEvento) {
+    const snap = await getDocs(
+      query(collection(db, ...eventiPath(manifestationId)), where('idEvento', '==', eventoRef.idEvento)),
+    );
+    if (!snap.empty) byDisplay = { id: snap.docs[0].id, ...snap.docs[0].data() };
+  }
+
+  if (byDocId) return byDocId;
+  if (byUid && byDisplay) {
+    return byUid.id === byDisplay.id ? byUid : byDisplay;
+  }
+  return byUid ?? byDisplay ?? null;
+}
+
 export async function tryAutoCloseEvento(manifestationId, eventoRef) {
   if (!eventoRef?.idUnivoco && !eventoRef?.idEvento) return;
 
@@ -29,30 +59,7 @@ export async function tryAutoCloseEvento(manifestationId, eventoRef) {
   const pazSnap = await getDocs(collection(db, ...pazientiPath(manifestationId)));
   pazienti = pazSnap.docs.map((d) => ({ _docId: d.id, ...d.data() }));
 
-  let eventoDoc;
-  if (eventoRef.docId) {
-    const ref = doc(db, ...eventiPath(manifestationId), eventoRef.docId);
-    const s = await getDoc(ref);
-    if (s.exists()) eventoDoc = { id: s.id, ...s.data() };
-  }
-  if (!eventoDoc && eventoRef.idUnivoco) {
-    const snap = await getDocs(
-      query(
-        collection(db, ...eventiPath(manifestationId)),
-        where('idUnivoco', '==', eventoRef.idUnivoco),
-      ),
-    );
-    if (!snap.empty) eventoDoc = { id: snap.docs[0].id, ...snap.docs[0].data() };
-  }
-  if (!eventoDoc && eventoRef.idEvento) {
-    const snap = await getDocs(
-      query(
-        collection(db, ...eventiPath(manifestationId)),
-        where('idEvento', '==', eventoRef.idEvento),
-      ),
-    );
-    if (!snap.empty) eventoDoc = { id: snap.docs[0].id, ...snap.docs[0].data() };
-  }
+  const eventoDoc = await resolveEventoDoc(manifestationId, eventoRef);
 
   if (!eventoDoc || eventoDoc.stato === false || eventoDoc.operativoTerminato === true) return;
 

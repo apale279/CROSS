@@ -1,12 +1,15 @@
 import { useState } from 'react';
+import { useManifestazioneId } from '../../context/ManifestazioneContext';
 import { useImpostazioniField } from '../../hooks/useImpostazioniField';
+import { saveImpostazioniArrayEntryById } from '../../services/impostazioniService';
 import { AddressPicker } from '../maps/AddressPicker';
 import { LuogoFisicoField } from '../maps/LuogoFisicoField';
 import { FormField, btnPrimary, btnSecondary, inputClass } from '../ui/FormField';
 
 /** Modifica posizione PMA dalla mappa operativa. */
 export function PmaMapModal({ pma, onClose }) {
-  const { value: list, saveField, saving } = useImpostazioniField('pma');
+  const manifestationId = useManifestazioneId();
+  const { saving } = useImpostazioniField('pma');
   const [draft, setDraft] = useState({ ...pma });
 
   const save = async () => {
@@ -15,10 +18,8 @@ export function PmaMapModal({ pma, onClose }) {
       alert('Il nome PMA è obbligatorio.');
       return;
     }
-    const items = list ?? [];
-    const next = items.map((p) => (p.id === draft.id ? { ...draft, nome } : p));
     try {
-      await saveField(next);
+      await saveImpostazioniArrayEntryById(manifestationId, 'pma', { ...draft, nome });
       onClose();
     } catch (err) {
       alert('Errore: ' + err.message);

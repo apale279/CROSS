@@ -31,7 +31,7 @@ export async function createManifestazione({ nome, dataInizio, luogo }) {
     ...DEFAULT_IMPOSTAZIONI,
     pmaClinica: seedPmaClinicaImpostazioni(),
     manifestationId: docRef.id,
-  });
+  }, { merge: true });
   return docRef.id;
 }
 

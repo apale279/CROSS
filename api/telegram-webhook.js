@@ -1,6 +1,9 @@
 import { getWebhookSecret } from './_lib/env.js';
 import { requireTenant, resolveTenantFromRequest } from './_lib/resolveTenant.js';
 import {
+  answerCallbackQuery,
+} from './_lib/telegramApi.js';
+import {
   handleCambiaPassword,
   handleMezzoCallback,
   handlePasswordText,
@@ -19,6 +22,12 @@ import {
   handleGpsSendNowCallback,
   handleLocationMessage,
 } from './_lib/telegramGpsFlow.js';
+import {
+  TG_MENU_GPS,
+  TG_MENU_SOS,
+  TG_MENU_START,
+  TG_MENU_STATO,
+} from './_lib/telegramKeyboard.js';
 
 export default async function handler(req, res) {
   if (req.method === 'GET') {
@@ -68,6 +77,27 @@ export default async function handler(req, res) {
 
     if (update.callback_query) {
       const cq = update.callback_query;
+      const chatId = cq.message?.chat?.id ?? cq.from?.id;
+      if (chatId && cq.data === TG_MENU_STATO) {
+        await answerCallbackQuery(cq.id, 'Stato missione');
+        await handleStatoCommand(chatId, tenantId);
+        return res.status(200).json({ ok: true });
+      }
+      if (chatId && cq.data === TG_MENU_GPS) {
+        await answerCallbackQuery(cq.id, 'GPS mezzo');
+        await handleGpsCommand(chatId, tenantId);
+        return res.status(200).json({ ok: true });
+      }
+      if (chatId && cq.data === TG_MENU_START) {
+        await answerCallbackQuery(cq.id, 'Cambia mezzo');
+        await handleStart(chatId, tenantId, enabled);
+        return res.status(200).json({ ok: true });
+      }
+      if (chatId && cq.data === TG_MENU_SOS) {
+        await answerCallbackQuery(cq.id, 'SOS');
+        await handleSosCommand(chatId, tenantId, cq.from);
+        return res.status(200).json({ ok: true });
+      }
       if (await handleGpsConsentCallback(cq, tenantId)) {
         return res.status(200).json({ ok: true });
       }

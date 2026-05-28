@@ -50,8 +50,9 @@ export function crossDocToPazienteView(doc, manifestationId, pmaIdRoute) {
     id: doc._docId ?? doc.id ?? '',
     id_manifestazione: manifestationId ?? '',
     id_pma: pmaId,
-    /** In carico: scheda PMA modificabile anche se la centrale ha chiuso `aperta`. Dimesso: sempre chiusa. */
-    aperto: dimessoPma ? false : inCaricoPma ? true : doc.aperta !== false,
+    /** Badge UI: scheda clinicamente modificabile (non coincide con `aperta` centrale). */
+    scheda_pma_modificabile: canEditPmaScheda(null, doc),
+    aperto: dimessoPma ? false : doc.aperta !== false,
     id_paziente_visibile: doc.idPaziente ?? '',
     apertura_scheda: tsOrNow(doc.apertura),
     tipo_paziente: tipoPz === TIPO_PZ.PMA ? 'autopresentato' : 'trasportato',

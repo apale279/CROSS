@@ -39,6 +39,7 @@ import { isSchedaInSolaVisione } from '../../lib/schedaSolaVisione';
 import { SchedaUnlockBar } from './SchedaUnlockBar';
 import {
   setPazientePmaInArrivo,
+  statoPzPmaInArrivoIfAllowed,
   syncPmaStatoOnDestinazionePaziente,
 } from '../../services/pazientePmaMissionSync';
 import { PazienteModuloPma } from './moduli/PazienteModuloPma';
@@ -63,12 +64,11 @@ import {
   setValutazioneSoccorsoDoc,
   updateValutazioneSoccorsoDoc,
   deleteValutazioneSoccorsoDoc,
-  transitionPazienteArrivatoHTransaction,
 } from '../../services/pazientiService';
 import { codiceColoreSanitarioFromValutazioni } from '../../lib/codiciColore';
 import { patchMissioneCodiceColoreFromPaziente } from '../../services/missioniService';
 import { pazienteSameEventoAsMissione } from '../../lib/pazientiTrasportoQuery';
-import { normalizeMezzoKey, sameMezzoSigla } from '../../lib/mezzoMissione';
+import { normalizeMezzoKey } from '../../lib/mezzoMissione';
 import { findEvento, pazientiPerEvento } from '../../lib/eventoLinks';
 import { pazienteEventoTipoDettaglio } from '../../lib/eventoDisplay';
 import {
@@ -176,8 +176,6 @@ export function PazienteScheda({
   const [unlockBusy, setUnlockBusy] = useState(false);
   const [mainTab, setMainTab] = useState('centrale');
   const [patientSnapshotError, setPatientSnapshotError] = useState(null);
-  const arrivatoHSyncKeyRef = useRef('');
-
   /** Snapshot diretto sul documento paziente → merge preservando campi dirty. */
   useEffect(() => {
     if (isCreate || !patientDocId || !manifestationId) return undefined;
@@ -232,31 +230,6 @@ export function PazienteScheda({
     valuationRows.length,
   ]);
 
-  useEffect(() => {
-    /* Ogni scheda aggiorna solo questo paziente; la missione in ARRIVATO H vale per tutti sullo stesso mezzo anche via syncPazientiArrivatoH. */
-    if (isCreate || !displayPatient || displayPatient.esito !== ESITO_TRASPORTA) return;
-    if (displayPatient.stato === 'ARRIVATO H') return;
-    const mis = missioniSafe.find((m) => {
-      if (!sameMezzoSigla(m.mezzo, displayPatient.mezzo) || m.stato !== 'ARRIVATO H') {
-        return false;
-      }
-      if (displayPatient.missioneIdUnivoco) {
-        return m.idUnivoco === displayPatient.missioneIdUnivoco;
-      }
-      return pazienteSameEventoAsMissione(displayPatient, m);
-    });
-    if (!mis) return;
-    const syncKey = `${patientDocId}:${mis._docId ?? mis.idUnivoco}`;
-    if (arrivatoHSyncKeyRef.current === syncKey) return;
-    arrivatoHSyncKeyRef.current = syncKey;
-    void transitionPazienteArrivatoHTransaction(manifestationId, patientDocId, evento).catch(
-      (err) => {
-        arrivatoHSyncKeyRef.current = '';
-        console.error('[PazienteScheda] Sync ARRIVATO H:', err);
-      },
-    );
-  }, [missioniSafe, displayPatient, isCreate, manifestationId, patientDocId, evento]);
-
   const isOriginePma = !isCreate && isPazienteOriginePma(displayPatient);
   const moduli = useMemo(() => {
     if (isCreate) return moduliSchedaPazienteForCreate(evento);
@@ -309,8 +282,9 @@ export function PazienteScheda({
           ? { soreuOraMissione: defaultSoreuOraMissione() }
           : {};
       const patch = { ...dest, ...soreuInit };
-      if (dest.destinazionePmaId) {
-        patch.statoPzPma = STATO_PZ_PMA.IN_ARRIVO;
+      const nextPma = statoPzPmaInArrivoIfAllowed(displayPatient);
+      if (dest.destinazionePmaId && nextPma) {
+        patch.statoPzPma = nextPma;
       }
       ['ospedaleDestinazione', 'destinazionePmaId', 'pmaId', ...Object.keys(soreuInit)].forEach(
         touchDirty,
@@ -540,7 +514,7 @@ export function PazienteScheda({
       esito === ESITO_TRASPORTA && draft.mezzo
         ? fieldsPerEsito(esito, {
             mezzo: draft.mezzo,
-            missione: missionePerMezzo(missioniSafe, draft.mezzo),
+            missione: missionePerMezzo(missioniSafe, draft.mezzo, evento ?? eventoCollegato),
           })
         : fieldsPerEsito(esito, { clearTrasporto });
     const soreuKeys = [
@@ -567,7 +541,7 @@ export function PazienteScheda({
 
   const onMezzoChange = async (mezzo) => {
     if (displayPatient && !isTrasportoCentraleModificabile(displayPatient)) return;
-    const mis = missionePerMezzo(missioniSafe, mezzo);
+    const mis = missionePerMezzo(missioniSafe, mezzo, evento ?? eventoCollegato);
     const pazientiEvento = evento ? pazientiPerEvento(allPazienti, evento) : [];
     const ref = findDestinazioneTrasportoSuMezzoEvento({
       pazienti: pazientiEvento,
@@ -581,7 +555,9 @@ export function PazienteScheda({
           ospedaleDestinazione: ref.ospedaleDestinazione,
           destinazionePmaId: ref.destinazionePmaId,
           pmaId: ref.pmaId,
-          ...(ref.destinazionePmaId ? { statoPzPma: STATO_PZ_PMA.IN_ARRIVO } : {}),
+          ...(ref.destinazionePmaId && statoPzPmaInArrivoIfAllowed(displayPatient)
+            ? { statoPzPma: statoPzPmaInArrivoIfAllowed(displayPatient) }
+            : {}),
         }
       : {};
     const fields = { ...fieldsPerEsito(ESITO_TRASPORTA, { mezzo, missione: mis }), ...destDaMezzo };
@@ -992,6 +968,16 @@ export function PazienteScheda({
               disabled={schedaSolaVisione}
               onChange={(e) => {
                 const aperta = e.target.checked;
+                if (
+                  !aperta &&
+                  displayPatient?.esito === ESITO_TRASPORTA &&
+                  displayPatient?.stato !== 'ARRIVATO H'
+                ) {
+                  alert(
+                    'Non puoi chiudere la scheda centrale finché il trasporto non è concluso (ARRIVATO H).',
+                  );
+                  return;
+                }
                 touchDirty('aperta');
                 setDraft((d) => ({ ...d, aperta }));
                 void patchPatientFields({ aperta }, ['aperta']);

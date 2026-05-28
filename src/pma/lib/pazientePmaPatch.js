@@ -1,7 +1,6 @@
-import { doc, runTransaction, updateDoc } from 'firebase/firestore';
+import { doc, runTransaction } from 'firebase/firestore';
 import { db } from '../cross/firebase';
 import { pazientiPath } from '../../lib/firestorePaths';
-import { omitUndefinedFields } from '../../lib/firestorePatch';
 import { normalizePazientePatchInput, splitPazientePatch } from '../adapters/crossPazienteAdapter';
 import { EMPTY_PMA_SCHEDA } from './pmaSchedaDefaults';
 import { isEoColumnMergePatchPayload } from './eoQuickSelection';
@@ -12,8 +11,8 @@ import {
   buildGranularUpdatesFromSnapshot,
   isFirestoreFieldValue,
   lockKeysFromPlan,
-  planHasSchedaWrites,
 } from './pmaPatchSnapshot';
+import { assertDimissionePatchAllowed } from './dimissionePatchGuard';
 
 export { mergeSchedaArrayById };
 
@@ -148,6 +147,8 @@ async function commitPatchPlanWithSnapshot(manifestationId, docId, plan, operato
       assertPmaFieldLocksWritable(lockFields, lockKeys, operatorUid);
     }
 
+    assertDimissionePatchAllowed(pazSnap.data(), plan);
+
     const updates = buildGranularUpdatesFromSnapshot(pazSnap.data(), plan);
     if (Object.keys(updates).length === 0) return;
 
@@ -174,19 +175,12 @@ export async function patchPazientePmaGranular(manifestationId, docId, patch, op
 
   const plan = buildPatchPlan(fields);
   const operatorUid = options.operatorUid ?? null;
-  const hasScheda = planHasSchedaWrites(plan);
-  const hasTopLevel = Object.keys(plan.direct).some((p) => !p.startsWith(PMA_SCHEDA_PREFIX));
+  const hasAnyWrite =
+    Object.keys(plan.direct).length > 0 ||
+    plan.eoMerges.length > 0 ||
+    plan.arrayMerges.length > 0;
 
-  if (hasScheda || plan.eoMerges.length > 0 || plan.arrayMerges.length > 0 || operatorUid) {
-    await commitPatchPlanWithSnapshot(manifestationId, docId, plan, operatorUid);
-    return;
-  }
+  if (!hasAnyWrite) return;
 
-  if (hasTopLevel) {
-    const docRef = doc(db, ...pazientiPath(manifestationId), docId);
-    const payload = omitUndefinedFields(plan.direct);
-    if (Object.keys(payload).length > 0) {
-      await updateDoc(docRef, payload);
-    }
-  }
+  await commitPatchPlanWithSnapshot(manifestationId, docId, plan, operatorUid);
 }

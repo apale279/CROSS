@@ -1,6 +1,12 @@
 import { useRef, useState } from 'react';
 import { X } from 'lucide-react';
+import { useManifestazioneId } from '../../context/ManifestazioneContext';
 import { useImpostazioniField } from '../../hooks/useImpostazioniField';
+import {
+  deleteImpostazioniArrayEntryById,
+  replaceImpostazioniArrayField,
+  saveImpostazioniArrayEntryById,
+} from '../../services/impostazioniService';
 import {
   parseStazionamentiExcel,
   stazionamentiEntriesWithIds,
@@ -30,17 +36,29 @@ function stazionamentoTooltip(st) {
 }
 
 export function StazionamentiEditor() {
-  const { value: items, saveField, saving, loading } = useImpostazioniField('stazionamenti');
+  const manifestationId = useManifestazioneId();
+  const { value: items, saving, loading } = useImpostazioniField('stazionamenti');
   const list = items ?? [];
   const fileRef = useRef(null);
   const [importBusy, setImportBusy] = useState(false);
   const [feedback, setFeedback] = useState('');
   const [modal, setModal] = useState(null);
 
-  const persistList = async (next, successMessage) => {
+  const persistEntry = async (entry, successMessage) => {
     setFeedback('');
     try {
-      await saveField(next);
+      await saveImpostazioniArrayEntryById(manifestationId, 'stazionamenti', entry);
+      setFeedback(successMessage);
+    } catch (err) {
+      alert('Errore: ' + err.message);
+      throw err;
+    }
+  };
+
+  const persistBulkReplace = async (next, successMessage) => {
+    setFeedback('');
+    try {
+      await replaceImpostazioniArrayField(manifestationId, 'stazionamenti', next);
       setFeedback(successMessage);
     } catch (err) {
       alert('Errore: ' + err.message);
@@ -71,15 +89,13 @@ export function StazionamentiEditor() {
       tipo_stazionamento: String(modal.draft.tipo_stazionamento ?? '').trim(),
       note: String(modal.draft.note ?? '').trim(),
     };
-    const next = list.some((s) => s.id === modal.draft.id)
-      ? list.map((s) => (s.id === modal.draft.id ? entry : s))
-      : [...list, entry];
+    const isEdit = list.some((s) => s.id === modal.draft.id);
 
     try {
-      await persistList(next, list.some((s) => s.id === modal.draft.id) ? 'Stazionamento aggiornato.' : 'Stazionamento creato.');
+      await persistEntry(entry, isEdit ? 'Stazionamento aggiornato.' : 'Stazionamento creato.');
       setModal(null);
     } catch {
-      /* feedback in persistList */
+      /* feedback in persistEntry */
     }
   };
 
@@ -111,7 +127,7 @@ export function StazionamentiEditor() {
         return;
       }
       const next = stazionamentiEntriesWithIds(entries);
-      await persistList(next, `Importati ${next.length} stazionamenti da Excel.`);
+      await persistBulkReplace(next, `Importati ${next.length} stazionamenti da Excel.`);
     } catch (err) {
       console.error(err);
       alert('Errore lettura file: ' + (err?.message ?? err));
@@ -125,11 +141,11 @@ export function StazionamentiEditor() {
     const st = list.find((s) => s.id === id);
     if (!st) return;
     if (!window.confirm(`Rimuovere «${st.nome}»?`)) return;
-    const next = list.filter((s) => s.id !== id);
     try {
-      await persistList(next, 'Stazionamento rimosso.');
-    } catch {
-      /* */
+      await deleteImpostazioniArrayEntryById(manifestationId, 'stazionamenti', id);
+      setFeedback('Stazionamento rimosso.');
+    } catch (err) {
+      alert('Errore: ' + err.message);
     }
   };
 

@@ -3,6 +3,8 @@ import { parseLinesToValues } from '../../pma/lib/multilineList';
 import { resolvePmaClinicaFarmaciFields } from '../../pma/lib/pmaClinicaFarmaciFields';
 import { useImpostazioniField } from '../../hooks/useImpostazioniField';
 import { useManifestationId } from '../../context/ManifestazioneContext';
+import { impostazioniValuesMatch } from '../../lib/impostazioniEqual';
+import { savePmaClinicaDotFields } from '../../services/impostazioniService';
 import { clearPmaClinicaFarmaciConsumati } from '../../services/pmaClinicaImpostazioniService';
 import { FarmaciSelezionabiliEditor } from './FarmaciSelezionabiliEditor';
 import { FarmaciConsumatiStatsEditor } from './FarmaciConsumatiStatsEditor';
@@ -11,7 +13,7 @@ import { SaveFeedback } from './SaveFeedback';
 
 export function PmaClinicaImpostazioniPanel() {
   const manifestationId = useManifestationId();
-  const { value: pmaClinica, saveField, saving, loading } = useImpostazioniField('pmaClinica');
+  const { value: pmaClinica, saving, loading } = useImpostazioniField('pmaClinica');
   const farmaciDirtyRef = useRef(false);
   const consumatiDirtyRef = useRef(false);
   const [feedback, setFeedback] = useState('');
@@ -37,10 +39,10 @@ export function PmaClinicaImpostazioniPanel() {
   }, [pmaClinica, loading]);
 
   const persist = useCallback(
-    async (next, msg) => {
+    async (subfields, msg) => {
       setFeedback('');
       try {
-        await saveField(next);
+        await savePmaClinicaDotFields(manifestationId, subfields);
         farmaciDirtyRef.current = false;
         consumatiDirtyRef.current = false;
         setFeedback(msg);
@@ -48,29 +50,45 @@ export function PmaClinicaImpostazioniPanel() {
         alert(err.message ?? 'Errore salvataggio');
       }
     },
-    [saveField],
+    [manifestationId],
   );
 
-  const buildBase = () => {
-    const {
-      dettaglio_eo_rapido: _eo,
-      dettaglio_eo_rapido_default: _eoDef,
-      ...restPma
-    } = pmaClinica ?? {};
-    const serverFarmaci = resolvePmaClinicaFarmaciFields(pmaClinica ?? {});
-    return {
-      ...restPma,
-      prestazioni: parseLinesToValues(prestazioniDraft),
-      farmaci: farmaciSelezionabili,
-      farmaci_consumati: consumatiDirtyRef.current
-        ? farmaciConsumati
-        : serverFarmaci.farmaci_consumati,
-      consenso_generico_cure: consensoCure,
-      consenso_privacy: consensoPrivacy,
-      rifiuto_invio_ps: rifiutoPs,
-      preset_dimissione: presetDimissione,
-      preset_farmaci: pmaClinica?.preset_farmaci ?? [],
-    };
+  const buildChangedDotFields = () => {
+    const pc = pmaClinica ?? {};
+    const serverFarmaci = resolvePmaClinicaFarmaciFields(pc);
+    const changed = {};
+
+    const prestazioni = parseLinesToValues(prestazioniDraft);
+    if (!impostazioniValuesMatch(prestazioni, pc.prestazioni ?? [])) {
+      changed.prestazioni = prestazioni;
+    }
+    if (
+      farmaciDirtyRef.current &&
+      !impostazioniValuesMatch(farmaciSelezionabili, serverFarmaci.farmaci)
+    ) {
+      changed.farmaci = farmaciSelezionabili;
+    }
+    if (
+      consumatiDirtyRef.current &&
+      !impostazioniValuesMatch(farmaciConsumati, serverFarmaci.farmaci_consumati)
+    ) {
+      changed.farmaci_consumati = farmaciConsumati;
+    }
+    if (!impostazioniValuesMatch(consensoCure, pc.consenso_generico_cure ?? '')) {
+      changed.consenso_generico_cure = consensoCure;
+    }
+    if (!impostazioniValuesMatch(consensoPrivacy, pc.consenso_privacy ?? '')) {
+      changed.consenso_privacy = consensoPrivacy;
+    }
+    if (!impostazioniValuesMatch(rifiutoPs, pc.rifiuto_invio_ps ?? '')) {
+      changed.rifiuto_invio_ps = rifiutoPs;
+    }
+    const serverPresetDimissione = Array.isArray(pc.preset_dimissione) ? pc.preset_dimissione : [];
+    if (!impostazioniValuesMatch(presetDimissione, serverPresetDimissione)) {
+      changed.preset_dimissione = presetDimissione;
+    }
+
+    return changed;
   };
 
   if (loading) {
@@ -219,7 +237,14 @@ export function PmaClinicaImpostazioniPanel() {
           type="button"
           className={btnPrimary}
           disabled={saving}
-          onClick={() => void persist(buildBase(), 'Impostazioni PMA salvate.')}
+          onClick={() => {
+            const changed = buildChangedDotFields();
+            if (Object.keys(changed).length === 0) {
+              setFeedback('Nessuna modifica da salvare.');
+              return;
+            }
+            void persist(changed, 'Impostazioni PMA salvate.');
+          }}
         >
           {saving ? 'Salvataggio…' : 'Salva impostazioni PMA'}
         </button>

@@ -3,6 +3,10 @@ import { X } from 'lucide-react';
 import { useManifestazioneId } from '../../context/ManifestazioneContext';
 import { enrichPmaEntryWithIpadCredentials } from '../../lib/pmaIpadCredentials';
 import { useImpostazioniField } from '../../hooks/useImpostazioniField';
+import {
+  deleteImpostazioniArrayEntryById,
+  saveImpostazioniArrayEntryById,
+} from '../../services/impostazioniService';
 import { syncPmaIpadConfigFromPmaEntry } from '../../services/pmaIpadFirmaService';
 import { AddressPicker } from '../maps/AddressPicker';
 import { LuogoFisicoField } from '../maps/LuogoFisicoField';
@@ -22,15 +26,15 @@ function newPma() {
 
 export function PmaEditor() {
   const manifestationId = useManifestazioneId();
-  const { value: items, saveField, saving, loading } = useImpostazioniField('pma');
+  const { value: items, saving, loading } = useImpostazioniField('pma');
   const list = items ?? [];
   const [feedback, setFeedback] = useState('');
   const [modal, setModal] = useState(null);
 
-  const persistList = async (next, successMessage) => {
+  const persistEntry = async (entry, successMessage) => {
     setFeedback('');
     try {
-      await saveField(next);
+      await saveImpostazioniArrayEntryById(manifestationId, 'pma', entry);
       setFeedback(successMessage);
     } catch (err) {
       alert('Errore: ' + err.message);
@@ -55,21 +59,16 @@ export function PmaEditor() {
       return;
     }
     const entry = enrichPmaEntryWithIpadCredentials({ ...modal.draft, nome });
-    const next = list.some((p) => p.id === modal.draft.id)
-      ? list.map((p) => (p.id === modal.draft.id ? entry : p))
-      : [...list, entry];
+    const isEdit = list.some((p) => p.id === modal.draft.id);
 
     try {
-      await persistList(
-        next,
-        list.some((p) => p.id === modal.draft.id) ? 'PMA aggiornato.' : 'PMA creato.',
-      );
+      await persistEntry(entry, isEdit ? 'PMA aggiornato.' : 'PMA creato.');
       if (manifestationId) {
         await syncPmaIpadConfigFromPmaEntry(manifestationId, entry);
       }
       setModal(null);
     } catch {
-      /* feedback in persistList */
+      /* feedback in persistEntry */
     }
   };
 
@@ -78,12 +77,10 @@ export function PmaEditor() {
     if (!p) return;
     if (!window.confirm(`Rimuovere PMA «${p.nome}»?`)) return;
     try {
-      await persistList(
-        list.filter((x) => x.id !== id),
-        'PMA rimosso.',
-      );
-    } catch {
-      /* */
+      await deleteImpostazioniArrayEntryById(manifestationId, 'pma', id);
+      setFeedback('PMA rimosso.');
+    } catch (err) {
+      alert('Errore: ' + err.message);
     }
   };
 
