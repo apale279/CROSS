@@ -21,7 +21,7 @@ export function emptyContatoriColore() {
   return Object.fromEntries(DEFAULT_IMPOSTAZIONI.coloriEvento.map((c) => [c, 0]));
 }
 
-/** Colore triage per conteggio dashboard (MSB/MSA o scheda PMA). */
+/** Colore per conteggio dashboard PMA: `pmaScheda.codice_colore`, altrimenti P (`codiceColoreSanitario`). */
 export function codiceColorePazientePmaDashboard(paziente) {
   const raw = paziente?.pmaScheda?.codice_colore;
   if (raw) {

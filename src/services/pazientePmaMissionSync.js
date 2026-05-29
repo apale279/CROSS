@@ -39,14 +39,15 @@ export async function syncPmaCodiceColoreFromSanitario(manifestationId, docId, p
   await patchPazientePmaGranular(manifestationId, docId, { codice_colore: pmaCodice });
 }
 
-function seedFromPazienteEvento(paziente, evento) {
+/** Seed iniziale `pmaScheda` da paziente centrale (P) e evento (tipo/dettaglio). */
+export function seedFromPazienteEvento(paziente, evento) {
   const seed = {};
   if (evento) {
     seed.tipo_evento = String(evento.tipoEvento ?? '').trim();
     seed.dettaglio_evento = String(evento.dettaglioEvento ?? '').trim();
   }
-  const fromMsb = coloreSanitarioToPmaCodice(paziente.codiceColoreSanitario);
-  if (fromMsb) seed.codice_colore = fromMsb;
+  const fromP = coloreSanitarioToPmaCodice(paziente.codiceColoreSanitario);
+  if (fromP) seed.codice_colore = fromP;
   return seed;
 }
 

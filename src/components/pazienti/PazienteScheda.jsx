@@ -38,6 +38,7 @@ import {
 import { isSchedaInSolaVisione } from '../../lib/schedaSolaVisione';
 import { SchedaUnlockBar } from './SchedaUnlockBar';
 import {
+  seedFromPazienteEvento,
   setPazientePmaInArrivo,
   statoPzPmaInArrivoIfAllowed,
   syncPmaStatoOnDestinazionePaziente,
@@ -66,11 +67,9 @@ import {
   deleteValutazioneSoccorsoDoc,
 } from '../../services/pazientiService';
 import {
-  codiceColoreSanitarioFromValutazioni,
   parseCodiceColoreOptional,
 } from '../../lib/codiciColore';
 import {
-  patchMissioneCodiceColoreFromPaziente,
   syncMissioneCodiceColoreTrasportoForPaziente,
   syncPazienteCodiceColoreSanitario,
 } from '../../services/missioniService';
@@ -435,13 +434,6 @@ export function PazienteScheda({
       id,
       payloadValutazioneRow({ ...row, msbDetails: merged }),
     );
-    if ('codiceColore' in partial && displayPatient) {
-      await patchMissioneCodiceColoreFromPaziente(
-        manifestationId,
-        displayPatient,
-        merged.codiceColore,
-      );
-    }
   };
 
   const patchMsaValutazione = async (id, partial) => {
@@ -474,13 +466,6 @@ export function PazienteScheda({
         mezzo: merged.mezzoMsa ?? row.mezzo ?? '',
       }),
     );
-    if ('codiceColore' in partial && displayPatient) {
-      await patchMissioneCodiceColoreFromPaziente(
-        manifestationId,
-        displayPatient,
-        merged.codiceColore,
-      );
-    }
   };
 
   const patchMsaCreatoIl = async (id, creatoIl) => {
@@ -506,13 +491,7 @@ export function PazienteScheda({
     }
     await deleteValutazioneSoccorsoDoc(manifestationId, patientDocId, id);
     if (displayPatient) {
-      const remaining = valuationRows.filter((v) => v.id !== id);
-      const colore = codiceColoreSanitarioFromValutazioni(remaining);
-      await patchMissioneCodiceColoreFromPaziente(
-        manifestationId,
-        displayPatient,
-        colore,
-      );
+      await syncMissioneCodiceColoreTrasportoForPaziente(manifestationId, displayPatient);
     }
   };
 
@@ -625,11 +604,19 @@ export function PazienteScheda({
       }
       const creato = fromDatetimeLocalValue(draft.creatoLocal);
       const mis = missionePerMezzo(missioniSafe, draft.mezzo);
+      const pmaSchedaSeed =
+        trasporta && String(draft.destinazionePmaId ?? '').trim()
+          ? seedFromPazienteEvento(
+              { codiceColoreSanitario: draft.codiceColoreSanitario },
+              evento,
+            )
+          : null;
       const created = await createPaziente(
         manifestationId,
         {
           eventoIdUnivoco: evento.idUnivoco ?? '',
           eventoCorrelato: evento.idEvento ?? '',
+          ...(Object.keys(pmaSchedaSeed ?? {}).length ? { pmaSchedaSeed } : {}),
           aperta: draft.aperta,
           apertura: creato ? Timestamp.fromDate(creato) : undefined,
           esito: draft.esito,

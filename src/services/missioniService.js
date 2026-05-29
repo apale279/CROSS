@@ -283,9 +283,7 @@ export async function syncPazienteCodiceColoreSanitario(manifestationId, pazient
   });
 }
 
-/**
- * Allinea colore sanitario paziente e codice trasporto missione (valutazione MSB/MSA o scheda).
- */
+/** Allinea codice paziente (P), scheda PMA se presente, e T missione collegata. */
 export async function patchMissioneCodiceColoreFromPaziente(manifestationId, paziente, codiceColore) {
   if (!manifestationId || !paziente) return;
   await syncPazienteCodiceColoreSanitario(manifestationId, paziente, codiceColore);

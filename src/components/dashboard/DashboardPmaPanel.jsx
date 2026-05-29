@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { DEFAULT_IMPOSTAZIONI } from '../../constants';
 import { useImpostazioni } from '../../hooks/useImpostazioni';
 import {
@@ -67,15 +67,12 @@ function ContatoriColore({ contatori }) {
   );
 }
 
+const CHIP_CODICI_MINORI =
+  'flex h-full min-h-0 flex-col items-center justify-center rounded-md border-2 border-black bg-white px-1 text-black';
+
 function ContatoriCodiciMinori({ codiciMinori }) {
   const aperti = codiciMinori?.aperti ?? 0;
   const chiusi = codiciMinori?.chiusi ?? 0;
-  const chipClass = (attivo) =>
-    `flex h-full min-h-0 flex-col items-center justify-center rounded-md px-1 ${
-      attivo
-        ? 'border-2 border-amber-800 bg-amber-400 text-amber-950 shadow-sm'
-        : 'border border-amber-200 bg-amber-50/80 text-amber-300'
-    }`;
 
   return (
     <div
@@ -83,21 +80,21 @@ function ContatoriCodiciMinori({ codiciMinori }) {
       role="group"
       aria-label="Codici minori aperti e chiusi"
     >
-      <div className={chipClass(aperti > 0)} title={`Aperti: ${aperti}`}>
+      <div className={CHIP_CODICI_MINORI} title={`Aperti: ${aperti}`}>
         <span className="text-[10px] font-bold uppercase leading-none">Aperti</span>
         <span
           className={`font-mono font-black leading-none tabular-nums ${
-            aperti > 0 ? 'text-xl' : 'text-base'
+            aperti > 0 ? 'text-xl' : 'text-base text-black/50'
           }`}
         >
           {aperti}
         </span>
       </div>
-      <div className={chipClass(chiusi > 0)} title={`Chiusi: ${chiusi}`}>
+      <div className={CHIP_CODICI_MINORI} title={`Chiusi: ${chiusi}`}>
         <span className="text-[10px] font-bold uppercase leading-none">Chiusi</span>
         <span
           className={`font-mono font-black leading-none tabular-nums ${
-            chiusi > 0 ? 'text-xl' : 'text-base'
+            chiusi > 0 ? 'text-xl' : 'text-base text-black/50'
           }`}
         >
           {chiusi}
@@ -114,7 +111,7 @@ function SezionePma({ label, total, children, onClick, clickable = false }) {
       type={clickable ? 'button' : undefined}
       onClick={onClick}
       className={`flex min-h-0 flex-col overflow-hidden rounded border border-slate-200/80 bg-white/90 px-1.5 py-1 text-left ${
-        clickable ? 'cursor-pointer transition hover:border-amber-300 hover:bg-amber-50/80' : ''
+        clickable ? 'cursor-pointer transition hover:border-black hover:bg-slate-50' : ''
       }`}
     >
       <div className="mb-1 flex shrink-0 items-baseline justify-between gap-1 leading-tight">
@@ -126,13 +123,12 @@ function SezionePma({ label, total, children, onClick, clickable = false }) {
   );
 }
 
-function StazionePmaCard({ row, vuota = false }) {
-  const navigate = useNavigate();
+function StazionePmaCard({ row, vuota = false, onOpenCodiciMinori }) {
   const { pma, totali, codiciMinori } = row;
   const totaleCodiciMinori = (codiciMinori?.aperti ?? 0) + (codiciMinori?.chiusi ?? 0);
 
   const apriCodiciMinori = () => {
-    navigate(`/pma/${encodeURIComponent(pma.id)}?codiciMinori=1`);
+    onOpenCodiciMinori?.(pma);
   };
 
   return (
@@ -174,7 +170,7 @@ function StazionePmaCard({ row, vuota = false }) {
   );
 }
 
-export function DashboardPmaPanel({ pazienti = [], loading = false }) {
+export function DashboardPmaPanel({ pazienti = [], loading = false, onOpenCodiciMinori }) {
   const { impostazioni } = useImpostazioni();
   const stazioni = useMemo(
     () => buildDashboardPmaStazioni(pazienti, impostazioni),
@@ -214,6 +210,7 @@ export function DashboardPmaPanel({ pazienti = [], loading = false }) {
             key={row.pma.id}
             row={row}
             vuota={row.totali.totale === 0}
+            onOpenCodiciMinori={onOpenCodiciMinori}
           />
         ))}
       </div>

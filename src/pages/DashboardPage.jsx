@@ -26,6 +26,13 @@ import { MezzoScheda } from '../components/mezzi/MezzoScheda';
 import { MissioneScheda } from '../components/missioni/MissioneScheda';
 import { Modal } from '../components/ui/Modal';
 import { PmaMapModal } from '../components/impostazioni/PmaMapModal';
+import { PmaCodiciMinoriPanel } from '../components/pma/PmaCodiciMinoriPanel';
+import { pazientiCodiceMinorePerPma } from '../lib/pmaModule';
+import {
+  createPazienteCodiceMinore,
+  deletePazienteCodiceMinore,
+  updatePazienteCodiceMinore,
+} from '../services/pmaCodiceMinoreService';
 import { DiarioImportantTicker } from '../components/diario/DiarioImportantTicker';
 import { DiarioNotaModal } from '../components/diario/DiarioNotaModal';
 import { useDiarioNotaActions } from '../hooks/useDiarioNotaActions';
@@ -64,6 +71,8 @@ export default function DashboardPage() {
   );
   const { openEventoScheda } = useEventoScheda();
   const [modal, setModal] = useState(null);
+  const [codiciMinoriPma, setCodiciMinoriPma] = useState(null);
+  const [codiciMinoriBusy, setCodiciMinoriBusy] = useState(false);
   const [diarioModal, setDiarioModal] = useState(null);
   const {
     saving: savingDiario,
@@ -90,6 +99,11 @@ export default function DashboardPage() {
     restorePanel,
     isPanelVisible,
   } = useKioskPopOutContext();
+
+  const codiciMinoriRows = useMemo(() => {
+    if (!codiciMinoriPma?.id) return [];
+    return pazientiCodiceMinorePerPma(pazienti, codiciMinoriPma.id);
+  }, [pazienti, codiciMinoriPma]);
 
   const panelHeaderActions = (panelId, extra = null) => (
     <>
@@ -310,7 +324,11 @@ export default function DashboardPage() {
         onLayoutChange={(patch) => updatePanel('pma', patch)}
         headerActions={panelHeaderActions('pma')}
       >
-        <DashboardPmaPanel pazienti={pazienti} loading={loading} />
+        <DashboardPmaPanel
+          pazienti={pazienti}
+          loading={loading}
+          onOpenCodiciMinori={setCodiciMinoriPma}
+        />
       </FloatingPanel>
       )}
 
@@ -335,6 +353,67 @@ export default function DashboardPage() {
       {modal?.type === 'pma' && (
         <Modal title={`PMA ${modal.data.nome ?? ''}`} onClose={() => setModal(null)} wide>
           <PmaMapModal pma={modal.data} onClose={() => setModal(null)} />
+        </Modal>
+      )}
+
+      {codiciMinoriPma && (
+        <Modal
+          title={`Codici minori — ${codiciMinoriPma.nome ?? ''}`}
+          wide
+          fitViewport
+          onClose={() => setCodiciMinoriPma(null)}
+        >
+          <PmaCodiciMinoriPanel
+            rows={codiciMinoriRows}
+            busy={codiciMinoriBusy}
+            manifestationId={manifestationId}
+            pmaId={codiciMinoriPma.id}
+            impostazioni={impostazioni}
+            onCreate={async (payload) => {
+              setCodiciMinoriBusy(true);
+              try {
+                return await createPazienteCodiceMinore(
+                  manifestationId,
+                  codiciMinoriPma.id,
+                  codiciMinoriPma.nome,
+                  payload,
+                  pazienti,
+                );
+              } catch (err) {
+                alert(err?.message ?? 'Errore creazione');
+                throw err;
+              } finally {
+                setCodiciMinoriBusy(false);
+              }
+            }}
+            onUpdate={async (docId, payload, existingRow) => {
+              setCodiciMinoriBusy(true);
+              try {
+                await updatePazienteCodiceMinore(
+                  manifestationId,
+                  docId,
+                  payload,
+                  existingRow,
+                );
+              } catch (err) {
+                alert(err?.message ?? 'Errore aggiornamento');
+                throw err;
+              } finally {
+                setCodiciMinoriBusy(false);
+              }
+            }}
+            onDelete={async (docId, existingRow) => {
+              setCodiciMinoriBusy(true);
+              try {
+                await deletePazienteCodiceMinore(manifestationId, docId, existingRow);
+              } catch (err) {
+                alert(err?.message ?? 'Errore eliminazione');
+                throw err;
+              } finally {
+                setCodiciMinoriBusy(false);
+              }
+            }}
+          />
         </Modal>
       )}
 

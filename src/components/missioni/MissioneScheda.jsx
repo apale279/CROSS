@@ -454,7 +454,9 @@ export function MissioneScheda({
       <section className="rounded border border-slate-200 bg-slate-50 p-3">
         <p className="mb-1 text-xs font-bold uppercase text-slate-600">Cronologia stati</p>
         <p className="mb-3 text-[11px] text-slate-500">
-          Usa l&apos;orologio accanto a uno stato per impostarlo subito con l&apos;orario attuale.
+          Modifica liberamente data/ora di ogni stato (anche non in ordine cronologico): aggiorna solo
+          la cronologia, non lo stato operativo corrente. L&apos;orologio imposta invece lo stato
+          attuale della missione (con effetti operativi legati a quello stato).
           {statoMissioneBloccato && ' Missione terminata: gli stati non sono più modificabili.'}
         </p>
         <ul className="space-y-2">

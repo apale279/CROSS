@@ -133,7 +133,8 @@ export function MsaValutazioneForm({
           Codice colore trasporto
         </p>
         <p className="mb-2 text-[10px] text-slate-500">
-          Imposta il codice T della missione quando il paziente è in trasporto.
+          Solo documentazione in questa valutazione. Non modifica il codice paziente (P) né il
+          trasporto missione (T): usare «Codice colore paziente» in Esito e trasporto.
         </p>
         <div className="flex flex-wrap gap-2">
           {DEFAULT_IMPOSTAZIONI.coloriEvento.map((c) => {
