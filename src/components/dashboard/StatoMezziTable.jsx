@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { DEFAULT_IMPOSTAZIONI } from '../../constants';
 import { useImpostazioni } from '../../hooks/useImpostazioni';
-import { mezzoStazionamentoLabel } from '../../lib/mezzoDisplay';
+import { mezzoStazionamentoDashboardLabel } from '../../lib/mezzoDisplay';
 import { mezzoPosizioneRealeCoordinate } from '../../lib/mezzoPosizione';
 import { emojiForTipoMezzo, normalizeTipiMezzo } from '../../lib/tipiMezzo';
 import { mezzoRowClass } from '../../utils/formatters';
@@ -17,6 +17,7 @@ export function StatoMezziTable({ loading, mezzi, readOnly = false, onOpenMezzo 
     [impostazioni.tipiMezzo],
   );
   const gpsTrackingEnabled = impostazioni?.telegramGpsTrackingEnabled !== false;
+  const stazionamenti = impostazioni?.stazionamenti ?? [];
 
   return (
     <table className="w-full border-collapse">
@@ -26,19 +27,18 @@ export function StatoMezziTable({ loading, mezzi, readOnly = false, onOpenMezzo 
           <th className={thClass}>Stazionamento</th>
           <th className={thClass}>Tipo</th>
           <th className={thClass}>Stato</th>
-          <th className={thClass}>Operativo</th>
         </tr>
       </thead>
       <tbody>
         {loading && (
           <tr>
-            <td colSpan={5} className={tdClass} />
+            <td colSpan={4} className={tdClass} />
           </tr>
         )}
         {!loading &&
           mezzi.map((m) => {
             const sigla = m.sigla ?? m._docId;
-            const stazionamento = mezzoStazionamentoLabel(m);
+            const stazionamento = mezzoStazionamentoDashboardLabel(m, stazionamenti);
             const interactive = Boolean(onOpenMezzo);
             return (
               <tr
@@ -78,17 +78,6 @@ export function StatoMezziTable({ loading, mezzi, readOnly = false, onOpenMezzo 
                     }`}
                   >
                     {m.statoMezzo ?? 'Disponibile'}
-                  </span>
-                </td>
-                <td className={tdClass}>
-                  <span
-                    className={
-                      m.operativo !== false
-                        ? 'font-semibold text-emerald-800'
-                        : 'font-semibold text-red-800'
-                    }
-                  >
-                    {m.operativo !== false ? 'Sì' : 'No'}
                   </span>
                 </td>
               </tr>

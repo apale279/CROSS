@@ -228,6 +228,8 @@ export default function PmaDeskPage() {
             rows={codiciMinori}
             busy={codiciBusy}
             manifestationId={manifestationId}
+            pmaId={pma.id}
+            impostazioni={impostazioni}
             onCreate={async (payload) => {
               setCodiciBusy(true);
               try {

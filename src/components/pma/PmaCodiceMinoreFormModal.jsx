@@ -4,14 +4,16 @@ import { Modal } from '../ui/Modal';
 import { btnPrimary, btnSecondary } from '../ui/FormField';
 import { toDatetimeLocalValue, fromDatetimeLocalValue } from '../../lib/datetimeLocal';
 import { codiceMinoreFromPaziente } from '../../services/pmaCodiceMinoreService';
-import { PmaCodiceMinoreFotoStrip } from './PmaCodiceMinoreFotoStrip';
-
-const inputClass =
-  'w-full min-w-0 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20';
+import { useRegistryPartecipanti } from '../../hooks/useRegistryPartecipanti';
+import { cercaPerPettorale } from '../../lib/excelPartecipanti';
+import { FormField, inputClass } from '../ui/FormField';
+import { Search } from 'lucide-react';
 
 function emptyDraft() {
   return {
     pettorale: '',
+    nome: '',
+    cognome: '',
     motivoArrivo: '',
     trattamento: '',
     oraArrivo: toDatetimeLocalValue(Timestamp.now()),
@@ -23,6 +25,8 @@ function draftFromRow(row) {
   const cm = codiceMinoreFromPaziente(row);
   return {
     pettorale: cm.pettorale != null ? String(cm.pettorale) : '',
+    nome: cm.nome ?? '',
+    cognome: cm.cognome ?? '',
     motivoArrivo: cm.motivoArrivo,
     trattamento: cm.trattamento,
     oraArrivo: toDatetimeLocalValue(cm.oraArrivo),
@@ -40,13 +44,15 @@ export function PmaCodiceMinoreFormModal({
   open,
   row,
   busy,
-  manifestationId,
+  impostazioni,
   onClose,
   onSave,
-  onFotoChange,
 }) {
   const editingId = row?._docId ?? null;
   const [draft, setDraft] = useState(emptyDraft);
+  const { registryPartecipanti } = useRegistryPartecipanti(
+    impostazioni?.registryPartecipanti ?? [],
+  );
 
   useEffect(() => {
     if (!open) return;
@@ -59,9 +65,29 @@ export function PmaCodiceMinoreFormModal({
     ? `Modifica codice minore — pett. ${row?.pettorale ?? '—'}`
     : 'Nuovo codice minore';
 
+  const patchDraft = (key, value) => setDraft((d) => ({ ...d, [key]: value }));
+
+  const cercaPettoraleInElenco = () => {
+    const hit = cercaPerPettorale(registryPartecipanti, draft.pettorale);
+    if (!hit) {
+      alert(
+        'Pettorale non trovato. Carica l’Excel partecipanti in Impostazioni (tab Mezzi e strutture).',
+      );
+      return;
+    }
+    setDraft((d) => ({
+      ...d,
+      nome: hit.nome ?? '',
+      cognome: hit.cognome ?? '',
+      pettorale: String(hit.pettorale),
+    }));
+  };
+
   const handleSave = async () => {
     const payload = {
       pettorale: draft.pettorale,
+      nome: draft.nome,
+      cognome: draft.cognome,
       motivoArrivo: draft.motivoArrivo,
       trattamento: draft.trattamento,
       oraArrivo: tsFromLocal(draft.oraArrivo, true),
@@ -73,34 +99,54 @@ export function PmaCodiceMinoreFormModal({
   return (
     <Modal title={title} wide fitViewport onClose={onClose}>
       <div className="space-y-4">
+        <div className="grid gap-3 sm:grid-cols-3">
+          <FormField label="N. pettorale">
+            <div className="flex gap-1">
+              <input
+                type="number"
+                min={1}
+                inputMode="numeric"
+                className={`${inputClass} flex-1`}
+                value={draft.pettorale}
+                onChange={(e) => patchDraft('pettorale', e.target.value)}
+              />
+              <button
+                type="button"
+                title="Compila dall’Excel partecipanti (Impostazioni)"
+                className="inline-flex shrink-0 items-center justify-center rounded border border-teal-300 bg-white px-2 text-teal-800 hover:bg-teal-50 disabled:opacity-40"
+                disabled={!registryPartecipanti.length || !draft.pettorale}
+                onClick={cercaPettoraleInElenco}
+              >
+                <Search className="h-4 w-4" aria-hidden />
+              </button>
+            </div>
+          </FormField>
+          <FormField label="Nome">
+            <input
+              type="text"
+              className={inputClass}
+              value={draft.nome}
+              onChange={(e) => patchDraft('nome', e.target.value)}
+            />
+          </FormField>
+          <FormField label="Cognome">
+            <input
+              type="text"
+              className={inputClass}
+              value={draft.cognome}
+              onChange={(e) => patchDraft('cognome', e.target.value)}
+            />
+          </FormField>
+        </div>
+
         <div className="grid gap-3 sm:grid-cols-2">
-          <label className="block min-w-0 text-sm">
-            <span className="mb-1 block font-medium text-slate-700">N. pettorale</span>
-            <input
-              type="number"
-              min={1}
-              inputMode="numeric"
-              className={inputClass}
-              value={draft.pettorale}
-              onChange={(e) => setDraft((d) => ({ ...d, pettorale: e.target.value }))}
-            />
-          </label>
-          <label className="block min-w-0 text-sm">
-            <span className="mb-1 block font-medium text-slate-700">Ora arrivo</span>
-            <input
-              type="datetime-local"
-              className={inputClass}
-              value={draft.oraArrivo}
-              onChange={(e) => setDraft((d) => ({ ...d, oraArrivo: e.target.value }))}
-            />
-          </label>
           <label className="block min-w-0 text-sm sm:col-span-2">
             <span className="mb-1 block font-medium text-slate-700">Motivo arrivo</span>
             <input
               type="text"
               className={inputClass}
               value={draft.motivoArrivo}
-              onChange={(e) => setDraft((d) => ({ ...d, motivoArrivo: e.target.value }))}
+              onChange={(e) => patchDraft('motivoArrivo', e.target.value)}
             />
           </label>
           <label className="block min-w-0 text-sm sm:col-span-2">
@@ -109,7 +155,16 @@ export function PmaCodiceMinoreFormModal({
               rows={3}
               className={inputClass}
               value={draft.trattamento}
-              onChange={(e) => setDraft((d) => ({ ...d, trattamento: e.target.value }))}
+              onChange={(e) => patchDraft('trattamento', e.target.value)}
+            />
+          </label>
+          <label className="block min-w-0 text-sm">
+            <span className="mb-1 block font-medium text-slate-700">Ora arrivo</span>
+            <input
+              type="datetime-local"
+              className={inputClass}
+              value={draft.oraArrivo}
+              onChange={(e) => patchDraft('oraArrivo', e.target.value)}
             />
           </label>
           <label className="block min-w-0 text-sm">
@@ -118,24 +173,10 @@ export function PmaCodiceMinoreFormModal({
               type="datetime-local"
               className={inputClass}
               value={draft.oraFine}
-              onChange={(e) => setDraft((d) => ({ ...d, oraFine: e.target.value }))}
+              onChange={(e) => patchDraft('oraFine', e.target.value)}
             />
           </label>
         </div>
-
-        {editingId ? (
-          <PmaCodiceMinoreFotoStrip
-            manifestationId={manifestationId}
-            pazienteDocId={editingId}
-            row={row}
-            busy={busy}
-            onFotoChange={onFotoChange}
-          />
-        ) : (
-          <p className="rounded-lg border border-dashed border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
-            Dopo il salvataggio potrai allegare foto del trattamento (medicazioni, bendaggi, ecc.).
-          </p>
-        )}
 
         <div className="flex flex-wrap gap-2 border-t border-slate-100 pt-2">
           <button

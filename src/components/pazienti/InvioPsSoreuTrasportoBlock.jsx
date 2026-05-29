@@ -11,6 +11,8 @@ import {
   missioniAperteSuMezzo,
 } from '../../lib/mezzoMissione';
 import { createTrasportoInvioPsDaPma } from '../../services/pmaInvioPsTrasportoService';
+import { useAuth } from '../../context/AuthContext';
+import { operatoreCreatoFields } from '../../lib/operatoreAudit';
 import { SoreuTrasportoFields } from './SoreuTrasportoFields';
 import { FormField, btnPrimary, btnSecondary, selectClass } from '../ui/FormField';
 
@@ -30,6 +32,7 @@ export function InvioPsSoreuTrasportoBlock({
   onOpenPazienteRiferimento,
 }) {
   const { impostazioni } = useImpostazioni();
+  const { user, profile } = useAuth();
   const { data: mezzi } = useManifestazioneCollection(COLLECTIONS.mezzi);
   const { data: eventi } = useManifestazioneCollection(COLLECTIONS.eventi);
   const { data: missioni } = useManifestazioneCollection(COLLECTIONS.missioni);
@@ -103,7 +106,7 @@ export function InvioPsSoreuTrasportoBlock({
           eventi: eventi ?? [],
           missioni: missioni ?? [],
         },
-        { confirmFn: (msg) => window.confirm(msg) },
+        { confirmFn: (msg) => window.confirm(msg), ...operatoreCreatoFields(user, profile) },
       );
       setCreated(result);
     } catch (err) {

@@ -11,6 +11,8 @@ import {
 } from '../../services/missioniEccezioniService';
 import { FormField, btnPrimary, btnSecondary, inputClass, selectClass } from '../ui/FormField';
 import { formatTimestamp } from '../../utils/formatters';
+import { useAuth } from '../../context/AuthContext';
+import { operatoreCreatoFields } from '../../lib/operatoreAudit';
 
 const LABEL_MOTIVO = {
   [MISSIONE_ECCEZIONE_MOTIVO.DIROTTAMENTO]: 'Dirottamento',
@@ -27,6 +29,7 @@ export function MissioneEccezioniPanel({
   existingEventi,
 }) {
   const { impostazioni } = useImpostazioni();
+  const { user, profile } = useAuth();
   const terminata =
     missione.aperta === false ||
     missione.stato === 'ANNULLATA' ||
@@ -46,8 +49,9 @@ export function MissioneEccezioniPanel({
     [eventi, eventoCorrente],
   );
 
-  const [saving, setSaving] = useState(false);
+  const audit = operatoreCreatoFields(user, profile);
 
+  const [saving, setSaving] = useState(false);
   const [destDocId, setDestDocId] = useState('');
   const [noteDirott, setNoteDirott] = useState('');
 
@@ -95,6 +99,7 @@ export function MissioneEccezioniPanel({
         allMissioni,
         mezzoRecord,
         note: noteDirott,
+        ...audit,
       }),
     );
   };
@@ -120,6 +125,7 @@ export function MissioneEccezioniPanel({
           colore: colFlag,
           indirizzo: indFlag.trim(),
           noteEvento: noteFlag.trim(),
+          ...audit,
         },
         existingEventi,
         allMissioni,

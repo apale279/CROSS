@@ -65,8 +65,16 @@ import {
   updateValutazioneSoccorsoDoc,
   deleteValutazioneSoccorsoDoc,
 } from '../../services/pazientiService';
-import { codiceColoreSanitarioFromValutazioni } from '../../lib/codiciColore';
-import { patchMissioneCodiceColoreFromPaziente } from '../../services/missioniService';
+import {
+  codiceColoreSanitarioFromValutazioni,
+  parseCodiceColoreOptional,
+} from '../../lib/codiciColore';
+import {
+  patchMissioneCodiceColoreFromPaziente,
+  syncMissioneCodiceColoreTrasportoForPaziente,
+  syncPazienteCodiceColoreSanitario,
+} from '../../services/missioniService';
+import { ColoreSelectButtons } from '../ui/ColoreSelectButtons';
 import { pazienteSameEventoAsMissione } from '../../lib/pazientiTrasportoQuery';
 import { normalizeMezzoKey } from '../../lib/mezzoMissione';
 import { findEvento, pazientiPerEvento } from '../../lib/eventoLinks';
@@ -109,6 +117,7 @@ function emptyDraft() {
     pettorale: '',
     telefono: '',
     dataNascita: '',
+    codiceColoreSanitario: '',
   };
 }
 
@@ -539,6 +548,19 @@ export function PazienteScheda({
     }
   };
 
+  const onCodiceColoreChange = async (colore) => {
+    if (schedaSolaVisione) return;
+    const valid = parseCodiceColoreOptional(colore);
+    touchDirty('codiceColoreSanitario');
+    setDraft((d) => ({ ...d, codiceColoreSanitario: valid ?? '' }));
+    if (isCreate) return;
+    await syncPazienteCodiceColoreSanitario(
+      manifestationId,
+      { ...displayPatient, _docId: patientDocId },
+      valid,
+    );
+  };
+
   const onMezzoChange = async (mezzo) => {
     if (displayPatient && !isTrasportoCentraleModificabile(displayPatient)) return;
     const mis = missionePerMezzo(missioniSafe, mezzo, evento ?? eventoCollegato);
@@ -572,10 +594,11 @@ export function PazienteScheda({
     setDraft((d) => ({ ...d, ...fields }));
     if (!isCreate) {
       await patchPatientFields(fields, patchKeys);
+      const updated = { ...displayPatient, ...fields, _docId: patientDocId };
       if (ref?.destinazionePmaId && patientDocId) {
-        const updated = { ...displayPatient, ...fields, _docId: patientDocId };
         await setPazientePmaInArrivo(manifestationId, patientDocId, updated, evento);
       }
+      await syncMissioneCodiceColoreTrasportoForPaziente(manifestationId, updated);
     }
   };
 
@@ -602,7 +625,7 @@ export function PazienteScheda({
       }
       const creato = fromDatetimeLocalValue(draft.creatoLocal);
       const mis = missionePerMezzo(missioniSafe, draft.mezzo);
-      await createPaziente(
+      const created = await createPaziente(
         manifestationId,
         {
           eventoIdUnivoco: evento.idUnivoco ?? '',
@@ -624,6 +647,7 @@ export function PazienteScheda({
           mezzo: trasporta ? draft.mezzo : '',
           idMissione: trasporta ? mis?.idMissione ?? '' : '',
           missioneIdUnivoco: trasporta ? mis?.idUnivoco ?? '' : '',
+          codiceColoreSanitario: draft.codiceColoreSanitario ?? '',
           nome: draft.nome,
           cognome: draft.cognome,
           eta: parseEtaDraft(draft.eta),
@@ -653,6 +677,15 @@ export function PazienteScheda({
         },
         allPazienti ?? [],
       );
+      if (trasporta && draft.mezzo && parseCodiceColoreOptional(draft.codiceColoreSanitario)) {
+        await syncMissioneCodiceColoreTrasportoForPaziente(manifestationId, {
+          _docId: created.docId,
+          mezzo: draft.mezzo,
+          idMissione: mis?.idMissione ?? '',
+          missioneIdUnivoco: mis?.idUnivoco ?? '',
+          codiceColoreSanitario: draft.codiceColoreSanitario,
+        });
+      }
       onSaved?.();
       onClose?.();
     } catch (err) {
@@ -812,6 +845,19 @@ export function PazienteScheda({
               </p>
             )}
             <div className="mb-4 space-y-3">
+              {!isOriginePma && (
+                <FormField label="Codice colore paziente">
+                  <ColoreSelectButtons
+                    value={draft.codiceColoreSanitario}
+                    disabled={schedaSolaVisione}
+                    onChange={(c) => void onCodiceColoreChange(c)}
+                  />
+                  <p className="mt-1 text-xs text-slate-500">
+                    Il codice colore del paziente imposta automaticamente il codice T del mezzo
+                    collegato.
+                  </p>
+                </FormField>
+              )}
               <FormField label="Esito">
                 <select
                   className={selectClass}

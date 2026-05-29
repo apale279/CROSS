@@ -1,10 +1,13 @@
 /**
  * CROSS — Export Firebase → CSV + HTML Viewer + Report PDF
  * ─────────────────────────────────────────────────────────
- * Legge credenziali e tenant da .env.local automaticamente.
- * Doppio clic su esporta-dati.bat per avviare.
+ * Strumento STANDALONE: legge credenziali da config.json
+ * nella stessa cartella. Non dipende dal progetto CROSS.
  *
- * Output → ./Datiexport_local/YYYYMMDD-HHmmss/
+ * Requisito: Node.js installato sul PC.
+ * Avvio:     doppio clic su esporta-dati.bat
+ *
+ * Output → sottocartella YYYYMMDD-HHmmss\ (qui dentro)
  *   eventi.csv  missioni.csv  mezzi.csv  pazienti.csv  valutazioni.csv
  *   viewer.html
  *   reports/evento_E1.html  reports/paziente_P1.html  …
@@ -17,30 +20,36 @@ import { fileURLToPath } from 'url';
 
 const require = createRequire(import.meta.url);
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const ROOT = join(__dirname, '..'); // CROSS\ (dove sta .env.local e node_modules)
 
-// ─── Parser .env.local ────────────────────────────────────────────────────────
-function parseEnvFile(filePath) {
-  const env = {};
-  if (!existsSync(filePath)) return env;
-  const lines = readFileSync(filePath, 'utf8').split('\n');
-  for (const raw of lines) {
-    const line = raw.trim();
-    if (!line || line.startsWith('#')) continue;
-    const eqIdx = line.indexOf('=');
-    if (eqIdx === -1) continue;
-    const key = line.slice(0, eqIdx).trim();
-    let val = line.slice(eqIdx + 1).trim();
-    if ((val.startsWith('"') && val.endsWith('"')) ||
-        (val.startsWith("'") && val.endsWith("'"))) {
-      val = val.slice(1, -1);
-    }
-    env[key] = val;
-  }
-  return env;
+// ─── Legge config.json (credenziali + tenantId) ───────────────────────────────
+const configPath = join(__dirname, 'config.json');
+if (!existsSync(configPath)) {
+  console.error('\n❌  config.json non trovato nella cartella dello script.');
+  console.error('   Assicurati che config.json sia nella stessa cartella di export-firebase.mjs\n');
+  process.exit(1);
 }
 
-const ENV = parseEnvFile(join(ROOT, '.env.local'));
+let CONFIG;
+try {
+  CONFIG = JSON.parse(readFileSync(configPath, 'utf8'));
+} catch (e) {
+  console.error('\n❌  config.json non è un JSON valido:', e.message);
+  process.exit(1);
+}
+
+const serviceAccount = CONFIG.serviceAccount;
+const TENANT_ID_ENV  = (CONFIG.tenantId || '').trim();
+
+if (!serviceAccount?.private_key) {
+  console.error('\n❌  config.json non contiene un serviceAccount valido.\n');
+  process.exit(1);
+}
+if (!TENANT_ID_ENV) {
+  console.error('\n❌  config.json non contiene tenantId.\n');
+  process.exit(1);
+}
+
+console.log('🔑  Credenziali lette da config.json');
 
 // ─── Carica firebase-admin ────────────────────────────────────────────────────
 let admin;
@@ -48,44 +57,9 @@ try {
   admin = require('firebase-admin');
 } catch {
   console.error('\n❌  firebase-admin non trovato.');
-  console.error('   Esegui: npm install  nella cartella CROSS\n');
+  console.error('   Esegui: npm install  in questa cartella\n');
   process.exit(1);
 }
-
-// ─── Service account ──────────────────────────────────────────────────────────
-let serviceAccount;
-
-if (ENV.FIREBASE_SERVICE_ACCOUNT_JSON) {
-  try {
-    serviceAccount = JSON.parse(ENV.FIREBASE_SERVICE_ACCOUNT_JSON);
-    console.log('🔑  Credenziali lette da .env.local');
-  } catch (e) {
-    console.error('❌  FIREBASE_SERVICE_ACCOUNT_JSON in .env.local non è JSON valido:', e.message);
-  }
-}
-
-if (!serviceAccount) {
-  const candidates = [
-    ...require('fs').readdirSync(ROOT)
-      .filter(f => f.includes('firebase-adminsdk') && f.endsWith('.json'))
-      .map(f => join(ROOT, f)),
-  ];
-  for (const p of candidates) {
-    if (existsSync(p)) {
-      try { serviceAccount = JSON.parse(readFileSync(p, 'utf8')); console.log(`🔑  Credenziali lette da ${p}`); break; }
-      catch {}
-    }
-  }
-}
-
-if (!serviceAccount) {
-  console.error('\n❌  Nessun service account trovato.');
-  console.error('   Aggiungi FIREBASE_SERVICE_ACCOUNT_JSON in .env.local\n');
-  process.exit(1);
-}
-
-// ─── Tenant ID ────────────────────────────────────────────────────────────────
-const TENANT_ID_ENV = (ENV.VITE_TENANT_ID || '').trim();
 
 // ─── Init Firebase ────────────────────────────────────────────────────────────
 admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });

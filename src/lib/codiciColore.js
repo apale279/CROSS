@@ -1,4 +1,5 @@
 import { DEFAULT_IMPOSTAZIONI } from '../constants';
+import { isMissionePmaInvioPs } from './pmaInvioPsMission';
 
 /** Indice gravità crescente: il valore più alto vince (Rosso più grave di Giallo, ecc.). */
 export const GRAVITA_INDICE = {
@@ -57,24 +58,37 @@ export function resolveCodiceColoreMissione(missione) {
   return parseCodiceColoreOptional(missione?.codiceColoreMissione);
 }
 
+/** Codice colore sanitario esplicito sul paziente (`codiceColoreSanitario`). */
+export function codiceColoreSanitarioPaziente(paziente) {
+  return parseCodiceColoreOptional(paziente?.codiceColoreSanitario);
+}
+
 /** Codici sanitari espliciti sui pazienti in trasporto (campo `codiceColoreSanitario`). */
 export function codiciColoreSanitariPazienti(pazientiTrasporto = []) {
   return (pazientiTrasporto ?? [])
-    .map((p) => String(p?.codiceColoreSanitario ?? '').trim())
-    .filter((c) => DEFAULT_IMPOSTAZIONI.coloriEvento.includes(c));
+    .map((p) => codiceColoreSanitarioPaziente(p))
+    .filter(Boolean);
 }
 
 /**
- * Colore T (trasporto verso ospedale): solo da codice sanitario paziente o impostazione manuale missione.
- * Ignora default MSB «Bianco» e valori legacy copiati dall’evento.
+ * Colore T (trasporto verso ospedale).
+ * Centrale: solo da `codiceColoreSanitario` paziente (mai da T manuale missione).
+ * PMA → PS: da missione (modificabile a mano su scheda missione).
  */
-export function resolveCodiceColoreTrasporto(missione, _evento, pazientiTrasporto = []) {
+export function resolveCodiceColoreTrasporto(missione, evento, pazientiTrasporto = []) {
+  if (isMissionePmaInvioPs(missione)) {
+    if (missione?.codiceColoreTrasportoManuale === true) {
+      return parseCodiceColoreOptional(missione?.codiceColoreTrasporto);
+    }
+    const fromMissione =
+      parseCodiceColoreOptional(missione?.codiceColoreTrasporto) ??
+      parseCodiceColoreOptional(missione?.codiceColoreMissione);
+    if (fromMissione) return fromMissione;
+    return parseCodiceColoreOptional(evento?.colore);
+  }
+
   const fromPaz = codiciColoreSanitariPazienti(pazientiTrasporto);
   if (fromPaz.length) return pickGravestColore(fromPaz);
-  if (missione?.codiceColoreTrasportoManuale === true) {
-    const stored = String(missione?.codiceColoreTrasporto ?? '').trim();
-    if (stored) return normalizeCodiceColore(stored);
-  }
   return null;
 }
 

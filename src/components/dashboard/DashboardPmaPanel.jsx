@@ -64,7 +64,7 @@ function ContatoriColore({ contatori }) {
 }
 
 function StazionePmaCard({ row, vuota = false }) {
-  const { pma, totali } = row;
+  const { pma, totali, codiciMinori } = row;
   return (
     <article
       className={`rounded-lg border px-1.5 py-1.5 ${
@@ -100,6 +100,13 @@ function StazionePmaCard({ row, vuota = false }) {
             <ContatoriColore contatori={row[key]} />
           </div>
         ))}
+      </div>
+      <div className="mt-1 rounded border border-amber-200/80 bg-amber-50/70 px-1.5 py-1 text-[10px] text-amber-950">
+        <span className="font-bold uppercase">Codici minori</span>
+        {' · '}
+        <span className="font-mono font-bold">{codiciMinori?.aperti ?? 0}</span> aperti
+        {' · '}
+        <span className="font-mono font-bold">{codiciMinori?.chiusi ?? 0}</span> chiusi
       </div>
     </article>
   );

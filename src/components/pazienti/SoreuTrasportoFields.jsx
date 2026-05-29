@@ -2,12 +2,12 @@ import { Timestamp } from 'firebase/firestore';
 import { fromDatetimeLocalValue, toDatetimeLocalValue } from '../../lib/datetimeLocal';
 import {
   defaultSoreuOraMissione,
-  normalizeSoreuCodice,
   SOREU_ACCOMPAGNATO_OPTS,
-  SOREU_CODICE_OPTS,
+  normalizeSoreuCodice,
   toggleSoreuAccompagnato,
 } from '../../lib/soreuTrasporto';
-import { FormField, inputClass, selectClass } from '../ui/FormField';
+import { FormField, inputClass } from '../ui/FormField';
+import { SoreuCodiceSelectButtons } from './SoreuCodiceSelectButtons';
 
 const chipBtn = (active) =>
   `rounded-md border px-2 py-1 text-xs font-semibold uppercase ${
@@ -72,19 +72,11 @@ export function SoreuTrasportoFields({ values, onPatch, disabled = false }) {
       </div>
 
       <FormField label="Codice SOREU">
-        <select
-          className={selectClass}
-          disabled={disabled}
+        <SoreuCodiceSelectButtons
           value={normalizeSoreuCodice(values.soreuCodice) || ''}
-          onChange={(e) => onPatch({ soreuCodice: e.target.value })}
-        >
-          <option value="">—</option>
-          {SOREU_CODICE_OPTS.map((c) => (
-            <option key={c} value={c}>
-              {c}
-            </option>
-          ))}
-        </select>
+          disabled={disabled}
+          onChange={(code) => onPatch({ soreuCodice: code })}
+        />
       </FormField>
     </div>
   );

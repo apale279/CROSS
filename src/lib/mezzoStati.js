@@ -15,3 +15,17 @@ export function mezzoStatoSelectOptions(statoCorrente) {
   }
   return opts;
 }
+
+/** Ordine tabella Stato mezzi: sigla, con «Non disponibile» in fondo. */
+export function compareMezziDashboardSort(a, b) {
+  const statoA = a?.statoMezzo ?? MEZZO_STATO_DISPONIBILE;
+  const statoB = b?.statoMezzo ?? MEZZO_STATO_DISPONIBILE;
+  const tailA = statoA === MEZZO_STATO_NON_DISPONIBILE ? 1 : 0;
+  const tailB = statoB === MEZZO_STATO_NON_DISPONIBILE ? 1 : 0;
+  if (tailA !== tailB) return tailA - tailB;
+  return String(a?.sigla ?? a?._docId ?? '').localeCompare(
+    String(b?.sigla ?? b?._docId ?? ''),
+    'it',
+    { sensitivity: 'base' },
+  );
+}

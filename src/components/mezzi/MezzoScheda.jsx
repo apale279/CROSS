@@ -21,6 +21,8 @@ import {
 } from '../../lib/mezzoStazionamentoAssign';
 import { deleteField } from 'firebase/firestore';
 import { deleteMezzo, patchMezzo } from '../../services/mezziService';
+import { patchMezzoStatoMezzo } from '../../services/mezzoDisponibileService';
+import { confirmMezzoDisponibileLiberaMissioni } from '../../lib/mezzoDisponibileConfirm';
 import { confirmDelete } from '../../utils/confirmDelete';
 import { btnDanger, btnSecondary, inputClass } from '../ui/FormField';
 
@@ -56,9 +58,10 @@ export function MezzoScheda({ mezzo, onDeleted, readOnly = false }) {
 
   const setStatoMezzo = async (statoMezzo) => {
     if (statoMezzo === (mezzo.statoMezzo ?? MEZZO_STATO_DISPONIBILE)) return;
+    if (!confirmMezzoDisponibileLiberaMissioni(missioni, sigla, statoMezzo)) return;
     setSavingStato(true);
     try {
-      await patchMezzo(manifestationId, sigla, { statoMezzo });
+      await patchMezzoStatoMezzo(manifestationId, sigla, statoMezzo);
     } catch (err) {
       console.error(err);
       alert('Errore aggiornamento stato mezzo: ' + err.message);
@@ -116,7 +119,8 @@ export function MezzoScheda({ mezzo, onDeleted, readOnly = false }) {
             {mezzo.stazionamento?.luogo_fisico && (
               <Row label="Luogo fisico" value={mezzo.stazionamento.luogo_fisico} />
             )}
-            <Row label="Stazionamento" value={mezzo.stazionamento?.indirizzo || '—'} />
+            <Row label="Stazionamento (indirizzo base)" value={mezzo.stazionamento?.indirizzo || '—'} />
+            <Row label="Stazionamento operativo" value={mezzo.dettaglio_stazionamento || '—'} />
             <Row
               label="Coordinate"
               value={coord ? `${coord.lat.toFixed(5)}, ${coord.lng.toFixed(5)}` : '—'}
@@ -208,7 +212,24 @@ export function MezzoScheda({ mezzo, onDeleted, readOnly = false }) {
           {mezzo.stazionamento?.luogo_fisico && (
             <Row label="Luogo fisico" value={mezzo.stazionamento.luogo_fisico} />
           )}
-          <Row label="Stazionamento" value={mezzo.stazionamento?.indirizzo || '—'} />
+          <Row label="Stazionamento (indirizzo base)" value={mezzo.stazionamento?.indirizzo || '—'} />
+          <Row label="Stazionamento operativo">
+            <input
+              type="text"
+              className={inputClass}
+              value={dettaglioDraft}
+              onChange={(e) => setDettaglioDraft(e.target.value)}
+              onBlur={saveDettaglio}
+              placeholder='es. "Piazza Roma", "Cancello 3"'
+              disabled={savingDettaglio}
+            />
+            <p className="mt-1 text-xs text-slate-500">
+              Testo libero visibile in dashboard (senza creare uno stazionamento in Impostazioni).
+            </p>
+            {savingDettaglio && (
+              <span className="mt-1 block text-xs text-slate-500">Salvataggio…</span>
+            )}
+          </Row>
           <Row
             label="Coordinate"
             value={coord ? `${coord.lat.toFixed(5)}, ${coord.lng.toFixed(5)}` : '—'}

@@ -24,6 +24,7 @@ import {
 import { patchMissione } from '../../services/missioniService';
 import { useElapsedSince } from '../../hooks/useElapsedSince';
 import { statoMissioneBadgeClass, formatTimestamp } from '../../utils/formatters';
+import { operatoreCreatoLine, operatoreUserLabel } from '../../lib/operatoreAudit';
 import {
   FormField,
   btnSecondary,
@@ -215,7 +216,7 @@ export function MissioneScheda({
           {(missioneInvioPs || ospedaleDest) && (
             <Row label="Ospedale destinazione" value={ospedaleDest || '—'} />
           )}
-          <Row label="Apertura" value={formatTimestamp(missione.apertura)} />
+          <Row label="Creato" value={operatoreCreatoLine(missione)} />
           <Row label="Aperta" value={missione.aperta !== false ? 'Sì' : 'No'} />
           <Row label="Equipaggio" value={missione.equipaggio || '—'} />
         </dl>
@@ -329,7 +330,7 @@ export function MissioneScheda({
         {(missioneInvioPs || ospedaleDest) && (
           <Row label="Ospedale destinazione" value={ospedaleDest || '—'} />
         )}
-        <Row label="Apertura" value={formatTimestamp(missione.apertura)} />
+        <Row label="Creato" value={operatoreCreatoLine(missione)} />
         <Row label="Aperta" value={missione.aperta !== false ? 'Sì' : 'No'} />
         <Row label="Equipaggio" value={missione.equipaggio || '—'} />
       </dl>
@@ -366,21 +367,30 @@ export function MissioneScheda({
           </div>
           <div>
             <p className="mb-1 text-[11px] font-semibold text-slate-500">T — Trasporto</p>
-            <p className="mb-1 text-[10px] text-slate-500">
-              {coloreTrasportoEffettivo && !missione.codiceColoreTrasportoManuale
-                ? 'Da pazienti in trasporto (MSB/MSA).'
-                : 'Nessun colore finché non imposti T o carichi pazienti con codice sanitario.'}
-            </p>
-            <ColoreSelectButtons
-              value={
-                missione.codiceColoreTrasportoManuale
-                  ? missione.codiceColoreTrasporto
-                  : coloreTrasportoEffettivo
-              }
-              onChange={(c) => void patchColoreTrasporto(c)}
-            />
-            {missione.codiceColoreTrasportoManuale && (
-              <p className="mt-1 text-[10px] text-slate-500">Impostato manualmente</p>
+            {missioneInvioPs ? (
+              <>
+                <p className="mb-1 text-[10px] text-slate-500">
+                  Trasporto PMA → PS: modificabile manualmente (E/M/T da codice paziente PMA).
+                </p>
+                <ColoreSelectButtons
+                  value={
+                    missione.codiceColoreTrasportoManuale
+                      ? missione.codiceColoreTrasporto
+                      : coloreTrasportoEffettivo
+                  }
+                  onChange={(c) => void patchColoreTrasporto(c)}
+                />
+                {missione.codiceColoreTrasportoManuale && (
+                  <p className="mt-1 text-[10px] text-slate-500">Impostato manualmente</p>
+                )}
+              </>
+            ) : (
+              <>
+                <p className="mb-1 text-[10px] text-slate-500">
+                  Impostato dal codice colore del paziente in scheda (Esito e trasporto).
+                </p>
+                <ColoreIndicator colore={coloreTrasportoEffettivo} size="lg" />
+              </>
             )}
           </div>
         </div>

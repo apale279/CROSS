@@ -32,6 +32,8 @@ export const DEFAULT_IMPOSTAZIONI = {
   stazionamenti: [],
   /** PMA: [{ id, nome, indirizzo, luogo_fisico, coordinate }] */
   pma: [],
+  /** Foto tabella codici minori per PMA: { [pmaId]: [{ id, url, storagePath, uploadedAt }] } */
+  codiciMinoriTabellaFoto: {},
   /** Corridori da Excel: [{ pettorale, nome, cognome, dataNascita, telefono }] */
   registryPartecipanti: [],
   coloriEvento: ['Bianco', 'Verde', 'Giallo', 'Rosso'],

@@ -6,6 +6,7 @@ export const IMPOSTAZIONI_NESTED_OBJECT_FIELDS = new Set([
   'dettagliPerTipoEvento',
   'dettagliPerTipoLuogo',
   'pmaClinica',
+  'codiciMinoriTabellaFoto',
 ]);
 
 /** Array di oggetti: aggiornare una voce per volta (transazione server-side). */
@@ -45,6 +46,7 @@ export function readImpostazioniFieldForDisplay(data, fieldKey) {
   }
   if (fieldKey === 'luogo_fisico') return '';
   if (fieldKey === 'pmaClinica') return DEFAULT_IMPOSTAZIONI.pmaClinica;
+  if (fieldKey === 'codiciMinoriTabellaFoto') return DEFAULT_IMPOSTAZIONI.codiciMinoriTabellaFoto;
   if (fieldKey === 'tipiLuogo') return [...DEFAULT_IMPOSTAZIONI.tipiLuogo];
   return DEFAULT_IMPOSTAZIONI[fieldKey] ?? null;
 }

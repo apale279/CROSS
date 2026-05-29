@@ -36,6 +36,19 @@ function addConteggio(contatori, colore) {
   if (colore && contatori[colore] != null) contatori[colore] += 1;
 }
 
+/** Conteggi codici minori (aperti = senza ora fine, chiusi = con ora fine). */
+export function conteggiCodiciMinoriPerPma(pazienti, pmaId) {
+  const rows = pazientiCodiceMinorePerPma(pazienti, pmaId);
+  let aperti = 0;
+  let chiusi = 0;
+  for (const p of rows) {
+    const cm = p?.codiceMinore ?? {};
+    if (cm.oraFine != null) chiusi += 1;
+    else aperti += 1;
+  }
+  return { aperti, chiusi, totale: rows.length };
+}
+
 /**
  * Snapshot per stazione PMA: contatori per stato (in arrivo / in attesa / in carico)
  * e per codice colore evento (Bianco, Verde, Giallo, Rosso).
@@ -51,6 +64,7 @@ export function buildDashboardPmaStazioni(pazienti, impostazioni) {
         inAttesa: emptyContatoriColore(),
         inCarico: emptyContatoriColore(),
         totali: { inArrivo: 0, inAttesa: 0, inCarico: 0, totale: 0 },
+        codiciMinori: conteggiCodiciMinoriPerPma(pazienti, pma.id),
       },
     ]),
   );

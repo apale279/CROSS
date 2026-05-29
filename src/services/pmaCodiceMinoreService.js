@@ -28,6 +28,8 @@ function normalizeCodiceMinorePayload(payload = {}) {
 
   return {
     pettorale: Number.isFinite(pettorale) ? pettorale : null,
+    nome: String(payload.nome ?? '').trim(),
+    cognome: String(payload.cognome ?? '').trim(),
     codiceMinore,
   };
 }
@@ -40,10 +42,11 @@ export async function createPazienteCodiceMinore(
   payload,
   existingPazienti,
 ) {
-  const { pettorale, codiceMinore } = normalizeCodiceMinorePayload(payload);
+  const { pettorale, nome, cognome, codiceMinore } = normalizeCodiceMinorePayload(payload);
   if (pettorale == null) throw new Error('Numero pettorale obbligatorio');
 
   const chiuso = codiceMinore.oraFine != null;
+  const nomeFinale = nome || `Pett. ${pettorale}`;
 
   return createPaziente(
     manifestationId,
@@ -53,8 +56,8 @@ export async function createPazienteCodiceMinore(
       esito: '',
       esitoAltro: '',
       mezzo: '',
-      nome: `Pett. ${pettorale}`,
-      cognome: '',
+      nome: nomeFinale,
+      cognome,
       pettorale,
       ospedaleDestinazione: pmaNome ?? '',
       destinazionePmaId: pmaId,
@@ -71,10 +74,11 @@ export async function createPazienteCodiceMinore(
 
 /** Aggiorna paziente «codice minore». */
 export async function updatePazienteCodiceMinore(manifestationId, docId, payload, existingRow) {
-  const { pettorale, codiceMinore } = normalizeCodiceMinorePayload(payload);
+  const { pettorale, nome, cognome, codiceMinore } = normalizeCodiceMinorePayload(payload);
   if (pettorale == null) throw new Error('Numero pettorale obbligatorio');
 
   const chiuso = codiceMinore.oraFine != null;
+  const nomeFinale = nome || `Pett. ${pettorale}`;
   const existingFoto = existingRow?.codiceMinore?.foto;
   if (!Array.isArray(codiceMinore.foto) && Array.isArray(existingFoto)) {
     codiceMinore.foto = existingFoto;
@@ -82,7 +86,8 @@ export async function updatePazienteCodiceMinore(manifestationId, docId, payload
 
   await patchPaziente(manifestationId, docId, {
     pettorale,
-    nome: `Pett. ${pettorale}`,
+    nome: nomeFinale,
+    cognome,
     codiceMinore,
     statoPzPma: chiuso ? STATO_PZ_PMA.DIMESSO : STATO_PZ_PMA.IN_CARICO,
     aperta: !chiuso,
@@ -101,6 +106,8 @@ export function codiceMinoreFromPaziente(paziente) {
   const foto = Array.isArray(cm.foto) ? cm.foto.filter((f) => f?.url) : [];
   return {
     pettorale: paziente?.pettorale ?? null,
+    nome: paziente?.nome ?? '',
+    cognome: paziente?.cognome ?? '',
     motivoArrivo: cm.motivoArrivo ?? '',
     trattamento: cm.trattamento ?? '',
     oraArrivo: cm.oraArrivo ?? paziente?.apertura ?? null,

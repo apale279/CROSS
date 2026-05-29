@@ -20,6 +20,25 @@ export function coloreSanitarioToPmaCodice(codice) {
   return m[String(codice ?? '').trim()] ?? null;
 }
 
+/** Triages PMA → codice sanitario dashboard (Bianco…). */
+export function pmaCodiceToColoreSanitario(codice) {
+  const m = {
+    bianco: 'Bianco',
+    verde: 'Verde',
+    giallo: 'Giallo',
+    rosso: 'Rosso',
+  };
+  return m[String(codice ?? '').trim().toLowerCase()] ?? null;
+}
+
+/** Allinea `pmaScheda.codice_colore` al codice sanitario scelto in centrale. */
+export async function syncPmaCodiceColoreFromSanitario(manifestationId, docId, paziente, codiceColore) {
+  if (!manifestationId || !docId || !paziente?.pmaScheda) return;
+  const pmaCodice = coloreSanitarioToPmaCodice(codiceColore);
+  if (!pmaCodice) return;
+  await patchPazientePmaGranular(manifestationId, docId, { codice_colore: pmaCodice });
+}
+
 function seedFromPazienteEvento(paziente, evento) {
   const seed = {};
   if (evento) {

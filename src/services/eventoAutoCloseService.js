@@ -62,6 +62,7 @@ export async function tryAutoCloseEvento(manifestationId, eventoRef) {
   const eventoDoc = await resolveEventoDoc(manifestationId, eventoRef);
 
   if (!eventoDoc || eventoDoc.stato === false || eventoDoc.operativoTerminato === true) return;
+  if (eventoDoc.operativoAutoCloseSospeso === true) return;
 
   const eventoForLink = {
     idUnivoco: eventoDoc.idUnivoco,

@@ -12,11 +12,12 @@ export function ColoreSelectButtons({
   allowNone = true,
   size = 'md',
   noneTitle = 'Nessun colore',
+  disabled = false,
 }) {
   const selected = parseCodiceColoreOptional(value);
 
   return (
-    <div className="flex flex-wrap gap-1">
+    <div className={`flex flex-wrap gap-1 ${disabled ? 'pointer-events-none opacity-50' : ''}`}>
       {allowNone ? (
         <button
           type="button"

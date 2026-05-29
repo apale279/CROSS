@@ -78,6 +78,15 @@ export const CROSS_CHANGE_LOG = [
   { date: '2026-05-27', description: 'Evento operativo terminato: pazienti solo in tenda PMA non bloccano più la chiusura operativa centrale; riconciliazione in dashboard.' },
   { date: '2026-05-27', description: 'Dashboard eventi: codici colore E, M e T sulla stessa riga.' },
   { date: '2026-05-27', description: 'Impostazioni: tab LOG (sola lettura) con registro modifiche dall’avvio applicazione.' },
+  { date: '2026-05-28', description: 'Paziente centrale — Esito e trasporto: scelta codice colore paziente; il codice T del mezzo segue sempre il paziente (mai il contrario); invio PMA allineato; missioni PMA→PS con M/T modificabili a mano.' },
+  { date: '2026-05-28', description: 'Dimissione PMA invio PS: obbligatori solo esito e medico di riferimento; ospedale e missione completabili dopo sblocco scheda.' },
+  { date: '2026-05-28', description: 'Impostazioni: patch Firestore granulari (evita cancellazione campi non modificati).' },
+  { date: '2026-05-28', description: 'Dashboard Stato mezzi: rimossa colonna Operativo; stazionamento = nome preset o indirizzo/testo libero da scheda mezzo.' },
+  { date: '2026-05-28', description: 'Mezzo forzato DISPONIBILE da scheda: chiude automaticamente le missioni aperte collegate (FINE MISSIONE).' },
+  { date: '2026-05-28', description: 'Evento operatività terminata: pulsante «Riapri evento» prima dell’archiviazione; sospende auto-chiusura fino a nuova missione.' },
+  { date: '2026-05-28', description: 'Guardrail build: verify:critical su import mezzo/missione/evento; servizio dedicato mezzoDisponibileService.' },
+  { date: '2026-05-28', description: 'Eventi/missioni: audit creatore (@user + data/ora) in scheda e dashboard; layout tabella a tre zone (evento · EMT · missione).' },
+  { date: '2026-05-29', description: 'Invio PS SOREU: codice colore con quadratini; termina evento chiude modale; codici minori con nome/cognome, ricerca pettorale, foto tabella e contatori in dashboard PMA.' },
 ];
 
 /** Raggruppa voci per data (ordine cronologico ascendente). */

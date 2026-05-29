@@ -29,7 +29,7 @@ export default function KioskEventiPage() {
   return (
     <div className="flex h-full min-h-0 flex-col">
       <KioskPageHeader title="Eventi e missioni" panelId="operativo" />
-      <div className="min-h-0 flex-1 overflow-auto p-1">
+      <div className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto p-1">
         <EventiMissioniTable
           loading={loading}
           blocks={blocks}

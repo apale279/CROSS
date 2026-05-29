@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { DEFAULT_IMPOSTAZIONI } from '../../constants';
 import { useManifestazioneId } from '../../context/ManifestazioneContext';
+import { useAuth } from '../../context/AuthContext';
+import { operatoreCreatoFields } from '../../lib/operatoreAudit';
 import { dettagliPerTipoEvento } from '../../lib/impostazioniNormalize';
 import { useImpostazioni } from '../../hooks/useImpostazioni';
 import { createEvento } from '../../services/eventiService';
@@ -27,6 +29,7 @@ export function NuovoEventoRapidoForm({
   onCreated,
 }) {
   const manifestationId = useManifestazioneId();
+  const { user, profile } = useAuth();
   const { impostazioni, loading } = useImpostazioni();
   const [draft, setDraft] = useState(emptyDraft);
   const [saving, setSaving] = useState(false);
@@ -71,6 +74,7 @@ export function NuovoEventoRapidoForm({
 
     setSaving(true);
     try {
+      const audit = operatoreCreatoFields(user, profile);
       const result = await createEvento(
         manifestationId,
         {
@@ -80,6 +84,7 @@ export function NuovoEventoRapidoForm({
           dettaglioEvento: draft.dettaglioEvento,
           colore: draft.colore,
           noteEvento: '',
+          ...audit,
         },
         eventi,
       );
@@ -91,6 +96,7 @@ export function NuovoEventoRapidoForm({
           mezzo: draft.mezzo,
           pazienteAutopresentato: false,
           codiceColoreMissione: draft.codiceColoreMissione || undefined,
+          ...audit,
         },
         missioni,
         mezzo,

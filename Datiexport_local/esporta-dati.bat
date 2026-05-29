@@ -8,7 +8,7 @@ echo   CROSS — Esportazione dati da Firebase
 echo  =============================================
 echo.
 
-:: Vai nella cartella dove sta questo .bat (Datiexport_local\)
+:: Vai nella cartella dove sta questo .bat
 cd /d "%~dp0"
 
 where node >nul 2>&1
@@ -20,18 +20,15 @@ if errorlevel 1 (
   exit /b 1
 )
 
-:: node_modules e package.json stanno nella cartella padre (CROSS\)
-if not exist "..\node_modules" (
+:: node_modules sta qui dentro (standalone)
+if not exist "node_modules" (
   echo  Installazione dipendenze ^(prima esecuzione^)...
-  pushd ..
   call npm install --silent
   if errorlevel 1 (
     echo  ERRORE durante npm install.
-    popd
     pause
     exit /b 1
   )
-  popd
   echo  Fatto.
   echo.
 )

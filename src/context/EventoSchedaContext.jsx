@@ -98,6 +98,7 @@ export function EventoSchedaProvider({ children }) {
             initialTab={modal.initialTab}
             onCreated={handleCreated}
             onDeleted={closeModal}
+            onArchived={closeModal}
           />
         </Modal>
       )}

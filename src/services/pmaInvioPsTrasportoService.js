@@ -4,6 +4,7 @@ import { invioPsSoreuFieldsFromScheda } from '../lib/invioPsSoreu';
 import { normalizeStatoPzPma, STATO_PZ_PMA } from '../lib/pmaModule';
 import { createMissioneConConfermaRientro } from '../lib/missioneRientroCreate';
 import { parseCodiceColoreOptional } from '../lib/codiciColore';
+import { mergeOperatoreCreatoPayload } from '../lib/operatoreAudit';
 import {
   missionePmaInvioPsApertaPerPaziente,
   TIPO_TRASPORTO_MISSIONE_PMA_INVIO_PS,
@@ -33,8 +34,13 @@ function coloreDaCodiceTrasporto(codice) {
 export async function createTrasportoInvioPsDaPma(
   manifestationId,
   { paziente, pma, mezzo, mezzoDoc, ospedaleDestinazione, eventi, missioni },
-  { confirmFn } = {},
+  { confirmFn, creatoDaUid, creatoDaNomeUtente, creatoDaNome } = {},
 ) {
+  const audit = mergeOperatoreCreatoPayload({
+    creatoDaUid,
+    creatoDaNomeUtente,
+    creatoDaNome,
+  });
   if (!manifestationId || !paziente?._docId || !pma || !mezzo) {
     throw new Error('Dati insufficienti per creare il trasporto.');
   }
@@ -85,6 +91,7 @@ export async function createTrasportoInvioPsDaPma(
       colore: coloreTrasporto ?? 'Bianco',
       chiamante: pma.nome ?? 'PMA',
       noteEvento: noteLines.join('\n'),
+      ...audit,
     },
     eventi,
   );
@@ -98,7 +105,12 @@ export async function createTrasportoInvioPsDaPma(
       eventoCorrelato: evento.idEvento,
       mezzo,
       statoInizialeForzato: 'IN POSTO',
-      ...(coloreTrasporto ? { codiceColoreMissione: coloreTrasporto } : {}),
+      ...(coloreTrasporto
+        ? {
+            codiceColoreMissione: coloreTrasporto,
+            codiceColoreTrasporto: coloreTrasporto,
+          }
+        : {}),
       tipoTrasporto: TIPO_TRASPORTO_MISSIONE_PMA_INVIO_PS,
       ospedaleDestinazione: ospedale,
       noteMissione: noteLines.join('\n'),
@@ -113,6 +125,7 @@ export async function createTrasportoInvioPsDaPma(
         originePmaId: pma.id ?? '',
         originePmaNome: pma.nome ?? '',
       },
+      ...audit,
     },
     missioni,
     mezzoDoc,

@@ -12,6 +12,7 @@ export function FloatingPanel({
   onLayoutChange,
   onFocus,
   layoutConstraints,
+  contentClassName = 'overflow-auto',
   children,
 }) {
   const containerRef = useRef(null);
@@ -104,7 +105,7 @@ export function FloatingPanel({
           {alert}
         </div>
       </header>
-      <div className="min-h-0 flex-1 overflow-auto">{children}</div>
+      <div className={`min-h-0 min-w-0 flex-1 ${contentClassName}`}>{children}</div>
       <div
         role="presentation"
         onMouseDown={startResize}

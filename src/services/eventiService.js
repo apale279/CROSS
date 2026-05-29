@@ -2,6 +2,7 @@ import {
   addDoc,
   collection,
   deleteDoc,
+  deleteField,
   doc,
   getDoc,
   getDocs,
@@ -21,6 +22,7 @@ import {
 import { newIdUnivoco } from '../lib/ids';
 import { allocateProgressiveId } from './progressiveIdService';
 import { normalizeCodiceColore } from '../lib/codiciColore';
+import { mergeOperatoreCreatoPayload, stripOperatoreCreatoFromPatch } from '../lib/operatoreAudit';
 import { omitUndefinedFields } from '../lib/firestorePatch';
 import { patchMissione } from './missioniService';
 import { patchMezzo } from './mezziService';
@@ -71,6 +73,7 @@ function buildEventoPayload(manifestationId, idEvento, idUnivoco, payload) {
   if (payload.origineEccezione) {
     data.origineEccezione = payload.origineEccezione;
   }
+  Object.assign(data, mergeOperatoreCreatoPayload(payload));
   return data;
 }
 
@@ -134,7 +137,7 @@ export async function createEvento(manifestationId, payload, existingEventi) {
 
 export async function patchEvento(manifestationId, docId, fields) {
   if (!docId || !fields || Object.keys(fields).length === 0) return;
-  const payload = omitUndefinedFields(fields);
+  const payload = omitUndefinedFields(stripOperatoreCreatoFromPatch(fields));
   if (Object.prototype.hasOwnProperty.call(payload, 'colore')) {
     payload.colore = normalizeCodiceColore(payload.colore);
   }
@@ -148,6 +151,16 @@ export async function terminaEventoOperatore(manifestationId, eventoDocId) {
   await patchEvento(manifestationId, eventoDocId, {
     stato: false,
     chiusuraIl: serverTimestamp(),
+    operativoAutoCloseSospeso: deleteField(),
+  });
+}
+
+/** Ripristina operatività evento (prima di «Termina evento» / archiviazione). */
+export async function riapriEventoOperatore(manifestationId, eventoDocId) {
+  await patchEvento(manifestationId, eventoDocId, {
+    operativoTerminato: false,
+    operativoTerminatoIl: deleteField(),
+    operativoAutoCloseSospeso: true,
   });
 }
 

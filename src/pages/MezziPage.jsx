@@ -15,6 +15,8 @@ import {
   emptyEquipaggio,
   patchMezzo,
 } from '../services/mezziService';
+import { patchMezzoStatoMezzo } from '../services/mezzoDisponibileService';
+import { confirmMezzoDisponibileLiberaMissioni } from '../lib/mezzoDisponibileConfirm';
 import { confirmDelete } from '../utils/confirmDelete';
 import { MezzoStatoSelect } from '../components/mezzi/MezzoStatoSelect';
 import { MEZZO_STATO_DISPONIBILE } from '../lib/mezzoStati';
@@ -102,6 +104,11 @@ export default function MezziPage() {
   };
 
   const patch = (sigla, fields) => patchMezzo(manifestazioneId, sigla, fields);
+
+  const patchStatoMezzo = async (sigla, statoMezzo) => {
+    if (!confirmMezzoDisponibileLiberaMissioni(missioni, sigla, statoMezzo)) return;
+    await patchMezzoStatoMezzo(manifestazioneId, sigla, statoMezzo);
+  };
 
   const assignStazionamento = (sigla, presetId) => {
     const preset = findStazionamentoById(presetId, stazionamentiPreset);
@@ -302,7 +309,7 @@ export default function MezziPage() {
                   <MezzoStatoSelect
                     className="!w-auto min-w-[10rem] py-1 text-xs"
                     value={m.statoMezzo ?? MEZZO_STATO_DISPONIBILE}
-                    onChange={(e) => patch(sigla, { statoMezzo: e.target.value })}
+                    onChange={(e) => void patchStatoMezzo(sigla, e.target.value)}
                   />
                   <span className="text-sm text-slate-500">
                     {m.targa && `Targa ${m.targa}`}

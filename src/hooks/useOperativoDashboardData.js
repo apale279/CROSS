@@ -13,6 +13,7 @@ import {
 } from '../lib/eventoLinks';
 import { pazientiTrasportoPerMissione as pazientiTrasportoPerMissioneMatch } from '../lib/pazientiTrasportoQuery';
 import { shouldAutoCloseEvento } from '../utils/eventoAutoClose';
+import { compareMezziDashboardSort } from '../lib/mezzoStati';
 import { patchEvento } from '../services/eventiService';
 
 export function useOperativoDashboardData(options = {}) {
@@ -66,7 +67,9 @@ export function useOperativoDashboardData(options = {}) {
       const missioniEvento = missioniPerEvento(missioni, ev);
       const pazientiEvento = pazientiPerEvento(pazienti, ev);
       const prontoOperativoTerminato =
-        ev.operativoTerminato === true || shouldAutoCloseEvento(missioniEvento, pazientiEvento);
+        ev.operativoTerminato === true ||
+        (ev.operativoAutoCloseSospeso !== true &&
+          shouldAutoCloseEvento(missioniEvento, pazientiEvento));
       missions.forEach((m) => usedMissionIds.add(m._docId));
       blocks.push({
         key: `ev-${ev._docId}`,
@@ -94,6 +97,7 @@ export function useOperativoDashboardData(options = {}) {
     if (!autoReconcileOperativo || loadingE || loadingM || loadingP || !manifestationId) return;
     for (const ev of eventiAperti) {
       if (ev.operativoTerminato === true) continue;
+      if (ev.operativoAutoCloseSospeso === true) continue;
       if (reconciledOperativoRef.current.has(ev._docId)) continue;
       const missioniEvento = missioniPerEvento(missioni, ev);
       const pazientiEvento = pazientiPerEvento(pazienti, ev);
@@ -115,10 +119,7 @@ export function useOperativoDashboardData(options = {}) {
   }, [operativoBlocks]);
 
   const mezziSorted = useMemo(
-    () =>
-      [...mezzi].sort((a, b) =>
-        (a.sigla ?? a._docId).localeCompare(b.sigla ?? b._docId),
-      ),
+    () => [...mezzi].sort(compareMezziDashboardSort),
     [mezzi],
   );
 

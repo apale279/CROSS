@@ -23,6 +23,7 @@ const DRAFT_KEYS_DIRTY_MERGE = new Set([
   'soreuNumeroMissione',
   'soreuAccompagnato',
   'soreuCodice',
+  'codiceColoreSanitario',
 ]);
 
 /**
@@ -47,6 +48,7 @@ export function patientDocToDraftFields(p) {
     telefono: p.telefono ?? '',
     dataNascita: p.dataNascita ?? '',
     ...soreuFieldsFromPatient(p),
+    codiceColoreSanitario: p.codiceColoreSanitario ?? '',
   };
 }
 

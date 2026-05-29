@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite --host 0.0.0.0 --port 5320",
-    "build": "vite build",
+    "build": "node scripts/verify-critical-imports.mjs && vite build",
+    "verify:critical": "node scripts/verify-critical-imports.mjs",
     "vercel-build": "vite build",
     "preview": "vite preview",
     "seed:demo": "node scripts/seed-demo-data.mjs",

@@ -228,6 +228,7 @@ export default function DashboardPage() {
         zIndex={zIndexFor('operativo')}
         onFocus={() => focusPanel('operativo')}
         onLayoutChange={(patch) => updatePanel('operativo', patch)}
+        contentClassName="overflow-x-hidden overflow-y-auto"
         headerActions={panelHeaderActions(
           'operativo',
           <button

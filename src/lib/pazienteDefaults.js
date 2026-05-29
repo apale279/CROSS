@@ -28,6 +28,7 @@ export function defaultsForPatientCreate(payload = {}) {
     soreuCodice: payload.soreuCodice ?? '',
     soreuOraMissione: payload.soreuOraMissione ?? null,
     arrivatoHAt: payload.arrivatoHAt ?? null,
+    codiceColoreSanitario: payload.codiceColoreSanitario ?? '',
     aperta: payload.aperta !== false,
   };
 }

@@ -4,8 +4,9 @@ import {
   EVENTO_ORIGINE_ECCEZIONE,
   MISSIONE_ECCEZIONE_MOTIVO,
 } from '../lib/missionEccezioni';
-import { createEvento } from './eventiService';
 import { parseCodiceColoreOptional } from '../lib/codiciColore';
+import { mergeOperatoreCreatoPayload } from '../lib/operatoreAudit';
+import { createEvento } from './eventiService';
 import { createMissione, patchMissione } from './missioniService';
 
 function optionalColoreMissionePayload(coloreRaw) {
@@ -33,7 +34,15 @@ export async function eseguiDirottamentoMissione({
   allMissioni,
   mezzoRecord,
   note,
+  creatoDaUid,
+  creatoDaNomeUtente,
+  creatoDaNome,
 }) {
+  const audit = mergeOperatoreCreatoPayload({
+    creatoDaUid,
+    creatoDaNomeUtente,
+    creatoDaNome,
+  });
   const allMissioniNext = (allMissioni ?? []).map((m) =>
     m?._docId === missione?._docId ? { ...m, aperta: false, stato: 'ANNULLATA' } : m,
   );
@@ -52,6 +61,7 @@ export async function eseguiDirottamentoMissione({
       pazienteAutopresentato: false,
       statoInizialeForzato: 'ALLERTATO',
       ...optionalColoreMissionePayload(eventoDestinazione.colore),
+      ...audit,
     },
     allMissioniNext,
     mezzoRecord,
@@ -70,7 +80,15 @@ export async function eseguiFlagDownMissione({
   allMissioni,
   mezzoRecord,
   noteAnnullamento,
+  creatoDaUid,
+  creatoDaNomeUtente,
+  creatoDaNome,
 }) {
+  const audit = mergeOperatoreCreatoPayload({
+    creatoDaUid,
+    creatoDaNomeUtente,
+    creatoDaNome,
+  });
   const allMissioniNext = (allMissioni ?? []).map((m) =>
     m?._docId === missione?._docId ? { ...m, aperta: false, stato: 'ANNULLATA' } : m,
   );
@@ -86,6 +104,7 @@ export async function eseguiFlagDownMissione({
     eventoGenitoreIdUnivoco: eventoPadre.idUnivoco,
     eventoGenitoreCorrelato: eventoPadre.idEvento,
     origineEccezione: EVENTO_ORIGINE_ECCEZIONE.FLAG_DOWN,
+    ...audit,
   };
   const { idEvento, idUnivoco } = await createEvento(manifestationId, childPayload, existingEventi);
 
@@ -98,6 +117,7 @@ export async function eseguiFlagDownMissione({
       pazienteAutopresentato: false,
       statoInizialeForzato: 'IN POSTO',
       ...optionalColoreMissionePayload(nuovoEventoFields.colore),
+      ...audit,
     },
     allMissioniNext,
     mezzoRecord,
