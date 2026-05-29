@@ -1,6 +1,6 @@
 import { DEFAULT_IMPOSTAZIONI } from '../../constants';
-import { dettagliPerTipoEvento, dettagliPerTipoLuogo } from '../../lib/impostazioniNormalize';
-import { CHIAMANTI_EVENTO, METEO_EVENTO } from '../../lib/eventoCampi';
+import { dettagliPerTipoEvento, dettagliPerTipoLuogo, listaChiamantiEvento } from '../../lib/impostazioniNormalize';
+import { METEO_EVENTO } from '../../lib/eventoCampi';
 import { useImpostazioni } from '../../hooks/useImpostazioni';
 import { AddressPicker } from '../maps/AddressPicker';
 import { LuogoFisicoField } from '../maps/LuogoFisicoField';
@@ -68,6 +68,7 @@ export function EventoDettaglioForm({
 
   const colori = DEFAULT_IMPOSTAZIONI.coloriEvento;
   const coloreAttivo = values.colore ?? 'Bianco';
+  const chiamanti = listaChiamantiEvento(impostazioni);
 
   return (
     <div className="space-y-4">
@@ -84,7 +85,7 @@ export function EventoDettaglioForm({
           onChange={(e) => onPatch({ chiamante: e.target.value })}
         >
           <option value="">—</option>
-          {CHIAMANTI_EVENTO.map((c) => (
+          {chiamanti.map((c) => (
             <option key={c} value={c}>
               {c}
             </option>

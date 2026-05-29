@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react';
-import { Link, Navigate, useParams, useNavigate } from 'react-router-dom';
+import { useEffect, useMemo, useState } from 'react';
+import { Link, Navigate, useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { COLLECTIONS } from '../lib/firestorePaths';
 import { useManifestazioneCollection } from '../hooks/useManifestazioneCollection';
 import { usePmaAccess } from '../hooks/usePmaAccess';
@@ -39,6 +39,7 @@ function openPazientePath(pmaId, docId, tab = 'cartella') {
 export default function PmaDeskPage() {
   const navigate = useNavigate();
   const { pmaId } = useParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const decodedId = decodeURIComponent(pmaId ?? '');
   const manifestationId = useManifestazioneId();
   const { impostazioni } = useImpostazioni();
@@ -54,6 +55,14 @@ export default function PmaDeskPage() {
   const [showIpadFirma, setShowIpadFirma] = useState(false);
   const [busyId, setBusyId] = useState(null);
   const [codiciBusy, setCodiciBusy] = useState(false);
+
+  useEffect(() => {
+    if (searchParams.get('codiciMinori') !== '1') return;
+    setShowCodiciMinori(true);
+    const next = new URLSearchParams(searchParams);
+    next.delete('codiciMinori');
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams]);
 
   const pma = useMemo(
     () => findPmaById(impostazioni, decodedId),

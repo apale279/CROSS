@@ -30,6 +30,10 @@ export function normalizeImpostazioni(data) {
     Array.isArray(merged.tipiLuogo) && merged.tipiLuogo.length > 0
       ? merged.tipiLuogo
       : [...DEFAULT_IMPOSTAZIONI.tipiLuogo];
+  const chiamantiEvento =
+    Array.isArray(merged.chiamantiEvento) && merged.chiamantiEvento.length > 0
+      ? merged.chiamantiEvento
+      : [...DEFAULT_IMPOSTAZIONI.chiamantiEvento];
   if (Object.keys(dettagliPerTipoLuogo).length === 0) {
     dettagliPerTipoLuogo = { ...DEFAULT_DETTAGLI_PER_TIPO_LUOGO };
   }
@@ -75,11 +79,18 @@ export function normalizeImpostazioni(data) {
     ...merged,
     dettagliPerTipoEvento: dettagliPerTipo,
     tipiLuogo,
+    chiamantiEvento,
     dettagliPerTipoLuogo,
     mappaDashboardDefault,
     tipiMezzo: normalizeTipiMezzo(merged.tipiMezzo),
     pmaClinica,
   };
+}
+
+export function listaChiamantiEvento(impostazioni) {
+  const list = impostazioni?.chiamantiEvento;
+  if (Array.isArray(list) && list.length > 0) return list;
+  return [...DEFAULT_IMPOSTAZIONI.chiamantiEvento];
 }
 
 export function dettagliPerTipoEvento(impostazioni, tipoEvento) {

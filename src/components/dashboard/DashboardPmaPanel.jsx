@@ -1,30 +1,30 @@
 import { useMemo } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { DEFAULT_IMPOSTAZIONI } from '../../constants';
 import { useImpostazioni } from '../../hooks/useImpostazioni';
 import {
   buildDashboardPmaStazioni,
   totalePazientiPmaDashboard,
 } from '../../lib/pmaDashboardCentrale';
+
 const COLORI = DEFAULT_IMPOSTAZIONI.coloriEvento;
 
-/** Cella contatore: sfondo colore triage + numero grande (bianco con bordo scuro). */
 const CHIP_COLORE = {
   Bianco: {
     on: 'border-2 border-slate-700 bg-slate-100 text-slate-900 shadow-sm',
-    off: 'border border-slate-300 bg-slate-50 text-slate-300',
+    off: 'border border-slate-200 bg-slate-50 text-slate-300',
   },
   Verde: {
     on: 'border-2 border-emerald-800 bg-emerald-500 text-white shadow-sm',
-    off: 'border border-emerald-200 bg-emerald-50/80 text-emerald-300',
+    off: 'border border-emerald-100 bg-emerald-50/80 text-emerald-300',
   },
   Giallo: {
     on: 'border-2 border-amber-800 bg-amber-400 text-amber-950 shadow-sm',
-    off: 'border border-amber-200 bg-amber-50/80 text-amber-300',
+    off: 'border border-amber-100 bg-amber-50/80 text-amber-300',
   },
   Rosso: {
     on: 'border-2 border-red-900 bg-red-500 text-white shadow-sm',
-    off: 'border border-red-200 bg-red-50/80 text-red-300',
+    off: 'border border-red-100 bg-red-50/80 text-red-300',
   },
 };
 
@@ -36,7 +36,11 @@ const SEZIONI = [
 
 function ContatoriColore({ contatori }) {
   return (
-    <div className="grid grid-cols-4 gap-0.5" role="group" aria-label="Contatori per codice colore">
+    <div
+      className="grid min-h-0 flex-1 grid-cols-4 gap-0.5"
+      role="group"
+      aria-label="Contatori per codice colore"
+    >
       {COLORI.map((c) => {
         const n = contatori[c] ?? 0;
         const attivo = n > 0;
@@ -44,7 +48,7 @@ function ContatoriColore({ contatori }) {
         return (
           <div
             key={c}
-            className={`flex min-h-[2.25rem] flex-col items-center justify-center rounded-md px-0.5 py-0.5 ${
+            className={`flex h-full min-h-0 flex-col items-center justify-center rounded-md px-0.5 ${
               attivo ? chip.on : chip.off
             }`}
             title={`${c}: ${n}`}
@@ -63,50 +67,108 @@ function ContatoriColore({ contatori }) {
   );
 }
 
+function ContatoriCodiciMinori({ codiciMinori }) {
+  const aperti = codiciMinori?.aperti ?? 0;
+  const chiusi = codiciMinori?.chiusi ?? 0;
+  const chipClass = (attivo) =>
+    `flex h-full min-h-0 flex-col items-center justify-center rounded-md px-1 ${
+      attivo
+        ? 'border-2 border-amber-800 bg-amber-400 text-amber-950 shadow-sm'
+        : 'border border-amber-200 bg-amber-50/80 text-amber-300'
+    }`;
+
+  return (
+    <div
+      className="grid min-h-0 flex-1 grid-cols-2 gap-0.5"
+      role="group"
+      aria-label="Codici minori aperti e chiusi"
+    >
+      <div className={chipClass(aperti > 0)} title={`Aperti: ${aperti}`}>
+        <span className="text-[10px] font-bold uppercase leading-none">Aperti</span>
+        <span
+          className={`font-mono font-black leading-none tabular-nums ${
+            aperti > 0 ? 'text-xl' : 'text-base'
+          }`}
+        >
+          {aperti}
+        </span>
+      </div>
+      <div className={chipClass(chiusi > 0)} title={`Chiusi: ${chiusi}`}>
+        <span className="text-[10px] font-bold uppercase leading-none">Chiusi</span>
+        <span
+          className={`font-mono font-black leading-none tabular-nums ${
+            chiusi > 0 ? 'text-xl' : 'text-base'
+          }`}
+        >
+          {chiusi}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function SezionePma({ label, total, children, onClick, clickable = false }) {
+  const Wrapper = clickable ? 'button' : 'div';
+  return (
+    <Wrapper
+      type={clickable ? 'button' : undefined}
+      onClick={onClick}
+      className={`flex min-h-0 flex-col overflow-hidden rounded border border-slate-200/80 bg-white/90 px-1.5 py-1 text-left ${
+        clickable ? 'cursor-pointer transition hover:border-amber-300 hover:bg-amber-50/80' : ''
+      }`}
+    >
+      <div className="mb-1 flex shrink-0 items-baseline justify-between gap-1 leading-tight">
+        <span className="text-sm font-bold uppercase tracking-wide text-slate-900">{label}</span>
+        <span className="font-mono text-sm font-bold text-slate-900">{total}</span>
+      </div>
+      <div className="flex min-h-0 flex-1 flex-col">{children}</div>
+    </Wrapper>
+  );
+}
+
 function StazionePmaCard({ row, vuota = false }) {
+  const navigate = useNavigate();
   const { pma, totali, codiciMinori } = row;
+  const totaleCodiciMinori = (codiciMinori?.aperti ?? 0) + (codiciMinori?.chiusi ?? 0);
+
+  const apriCodiciMinori = () => {
+    navigate(`/pma/${encodeURIComponent(pma.id)}?codiciMinori=1`);
+  };
+
   return (
     <article
-      className={`rounded-lg border px-1.5 py-1.5 ${
+      className={`flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border px-1.5 py-1 ${
         vuota
           ? 'border-slate-200 bg-slate-50/80 opacity-80'
           : 'border-violet-200 bg-violet-50/40'
       }`}
     >
-      <div className="mb-1 flex items-start justify-between gap-1">
-        <div className="min-w-0">
-          <Link
-            to={`/pma/${encodeURIComponent(pma.id)}`}
-            className="block truncate text-xs font-bold uppercase text-violet-900 hover:underline"
-            title={pma.nome}
-          >
-            {pma.nome}
-          </Link>
-          <p className="font-mono text-[10px] text-violet-700/80">{totali.totale} pazienti attivi</p>
-        </div>
+      <div className="mb-1 shrink-0">
+        <Link
+          to={`/pma/${encodeURIComponent(pma.id)}`}
+          className="block truncate text-xs font-bold uppercase leading-tight text-violet-900 hover:underline"
+          title={pma.nome}
+        >
+          {pma.nome}
+        </Link>
+        <p className="font-mono text-[10px] leading-tight text-violet-700/80">
+          {totali.totale} attivi
+        </p>
       </div>
-      <div className="space-y-1">
+      <div className="grid min-h-0 flex-1 grid-rows-4 gap-0.5">
         {SEZIONI.map(({ key, label, totalKey }) => (
-          <div
-            key={key}
-            className="rounded border border-slate-200/80 bg-white/90 px-1 py-1"
-          >
-            <div className="mb-0.5 flex items-baseline justify-between gap-1 leading-tight">
-              <span className="text-sm font-bold uppercase tracking-wide text-slate-900">
-                {label}
-              </span>
-              <span className="font-mono text-sm font-bold text-slate-900">{totali[totalKey]}</span>
-            </div>
+          <SezionePma key={key} label={label} total={totali[totalKey]}>
             <ContatoriColore contatori={row[key]} />
-          </div>
+          </SezionePma>
         ))}
-      </div>
-      <div className="mt-1 rounded border border-amber-200/80 bg-amber-50/70 px-1.5 py-1 text-[10px] text-amber-950">
-        <span className="font-bold uppercase">Codici minori</span>
-        {' · '}
-        <span className="font-mono font-bold">{codiciMinori?.aperti ?? 0}</span> aperti
-        {' · '}
-        <span className="font-mono font-bold">{codiciMinori?.chiusi ?? 0}</span> chiusi
+        <SezionePma
+          label="Codici minori"
+          total={totaleCodiciMinori}
+          clickable
+          onClick={apriCodiciMinori}
+        >
+          <ContatoriCodiciMinori codiciMinori={codiciMinori} />
+        </SezionePma>
       </div>
     </article>
   );
@@ -125,41 +187,35 @@ export function DashboardPmaPanel({ pazienti = [], loading = false }) {
   );
 
   if (loading) {
-    return <p className="p-3 text-xs text-slate-500">Caricamento stato PMA…</p>;
+    return <p className="p-2 text-xs text-slate-500">Caricamento stato PMA…</p>;
   }
 
   if (!stazioni.length) {
     return (
-      <p className="p-3 text-xs text-slate-500">
+      <p className="p-2 text-xs text-slate-500">
         Nessun PMA configurato in impostazioni.
       </p>
     );
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
-      <p className="shrink-0 border-b border-violet-100 bg-violet-50/80 px-2 py-1.5 text-[10px] text-violet-900">
-        <span className="font-bold uppercase">Sintesi tende</span>
+    <div className="flex h-full min-h-0 flex-col overflow-hidden">
+      <p className="shrink-0 border-b border-violet-100 bg-violet-50/80 px-2 py-1 text-[10px] leading-tight text-violet-900">
+        <span className="font-bold uppercase">Sintesi</span>
         {' · '}
-        <span className="font-mono font-semibold">{totale}</span> pazienti attivi su{' '}
-        <span className="font-mono font-semibold">{conPazienti}</span> /{' '}
-        <span className="font-mono font-semibold">{stazioni.length}</span> PMA con attività
+        <span className="font-mono font-semibold">{totale}</span> attivi ·{' '}
+        <span className="font-mono font-semibold">{conPazienti}</span>/
+        <span className="font-mono font-semibold">{stazioni.length}</span> PMA
+        {totale === 0 ? ' · nessun paziente in tenda' : ''}
       </p>
-      <div className="min-h-0 flex-1 overflow-y-auto p-2">
-        {totale === 0 ? (
-          <p className="mb-2 py-2 text-center text-xs text-slate-500">
-            Nessun paziente in arrivo, in attesa o in carico.
-          </p>
-        ) : null}
-        <div className="space-y-2">
-          {stazioni.map((row) => (
-            <StazionePmaCard
-              key={row.pma.id}
-              row={row}
-              vuota={row.totali.totale === 0}
-            />
-          ))}
-        </div>
+      <div className="flex min-h-0 flex-1 flex-col gap-1 overflow-hidden p-1.5">
+        {stazioni.map((row) => (
+          <StazionePmaCard
+            key={row.pma.id}
+            row={row}
+            vuota={row.totali.totale === 0}
+          />
+        ))}
       </div>
     </div>
   );

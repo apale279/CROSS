@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { TipiEventoChipsEditor } from './TipiEventoChipsEditor';
 import { DettagliPerTipoEditor } from './DettagliPerTipoEditor';
 import { ImpostazioniLuogoPanel } from './ImpostazioniLuogoPanel';
+import { ChiamantiEventoEditor } from './ChiamantiEventoEditor';
 
 const subTabClass = (active) =>
   `border-b-2 px-3 py-2 text-xs font-bold uppercase tracking-wide ${
@@ -30,6 +31,13 @@ export function ImpostazioniEventiPanel() {
         >
           Impostazioni luogo
         </button>
+        <button
+          type="button"
+          className={subTabClass(subTab === 'altro')}
+          onClick={() => setSubTab('altro')}
+        >
+          Altro
+        </button>
       </nav>
 
       {subTab === 'evento' && (
@@ -40,6 +48,8 @@ export function ImpostazioniEventiPanel() {
       )}
 
       {subTab === 'luogo' && <ImpostazioniLuogoPanel />}
+
+      {subTab === 'altro' && <ChiamantiEventoEditor />}
     </div>
   );
 }

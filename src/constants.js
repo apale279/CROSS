@@ -10,6 +10,7 @@ export const GOOGLE_MAPS_API_KEY = (
   import.meta.env.VITE_GOOGLE_MAPS_API_KEY ?? ''
 ).trim();
 
+import { CHIAMANTI_EVENTO } from './lib/eventoCampi';
 import { DEFAULT_TIPI_MEZZO } from './lib/tipiMezzo';
 import {
   DEFAULT_DETTAGLI_PER_TIPO_LUOGO,
@@ -22,6 +23,8 @@ export const ESITO_ALTRO = 'Altro (specificare)';
 /** Valori iniziali se non esiste ancora il documento impostazioni */
 export const DEFAULT_IMPOSTAZIONI = {
   tipiEvento: ['Trauma', 'Malore', 'Intossicazione', 'Parto', 'Altro'],
+  /** Voci menu «Chiamante» in scheda evento */
+  chiamantiEvento: [...CHIAMANTI_EVENTO],
   /** Dettaglio evento per ogni voce di tipiEvento (chiave = nome tipo) */
   dettagliPerTipoEvento: {},
   tipiLuogo: [...DEFAULT_TIPI_LUOGO],

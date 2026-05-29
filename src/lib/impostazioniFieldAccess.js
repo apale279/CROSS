@@ -48,6 +48,7 @@ export function readImpostazioniFieldForDisplay(data, fieldKey) {
   if (fieldKey === 'pmaClinica') return DEFAULT_IMPOSTAZIONI.pmaClinica;
   if (fieldKey === 'codiciMinoriTabellaFoto') return DEFAULT_IMPOSTAZIONI.codiciMinoriTabellaFoto;
   if (fieldKey === 'tipiLuogo') return [...DEFAULT_IMPOSTAZIONI.tipiLuogo];
+  if (fieldKey === 'chiamantiEvento') return [...DEFAULT_IMPOSTAZIONI.chiamantiEvento];
   return DEFAULT_IMPOSTAZIONI[fieldKey] ?? null;
 }
 
