@@ -60,6 +60,10 @@ const checks = [
     file: 'src/pages/MezziPage.jsx',
     mustInclude: ['mezzoDisponibileService', 'patchStatoMezzo'],
   },
+  {
+    file: 'src/lib/pmaDashboardCentrale.js',
+    mustInclude: ['pazientiCodiceMinorePerPma', 'conteggiCodiciMinoriPerPma'],
+  },
 ];
 
 let failed = false;

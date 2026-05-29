@@ -87,6 +87,7 @@ export const CROSS_CHANGE_LOG = [
   { date: '2026-05-28', description: 'Guardrail build: verify:critical su import mezzo/missione/evento; servizio dedicato mezzoDisponibileService.' },
   { date: '2026-05-28', description: 'Eventi/missioni: audit creatore (@user + data/ora) in scheda e dashboard; layout tabella a tre zone (evento · EMT · missione).' },
   { date: '2026-05-29', description: 'Invio PS SOREU: codice colore con quadratini; termina evento chiude modale; codici minori con nome/cognome, ricerca pettorale, foto tabella e contatori in dashboard PMA.' },
+  { date: '2026-05-29', description: 'Fix critico dashboard PMA: import mancante pazientiCodiceMinorePerPma; guardrail verify:critical esteso.' },
 ];
 
 /** Raggruppa voci per data (ordine cronologico ascendente). */

@@ -6,6 +6,7 @@ import {
   listaPmaImpostazioni,
   normalizeStatoPzPma,
   pazienteVisibileInPmaDesk,
+  pazientiCodiceMinorePerPma,
   pmaIdPerPaziente,
 } from './pmaModule';
 
