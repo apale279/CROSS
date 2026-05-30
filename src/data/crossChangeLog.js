@@ -88,6 +88,15 @@ export const CROSS_CHANGE_LOG = [
   { date: '2026-05-28', description: 'Eventi/missioni: audit creatore (@user + data/ora) in scheda e dashboard; layout tabella a tre zone (evento · EMT · missione).' },
   { date: '2026-05-29', description: 'Invio PS SOREU: codice colore con quadratini; termina evento chiude modale; codici minori con nome/cognome, ricerca pettorale, foto tabella e contatori in dashboard PMA.' },
   { date: '2026-05-29', description: 'Fix critico dashboard PMA: import mancante pazientiCodiceMinorePerPma; guardrail verify:critical esteso.' },
+  { date: '2026-05-29', version: 'v2.21', description: 'Invio PS SOREU: quadratini colore; termina evento chiude modale; codici minori con tabella foto e contatori dashboard PMA.' },
+  { date: '2026-05-29', version: 'v2.22', description: 'Fix critico import codici minori in dashboard PMA operativa.' },
+  { date: '2026-05-29', version: 'v2.23', description: 'Dashboard PMA: sezioni uniformi e contatori grandi; impostazioni Chiamante evento (textarea); click su codici minori.' },
+  { date: '2026-05-29', version: 'v2.24', description: 'MSB/MSA disaccoppiati da P; codici minori PMA in dashboard; filtri Stato mezzi a popup; seed codice colore paziente in creazione.' },
+  { date: '2026-05-30', description: 'Tab Pazienti: sezioni Aperti/Chiusi; colonna Chiusura; evidenza pazienti passati dal PMA.' },
+  { date: '2026-05-30', description: 'Sync multi-utente pazienti/missioni: patch transazionali, guard conflitto codice colore PMA vs centrale, dati manuali non sovrascritti.' },
+  { date: '2026-05-30', description: 'Impostazioni dettaglio luogo: salvataggio solo per tipo (FieldPath); niente merge default implicito in editor; no-op se invariato.' },
+  { date: '2026-05-30', description: 'Codici minori PMA: data nascita e calcolo età; scheda paziente con comune/indirizzo; dimissione con preset note da impostazioni.' },
+  { date: '2026-05-30', version: 'v2.25', description: 'Release v2.25 — sicurezza scritture Firestore, tab pazienti e impostazioni luogo granulari.' },
 ];
 
 /** Raggruppa voci per data (ordine cronologico ascendente). */
