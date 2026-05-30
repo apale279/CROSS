@@ -28,6 +28,7 @@ import {
   statoPzPmaLabel,
 } from '../../lib/pmaModule';
 import { chiusuraCentraleLabel, isChiusoCentrale, isTrasportoCentraleModificabile, statoCentraleLabel } from '../../lib/pazienteStati';
+import { pmaCodiceColoreConflictMessage } from '../../lib/pazienteSyncGuard';
 import {
   moduliSchedaPaziente,
   moduliSchedaPazienteForCreate,
@@ -115,6 +116,8 @@ function emptyDraft() {
     ...soreuFieldsFromPatient(null),
     pettorale: '',
     telefono: '',
+    comune: '',
+    indirizzo: '',
     dataNascita: '',
     codiceColoreSanitario: '',
   };
@@ -533,11 +536,22 @@ export function PazienteScheda({
     touchDirty('codiceColoreSanitario');
     setDraft((d) => ({ ...d, codiceColoreSanitario: valid ?? '' }));
     if (isCreate) return;
-    await syncPazienteCodiceColoreSanitario(
+
+    const pazienteRef = { ...displayPatient, _docId: patientDocId };
+    const { pmaResult } = await syncPazienteCodiceColoreSanitario(
       manifestationId,
-      { ...displayPatient, _docId: patientDocId },
+      pazienteRef,
       valid,
     );
+
+    if (pmaResult?.conflict) {
+      const applyPma = window.confirm(pmaCodiceColoreConflictMessage(pmaResult.conflict));
+      if (applyPma) {
+        await syncPazienteCodiceColoreSanitario(manifestationId, pazienteRef, valid, {
+          pmaColoreForceApply: true,
+        });
+      }
+    }
   };
 
   const onMezzoChange = async (mezzo) => {

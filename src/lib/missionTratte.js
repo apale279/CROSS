@@ -1,4 +1,5 @@
 import { Timestamp } from 'firebase/firestore';
+import { mergeSchedaArrayById } from '../pma/lib/pmaSchedaArrayMerge';
 
 function newId() {
   return typeof globalThis.crypto !== 'undefined' && globalThis.crypto.randomUUID
@@ -45,6 +46,20 @@ export function tratteMissioneToFirestore(tratte) {
       quando: Timestamp.fromDate(d),
     };
   });
+}
+
+/** Merge transazionale tratte per `id` (evita perdita concorrente). */
+export function mergeTratteMissioneWrite(serverRaw, clientFirestoreRaw) {
+  const server = normalizeTratteMissione(serverRaw);
+  const client = normalizeTratteMissione(
+    (clientFirestoreRaw ?? []).map((t) => ({
+      id: t.id,
+      descrizione: t.descrizione,
+      quando: typeof t.quando?.toDate === 'function' ? t.quando.toDate() : t.quando,
+    })),
+  );
+  const merged = mergeSchedaArrayById(server, client);
+  return tratteMissioneToFirestore(merged);
 }
 
 export function nuovaTrattaMissione(descrizione = '') {

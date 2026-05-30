@@ -4,7 +4,9 @@ const ESITO_TRASPORTA = 'Trasporta';
 
 const STATO_PZ_PMA = {
   IN_ARRIVO: 'IN ARRIVO',
+  IN_ATTESA: 'IN ATTESA',
   IN_CARICO: 'in carico',
+  DIMESSO: 'DIMESSO',
 };
 
 const EMPTY_PMA_SCHEDA = {
@@ -69,6 +71,18 @@ function seedFromPazienteEvento(paziente, evento) {
   return seed;
 }
 
+function statoPzPmaInArrivoIfAllowedAdmin(paziente) {
+  const cur = String(paziente?.statoPzPma ?? '').trim();
+  if (
+    cur === STATO_PZ_PMA.DIMESSO ||
+    cur === STATO_PZ_PMA.IN_CARICO ||
+    cur === STATO_PZ_PMA.IN_ATTESA
+  ) {
+    return null;
+  }
+  return STATO_PZ_PMA.IN_ARRIVO;
+}
+
 function pazienteCollegatoAMissione(p, missione) {
   const sameEvento =
     (missione.eventoIdUnivoco && p.eventoIdUnivoco === missione.eventoIdUnivoco) ||
@@ -91,22 +105,87 @@ export function buildArrivatoHPatchAdmin(paziente, evento = null) {
     aperta: false,
   };
 
+  let initPmaScheda = false;
+  let pmaSchedaSeed = null;
+
   const pmaDest = String(paziente.destinazionePmaId ?? '').trim();
   if (pmaDest) {
     const cur = String(paziente.statoPzPma ?? '').trim();
-    if (cur !== STATO_PZ_PMA.DIMESSO && cur !== STATO_PZ_PMA.IN_CARICO) {
+    if (
+      cur !== STATO_PZ_PMA.DIMESSO &&
+      cur !== STATO_PZ_PMA.IN_CARICO &&
+      cur !== STATO_PZ_PMA.IN_ATTESA
+    ) {
       patch.statoPzPma = STATO_PZ_PMA.IN_ARRIVO;
     }
     patch.pmaId = paziente.pmaId ?? pmaDest;
     if (!paziente.pmaScheda) {
-      patch.pmaScheda = {
-        ...EMPTY_PMA_SCHEDA,
-        ...seedFromPazienteEvento(paziente, evento),
-      };
+      initPmaScheda = true;
+      pmaSchedaSeed = seedFromPazienteEvento(paziente, evento);
     }
   }
 
-  return patch;
+  return { patch, initPmaScheda, pmaSchedaSeed };
+}
+
+/** Inizializza `pmaScheda` solo se assente (path puntati, senza sovrascrivere). */
+export async function initPmaSchedaIfMissingAdmin(db, tenantId, docId, seed = null) {
+  if (!db || !tenantId || !docId) return;
+  const ref = db.collection('manifestazioni').doc(tenantId).collection('pazienti').doc(docId);
+  const merged = { ...EMPTY_PMA_SCHEDA, ...(seed && typeof seed === 'object' ? seed : {}) };
+
+  await db.runTransaction(async (transaction) => {
+    const snap = await transaction.get(ref);
+    if (!snap.exists || snap.data()?.pmaScheda) return;
+    const initFields = {};
+    for (const [key, value] of Object.entries(merged)) {
+      initFields[`pmaScheda.${key}`] = value;
+    }
+    transaction.update(ref, initFields);
+  });
+}
+
+export async function applyArrivatoHPatchAdminTransaction(db, tenantId, docId, evento = null) {
+  if (!db || !tenantId || !docId) return;
+  const ref = db.collection('manifestazioni').doc(tenantId).collection('pazienti').doc(docId);
+  let initSeed = null;
+
+  await db.runTransaction(async (transaction) => {
+    const snap = await transaction.get(ref);
+    if (!snap.exists()) return;
+    const p = { _docId: snap.id, ...snap.data() };
+    const result = buildArrivatoHPatchAdmin(p, evento);
+    if (!result?.patch) return;
+    transaction.update(ref, result.patch);
+    if (result.initPmaScheda) initSeed = result.pmaSchedaSeed;
+  });
+
+  if (initSeed !== null) {
+    await initPmaSchedaIfMissingAdmin(db, tenantId, docId, initSeed);
+  }
+}
+
+export async function applyDirettoHPatchAdminTransaction(db, tenantId, docId, evento = null) {
+  if (!db || !tenantId || !docId) return false;
+  const ref = db.collection('manifestazioni').doc(tenantId).collection('pazienti').doc(docId);
+  let initSeed = null;
+  let updated = false;
+
+  await db.runTransaction(async (transaction) => {
+    const snap = await transaction.get(ref);
+    if (!snap.exists()) return;
+    const p = { _docId: snap.id, ...snap.data() };
+    const patch = buildDirettoHPatchAdmin(p);
+    if (!patch) return;
+    transaction.update(ref, patch);
+    updated = true;
+    if (!p.pmaScheda) initSeed = seedFromPazienteEvento(p, evento);
+  });
+
+  if (initSeed !== null) {
+    await initPmaSchedaIfMissingAdmin(db, tenantId, docId, initSeed);
+  }
+  return updated;
 }
 
 /** Allinea admin sync al client `syncPazientiPmaOnDirettoH`. */
@@ -114,10 +193,12 @@ export function buildDirettoHPatchAdmin(paziente) {
   if (!pazienteCollegatoAMissione(paziente, { mezzo: paziente.mezzo, eventoIdUnivoco: paziente.eventoIdUnivoco, eventoCorrelato: paziente.eventoCorrelato })) {
     return null;
   }
+  const nextStato = statoPzPmaInArrivoIfAllowedAdmin(paziente);
+  if (!nextStato) return null;
   return {
     tipoPz: paziente.tipoPz ?? 'CENTRALE',
     pmaId: paziente.pmaId ?? paziente.destinazionePmaId ?? '',
-    statoPzPma: STATO_PZ_PMA.IN_ARRIVO,
+    statoPzPma: nextStato,
   };
 }
 

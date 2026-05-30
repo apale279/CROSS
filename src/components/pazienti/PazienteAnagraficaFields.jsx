@@ -119,6 +119,24 @@ export function PazienteAnagraficaFields({
           <option value="Altro">Altro</option>
         </select>
       </FormField>
+      <FormField label="Comune">
+        <input
+          className={inputClass}
+          value={draft.comune ?? ''}
+          disabled={readOnly}
+          onChange={(e) => touch('comune', e.target.value)}
+          onBlur={() => onBlurField?.('comune')}
+        />
+      </FormField>
+      <FormField label="Indirizzo">
+        <input
+          className={inputClass}
+          value={draft.indirizzo ?? ''}
+          disabled={readOnly}
+          onChange={(e) => touch('indirizzo', e.target.value)}
+          onBlur={() => onBlurField?.('indirizzo')}
+        />
+      </FormField>
       <FormField label="Note" className="sm:col-span-2">
         <textarea
           className={inputClass}

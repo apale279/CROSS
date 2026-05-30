@@ -5,11 +5,11 @@ import { buildStatoChangeFields } from './missionStoricoStati.js';
 import { isStatoMissioneTerminale, nextStatoMissione } from './missionStati.js';
 import { resolveMezzoSiglaForTelegram } from './mezzoResolve.js';
 import {
-  buildArrivatoHPatchAdmin,
-  EMPTY_PMA_SCHEDA,
+  applyArrivatoHPatchAdminTransaction,
+  applyDirettoHPatchAdminTransaction,
+  initPmaSchedaIfMissingAdmin,
   pazienteEsclusoDaSyncMissioneAdmin,
   pazienteMatchesMissioneTrasporto,
-  seedFromPazienteEvento,
 } from './pazienteMissionPmaAdmin.js';
 
 const DEFAULT_STATI_MISSIONE = [
@@ -213,40 +213,23 @@ async function syncPazientiArrivatoHAdmin(tenantId, missione) {
   const candidati = await fetchPazientiTrasportoForMissioneAdmin(tenantId, missione);
   const evento = await findEventoForMissioneAdmin(tenantId, missione);
 
+  const db = getAdminDb();
   for (const p of candidati) {
     if (p.stato === 'ARRIVATO H') continue;
-
-    const patch = buildArrivatoHPatchAdmin(p, evento);
-    if (!patch) continue;
-
-    await pazientiCol(tenantId).doc(p._docId).update(patch);
+    await applyArrivatoHPatchAdminTransaction(db, tenantId, p._docId, evento);
   }
 }
 
 async function syncPazientiPmaOnDirettoHAdmin(tenantId, missione) {
   if (!missione?.mezzo) return;
   const candidati = await fetchPazientiTrasportoForMissioneAdmin(tenantId, missione);
+  const db = getAdminDb();
 
   for (const p of candidati) {
     if (pazienteEsclusoDaSyncMissioneAdmin(p)) continue;
     if (!String(p.destinazionePmaId ?? '').trim()) continue;
-
-    const patch = {
-      tipoPz: p.tipoPz ?? 'CENTRALE',
-      pmaId: p.pmaId ?? p.destinazionePmaId ?? '',
-      statoPzPma: 'IN ARRIVO',
-    };
-    await pazientiCol(tenantId).doc(p._docId).update(patch);
-
-    if (!p.pmaScheda) {
-      const evento = await findEventoForPazienteAdmin(tenantId, p);
-      const merged = { ...EMPTY_PMA_SCHEDA, ...seedFromPazienteEvento(p, evento) };
-      const initFields = {};
-      for (const [key, value] of Object.entries(merged)) {
-        initFields[`pmaScheda.${key}`] = value;
-      }
-      await pazientiCol(tenantId).doc(p._docId).update(initFields);
-    }
+    const evento = !p.pmaScheda ? await findEventoForPazienteAdmin(tenantId, p) : null;
+    await applyDirettoHPatchAdminTransaction(db, tenantId, p._docId, evento);
   }
 }
 

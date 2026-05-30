@@ -367,30 +367,23 @@ export function MissioneScheda({
           </div>
           <div>
             <p className="mb-1 text-[11px] font-semibold text-slate-500">T — Trasporto</p>
-            {missioneInvioPs ? (
-              <>
-                <p className="mb-1 text-[10px] text-slate-500">
-                  Trasporto PMA → PS: modificabile manualmente (E/M/T da codice paziente PMA).
-                </p>
-                <ColoreSelectButtons
-                  value={
-                    missione.codiceColoreTrasportoManuale
-                      ? missione.codiceColoreTrasporto
-                      : coloreTrasportoEffettivo
-                  }
-                  onChange={(c) => void patchColoreTrasporto(c)}
-                />
-                {missione.codiceColoreTrasportoManuale && (
-                  <p className="mt-1 text-[10px] text-slate-500">Impostato manualmente</p>
-                )}
-              </>
-            ) : (
-              <>
-                <p className="mb-1 text-[10px] text-slate-500">
-                  Impostato dal codice colore del paziente in scheda (Esito e trasporto).
-                </p>
-                <ColoreIndicator colore={coloreTrasportoEffettivo} size="lg" />
-              </>
+            {!missione.codiceColoreTrasportoManuale && (
+              <p className="mb-1 text-[10px] text-slate-500">
+                {missioneInvioPs
+                  ? 'Trasporto PMA → PS: da codice paziente, modificabile manualmente.'
+                  : 'Da codice paziente (Esito e trasporto); modificabile manualmente.'}
+              </p>
+            )}
+            <ColoreSelectButtons
+              value={
+                missione.codiceColoreTrasportoManuale
+                  ? missione.codiceColoreTrasporto
+                  : coloreTrasportoEffettivo
+              }
+              onChange={(c) => void patchColoreTrasporto(c)}
+            />
+            {missione.codiceColoreTrasportoManuale && (
+              <p className="mt-1 text-[10px] text-slate-500">Impostato manualmente</p>
             )}
           </div>
         </div>

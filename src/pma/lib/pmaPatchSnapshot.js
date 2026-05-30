@@ -1,7 +1,7 @@
 import { omitUndefinedFields } from '../../lib/firestorePatch';
 import { lockKeyForPmaSchedaField } from './pmaFieldLockKeys';
 import { mergeEoQuickColumnSelection } from './eoQuickSelection';
-import { mergeSchedaArrayById } from './pmaSchedaArrayMerge';
+import { mergeSchedaArrayById, mergeStringSelectionArray } from './pmaSchedaArrayMerge';
 
 const PMA_SCHEDA_PREFIX = 'pmaScheda.';
 
@@ -76,9 +76,7 @@ export function buildGranularUpdatesFromSnapshot(snapData, plan) {
     const raw = scheda[field];
     const merged =
       field === 'prestazioni_sel'
-        ? Array.isArray(value)
-          ? value
-          : raw
+        ? mergeStringSelectionArray(raw, value)
         : mergeSchedaArrayById(raw, value);
     if (!valuesEqual(raw, merged)) {
       updates[`${PMA_SCHEDA_PREFIX}${field}`] = merged;

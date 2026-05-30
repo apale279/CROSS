@@ -21,7 +21,7 @@ export async function prendiInCaricoPma(manifestationId, docId) {
     }
     transaction.update(docRef, {
       statoPzPma: STATO_PZ_PMA.IN_CARICO,
-      ingresso_carico_at: Timestamp.now(),
+      'pmaScheda.ingresso_carico_at': Timestamp.now(),
     });
   });
   await initPmaSchedaIfMissing(manifestationId, docId, null);

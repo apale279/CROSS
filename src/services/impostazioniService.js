@@ -1,6 +1,7 @@
-import { doc, FieldPath, getDoc, runTransaction, setDoc } from 'firebase/firestore';
+import { deleteField, doc, FieldPath, getDoc, runTransaction, setDoc } from 'firebase/firestore';
 import { db } from '../firebaseConfig';
 import { assertCanEditImpostazioniConfig } from '../lib/impostazioniEditGate';
+import { impostazioniValuesMatch } from '../lib/impostazioniEqual';
 import {
   isImpostazioniFieldSaveBlocked,
   isImpostazioniNestedObjectField,
@@ -37,6 +38,18 @@ function assertGranularField(fieldKey) {
 function readArrayFieldRaw(data, fieldKey) {
   const raw = data?.[fieldKey];
   return Array.isArray(raw) ? [...raw] : [];
+}
+
+function readImpostazioniDotPathValue(data, dotPath) {
+  if (!data || !dotPath) return undefined;
+  return String(dotPath)
+    .split('.')
+    .reduce((acc, part) => (acc == null ? undefined : acc[part]), data);
+}
+
+function impostazioniWriteNeeded(current, next) {
+  if (next === deleteField()) return current !== undefined;
+  return !impostazioniValuesMatch(current, next);
 }
 
 /** Aggiunge/rimuove voci in array scalare (tipiLuogo, tipiEvento) partendo dallo snapshot server. */
@@ -90,9 +103,12 @@ export async function saveImpostazioniArrayEntryById(manifestationId, arrayField
     const snap = await transaction.get(docRef);
     const current = readArrayFieldRaw(snap.exists() ? snap.data() : null, arrayField);
     const idx = current.findIndex((x) => String(x?.id ?? '') === id);
+    const merged = idx >= 0 ? { ...current[idx], ...entry, id } : { ...entry, id };
+    if (idx >= 0 && impostazioniValuesMatch(current[idx], merged)) return;
+
     const next = [...current];
-    if (idx >= 0) next[idx] = { ...next[idx], ...entry, id };
-    else next.push({ ...entry, id });
+    if (idx >= 0) next[idx] = merged;
+    else next.push(merged);
 
     if (!snap.exists()) {
       transaction.set(docRef, { manifestationId, [arrayField]: next }, { merge: true });
@@ -143,6 +159,9 @@ export async function saveImpostazioniMapEntry(manifestationId, parentField, ent
 
   await runTransaction(db, async (transaction) => {
     const snap = await transaction.get(docRef);
+    const current = snap.exists() ? snap.get(fieldPath) : undefined;
+    if (!impostazioniWriteNeeded(current, value)) return;
+
     if (!snap.exists()) {
       transaction.set(
         docRef,
@@ -157,7 +176,6 @@ export async function saveImpostazioniMapEntry(manifestationId, parentField, ent
 
 /** Elimina una voce in mappa annidata. */
 export async function deleteImpostazioniMapEntry(manifestationId, parentField, entryKey) {
-  const { deleteField } = await import('firebase/firestore');
   return saveImpostazioniMapEntry(manifestationId, parentField, entryKey, deleteField());
 }
 
@@ -172,6 +190,9 @@ export async function saveImpostazioniDotPath(manifestationId, dotPath, value) {
   const docRef = impostazioniDocRef(manifestationId);
   await runTransaction(db, async (transaction) => {
     const snap = await transaction.get(docRef);
+    const current = snap.exists() ? readImpostazioniDotPathValue(snap.data(), path) : undefined;
+    if (!impostazioniWriteNeeded(current, value)) return;
+
     if (!snap.exists()) {
       transaction.set(docRef, { manifestationId, [path]: value }, { merge: true });
       return;
@@ -197,24 +218,31 @@ export async function savePmaClinicaDotFields(manifestationId, subfields) {
   if (entries.length === 0) return;
 
   const docRef = impostazioniDocRef(manifestationId);
-  const updates = Object.fromEntries(
-    entries.map(([key, value]) => [`pmaClinica.${key}`, value]),
-  );
 
   await runTransaction(db, async (transaction) => {
     const snap = await transaction.get(docRef);
+    const data = snap.exists() ? snap.data() : null;
+    const changedEntries = entries.filter(([key, value]) =>
+      impostazioniWriteNeeded(readImpostazioniDotPathValue(data, `pmaClinica.${key}`), value),
+    );
+    if (changedEntries.length === 0) return;
+
+    const changedUpdates = Object.fromEntries(
+      changedEntries.map(([key, value]) => [`pmaClinica.${key}`, value]),
+    );
+
     if (!snap.exists()) {
       transaction.set(
         docRef,
         {
           manifestationId,
-          pmaClinica: Object.fromEntries(entries),
+          pmaClinica: Object.fromEntries(changedEntries),
         },
         { merge: true },
       );
       return;
     }
-    transaction.update(docRef, updates);
+    transaction.update(docRef, changedUpdates);
   });
 }
 

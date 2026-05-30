@@ -5,7 +5,7 @@ import { btnPrimary, btnSecondary } from '../ui/FormField';
 import { toDatetimeLocalValue, fromDatetimeLocalValue } from '../../lib/datetimeLocal';
 import { codiceMinoreFromPaziente } from '../../services/pmaCodiceMinoreService';
 import { useRegistryPartecipanti } from '../../hooks/useRegistryPartecipanti';
-import { cercaPerPettorale } from '../../lib/excelPartecipanti';
+import { cercaPerPettorale, etaDaDataNascita } from '../../lib/excelPartecipanti';
 import { FormField, inputClass } from '../ui/FormField';
 import { Search } from 'lucide-react';
 
@@ -14,6 +14,8 @@ function emptyDraft() {
     pettorale: '',
     nome: '',
     cognome: '',
+    dataNascita: '',
+    eta: '',
     motivoArrivo: '',
     trattamento: '',
     oraArrivo: toDatetimeLocalValue(Timestamp.now()),
@@ -23,10 +25,18 @@ function emptyDraft() {
 
 function draftFromRow(row) {
   const cm = codiceMinoreFromPaziente(row);
+  const eta =
+    cm.eta != null
+      ? String(cm.eta)
+      : cm.dataNascita
+        ? String(etaDaDataNascita(cm.dataNascita) ?? '')
+        : '';
   return {
     pettorale: cm.pettorale != null ? String(cm.pettorale) : '',
     nome: cm.nome ?? '',
     cognome: cm.cognome ?? '',
+    dataNascita: cm.dataNascita ? String(cm.dataNascita).slice(0, 10) : '',
+    eta,
     motivoArrivo: cm.motivoArrivo,
     trattamento: cm.trattamento,
     oraArrivo: toDatetimeLocalValue(cm.oraArrivo),
@@ -80,6 +90,8 @@ export function PmaCodiceMinoreFormModal({
       nome: hit.nome ?? '',
       cognome: hit.cognome ?? '',
       pettorale: String(hit.pettorale),
+      dataNascita: hit.dataNascita ?? '',
+      eta: hit.dataNascita ? String(etaDaDataNascita(hit.dataNascita) ?? '') : '',
     }));
   };
 
@@ -88,6 +100,8 @@ export function PmaCodiceMinoreFormModal({
       pettorale: draft.pettorale,
       nome: draft.nome,
       cognome: draft.cognome,
+      dataNascita: draft.dataNascita,
+      eta: draft.eta !== '' ? Number(draft.eta) : null,
       motivoArrivo: draft.motivoArrivo,
       trattamento: draft.trattamento,
       oraArrivo: tsFromLocal(draft.oraArrivo, true),
@@ -135,6 +149,35 @@ export function PmaCodiceMinoreFormModal({
               className={inputClass}
               value={draft.cognome}
               onChange={(e) => patchDraft('cognome', e.target.value)}
+            />
+          </FormField>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          <FormField label="Data di nascita">
+            <input
+              type="date"
+              className={inputClass}
+              value={draft.dataNascita}
+              onChange={(e) => {
+                const dataNascita = e.target.value;
+                const nuovaEta =
+                  dataNascita && dataNascita.length >= 10 ? etaDaDataNascita(dataNascita) : null;
+                setDraft((d) => ({
+                  ...d,
+                  dataNascita,
+                  eta: nuovaEta != null ? String(nuovaEta) : '',
+                }));
+              }}
+            />
+          </FormField>
+          <FormField label="Età">
+            <input
+              type="number"
+              min={0}
+              className={inputClass}
+              value={draft.eta}
+              onChange={(e) => patchDraft('eta', e.target.value)}
             />
           </FormField>
         </div>

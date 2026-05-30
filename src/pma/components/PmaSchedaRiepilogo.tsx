@@ -40,9 +40,11 @@ export function PmaSchedaRiepilogo({
     cognome: p.cognome ?? '',
     pettorale: p.pettorale != null ? String(p.pettorale) : '',
     telefono: p.telefono ?? '',
-    dataNascita: '',
+    comune: String(rawDoc.comune ?? ''),
+    indirizzo: String(rawDoc.indirizzo ?? ''),
+    dataNascita: String(rawDoc.dataNascita ?? '').slice(0, 10),
     eta: p.eta != null ? String(p.eta) : '',
-    sesso: '',
+    sesso: String(rawDoc.sesso ?? ''),
     notePaziente: p.note_centrale ?? '',
   });
   const [tipoEv, setTipoEv] = useState(p.tipo_evento || eventoTipo || '');
@@ -59,14 +61,16 @@ export function PmaSchedaRiepilogo({
       cognome: p.cognome ?? '',
       pettorale: p.pettorale != null ? String(p.pettorale) : '',
       telefono: p.telefono ?? '',
-      dataNascita: '',
+      comune: String(rawDoc.comune ?? ''),
+      indirizzo: String(rawDoc.indirizzo ?? ''),
+      dataNascita: String(rawDoc.dataNascita ?? '').slice(0, 10),
       eta: p.eta != null ? String(p.eta) : '',
-      sesso: '',
+      sesso: String(rawDoc.sesso ?? ''),
       notePaziente: p.note_centrale ?? '',
     });
     setTipoEv(p.tipo_evento || eventoTipo || '');
     setDettaglioEv(p.dettaglio_evento || eventoDettaglio || '');
-  }, [p.id, p.nome, p.cognome, p.tipo_evento, p.dettaglio_evento, eventoTipo, eventoDettaglio]);
+  }, [p.id, p.nome, p.cognome, p.tipo_evento, p.dettaglio_evento, eventoTipo, eventoDettaglio, rawDoc.comune, rawDoc.indirizzo, rawDoc.dataNascita, rawDoc.sesso]);
 
   useEffect(() => {
     if (!manifestationId || !docId) return undefined;
@@ -88,6 +92,10 @@ export function PmaSchedaRiepilogo({
       cognome: draft.cognome.trim(),
       pettorale: draft.pettorale === '' ? null : Number(draft.pettorale),
       telefono: draft.telefono.trim(),
+      comune: draft.comune.trim(),
+      indirizzo: draft.indirizzo.trim(),
+      dataNascita: draft.dataNascita.trim(),
+      sesso: draft.sesso.trim(),
       note_centrale: draft.notePaziente.trim(),
       ...(draft.eta !== '' ? { eta: Number(draft.eta) } : { eta: null }),
     });
@@ -137,6 +145,18 @@ export function PmaSchedaRiepilogo({
             <div>
               <dt className="text-xs text-slate-500">Telefono</dt>
               <dd>{p.telefono || '—'}</dd>
+            </div>
+            <div>
+              <dt className="text-xs text-slate-500">Comune</dt>
+              <dd>{String(rawDoc.comune ?? '').trim() || '—'}</dd>
+            </div>
+            <div>
+              <dt className="text-xs text-slate-500">Indirizzo</dt>
+              <dd>{String(rawDoc.indirizzo ?? '').trim() || '—'}</dd>
+            </div>
+            <div>
+              <dt className="text-xs text-slate-500">Data di nascita</dt>
+              <dd>{String(rawDoc.dataNascita ?? '').slice(0, 10) || '—'}</dd>
             </div>
             <div>
               <dt className="text-xs text-slate-500">Età</dt>

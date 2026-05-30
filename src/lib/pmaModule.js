@@ -62,6 +62,15 @@ export function pazienteHaSchedaPma(paziente) {
   return pazienteHaDestinazionePma(paziente);
 }
 
+/** Paziente con percorso PMA (tenda, autopresentato, codice minore o già dimesso). */
+export function pazientePassatoDalPma(paziente) {
+  if (!paziente) return false;
+  if (isPazienteCodiceMinore(paziente)) return true;
+  if (pazienteHaSchedaPma(paziente)) return true;
+  if (normalizeStatoPzPma(paziente.statoPzPma)) return true;
+  return Boolean(paziente.pmaScheda && Object.keys(paziente.pmaScheda).length > 0);
+}
+
 export function pazientePmaAperto(paziente) {
   const stato = normalizeStatoPzPma(paziente?.statoPzPma);
   return stato != null && STATI_PZ_PMA_APERTI.includes(stato);

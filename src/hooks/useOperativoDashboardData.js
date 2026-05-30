@@ -47,15 +47,12 @@ export function useOperativoDashboardData(options = {}) {
 
   const sortMissioni = (list) =>
     list.slice().sort((a, b) => {
-      const cmpM = String(a.idMissione ?? '').localeCompare(String(b.idMissione ?? ''), 'it', {
+      const cmpApertura = (b.apertura?.toMillis?.() ?? 0) - (a.apertura?.toMillis?.() ?? 0);
+      if (cmpApertura !== 0) return cmpApertura;
+      return String(b.idMissione ?? '').localeCompare(String(a.idMissione ?? ''), 'it', {
         sensitivity: 'base',
+        numeric: true,
       });
-      if (cmpM !== 0) return cmpM;
-      const mz = String(a.mezzo ?? '').localeCompare(String(b.mezzo ?? ''), 'it', {
-        sensitivity: 'base',
-      });
-      if (mz !== 0) return mz;
-      return (b.apertura?.toMillis?.() ?? 0) - (a.apertura?.toMillis?.() ?? 0);
     });
 
   const operativoBlocks = useMemo(() => {

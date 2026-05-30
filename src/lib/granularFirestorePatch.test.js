@@ -5,6 +5,12 @@ import {
 } from './granularFirestorePatch.js';
 
 describe('granularFirestorePatch', () => {
+  it('blocca codiceMinore intero su patchPaziente', () => {
+    expect(() => assertPazientePatchGranular({ codiceMinore: { motivoArrivo: 'x' } })).toThrow(
+      /codiceMinore/,
+    );
+  });
+
   it('blocca pmaScheda intero su patchPaziente', () => {
     expect(() => assertPazientePatchGranular({ pmaScheda: { codice_colore: 'rosso' } })).toThrow(
       /pmaScheda/,

@@ -29,6 +29,13 @@ describe('impostazioniFieldAccess', () => {
     expect(tipi.length).toBeGreaterThan(0);
   });
 
+  it('dettagliPerTipoLuogo in display resta mappa vuota senza merge implicito', () => {
+    expect(readImpostazioniFieldForDisplay({}, 'dettagliPerTipoLuogo')).toEqual({});
+    expect(readImpostazioniFieldForDisplay({ dettagliPerTipoLuogo: { CASA: ['A'] } }, 'dettagliPerTipoLuogo')).toEqual({
+      CASA: ['A'],
+    });
+  });
+
   it('path puntato rifiuta chiavi con punto', () => {
     expect(() => impostazioniMapFieldPath('dettagliPerTipoLuogo', 'A.B')).toThrow(/\\./);
     expect(impostazioniMapFieldPath('dettagliPerTipoLuogo', 'UFFICIO')).toBe(

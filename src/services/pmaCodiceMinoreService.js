@@ -1,8 +1,10 @@
 import { Timestamp } from 'firebase/firestore';
 import { STATO_PAZIENTE_PMA } from '../constants';
 import { STATO_PZ_PMA, TIPO_PZ } from '../lib/pmaModule';
-import { createPaziente, deletePazienteCascade, patchPaziente } from './pazientiService';
+import { etaDaDataNascita } from '../lib/excelPartecipanti';
+import { createPaziente, deletePazienteCascade } from './pazientiService';
 import { deleteAllCodiceMinoreFoto } from './pmaCodiceMinoreFotoService';
+import { patchPazienteCodiceMinoreScalars } from '../lib/patchPazienteCodiceMinore';
 
 function normalizeCodiceMinorePayload(payload = {}) {
   const pettoraleRaw = payload.pettorale ?? payload.numeroPettorale;
@@ -30,6 +32,8 @@ function normalizeCodiceMinorePayload(payload = {}) {
     pettorale: Number.isFinite(pettorale) ? pettorale : null,
     nome: String(payload.nome ?? '').trim(),
     cognome: String(payload.cognome ?? '').trim(),
+    dataNascita: String(payload.dataNascita ?? '').trim(),
+    eta: payload.eta != null && payload.eta !== '' ? Number(payload.eta) : null,
     codiceMinore,
   };
 }
@@ -42,11 +46,14 @@ export async function createPazienteCodiceMinore(
   payload,
   existingPazienti,
 ) {
-  const { pettorale, nome, cognome, codiceMinore } = normalizeCodiceMinorePayload(payload);
+  const { pettorale, nome, cognome, dataNascita, eta, codiceMinore } =
+    normalizeCodiceMinorePayload(payload);
   if (pettorale == null) throw new Error('Numero pettorale obbligatorio');
 
   const chiuso = codiceMinore.oraFine != null;
   const nomeFinale = nome || `Pett. ${pettorale}`;
+  const etaFinale =
+    Number.isFinite(eta) ? eta : dataNascita ? etaDaDataNascita(dataNascita) : null;
 
   return createPaziente(
     manifestationId,
@@ -59,6 +66,8 @@ export async function createPazienteCodiceMinore(
       nome: nomeFinale,
       cognome,
       pettorale,
+      dataNascita,
+      eta: etaFinale,
       ospedaleDestinazione: pmaNome ?? '',
       destinazionePmaId: pmaId,
       pmaId,
@@ -74,24 +83,31 @@ export async function createPazienteCodiceMinore(
 
 /** Aggiorna paziente «codice minore». */
 export async function updatePazienteCodiceMinore(manifestationId, docId, payload, existingRow) {
-  const { pettorale, nome, cognome, codiceMinore } = normalizeCodiceMinorePayload(payload);
+  const { pettorale, nome, cognome, dataNascita, eta, codiceMinore } =
+    normalizeCodiceMinorePayload(payload);
   if (pettorale == null) throw new Error('Numero pettorale obbligatorio');
 
   const chiuso = codiceMinore.oraFine != null;
   const nomeFinale = nome || `Pett. ${pettorale}`;
-  const existingFoto = existingRow?.codiceMinore?.foto;
-  if (!Array.isArray(codiceMinore.foto) && Array.isArray(existingFoto)) {
-    codiceMinore.foto = existingFoto;
-  }
+  const etaFinale =
+    Number.isFinite(eta) ? eta : dataNascita ? etaDaDataNascita(dataNascita) : null;
+  const codiceMinorePatch = { ...codiceMinore };
+  delete codiceMinorePatch.foto;
 
-  await patchPaziente(manifestationId, docId, {
-    pettorale,
-    nome: nomeFinale,
-    cognome,
-    codiceMinore,
-    statoPzPma: chiuso ? STATO_PZ_PMA.DIMESSO : STATO_PZ_PMA.IN_CARICO,
-    aperta: !chiuso,
-  });
+  await patchPazienteCodiceMinoreScalars(
+    manifestationId,
+    docId,
+    {
+      pettorale,
+      nome: nomeFinale,
+      cognome,
+      dataNascita,
+      eta: etaFinale,
+      statoPzPma: chiuso ? STATO_PZ_PMA.DIMESSO : STATO_PZ_PMA.IN_CARICO,
+      aperta: !chiuso,
+    },
+    codiceMinorePatch,
+  );
 }
 
 export async function deletePazienteCodiceMinore(manifestationId, docId, existingRow) {
@@ -108,6 +124,8 @@ export function codiceMinoreFromPaziente(paziente) {
     pettorale: paziente?.pettorale ?? null,
     nome: paziente?.nome ?? '',
     cognome: paziente?.cognome ?? '',
+    dataNascita: paziente?.dataNascita ?? '',
+    eta: paziente?.eta ?? null,
     motivoArrivo: cm.motivoArrivo ?? '',
     trattamento: cm.trattamento ?? '',
     oraArrivo: cm.oraArrivo ?? paziente?.apertura ?? null,

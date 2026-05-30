@@ -32,4 +32,14 @@ describe('buildGranularUpdatesFromSnapshot', () => {
     });
     expect(updates).toEqual({ 'pmaScheda.allergie': 'penicillina' });
   });
+
+  it('unisce prestazioni_sel senza perdere voci server', () => {
+    const snap = { pmaScheda: { prestazioni_sel: ['A', 'B'] } };
+    const updates = buildGranularUpdatesFromSnapshot(snap, {
+      direct: {},
+      eoMerges: [],
+      arrayMerges: [{ field: 'prestazioni_sel', value: ['B', 'C'] }],
+    });
+    expect(updates['pmaScheda.prestazioni_sel']).toEqual(['A', 'B', 'C']);
+  });
 });

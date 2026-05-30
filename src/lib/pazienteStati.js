@@ -103,3 +103,15 @@ export function displayStatoPazienteInLista(paziente) {
   }
   return `${centrale} · PMA: ${pma}`;
 }
+
+/**
+ * Timestamp chiusura effettiva in elenco: dimissione PMA se dimesso in tenda,
+ * altrimenti ARRIVATO H centrale. Null se il paziente è ancora aperto in elenco.
+ */
+export function pazienteChiusuraAt(paziente) {
+  if (!paziente || pazienteInElencoAperti(paziente)) return null;
+  if (pazientePmaChiuso(paziente)) {
+    return paziente.pmaScheda?.dimesso_at ?? null;
+  }
+  return paziente.arrivatoHAt ?? null;
+}

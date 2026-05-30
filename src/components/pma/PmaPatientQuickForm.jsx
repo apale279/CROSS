@@ -37,6 +37,8 @@ export function PmaPatientQuickForm({
     cognome: '',
     pettorale: '',
     telefono: '',
+    comune: '',
+    indirizzo: '',
     dataNascita: '',
     eta: '',
     sesso: '',
@@ -109,6 +111,8 @@ export function PmaPatientQuickForm({
               ? Number(draft.pettorale)
               : null,
           telefono: draft.telefono.trim(),
+          comune: draft.comune.trim(),
+          indirizzo: draft.indirizzo.trim(),
           dataNascita: draft.dataNascita.trim(),
           eta: parseEtaDraft(draft.eta),
           sesso: draft.sesso.trim(),

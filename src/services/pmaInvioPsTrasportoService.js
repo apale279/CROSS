@@ -5,6 +5,7 @@ import { normalizeStatoPzPma, STATO_PZ_PMA } from '../lib/pmaModule';
 import { createMissioneConConfermaRientro } from '../lib/missioneRientroCreate';
 import { parseCodiceColoreOptional } from '../lib/codiciColore';
 import { mergeOperatoreCreatoPayload } from '../lib/operatoreAudit';
+import { coloreSanitarioToPmaCodice } from './pazientePmaMissionSync';
 import {
   missionePmaInvioPsApertaPerPaziente,
   TIPO_TRASPORTO_MISSIONE_PMA_INVIO_PS,
@@ -15,7 +16,7 @@ function labelPaziente(paziente) {
   return nome || paziente.idPaziente || 'Paziente';
 }
 
-/** Colore clinico da codice invio PS PMA (nessun default Bianco su M). */
+/** Colore clinico da codice PMA/sanitario (Bianco, Verde, Giallo, Rosso). */
 function coloreDaCodiceTrasporto(codice) {
   const m = {
     bianco: 'Bianco',
@@ -28,13 +29,25 @@ function coloreDaCodiceTrasporto(codice) {
   return parseCodiceColoreOptional(m[key]);
 }
 
+/** E/M/T da codice paziente PMA: invio PS → scheda → P centrale. */
+export function resolveColorePazienteInvioPs(paziente) {
+  const scheda = paziente?.pmaScheda ?? {};
+  const fromInvioPs = coloreDaCodiceTrasporto(scheda.invio_ps_codice_trasporto);
+  if (fromInvioPs) return fromInvioPs;
+  const fromScheda = coloreDaCodiceTrasporto(scheda.codice_colore);
+  if (fromScheda) return fromScheda;
+  const fromSanitario = coloreSanitarioToPmaCodice(paziente?.codiceColoreSanitario);
+  if (fromSanitario) return coloreDaCodiceTrasporto(fromSanitario);
+  return null;
+}
+
 /**
  * Evento + missione IN POSTO al PMA, con snapshot paziente dimesso (nessun nuovo paziente).
  */
 export async function createTrasportoInvioPsDaPma(
   manifestationId,
   { paziente, pma, mezzo, mezzoDoc, ospedaleDestinazione, eventi, missioni },
-  { confirmFn, creatoDaUid, creatoDaNomeUtente, creatoDaNome } = {},
+  { creatoDaUid, creatoDaNomeUtente, creatoDaNome } = {},
 ) {
   const audit = mergeOperatoreCreatoPayload({
     creatoDaUid,
@@ -72,7 +85,7 @@ export async function createTrasportoInvioPsDaPma(
   }
 
   const scheda = paziente.pmaScheda ?? {};
-  const coloreTrasporto = coloreDaCodiceTrasporto(scheda.invio_ps_codice_trasporto);
+  const colorePaziente = resolveColorePazienteInvioPs(paziente);
   const soreu = invioPsSoreuFieldsFromScheda(scheda);
   const noteLines = [
     `Trasporto PMA → PS — paziente ${paziente.idPaziente ?? ''} ${labelPaziente(paziente)}`.trim(),
@@ -88,7 +101,7 @@ export async function createTrasportoInvioPsDaPma(
       coordinate: pma.coordinate ?? null,
       tipoEvento: 'Trasporto',
       dettaglioEvento: 'PMA → Ospedale (Invio PS)',
-      colore: coloreTrasporto ?? 'Bianco',
+      colore: colorePaziente ?? 'Bianco',
       chiamante: pma.nome ?? 'PMA',
       noteEvento: noteLines.join('\n'),
       ...audit,
@@ -105,10 +118,10 @@ export async function createTrasportoInvioPsDaPma(
       eventoCorrelato: evento.idEvento,
       mezzo,
       statoInizialeForzato: 'IN POSTO',
-      ...(coloreTrasporto
+      ...(colorePaziente
         ? {
-            codiceColoreMissione: coloreTrasporto,
-            codiceColoreTrasporto: coloreTrasporto,
+            codiceColoreMissione: colorePaziente,
+            codiceColoreTrasporto: colorePaziente,
           }
         : {}),
       tipoTrasporto: TIPO_TRASPORTO_MISSIONE_PMA_INVIO_PS,
@@ -129,13 +142,7 @@ export async function createTrasportoInvioPsDaPma(
     },
     missioni,
     mezzoDoc,
-    [],
-    confirmFn,
   );
-
-  if (!missione) {
-    throw new Error('Creazione trasporto annullata.');
-  }
 
   return {
     ospedaleDestinazione: ospedale,

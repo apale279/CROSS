@@ -1,7 +1,6 @@
 import { useCallback, useState } from 'react';
 import { useImpostazioniField } from '../../hooks/useImpostazioniField';
 import { useManifestazioneId } from '../../context/ManifestazioneContext';
-import { defaultDettagliPerTipoLuogoForDisplay } from '../../lib/impostazioniFieldAccess';
 import { saveDettaglioTipoLuogo } from '../../services/impostazioniService';
 import { ListEditor } from './ListEditor';
 
@@ -12,7 +11,7 @@ export function DettagliPerTipoLuogoEditor() {
   const [savingTipo, setSavingTipo] = useState(null);
 
   const tipiList = tipi ?? [];
-  const map = defaultDettagliPerTipoLuogoForDisplay(dettagliMap);
+  const map = dettagliMap && typeof dettagliMap === 'object' ? dettagliMap : {};
 
   const saveTipo = useCallback(
     async (tipo, list) => {

@@ -4,6 +4,7 @@ import {
   doc,
   getDoc,
   getDocs,
+  runTransaction,
   serverTimestamp,
   setDoc,
   updateDoc,
@@ -17,7 +18,7 @@ import { normalizeMsbDetails } from '../lib/msbValutazione';
 import { normalizeMsaDetails } from '../lib/msaValutazione';
 import { newValutazioneSoccorsoItem, payloadValutazioneRow } from '../lib/valutazioniSoccorsoPayload';
 import { defaultsForPatientCreate } from '../lib/pazienteDefaults';
-import { patchPazienteArrivatoHConPma } from './pazientePmaMissionSync';
+import { patchPazienteArrivatoHConPma, statoPzPmaInArrivoIfAllowed } from './pazientePmaMissionSync';
 import { omitUndefinedFields } from '../lib/firestorePatch';
 import { assertPazientePatchGranular } from '../lib/granularFirestorePatch';
 import { initPmaSchedaIfMissing } from '../pma/lib/pazientePmaPatch';
@@ -31,6 +32,7 @@ import {
   pazientiPath,
   pazienteValutazioniSoccorsoPathSegments,
 } from '../lib/firestorePaths';
+import { TIPO_PZ } from '../lib/pmaModule';
 import { newIdUnivoco } from '../lib/ids';
 import { allocateProgressiveId } from './progressiveIdService';
 
@@ -85,18 +87,50 @@ export async function transitionPazienteArrivatoHTransaction(
 ) {
   if (!patientDocId) return;
   const ref = pazienteDocRef(manifestationId, patientDocId);
-  const snap = await getDoc(ref);
-  if (!snap.exists()) return;
-  const p = { _docId: snap.id, ...snap.data() };
-  if (p.esito !== ESITO_TRASPORTA || p.stato === 'ARRIVATO H') return;
+  let initSeed = null;
 
-  const result = patchPazienteArrivatoHConPma(p, evento);
-  if (!result?.patch) return;
+  await runTransaction(db, async (transaction) => {
+    const snap = await transaction.get(ref);
+    if (!snap.exists()) return;
+    const p = { _docId: snap.id, ...snap.data() };
+    if (p.esito !== ESITO_TRASPORTA || p.stato === 'ARRIVATO H') return;
 
-  await patchPaziente(manifestationId, patientDocId, result.patch);
-  if (result.initPmaScheda) {
-    await initPmaSchedaIfMissing(manifestationId, patientDocId, result.pmaSchedaSeed);
+    const result = patchPazienteArrivatoHConPma(p, evento);
+    if (!result?.patch) return;
+
+    const payload = omitUndefinedFields(result.patch);
+    if (Object.keys(payload).length === 0) return;
+    assertPazientePatchGranular(payload);
+    transaction.update(ref, payload);
+    if (result.initPmaScheda) initSeed = result.pmaSchedaSeed;
+  });
+
+  if (initSeed !== null) {
+    await initPmaSchedaIfMissing(manifestationId, patientDocId, initSeed);
   }
+}
+
+/** Allinea stato PMA «IN ARRIVO» solo se consentito (lettura fresca transazionale). */
+export async function transitionPazientePmaInArrivoIfAllowed(manifestationId, patientDocId) {
+  if (!patientDocId) return false;
+  const ref = pazienteDocRef(manifestationId, patientDocId);
+  let updated = false;
+
+  await runTransaction(db, async (transaction) => {
+    const snap = await transaction.get(ref);
+    if (!snap.exists()) return;
+    const p = { _docId: snap.id, ...snap.data() };
+    const nextStato = statoPzPmaInArrivoIfAllowed(p);
+    if (!nextStato) return;
+    transaction.update(ref, {
+      tipoPz: p.tipoPz ?? TIPO_PZ.CENTRALE,
+      pmaId: p.pmaId ?? p.destinazionePmaId ?? '',
+      statoPzPma: nextStato,
+    });
+    updated = true;
+  });
+
+  return updated;
 }
 
 export { payloadValutazioneRow, newValutazioneSoccorsoItem } from '../lib/valutazioniSoccorsoPayload';
@@ -172,7 +206,34 @@ export async function updateValutazioneSoccorsoDoc(manifestationId, pazienteDocI
   const payload = omitUndefinedFields(fields);
   if (!pazienteDocId || !valutazioneId || Object.keys(payload).length === 0) return;
   const ref = valutazioneSoccorsoDocRef(manifestationId, pazienteDocId, valutazioneId);
-  await updateDoc(ref, payload);
+
+  await runTransaction(db, async (transaction) => {
+    const snap = await transaction.get(ref);
+    if (!snap.exists()) {
+      transaction.set(ref, payloadValutazioneRow({ id: valutazioneId, ...payload }));
+      return;
+    }
+
+    const current = snap.data();
+    const merged = { ...current, ...payload };
+    if (payload.msbDetails && typeof payload.msbDetails === 'object') {
+      merged.msbDetails = { ...(current.msbDetails ?? {}), ...payload.msbDetails };
+    }
+    if (payload.msaDetails && typeof payload.msaDetails === 'object') {
+      merged.msaDetails = { ...(current.msaDetails ?? {}), ...payload.msaDetails };
+    }
+
+    const row = payloadValutazioneRow({ id: valutazioneId, ...merged });
+    const updates = {};
+    for (const [key, value] of Object.entries(row)) {
+      if (JSON.stringify(current[key]) !== JSON.stringify(value)) {
+        updates[key] = value;
+      }
+    }
+    if (Object.keys(updates).length > 0) {
+      transaction.update(ref, updates);
+    }
+  });
 }
 
 export async function deleteValutazioneSoccorsoDoc(manifestationId, pazienteDocId, valutazioneId) {
@@ -235,13 +296,7 @@ export async function syncPazientiArrivatoH(manifestationId, missione) {
 
   for (const p of candidati) {
     if (!pazienteSameEventoAsMissione(p, missione)) continue;
-    const result = patchPazienteArrivatoHConPma(p, evento);
-    if (!result?.patch) continue;
-
-    await patchPaziente(manifestationId, p._docId, result.patch);
-    if (result.initPmaScheda) {
-      await initPmaSchedaIfMissing(manifestationId, p._docId, result.pmaSchedaSeed);
-    }
+    await transitionPazienteArrivatoHTransaction(manifestationId, p._docId, evento);
   }
 }
 

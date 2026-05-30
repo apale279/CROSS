@@ -1,5 +1,4 @@
 import { DEFAULT_IMPOSTAZIONI } from '../constants';
-import { DEFAULT_DETTAGLI_PER_TIPO_LUOGO } from '../data/defaultLuoghiImpostazioni';
 
 /** Mappe annidate: vietato riscrivere l'oggetto intero con saveImpostazioniField. */
 export const IMPOSTAZIONI_NESTED_OBJECT_FIELDS = new Set([
@@ -60,13 +59,4 @@ export function impostazioniMapFieldPath(parentField, mapKey) {
     throw new Error(`La chiave «${key}» non può contenere il carattere «.».`);
   }
   return `${parentField}.${key}`;
-}
-
-export function defaultDettagliPerTipoLuogoForDisplay(rawMap) {
-  const map =
-    rawMap && typeof rawMap === 'object' && !Array.isArray(rawMap) ? { ...rawMap } : {};
-  if (Object.keys(map).length === 0) {
-    return { ...DEFAULT_DETTAGLI_PER_TIPO_LUOGO };
-  }
-  return map;
 }

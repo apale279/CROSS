@@ -7,20 +7,33 @@ import { formatTimestamp } from '../utils/formatters';
 import { Modal } from '../components/ui/Modal';
 import { PazienteScheda } from '../components/pazienti/PazienteScheda';
 import { PazientePmaBadges } from '../components/pazienti/PazientePmaBadges';
-import { displayEventoPazienteInLista, isPazienteCodiceMinore } from '../lib/pmaModule';
+import {
+  displayEventoPazienteInLista,
+  isPazienteCodiceMinore,
+  pazienteHaDestinazionePma,
+  pazientePassatoDalPma,
+  pmaIdPerPaziente,
+} from '../lib/pmaModule';
 import {
   displayStatoPazienteInLista,
+  pazienteChiusuraAt,
   pazienteInElencoAperti,
   pazienteInElencoChiusi,
 } from '../lib/pazienteStati';
 import { usePmaAccess } from '../hooks/usePmaAccess';
 import { usePmaFieldUx } from '../pma/hooks/usePmaFieldUx';
-import { pazienteHaDestinazionePma, pmaIdPerPaziente } from '../lib/pmaModule';
 import { PazientiMobileList } from '../components/pazienti/PazientiMobileList';
 
 const thClass =
   'bg-slate-100 px-4 py-3 text-left text-xs font-bold uppercase text-slate-600';
 const tdClass = 'border-t border-slate-200 px-4 py-3 text-sm';
+
+function pazienteRowClass(paziente) {
+  if (!pazientePassatoDalPma(paziente)) {
+    return 'cursor-pointer hover:bg-sky-50';
+  }
+  return 'cursor-pointer border-l-4 border-l-violet-500 bg-violet-50/60 hover:bg-violet-100/70';
+}
 
 function PazientiTable({ rows, eventi, onRow, emptyLabel }) {
   return (
@@ -35,12 +48,13 @@ function PazientiTable({ rows, eventi, onRow, emptyLabel }) {
             <th className={thClass}>PMA</th>
             <th className={thClass}>Esito</th>
             <th className={thClass}>Apertura</th>
+            <th className={thClass}>Chiusura</th>
           </tr>
         </thead>
         <tbody>
           {rows.length === 0 ? (
             <tr>
-              <td colSpan={7} className={`${tdClass} text-slate-500`}>
+              <td colSpan={8} className={`${tdClass} text-slate-500`}>
                 {emptyLabel}
               </td>
             </tr>
@@ -49,11 +63,7 @@ function PazientiTable({ rows, eventi, onRow, emptyLabel }) {
               const ev = findEvento(eventi, row.eventoIdUnivoco ?? row.eventoCorrelato);
               const label = displayEventoPazienteInLista(row, ev);
               return (
-                <tr
-                  key={row._docId}
-                  onClick={() => onRow(row)}
-                  className="cursor-pointer hover:bg-sky-50"
-                >
+                <tr key={row._docId} onClick={() => onRow(row)} className={pazienteRowClass(row)}>
                   <td className={`${tdClass} font-mono font-bold`}>{row.idPaziente}</td>
                   <td className={tdClass}>
                     {isPazienteCodiceMinore(row)
@@ -67,6 +77,7 @@ function PazientiTable({ rows, eventi, onRow, emptyLabel }) {
                   </td>
                   <td className={`${tdClass} max-w-[140px] truncate`}>{row.esito || '—'}</td>
                   <td className={tdClass}>{formatTimestamp(row.apertura)}</td>
+                  <td className={tdClass}>{formatTimestamp(pazienteChiusuraAt(row))}</td>
                 </tr>
               );
             })
@@ -146,6 +157,10 @@ export default function PazientiPage() {
         <p className="text-sm text-slate-600">Caricamento…</p>
       ) : (
         <div className="space-y-10">
+          <p className="text-xs text-slate-500">
+            Le righe con bordo viola indicano i pazienti passati dal PMA (inviati, autopresentati,
+            codici minori o già dimessi in tenda).
+          </p>
           <section>
             <h3 className="mb-3 text-sm font-bold uppercase text-sky-800">Aperti</h3>
             <List

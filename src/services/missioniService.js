@@ -7,6 +7,7 @@ import {
   getDocs,
   limit,
   query,
+  runTransaction,
   serverTimestamp,
   updateDoc,
   where,
@@ -35,6 +36,7 @@ import { impostazioniDocRef } from './impostazioniService';
 import { ESITO_MISSIONE_DEFAULT } from '../lib/missioneEsito';
 import { MISSIONE_ECCEZIONE_MOTIVO, MEZZO_STATO_AVARIA_SINISTRO } from '../lib/missionEccezioni';
 import { buildStatoChangeFields } from '../lib/missionStoricoStati';
+import { mergeTratteMissioneWrite } from '../lib/missionTratte';
 import { fetchPazientiTrasportoForMissione } from '../lib/pazientiTrasportoQuery';
 import { patchPaziente } from './pazientiService';
 import { syncPazientiArrivatoH } from './pazientiService';
@@ -104,9 +106,15 @@ export async function createMissione(manifestationId, payload, existingMissioni,
   const mezzoSiglaEarly = payload.mezzo
     ? await resolveMezzoDocIdFirestore(manifestationId, payload.mezzo)
     : '';
+  let missionPayload = payload;
   if (mezzoSiglaEarly) {
+    const aperte = missioniAperteSuMezzo(existingMissioni ?? [], mezzoSiglaEarly);
+    const rientro = aperte.filter((m) => isStatoMissioneRientroOLiberato(m.stato));
+    if (rientro.length > 0 && !payload.chiudiMissioniRientro) {
+      missionPayload = { ...payload, chiudiMissioniRientro: true };
+    }
     assertMezzoLiberoPerNuovaMissione(mezzoSiglaEarly, existingMissioni, {
-      chiudiMissioniRientro: !!payload.chiudiMissioniRientro,
+      chiudiMissioniRientro: !!missionPayload.chiudiMissioniRientro,
     });
     await terminaMissioniRientroPrecedenti(manifestationId, mezzoSiglaEarly, existingMissioni);
   }
@@ -216,12 +224,14 @@ export async function refreshMissioneCodiceColoreTrasporto(
     if (c && coloriValidi.has(c)) colori.push(c);
   }
   if (colori.length) {
-    await updateDoc(doc(db, ...missioniPath(manifestationId), missionDocId), {
-      codiceColoreTrasporto: pickGravestColore(colori),
-      codiceColoreTrasportoManuale: false,
-    });
+    const update = { codiceColoreTrasporto: pickGravestColore(colori) };
+    if (!(forceFromPaziente && missione.codiceColoreTrasportoManuale === true)) {
+      update.codiceColoreTrasportoManuale = false;
+    }
+    await updateDoc(doc(db, ...missioniPath(manifestationId), missionDocId), update);
     return;
   }
+  if (forceFromPaziente && missione.codiceColoreTrasportoManuale === true) return;
   await updateDoc(doc(db, ...missioniPath(manifestationId), missionDocId), {
     codiceColoreTrasporto: deleteField(),
     codiceColoreTrasportoManuale: deleteField(),
@@ -236,22 +246,28 @@ export async function syncMissioneCodiceColoreTrasportoForPaziente(manifestation
     const hit = await findMissioneDocForPaziente(manifestationId, paziente);
     if (!hit || isMissionePmaInvioPs(hit.data)) return;
     await refreshMissioneCodiceColoreTrasporto(manifestationId, hit.id, hit.data, {
-      forceFromPaziente: true,
+      forceFromPaziente: false,
     });
     return;
   }
   const hit = await findMissioneDocForPaziente(manifestationId, paziente);
   if (!hit || isMissionePmaInvioPs(hit.data)) return;
   await refreshMissioneCodiceColoreTrasporto(manifestationId, hit.id, hit.data, {
-    forceFromPaziente: true,
+    forceFromPaziente: false,
   });
 }
 
 /**
  * Persiste codice colore paziente, allinea PMA se presente, aggiorna T missione collegata.
+ * @returns {{ pmaResult?: { applied: boolean, conflict?: object, reason?: string } }}
  */
-export async function syncPazienteCodiceColoreSanitario(manifestationId, paziente, codiceColore) {
-  if (!manifestationId || !paziente?._docId) return;
+export async function syncPazienteCodiceColoreSanitario(
+  manifestationId,
+  paziente,
+  codiceColore,
+  { pmaColoreForceApply = false } = {},
+) {
+  if (!manifestationId || !paziente?._docId) return {};
 
   const impSnap = await getDoc(impostazioniDocRef(manifestationId));
   const coloriValidi = coloriEventoValidiSet(
@@ -268,12 +284,14 @@ export async function syncPazienteCodiceColoreSanitario(manifestationId, pazient
       : { codiceColoreSanitario: deleteField() },
   );
 
+  let pmaResult = { applied: false };
   if (esplicito) {
-    await syncPmaCodiceColoreFromSanitario(
+    pmaResult = await syncPmaCodiceColoreFromSanitario(
       manifestationId,
       paziente._docId,
       paziente,
       codiceColore,
+      { forceApply: pmaColoreForceApply },
     );
   }
 
@@ -281,6 +299,8 @@ export async function syncPazienteCodiceColoreSanitario(manifestationId, pazient
     ...paziente,
     codiceColoreSanitario: esplicito ? codiceColore : '',
   });
+
+  return { pmaResult };
 }
 
 /** Allinea codice paziente (P), scheda PMA se presente, e T missione collegata. */
@@ -327,7 +347,23 @@ export async function patchMissione(manifestationId, docId, fields, mezzoSigla) 
     payload.statoDa = serverTimestamp();
   }
   if (Object.keys(payload).length === 0) return;
-  await updateDoc(docRef, payload);
+
+  const hasTratteMerge = Object.prototype.hasOwnProperty.call(payload, 'tratteMissione');
+  if (hasTratteMerge) {
+    const clientTratte = payload.tratteMissione;
+    delete payload.tratteMissione;
+    await runTransaction(db, async (transaction) => {
+      const snap = await transaction.get(docRef);
+      if (!snap.exists()) return;
+      const merged = mergeTratteMissioneWrite(snap.data().tratteMissione, clientTratte);
+      transaction.update(
+        docRef,
+        omitUndefinedFields({ ...payload, tratteMissione: merged }),
+      );
+    });
+  } else {
+    await updateDoc(docRef, payload);
+  }
   if (fields.stato === 'ARRIVATO H') {
     const snap = await getDoc(docRef);
     if (snap.exists()) {

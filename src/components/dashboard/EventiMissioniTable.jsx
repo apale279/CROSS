@@ -142,7 +142,7 @@ function EventoCells({
     if (ev && canOpenEvento) onOpenEvento(ev);
   };
   const evClick = canOpenEvento ? 'cursor-pointer hover:brightness-95 ' : '';
-  const evTd = `${tdCompact} ${evClick}`;
+  const evTd = `${tdCompact} align-top ${evClick}`;
 
   return (
     <>
@@ -175,17 +175,17 @@ function EventoCells({
       </td>
       <td
         rowSpan={rowSpan}
-        className={`${tdTrunc} ${evClick}`}
+        className={`${tdTrunc} align-top ${evClick}`}
         title={indirizzoColonna || undefined}
         onClick={open}
       >
         {indirizzoColonna || '—'}
       </td>
-      <td rowSpan={rowSpan} className={`${tdTrunc} ${evClick}`} title={ev?.tipoEvento} onClick={open}>
+      <td rowSpan={rowSpan} className={`${tdTrunc} align-top ${evClick}`} title={ev?.tipoEvento} onClick={open}>
         {ev?.tipoEvento ?? '—'}
       </td>
-      <OperatoreUserCell doc={ev} rowSpan={rowSpan} onClick={open} />
-      <td rowSpan={rowSpan} className={`${tdEventLast} text-center`} onClick={open}>
+      <OperatoreUserCell doc={ev} rowSpan={rowSpan} className={`align-top ${evClick}`} onClick={open} />
+      <td rowSpan={rowSpan} className={`${tdEventLast} align-top text-center`} onClick={open}>
         {ev ? (
           <span
             className="inline-flex items-center gap-0.5 rounded bg-slate-100 px-1 py-px"
@@ -360,7 +360,7 @@ export function EventiMissioniTable({
                       coloreE={idx === 0 ? resolveCodiceColoreEvento(ev) : null}
                       coloreM={coloreM}
                       coloreT={coloreT}
-                      className={emtClass}
+                      className={`align-top ${emtClass}`}
                     />
                     <td className={`${misTd} text-center font-mono tabular-nums`}>
                       {formatTimeOnly(mis.apertura)}

@@ -6,7 +6,15 @@ import {
   pazienteSameEventoAsMissione,
 } from '../lib/pazientiTrasportoQuery';
 import { pazienteEsclusoDaSyncMissione } from '../lib/pmaInvioPsMission';
-import { patchPaziente } from './pazientiService';
+import {
+  detectPmaCodiceColoreConflict,
+  pmaCodiceColoreSyncBlocked,
+} from '../lib/pazienteSyncGuard';
+import {
+  patchPaziente,
+  transitionPazienteArrivatoHTransaction,
+  transitionPazientePmaInArrivoIfAllowed,
+} from './pazientiService';
 import { initPmaSchedaIfMissing, patchPazientePmaGranular } from '../pma/lib/pazientePmaPatch';
 
 /** MSB/MSA (Bianco…) → triage PMA (`pmaScheda.codice_colore`). */
@@ -31,12 +39,28 @@ export function pmaCodiceToColoreSanitario(codice) {
   return m[String(codice ?? '').trim().toLowerCase()] ?? null;
 }
 
-/** Allinea `pmaScheda.codice_colore` al codice sanitario scelto in centrale. */
-export async function syncPmaCodiceColoreFromSanitario(manifestationId, docId, paziente, codiceColore) {
-  if (!manifestationId || !docId || !paziente?.pmaScheda) return;
+/** Allinea `pmaScheda.codice_colore` al codice sanitario scelto in centrale (solo se consentito). */
+export async function syncPmaCodiceColoreFromSanitario(
+  manifestationId,
+  docId,
+  paziente,
+  codiceColore,
+  { forceApply = false } = {},
+) {
+  if (!manifestationId || !docId || !paziente?.pmaScheda) {
+    return { applied: false };
+  }
+  if (pmaCodiceColoreSyncBlocked(paziente)) {
+    return { applied: false, reason: 'pma_active' };
+  }
+  const conflict = detectPmaCodiceColoreConflict(paziente, codiceColore);
+  if (conflict && !forceApply) {
+    return { applied: false, conflict };
+  }
   const pmaCodice = coloreSanitarioToPmaCodice(codiceColore);
-  if (!pmaCodice) return;
+  if (!pmaCodice) return { applied: false };
   await patchPazientePmaGranular(manifestationId, docId, { codice_colore: pmaCodice });
+  return { applied: true };
 }
 
 /** Seed iniziale `pmaScheda` da paziente centrale (P) e evento (tipo/dettaglio). */
@@ -130,22 +154,13 @@ export async function syncPmaStatoOnDestinazionePaziente(
   if (cur === STATO_PZ_PMA.DIMESSO) return;
 
   if (ms === 'ARRIVATO H') {
-    const result = patchPazienteArrivatoHConPma(paziente, evento);
-    if (!result?.patch) return;
-    await patchPaziente(manifestationId, paziente._docId, result.patch);
-    if (result.initPmaScheda) {
-      await initPmaSchedaIfMissing(manifestationId, paziente._docId, result.pmaSchedaSeed);
-    }
+    await transitionPazienteArrivatoHTransaction(manifestationId, paziente._docId, evento);
     return;
   }
 
   if (cur === STATO_PZ_PMA.IN_CARICO || cur === STATO_PZ_PMA.IN_ARRIVO) return;
 
-  await patchPaziente(manifestationId, paziente._docId, {
-    tipoPz: paziente.tipoPz ?? TIPO_PZ.CENTRALE,
-    pmaId: paziente.pmaId ?? paziente.destinazionePmaId,
-    statoPzPma: STATO_PZ_PMA.IN_ARRIVO,
-  });
+  await transitionPazientePmaInArrivoIfAllowed(manifestationId, paziente._docId);
   if (!paziente.pmaScheda) {
     await ensurePmaSchedaOnDestinazione(manifestationId, paziente._docId, paziente, evento);
   }
@@ -155,25 +170,19 @@ export async function syncPmaStatoOnDestinazionePaziente(
 export async function syncPazientiPmaOnDirettoH(manifestationId, missione) {
   if (!missione?.mezzo) return { updated: 0 };
   const candidati = await fetchPazientiTrasportoForMissione(manifestationId, missione);
-  const tasks = [];
+  let updated = 0;
 
   for (const p of candidati) {
     if (pazienteEsclusoDaSyncMissione(p)) continue;
     if (!pazienteCollegatoAMissione(p, missione)) continue;
-    tasks.push(
-      patchPaziente(manifestationId, p._docId, {
-        tipoPz: p.tipoPz ?? TIPO_PZ.CENTRALE,
-        pmaId: p.pmaId ?? p.destinazionePmaId ?? '',
-        statoPzPma: STATO_PZ_PMA.IN_ARRIVO,
-      }),
-    );
+    const did = await transitionPazientePmaInArrivoIfAllowed(manifestationId, p._docId);
+    if (did) updated += 1;
     if (!p.pmaScheda) {
-      tasks.push(ensurePmaSchedaOnDestinazione(manifestationId, p._docId, p, null));
+      await ensurePmaSchedaOnDestinazione(manifestationId, p._docId, p, null);
     }
   }
 
-  await Promise.all(tasks);
-  return { updated: tasks.length };
+  return { updated };
 }
 
 /** ARRIVATO H + destinazione PMA: chiusura centrale; in tenda resta IN ARRIVO fino a presa in carico manuale. */
@@ -184,7 +193,11 @@ export function patchPazienteArrivatoHConPma(paziente, evento = null) {
   let pmaSchedaSeed = null;
   if (String(paziente.destinazionePmaId ?? '').trim()) {
     const cur = normalizeStatoPzPma(paziente.statoPzPma);
-    if (cur !== STATO_PZ_PMA.DIMESSO && cur !== STATO_PZ_PMA.IN_CARICO) {
+    if (
+      cur !== STATO_PZ_PMA.DIMESSO &&
+      cur !== STATO_PZ_PMA.IN_CARICO &&
+      cur !== STATO_PZ_PMA.IN_ATTESA
+    ) {
       patch.statoPzPma = STATO_PZ_PMA.IN_ARRIVO;
     }
     patch.pmaId = paziente.pmaId ?? paziente.destinazionePmaId ?? '';

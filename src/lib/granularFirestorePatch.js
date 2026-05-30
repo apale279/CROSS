@@ -11,7 +11,7 @@ export function isFirestoreFieldValue(value) {
 }
 
 /** Oggetti annidati su paziente: vietato riscriverli interi con patchPaziente. */
-export const PAZIENTE_NESTED_OBJECT_FIELDS = new Set(['pmaScheda', 'valutazioniSoccorso']);
+export const PAZIENTE_NESTED_OBJECT_FIELDS = new Set(['pmaScheda', 'valutazioniSoccorso', 'codiceMinore']);
 
 /** Oggetti annidati su mezzo espansi in path puntati (equipaggio.*, stazionamento.*). */
 const MEZZO_FLATTEN_OBJECT_FIELDS = new Set(['equipaggio', 'stazionamento']);

@@ -303,13 +303,14 @@ export function DimissioneSection({
 
   const firmaPaz = p.firma_paziente_base64
 
-  const showPresetMenuMedico = Boolean(isMedico && dimissioneEdit && presetDimissione.length > 0)
+  const showPresetDimissione = Boolean(dimissioneEdit && presetDimissione.length > 0)
+  const [presetSel, setPresetSel] = useState<number[]>([])
 
-  async function appendPresetTesto(testoPreset: string) {
-    const t = testoPreset.trim()
-    if (!t) return
+  async function appendPresetTesti(testi: string[]) {
+    const chunks = testi.map((t) => String(t ?? '').trim()).filter(Boolean)
+    if (chunks.length === 0) return
     const base = noteDraft.trimEnd()
-    const next = base ? `${base}\n\n${t}` : t
+    const next = base ? `${base}\n\n${chunks.join('\n\n')}` : chunks.join('\n\n')
     setNoteDraft(next)
     try {
       await write({ dimissione_note: next })
@@ -408,23 +409,22 @@ export function DimissioneSection({
           <label htmlFor={`dimissione-note-${p.id}`} className="pma-field__label">
             Note di dimissione
           </label>
-          {showPresetMenuMedico ? (
-            <label className="mt-1 mb-2 block w-full max-w-3xl" htmlFor={`dim-preset-sel-${p.id}`}>
-              <span className="sr-only">Preset dimissioni</span>
+          {showPresetDimissione ? (
+            <div className="mt-1 mb-2 block w-full max-w-3xl space-y-2">
+              <label htmlFor={`dim-preset-sel-${p.id}`} className="text-xs font-medium text-slate-600">
+                Preset dimissioni (selezione multipla)
+              </label>
               <select
                 id={`dim-preset-sel-${p.id}`}
-                className="mt-1 block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:border-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900"
-                defaultValue=""
+                multiple
+                size={Math.min(5, presetDimissione.length)}
+                className="block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:border-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900"
+                value={presetSel.map(String)}
                 onChange={(e) => {
-                  const raw = e.target.value
-                  e.target.value = ''
-                  if (raw === '') return
-                  const idx = Number(raw)
-                  const preset = presetDimissione[idx]
-                  if (preset) appendPresetTesto(preset.testo)
+                  const next = Array.from(e.target.selectedOptions).map((o) => Number(o.value))
+                  setPresetSel(next.filter((n) => Number.isFinite(n)))
                 }}
               >
-                <option value="">Preset dimissioni…</option>
                 {presetDimissione.map((preset, idx) => {
                   const tit = preset.titolo.trim() || `Preset ${idx + 1}`
                   const preview = preset.testo.trim()
@@ -439,7 +439,20 @@ export function DimissioneSection({
                   )
                 })}
               </select>
-            </label>
+              <button
+                type="button"
+                className={btnSecondary}
+                disabled={presetSel.length === 0}
+                onClick={() => {
+                  const testi = presetSel
+                    .map((idx) => presetDimissione[idx]?.testo ?? '')
+                    .filter((t) => String(t).trim())
+                  void appendPresetTesti(testi).then(() => setPresetSel([]))
+                }}
+              >
+                Inserisci preset selezionati nelle note
+              </button>
+            </div>
           ) : null}
           <textarea
             id={`dimissione-note-${p.id}`}

@@ -1,4 +1,4 @@
-import { Timestamp } from 'firebase/firestore';
+import { deleteField, Timestamp } from 'firebase/firestore';
 
 export function cloneStoricoStati(storico) {
   if (!storico || typeof storico !== 'object') return {};
@@ -14,17 +14,23 @@ export function cloneStoricoStati(storico) {
   return out;
 }
 
+/** Path puntato: evita RMW dell'intera mappa `storicoStati`. */
+export function storicoStatoDotPath(statoKey) {
+  return `storicoStati.${statoKey}`;
+}
+
 export function buildStatoChangeFields(missione, nuovoStato) {
-  const storico = cloneStoricoStati(missione?.storicoStati);
-  storico[nuovoStato] = Timestamp.now();
-  const fields = { stato: nuovoStato, storicoStati: storico };
+  const fields = {
+    stato: nuovoStato,
+    [storicoStatoDotPath(nuovoStato)]: Timestamp.now(),
+  };
   if (nuovoStato === 'FINE MISSIONE' || nuovoStato === 'ANNULLATA') fields.aperta = false;
   return fields;
 }
 
 export function patchStoricoStatoAt(missione, statoKey, date) {
-  const storico = cloneStoricoStati(missione?.storicoStati);
-  if (date) storico[statoKey] = Timestamp.fromDate(date);
-  else delete storico[statoKey];
-  return { storicoStati: storico };
+  if (date) {
+    return { [storicoStatoDotPath(statoKey)]: Timestamp.fromDate(date) };
+  }
+  return { [storicoStatoDotPath(statoKey)]: deleteField() };
 }

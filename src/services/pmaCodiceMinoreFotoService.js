@@ -1,9 +1,10 @@
 import { deleteObject, getDownloadURL, ref, uploadBytes } from 'firebase/storage';
-import { doc, getDoc } from 'firebase/firestore';
-import { db, storage } from '../firebaseConfig';
+import { storage } from '../firebaseConfig';
 import { compressImageFile } from '../lib/compressImageFile';
-import { pazientiPath } from '../lib/firestorePaths';
-import { patchPaziente } from './pazientiService';
+import {
+  appendPazienteCodiceMinoreFoto,
+  removePazienteCodiceMinoreFoto,
+} from '../lib/patchPazienteCodiceMinore';
 
 const ALLOWED = new Set(['image/png', 'image/jpeg', 'image/webp', 'image/heic', 'image/heif']);
 
@@ -22,21 +23,6 @@ export function codiceMinoreFotoList(paziente) {
   const raw = paziente?.codiceMinore?.foto;
   if (!Array.isArray(raw)) return [];
   return raw.filter((f) => f && typeof f.url === 'string' && f.url.trim());
-}
-
-async function readCodiceMinore(manifestationId, pazienteDocId) {
-  const snap = await getDoc(doc(db, ...pazientiPath(manifestationId), pazienteDocId));
-  if (!snap.exists()) throw new Error('Codice minore non trovato');
-  return snap.data()?.codiceMinore ?? {};
-}
-
-async function writeFotoList(manifestationId, pazienteDocId, codiceMinore, foto) {
-  await patchPaziente(manifestationId, pazienteDocId, {
-    codiceMinore: {
-      ...codiceMinore,
-      foto,
-    },
-  });
 }
 
 /** Carica una foto e aggiorna `codiceMinore.foto` sul paziente. */
@@ -59,18 +45,14 @@ export async function uploadCodiceMinoreFoto(manifestationId, pazienteDocId, fil
   await uploadBytes(storageRef, prepared, { contentType: 'image/jpeg' });
   const url = await getDownloadURL(storageRef);
 
-  const codiceMinore = await readCodiceMinore(manifestationId, pazienteDocId);
-  const foto = [
-    ...(Array.isArray(codiceMinore.foto) ? codiceMinore.foto : []),
-    {
-      id: fotoId,
-      url,
-      storagePath,
-      uploadedAt: new Date().toISOString(),
-    },
-  ];
-  await writeFotoList(manifestationId, pazienteDocId, codiceMinore, foto);
-  return foto[foto.length - 1];
+  const entry = {
+    id: fotoId,
+    url,
+    storagePath,
+    uploadedAt: new Date().toISOString(),
+  };
+  await appendPazienteCodiceMinoreFoto(manifestationId, pazienteDocId, entry);
+  return entry;
 }
 
 /** Rimuove una foto da Storage e da Firestore. */
@@ -86,11 +68,7 @@ export async function deleteCodiceMinoreFoto(manifestationId, pazienteDocId, fot
     if (err?.code !== 'storage/object-not-found') throw err;
   }
 
-  const codiceMinore = await readCodiceMinore(manifestationId, pazienteDocId);
-  const foto = (Array.isArray(codiceMinore.foto) ? codiceMinore.foto : []).filter(
-    (f) => f.id !== fotoMeta.id,
-  );
-  await writeFotoList(manifestationId, pazienteDocId, codiceMinore, foto);
+  await removePazienteCodiceMinoreFoto(manifestationId, pazienteDocId, fotoMeta.id);
 }
 
 /** Elimina tutte le foto di un codice minore (es. cancellazione paziente). */

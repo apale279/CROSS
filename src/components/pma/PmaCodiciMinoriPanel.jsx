@@ -98,8 +98,8 @@ export function PmaCodiciMinoriPanel({
                 <th className={thClass}>Pett.</th>
                 <th className={thClass}>Nome</th>
                 <th className={thClass}>Cognome</th>
+                <th className={`${thClass} text-center`}>Età</th>
                 <th className={thClass}>Motivo</th>
-                <th className={thClass}>Trattamento</th>
                 <th className={thClass}>Arrivo</th>
                 <th className={thClass}>Fine</th>
                 <th className={thClass}>Stato</th>
@@ -115,11 +115,9 @@ export function PmaCodiciMinoriPanel({
                     <td className={`${tdClass} font-mono font-bold`}>{row.pettorale ?? '—'}</td>
                     <td className={tdClass}>{cm.nome || '—'}</td>
                     <td className={tdClass}>{cm.cognome || '—'}</td>
-                    <td className={`${tdClass} max-w-[10rem] truncate`} title={cm.motivoArrivo}>
+                    <td className={`${tdClass} text-center font-mono`}>{cm.eta ?? '—'}</td>
+                    <td className={`${tdClass} max-w-[16rem] truncate`} title={cm.motivoArrivo}>
                       {cm.motivoArrivo || '—'}
-                    </td>
-                    <td className={`${tdClass} max-w-[12rem] truncate`} title={cm.trattamento}>
-                      {cm.trattamento || '—'}
                     </td>
                     <td className={`${tdClass} whitespace-nowrap font-mono text-xs`}>
                       {formatTimestamp(cm.oraArrivo)}

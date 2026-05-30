@@ -84,7 +84,7 @@ export function InvioPsSoreuTrasportoBlock({
     );
     if (open.length === 0) return null;
     const m = open[0];
-    return `Mezzo in «${m.stato}» su missione ${m.idMissione ?? '—'}: alla creazione verrà chiesta conferma chiusura.`;
+    return `Mezzo in «${m.stato}» su missione ${m.idMissione ?? '—'}: alla creazione la missione in rientro verrà chiusa automaticamente.`;
   }, [mezzoSel, missioni]);
 
   if (!paziente || paziente?.pmaScheda?.dimissione_esito !== 'invio_ps') return null;
@@ -106,7 +106,7 @@ export function InvioPsSoreuTrasportoBlock({
           eventi: eventi ?? [],
           missioni: missioni ?? [],
         },
-        { confirmFn: (msg) => window.confirm(msg), ...operatoreCreatoFields(user, profile) },
+        operatoreCreatoFields(user, profile),
       );
       setCreated(result);
     } catch (err) {
