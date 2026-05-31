@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { deleteField, serverTimestamp } from 'firebase/firestore';
+import { Timestamp, deleteField, serverTimestamp } from 'firebase/firestore';
+import { toDatetimeLocalValue, fromDatetimeLocalValue } from '../../lib/datetimeLocal';
 import { Plus } from 'lucide-react';
 import { DEFAULT_IMPOSTAZIONI } from '../../constants';
 import { useImpostazioni } from '../../hooks/useImpostazioni';
@@ -168,6 +169,32 @@ export function EventoScheda({
     patchEvento(manifestazioneId, evento._docId, fields);
   };
 
+  const onEventoAperturaBlur = async (value) => {
+    const prev = toDatetimeLocalValue(evento?.apertura);
+    if (!value || value === prev) return;
+    const date = fromDatetimeLocalValue(value);
+    if (!date) return;
+    if (date > new Date()) {
+      alert('L\'orario di apertura non può essere nel futuro.');
+      return;
+    }
+    if (evento?.chiusuraIl) {
+      const chiusura = evento.chiusuraIl?.toDate?.() ?? new Date(evento.chiusuraIl);
+      if (date > chiusura) {
+        alert('L\'orario di apertura non può essere successivo alla chiusura dell\'evento.');
+        return;
+      }
+    }
+    if (evento?.operativoTerminatoIl) {
+      const termine = evento.operativoTerminatoIl?.toDate?.() ?? new Date(evento.operativoTerminatoIl);
+      if (date > termine) {
+        alert('L\'orario di apertura non può essere successivo al termine operativo.');
+        return;
+      }
+    }
+    await patchEvento(manifestazioneId, evento._docId, { apertura: Timestamp.fromDate(date) });
+  };
+
   const commitLocation = (loc) => {
     if (isCreate) {
       setDraft((d) => ({ ...d, ...loc }));
@@ -307,6 +334,19 @@ export function EventoScheda({
           <span className="text-xs text-slate-500">
             {operatoreCreatoLine(evento)}
           </span>
+          {!readOnly && !isCreate && (
+            <label className="flex items-center gap-1.5 text-xs text-slate-500">
+              <span className="shrink-0 font-medium">Apertura:</span>
+              <input
+                type="datetime-local"
+                defaultValue={toDatetimeLocalValue(evento?.apertura)}
+                key={toDatetimeLocalValue(evento?.apertura)}
+                onBlur={(e) => void onEventoAperturaBlur(e.target.value)}
+                className="rounded border border-slate-300 bg-white px-1.5 py-0.5 font-mono text-xs text-slate-700 focus:border-sky-400 focus:outline-none"
+                title="Modifica data/ora apertura evento"
+              />
+            </label>
+          )}
           {!eventoAperto && evento.chiusuraIl && (
             <span className="text-xs text-slate-500">
               Chiuso: {formatTimestamp(evento.chiusuraIl)}

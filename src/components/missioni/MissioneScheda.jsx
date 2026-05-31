@@ -1,5 +1,5 @@
 import { useCallback, useMemo } from 'react';
-import { deleteField } from 'firebase/firestore';
+import { Timestamp, deleteField } from 'firebase/firestore';
 import { Clock } from 'lucide-react';
 import { DEFAULT_IMPOSTAZIONI } from '../../constants';
 import {
@@ -184,6 +184,40 @@ export function MissioneScheda({
       manifestationId,
       missione._docId,
       patchStoricoStatoAt(missione, statoKey, date),
+      missione.mezzo,
+    );
+  };
+
+  const onAperturaMissioneBlur = async (value) => {
+    const prev = toDatetimeLocalValue(missione.apertura);
+    if (!value || value === prev) return;
+    const date = fromDatetimeLocalValue(value);
+    if (!date) return;
+    if (date > new Date()) {
+      alert('L\'orario di apertura non può essere nel futuro.');
+      return;
+    }
+    // Non può essere successivo a nessuna voce dello storicoStati
+    const storicoEntries = Object.values(storico ?? {});
+    for (const ts of storicoEntries) {
+      const tsDate = ts?.toDate ? ts.toDate() : new Date(ts);
+      if (!Number.isNaN(tsDate.getTime()) && date > tsDate) {
+        alert('L\'orario di apertura non può essere successivo a uno degli stati nella cronologia.');
+        return;
+      }
+    }
+    // Non può precedere l'apertura dell'evento collegato
+    if (evento?.apertura) {
+      const evDate = evento.apertura?.toDate ? evento.apertura.toDate() : new Date(evento.apertura);
+      if (!Number.isNaN(evDate.getTime()) && date < evDate) {
+        alert('L\'orario di apertura della missione non può precedere l\'apertura dell\'evento.');
+        return;
+      }
+    }
+    await patchMissione(
+      manifestationId,
+      missione._docId,
+      { apertura: Timestamp.fromDate(date) },
       missione.mezzo,
     );
   };
@@ -433,6 +467,18 @@ export function MissioneScheda({
           {statoMissioneBloccato && ' Missione terminata: gli stati non sono più modificabili.'}
         </p>
         <ul className="space-y-2">
+          <li className="grid grid-cols-1 gap-2 rounded border border-slate-300 bg-white p-2 sm:grid-cols-[minmax(0,auto)_1fr] sm:items-center">
+            <span className="text-xs font-bold uppercase text-slate-700">Apertura missione</span>
+            <input
+              type="datetime-local"
+              className={`${inputClass} font-mono text-xs`}
+              defaultValue={toDatetimeLocalValue(missione.apertura)}
+              key={toDatetimeLocalValue(missione.apertura)}
+              onBlur={(e) => void onAperturaMissioneBlur(e.target.value)}
+              disabled={statoMissioneBloccato}
+              title="Data/ora di apertura della missione. Deve essere ≥ apertura evento e ≤ primo stato registrato."
+            />
+          </li>
           {stati.map((stato) => {
             const isCurrent = missione.stato === stato;
             return (
