@@ -59,6 +59,7 @@ import {
 } from '../../lib/pazienteRules';
 import {
   createPaziente,
+  deletePazienteCascade,
   migrateLegacyValutazioniIfNeeded,
   newValutazioneSoccorsoItem,
   patchPaziente,
@@ -85,7 +86,7 @@ import {
   validateDestinazionePerMezzo,
 } from '../../lib/mezzoDestinazioneTrasporto';
 import { formatTimestamp } from '../../utils/formatters';
-import { FormField, btnPrimary, btnSecondary, inputClass, selectClass } from '../ui/FormField';
+import { FormField, btnDanger, btnPrimary, btnSecondary, inputClass, selectClass } from '../ui/FormField';
 import { ValutazioniSoccorsoTab } from './ValutazioniSoccorsoTab';
 import { PazienteAnagraficaFields } from './PazienteAnagraficaFields';
 import { ValutazioneMezzoButtons } from './ValutazioneMezzoButtons';
@@ -136,6 +137,7 @@ export function PazienteScheda({
   allPazienti = [],
   onClose,
   onSaved,
+  onDeleted,
 }) {
   const isCreate = !paziente;
   const manifestationId = useManifestazioneId();
@@ -1032,6 +1034,21 @@ export function PazienteScheda({
             />
             Aperto (centrale)
           </label>
+          )}
+          {!schedaSolaVisione && (
+            <button
+              type="button"
+              className={`${btnDanger} ml-auto`}
+              onClick={async () => {
+                const label = displayPatient.idPaziente ?? displayPatient.idUnivoco ?? 'questo paziente';
+                if (!window.confirm(`Eliminare definitivamente ${label}?\n\nL'operazione è irreversibile e rimuove anche tutte le valutazioni associate.`)) return;
+                await deletePazienteCascade(manifestationId, patientDocId);
+                onDeleted?.();
+                onClose?.();
+              }}
+            >
+              Elimina paziente
+            </button>
           )}
         </div>
       )}
