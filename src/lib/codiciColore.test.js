@@ -19,28 +19,16 @@ describe('codiceColoreSanitarioFromValutazioni', () => {
 });
 
 describe('resolveCodiceColoreTrasporto', () => {
-  it('centrale: T da codiceColoreSanitario paziente, ignora T manuale missione', () => {
-    const t = resolveCodiceColoreTrasporto(
-      {
-        codiceColoreTrasporto: 'Bianco',
-        codiceColoreTrasportoManuale: true,
-      },
-      null,
-      [{ codiceColoreSanitario: 'Giallo' }],
-    );
-    expect(t).toBe('Giallo');
+  it('restituisce il valore stored codiceColoreTrasporto', () => {
+    expect(resolveCodiceColoreTrasporto({ codiceColoreTrasporto: 'Giallo' })).toBe('Giallo');
   });
 
-  it('PMA invio PS: usa codice missione se T non manuale', () => {
-    const t = resolveCodiceColoreTrasporto(
-      {
-        tipoTrasporto: 'PMA_INVIO_PS',
-        codiceColoreMissione: 'Rosso',
-        codiceColoreTrasporto: 'Rosso',
-      },
-      { colore: 'Bianco' },
-      [],
-    );
-    expect(t).toBe('Rosso');
+  it('null se codiceColoreTrasporto assente', () => {
+    expect(resolveCodiceColoreTrasporto({})).toBeNull();
+    expect(resolveCodiceColoreTrasporto(null)).toBeNull();
+  });
+
+  it('null se valore non valido', () => {
+    expect(resolveCodiceColoreTrasporto({ codiceColoreTrasporto: 'Viola' })).toBeNull();
   });
 });

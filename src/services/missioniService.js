@@ -30,14 +30,13 @@ import { patchMezzo, resolveMezzoDocIdFirestore } from './mezziService';
 import { tryAutoCloseEventoForMissione } from './eventoAutoCloseService';
 import { normalizeImpostazioni } from '../lib/impostazioniNormalize';
 import { coloriEventoValidiSet, resolveStatiMissione } from '../lib/impostazioniLists';
-import { pickGravestColore, parseCodiceColoreOptional } from '../lib/codiciColore';
+import { parseCodiceColoreOptional } from '../lib/codiciColore';
 import { mergeOperatoreCreatoPayload, stripOperatoreCreatoFromPatch } from '../lib/operatoreAudit';
 import { impostazioniDocRef } from './impostazioniService';
 import { ESITO_MISSIONE_DEFAULT } from '../lib/missioneEsito';
 import { MISSIONE_ECCEZIONE_MOTIVO, MEZZO_STATO_AVARIA_SINISTRO } from '../lib/missionEccezioni';
 import { buildStatoChangeFields } from '../lib/missionStoricoStati';
 import { mergeTratteMissioneWrite } from '../lib/missionTratte';
-import { fetchPazientiTrasportoForMissione } from '../lib/pazientiTrasportoQuery';
 import { patchPaziente } from './pazientiService';
 import { syncPazientiArrivatoH } from './pazientiService';
 import {
@@ -199,61 +198,19 @@ async function findMissioneDocForPaziente(manifestationId, paziente) {
 }
 
 /**
- * Ricalcola codice T dai pazienti in trasporto sul mezzo.
- * `forceFromPaziente`: ignora T manuale (il codice colore paziente detta sempre legge su T).
+ * Copia il codice colore del paziente su T della missione collegata.
+ * Logica semplice: se il paziente ha colore+mezzo, scrivi T sulla missione.
+ * T può essere poi modificato liberamente dall'operatore senza che venga
+ * sovrascritto di nuovo (nessuna logica reattiva).
  */
-export async function refreshMissioneCodiceColoreTrasporto(
-  manifestationId,
-  missionDocId,
-  missione,
-  { forceFromPaziente = false } = {},
-) {
-  if (!missionDocId || !missione) return;
-  if (isMissionePmaInvioPs(missione)) return;
-  if (!forceFromPaziente && missione.codiceColoreTrasportoManuale === true) return;
-  const impSnap = await getDoc(impostazioniDocRef(manifestationId));
-  const coloriValidi = coloriEventoValidiSet(
-    impSnap.exists() ? normalizeImpostazioni(impSnap.data()) : null,
-  );
-  const candidati = missione.mezzo
-    ? await fetchPazientiTrasportoForMissione(manifestationId, missione)
-    : [];
-  const colori = [];
-  for (const p of candidati) {
-    const c = String(p.codiceColoreSanitario ?? '').trim();
-    if (c && coloriValidi.has(c)) colori.push(c);
-  }
-  if (colori.length) {
-    const update = { codiceColoreTrasporto: pickGravestColore(colori) };
-    if (!(forceFromPaziente && missione.codiceColoreTrasportoManuale === true)) {
-      update.codiceColoreTrasportoManuale = false;
-    }
-    await updateDoc(doc(db, ...missioniPath(manifestationId), missionDocId), update);
-    return;
-  }
-  if (forceFromPaziente && missione.codiceColoreTrasportoManuale === true) return;
-  await updateDoc(doc(db, ...missioniPath(manifestationId), missionDocId), {
-    codiceColoreTrasporto: deleteField(),
-    codiceColoreTrasportoManuale: deleteField(),
-  });
-}
-
-/** Allinea codice T missione dal codice colore sanitario del paziente collegato. */
 export async function syncMissioneCodiceColoreTrasportoForPaziente(manifestationId, paziente) {
   if (!manifestationId || !paziente) return;
   const colore = parseCodiceColoreOptional(paziente.codiceColoreSanitario);
-  if (!colore) {
-    const hit = await findMissioneDocForPaziente(manifestationId, paziente);
-    if (!hit || isMissionePmaInvioPs(hit.data)) return;
-    await refreshMissioneCodiceColoreTrasporto(manifestationId, hit.id, hit.data, {
-      forceFromPaziente: false,
-    });
-    return;
-  }
+  if (!colore) return; // nessun colore → non toccare T
   const hit = await findMissioneDocForPaziente(manifestationId, paziente);
   if (!hit || isMissionePmaInvioPs(hit.data)) return;
-  await refreshMissioneCodiceColoreTrasporto(manifestationId, hit.id, hit.data, {
-    forceFromPaziente: false,
+  await updateDoc(doc(db, ...missioniPath(manifestationId), hit.id), {
+    codiceColoreTrasporto: colore,
   });
 }
 

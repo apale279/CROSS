@@ -80,7 +80,7 @@ export function MissioneDetail({ missione, evento, mezzo, pazientiTrasporto = []
   if (!missione) return null;
 
   const coloreM = resolveCodiceColoreMissione(missione);
-  const coloreT = resolveCodiceColoreTrasporto(missione, evento, pazientiTrasporto);
+  const coloreT = resolveCodiceColoreTrasporto(missione);
 
   return (
     <dl className="space-y-3 text-sm">

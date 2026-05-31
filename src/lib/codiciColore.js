@@ -1,5 +1,4 @@
 import { DEFAULT_IMPOSTAZIONI } from '../constants';
-import { isMissionePmaInvioPs } from './pmaInvioPsMission';
 
 /** Indice gravità crescente: il valore più alto vince (Rosso più grave di Giallo, ecc.). */
 export const GRAVITA_INDICE = {
@@ -58,44 +57,20 @@ export function resolveCodiceColoreMissione(missione) {
   return parseCodiceColoreOptional(missione?.codiceColoreMissione);
 }
 
-/** Codice colore sanitario esplicito sul paziente (`codiceColoreSanitario`). */
-export function codiceColoreSanitarioPaziente(paziente) {
-  return parseCodiceColoreOptional(paziente?.codiceColoreSanitario);
-}
-
-/** Codici sanitari espliciti sui pazienti in trasporto (campo `codiceColoreSanitario`). */
-export function codiciColoreSanitariPazienti(pazientiTrasporto = []) {
-  return (pazientiTrasporto ?? [])
-    .map((p) => codiceColoreSanitarioPaziente(p))
-    .filter(Boolean);
-}
 
 /**
- * Colore T (trasporto verso ospedale).
- * Centrale: solo da `codiceColoreSanitario` paziente (mai da T manuale missione).
- * PMA → PS: da missione (modificabile a mano su scheda missione).
+ * Colore T (trasporto).
+ * Valore stored su missione: copiato dal paziente al momento dell'assegnazione
+ * colore+mezzo, poi modificabile liberamente dall'operatore.
  */
-export function resolveCodiceColoreTrasporto(missione, evento, pazientiTrasporto = []) {
-  if (isMissionePmaInvioPs(missione)) {
-    if (missione?.codiceColoreTrasportoManuale === true) {
-      return parseCodiceColoreOptional(missione?.codiceColoreTrasporto);
-    }
-    const fromMissione =
-      parseCodiceColoreOptional(missione?.codiceColoreTrasporto) ??
-      parseCodiceColoreOptional(missione?.codiceColoreMissione);
-    if (fromMissione) return fromMissione;
-    return parseCodiceColoreOptional(evento?.colore);
-  }
-
-  const fromPaz = codiciColoreSanitariPazienti(pazientiTrasporto);
-  if (fromPaz.length) return pickGravestColore(fromPaz);
-  return null;
+export function resolveCodiceColoreTrasporto(missione) {
+  return parseCodiceColoreOptional(missione?.codiceColoreTrasporto);
 }
 
 /** Colore di riga dashboard: priorità trasporto → missione → evento. */
-export function coloreRigaDashboard(missione, evento, pazientiTrasporto = []) {
+export function coloreRigaDashboard(missione, evento) {
   return (
-    resolveCodiceColoreTrasporto(missione, evento, pazientiTrasporto) ??
+    resolveCodiceColoreTrasporto(missione) ??
     resolveCodiceColoreMissione(missione) ??
     resolveCodiceColoreEvento(evento)
   );

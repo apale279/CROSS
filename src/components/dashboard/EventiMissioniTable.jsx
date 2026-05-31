@@ -321,8 +321,8 @@ export function EventiMissioniTable({
               return missions.map((mis, idx) => {
                 const pazTrasporto = pazientiTrasportoByMissione.get(mis._docId) ?? [];
                 const coloreM = resolveCodiceColoreMissione(mis);
-                const coloreT = resolveCodiceColoreTrasporto(mis, ev, pazTrasporto);
-                const coloreRiga = coloreRigaDashboard(mis, ev, pazTrasporto);
+                const coloreT = resolveCodiceColoreTrasporto(mis);
+                const coloreRiga = coloreRigaDashboard(mis, ev);
                 const daAllertare = mis.stato === 'ALLERTARE';
                 const emtClass = multiMission ? 'border-r-violet-200/70' : '';
 

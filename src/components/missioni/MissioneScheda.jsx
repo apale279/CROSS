@@ -5,7 +5,6 @@ import { DEFAULT_IMPOSTAZIONI } from '../../constants';
 import {
   resolveCodiceColoreEvento,
   resolveCodiceColoreMissione,
-  resolveCodiceColoreTrasporto,
   parseCodiceColoreOptional,
 } from '../../lib/codiciColore';
 import { ESITI_MISSIONE, ESITO_MISSIONE_DEFAULT, normalizeEsitoMissione } from '../../lib/missioneEsito';
@@ -84,11 +83,6 @@ export function MissioneScheda({
 
   const coloreM = useMemo(() => resolveCodiceColoreMissione(missione), [missione]);
 
-  const coloreTrasportoEffettivo = useMemo(
-    () => resolveCodiceColoreTrasporto(missione, evento, pazientiTrasporto),
-    [missione, evento, pazientiTrasporto],
-  );
-
   const tratte = useMemo(
     () => normalizeTratteMissione(missione.tratteMissione),
     [missione.tratteMissione],
@@ -156,11 +150,8 @@ export function MissioneScheda({
       manifestationId,
       missione._docId,
       valid
-        ? { codiceColoreTrasporto: valid, codiceColoreTrasportoManuale: true }
-        : {
-            codiceColoreTrasporto: deleteField(),
-            codiceColoreTrasportoManuale: deleteField(),
-          },
+        ? { codiceColoreTrasporto: valid }
+        : { codiceColoreTrasporto: deleteField() },
       missione.mezzo,
     );
   };
@@ -367,33 +358,11 @@ export function MissioneScheda({
           </div>
           <div>
             <p className="mb-1 text-[11px] font-semibold text-slate-500">T — Trasporto</p>
-            {missione.codiceColoreTrasportoManuale ? (
-              <div className="mb-1 flex items-center gap-2">
-                <span className="text-[10px] text-amber-600 font-medium">Impostato manualmente</span>
-                <button
-                  type="button"
-                  onClick={() => void patchColoreTrasporto(null)}
-                  className="text-[10px] text-sky-600 underline hover:text-sky-800"
-                  title="Ripristina calcolo automatico dal codice paziente"
-                >
-                  Ripristina automatico
-                </button>
-              </div>
-            ) : (
-              <p className="mb-1 text-[10px] text-slate-500">
-                {missioneInvioPs
-                  ? 'Da codice paziente PMA → PS. Clicca un colore per sovrascrivere.'
-                  : coloreTrasportoEffettivo
-                    ? `Auto dal paziente (${coloreTrasportoEffettivo}). Clicca per sovrascrivere.`
-                    : 'Nessun paziente in trasporto. Clicca un colore per impostarlo.'}
-              </p>
-            )}
+            <p className="mb-1 text-[10px] text-slate-500">
+              Copiato dal colore paziente. Modificabile manualmente.
+            </p>
             <ColoreSelectButtons
-              value={
-                missione.codiceColoreTrasportoManuale
-                  ? missione.codiceColoreTrasporto
-                  : coloreTrasportoEffettivo
-              }
+              value={missione.codiceColoreTrasporto ?? null}
               onChange={(c) => void patchColoreTrasporto(c)}
             />
           </div>
