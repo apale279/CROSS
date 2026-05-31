@@ -357,7 +357,7 @@ export function EventiMissioniTable({
                       />
                     )}
                     <ColoreEmtCells
-                      coloreE={idx === 0 ? resolveCodiceColoreEvento(ev) : null}
+                      coloreE={resolveCodiceColoreEvento(ev)}
                       coloreM={coloreM}
                       coloreT={coloreT}
                       className={`align-top ${emtClass}`}
