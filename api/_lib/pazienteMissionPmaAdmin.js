@@ -1,4 +1,5 @@
 import { FieldValue } from 'firebase-admin/firestore';
+import { pazienteSuMissione } from './pazienteMissionMatch.js';
 
 const ESITO_TRASPORTA = 'Trasporta';
 
@@ -84,12 +85,8 @@ function statoPzPmaInArrivoIfAllowedAdmin(paziente) {
 }
 
 function pazienteCollegatoAMissione(p, missione) {
-  const sameEvento =
-    (missione.eventoIdUnivoco && p.eventoIdUnivoco === missione.eventoIdUnivoco) ||
-    p.eventoCorrelato === missione.eventoCorrelato;
   return (
-    sameEvento &&
-    p.mezzo === missione.mezzo &&
+    pazienteSuMissione(p, missione) &&
     p.esito === ESITO_TRASPORTA &&
     String(p.destinazionePmaId ?? '').trim()
   );
@@ -165,7 +162,13 @@ export async function applyArrivatoHPatchAdminTransaction(db, tenantId, docId, e
   }
 }
 
-export async function applyDirettoHPatchAdminTransaction(db, tenantId, docId, evento = null) {
+export async function applyDirettoHPatchAdminTransaction(
+  db,
+  tenantId,
+  docId,
+  evento = null,
+  missione = null,
+) {
   if (!db || !tenantId || !docId) return false;
   const ref = db.collection('manifestazioni').doc(tenantId).collection('pazienti').doc(docId);
   let initSeed = null;
@@ -175,7 +178,7 @@ export async function applyDirettoHPatchAdminTransaction(db, tenantId, docId, ev
     const snap = await transaction.get(ref);
     if (!snap.exists()) return;
     const p = { _docId: snap.id, ...snap.data() };
-    const patch = buildDirettoHPatchAdmin(p);
+    const patch = buildDirettoHPatchAdmin(p, missione);
     if (!patch) return;
     transaction.update(ref, patch);
     updated = true;
@@ -189,10 +192,10 @@ export async function applyDirettoHPatchAdminTransaction(db, tenantId, docId, ev
 }
 
 /** Allinea admin sync al client `syncPazientiPmaOnDirettoH`. */
-export function buildDirettoHPatchAdmin(paziente) {
-  if (!pazienteCollegatoAMissione(paziente, { mezzo: paziente.mezzo, eventoIdUnivoco: paziente.eventoIdUnivoco, eventoCorrelato: paziente.eventoCorrelato })) {
-    return null;
-  }
+export function buildDirettoHPatchAdmin(paziente, missione = null) {
+  if (paziente.esito !== ESITO_TRASPORTA) return null;
+  if (!String(paziente.destinazionePmaId ?? '').trim()) return null;
+  if (missione && !pazienteCollegatoAMissione(paziente, missione)) return null;
   const nextStato = statoPzPmaInArrivoIfAllowedAdmin(paziente);
   if (!nextStato) return null;
   return {
@@ -209,14 +212,5 @@ export function pazienteEsclusoDaSyncMissioneAdmin(paziente) {
   return false;
 }
 
-export function pazienteMatchesMissioneTrasporto(p, missione) {
-  const uidP = String(p?.eventoIdUnivoco ?? '').trim();
-  const uidM = String(missione?.eventoIdUnivoco ?? '').trim();
-  const dispP = String(p?.eventoCorrelato ?? '').trim();
-  const dispM = String(missione?.eventoCorrelato ?? '').trim();
-  const sameEvento =
-    (uidM && uidP && uidP === uidM) || (dispM && dispP && dispP === dispM);
-  return sameEvento && p.mezzo === missione.mezzo && p.esito === ESITO_TRASPORTA;
-}
-
 export { pazienteCollegatoAMissione, seedFromPazienteEvento, EMPTY_PMA_SCHEDA };
+export { pazienteMatchesMissioneTrasporto } from './pazienteMissionMatch.js';

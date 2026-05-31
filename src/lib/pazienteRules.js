@@ -1,45 +1,101 @@
 import { Timestamp } from 'firebase/firestore';
 import { ESITO_TRASPORTA } from '../constants';
 import { eventoRefForMissioneMatch, pazienteSameEventoAsMissione } from './eventoMissioneMatch';
+import { formatMissioneMezzoLabel } from './missioneDisplay';
 import { normalizeMezzoKey } from './mezzoMissione';
 import { emptySoreuFirestoreClear } from './soreuTrasporto';
 
 /**
  * Modello trasporto (centrale / evento):
  * - Una **missione aperta** è legata a **un mezzo**.
- * - **Più pazienti** possono avere esito «Trasporta» sullo **stesso mezzo**: condividono
- *   `mezzo`, `idMissione`, `missioneIdUnivoco` e la **stessa destinazione** (ospedale/PMA).
- * - Qui si risolve «quale missione» usare quando l’operatore sceglie la sigla mezzo:
- *   la prima missione **aperta** dell’evento che usa quel mezzo (in dati puliti ce n’è una sola).
+ * - **Più pazienti** sulla **stessa missione** condividono mezzo, id missione e destinazione.
+ * - Missioni diverse sullo stesso evento (anche stessa sigla mezzo) restano isolate.
  */
-export function missionePerMezzo(missioni, mezzo, evento = null) {
+function missionAperturaMs(missione) {
+  const raw = missione?.apertura;
+  if (raw?.toMillis) return raw.toMillis();
+  if (raw?.seconds != null) return raw.seconds * 1000;
+  return 0;
+}
+
+export function missionePerMezzo(missioni, mezzo, evento = null, { missioneIdUnivoco } = {}) {
   if (!mezzo) return null;
   const nk = normalizeMezzoKey(mezzo);
   if (!nk) return null;
+  const uid = String(missioneIdUnivoco ?? '').trim();
+  if (uid) {
+    const exact = (missioni ?? []).find(
+      (m) =>
+        m.aperta !== false &&
+        m.mezzo &&
+        String(m.idUnivoco ?? '').trim() === uid &&
+        normalizeMezzoKey(m.mezzo) === nk,
+    );
+    if (exact) return exact;
+  }
   const open = (missioni ?? []).filter(
     (m) => m.mezzo && m.aperta !== false && normalizeMezzoKey(m.mezzo) === nk,
   );
   if (open.length === 0) return null;
   const evRef = eventoRefForMissioneMatch(evento);
-  if (evRef) {
-    const matched = open.find((m) => pazienteSameEventoAsMissione(evRef, m));
-    if (matched) return matched;
-  }
-  return open[0] ?? null;
+  const scoped = evRef
+    ? open.filter((m) => pazienteSameEventoAsMissione(evRef, m))
+    : open;
+  if (scoped.length === 0) return null;
+  scoped.sort((a, b) => missionAperturaMs(b) - missionAperturaMs(a));
+  return scoped[0] ?? null;
 }
 
-/** Elenco sigle mezzo con almeno una missione aperta sull’evento (stesso mezzo = carico multiplo ammesso). */
-export function mezziMissioniEvento(missioni) {
-  const seen = new Set();
-  const sigle = [];
-  for (const m of missioni ?? []) {
-    if (m.aperta === false || !m.mezzo) continue;
-    const nk = normalizeMezzoKey(m.mezzo);
-    if (!nk || seen.has(nk)) continue;
-    seen.add(nk);
-    sigle.push(m.mezzo);
+export function resolveMissionePaziente(missioni, pazienteOrDraft, evento = null) {
+  const uid = String(pazienteOrDraft?.missioneIdUnivoco ?? '').trim();
+  if (uid) {
+    const exact = (missioni ?? []).find((m) => String(m.idUnivoco ?? '').trim() === uid);
+    if (exact) return exact;
   }
-  return sigle.sort((a, b) => String(a).localeCompare(String(b), 'it', { sensitivity: 'base' }));
+  const idMis = String(pazienteOrDraft?.idMissione ?? '').trim();
+  if (idMis) {
+    const byId = (missioni ?? []).find(
+      (m) =>
+        String(m.idMissione ?? '').trim() === idMis &&
+        pazienteSameEventoAsMissione(pazienteOrDraft, m),
+    );
+    if (byId) return byId;
+  }
+  const mezzo = String(pazienteOrDraft?.mezzo ?? '').trim();
+  if (mezzo) {
+    return missionePerMezzo(missioni, mezzo, evento, { missioneIdUnivoco: uid });
+  }
+  return null;
+}
+
+/** Opzioni missione per paziente «Trasporta»: una riga per missione aperta. */
+export function mezziMissioniEventoOptions(missioni, evento = null) {
+  const evRef = eventoRefForMissioneMatch(evento);
+  const open = (missioni ?? []).filter((m) => m.aperta !== false && m.mezzo);
+  const filtered = evRef
+    ? open.filter((m) => pazienteSameEventoAsMissione(evRef, m))
+    : open;
+  return filtered
+    .slice()
+    .sort((a, b) => {
+      const mezzoCmp = String(a.mezzo).localeCompare(String(b.mezzo), 'it', {
+        sensitivity: 'base',
+      });
+      if (mezzoCmp !== 0) return mezzoCmp;
+      return missionAperturaMs(b) - missionAperturaMs(a);
+    })
+    .map((m) => ({
+      mezzo: m.mezzo,
+      idMissione: m.idMissione ?? '',
+      missioneIdUnivoco: m.idUnivoco ?? '',
+      missione: m,
+      label: formatMissioneMezzoLabel(m.idMissione, m.mezzo),
+    }));
+}
+
+/** @deprecated Usare {@link mezziMissioniEventoOptions}. */
+export function mezziMissioniEvento(missioni, evento = null) {
+  return mezziMissioniEventoOptions(missioni, evento).map((o) => o.mezzo);
 }
 
 export function fieldsPerEsito(esito, { mezzo, missione, clearTrasporto } = {}) {
@@ -47,10 +103,10 @@ export function fieldsPerEsito(esito, { mezzo, missione, clearTrasporto } = {}) 
     const mis = missione ?? null;
     return {
       esito,
-      mezzo: mezzo ?? '',
+      mezzo: mezzo ?? mis?.mezzo ?? '',
       idMissione: mis?.idMissione ?? '',
       missioneIdUnivoco: mis?.idUnivoco ?? '',
-      stato: mezzo ? 'TRASPORTO' : 'ATTESA',
+      stato: mis?.idUnivoco || mezzo || mis?.mezzo ? 'TRASPORTO' : 'ATTESA',
     };
   }
   if (clearTrasporto) {

@@ -6,8 +6,10 @@ import {
   pazienteHaDestinazionePma,
   pmaIdPerPaziente,
 } from '../../lib/pmaModule';
+import { displayAnagraficaCodiceMinore } from '../../lib/codiceMinoreTrasportoNome';
 
 function anagraficaLine(p) {
+  if (isPazienteCodiceMinore(p)) return displayAnagraficaCodiceMinore(p);
   const nome = [p.cognome, p.nome].filter(Boolean).join(' ');
   if (nome) return nome;
   if (p.pettorale != null) return `Pettorale ${p.pettorale}`;

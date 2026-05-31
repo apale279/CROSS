@@ -2,9 +2,9 @@ import { findEvento } from '../../lib/eventoLinks';
 import {
   displayEventoPazienteInLista,
   isPazienteCodiceMinore,
-  pazienteHaDestinazionePma,
   pazientePassatoDalPma,
 } from '../../lib/pmaModule';
+import { displayAnagraficaCodiceMinore } from '../../lib/codiceMinoreTrasportoNome';
 import { displayStatoPazienteInLista, pazienteChiusuraAt } from '../../lib/pazienteStati';
 import { formatTimestamp } from '../../utils/formatters';
 import { PazientePmaBadges } from './PazientePmaBadges';
@@ -21,7 +21,7 @@ export function PazientiMobileList({ rows, eventi, onRow, emptyLabel }) {
         const ev = findEvento(eventi, row.eventoIdUnivoco ?? row.eventoCorrelato);
         const eventoLabel = displayEventoPazienteInLista(row, ev);
         const nome = isPazienteCodiceMinore(row)
-          ? `Pettorale ${row.pettorale ?? '—'}`
+          ? displayAnagraficaCodiceMinore(row)
           : [row.cognome, row.nome].filter(Boolean).join(' ') || '—';
         const pma = pazientePassatoDalPma(row);
         const chiusura = pazienteChiusuraAt(row);

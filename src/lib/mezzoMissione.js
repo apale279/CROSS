@@ -1,10 +1,12 @@
 import {
   MEZZO_STATO_DISPONIBILE,
 } from './mezzoStati';
+import { esitoMissioneTerminaCopertura } from './missioneEsito';
 
 /** Missione ancora attiva sul mezzo (non terminata / non annullata). */
 export function isMissioneAttiva(missione) {
   if (!missione || missione.aperta === false) return false;
+  if (esitoMissioneTerminaCopertura(missione.esitoMissione)) return false;
   const s = missione.stato ?? '';
   return s !== 'FINE MISSIONE' && s !== 'ANNULLATA';
 }

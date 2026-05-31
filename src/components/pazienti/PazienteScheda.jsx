@@ -15,11 +15,12 @@ import { emptyMsbDetails, normalizeMsbDetails } from '../../lib/msbValutazione';
 import { emptyMsaDetails, normalizeMsaDetails } from '../../lib/msaValutazione';
 import { normalizeValutazioniSoccorso } from '../../lib/pazienteValutazioniSoccorso';
 import { mergePatientDraftFromServer, patientDocToDraftFields } from '../../lib/pazienteDraftMerge';
+import { listaOspedaliDestinazione, listaPmaImpostazioni } from '../../lib/destinazioniOspedale';
 import {
-  listaOspedaliDestinazione,
-  listaPmaImpostazioni,
-  resolveDestinazionePaziente,
-} from '../../lib/destinazioniOspedale';
+  destinazioneTrasportoSelectValue,
+  encodePmaDestinazioneSelectValue,
+  resolveDestinazioneTrasportoSelect,
+} from '../../lib/pmaDestinazioneTrasporto';
 import {
   isPazienteOriginePma,
   normalizeStatoPzPma,
@@ -28,6 +29,8 @@ import {
   statoPzPmaLabel,
 } from '../../lib/pmaModule';
 import { chiusuraCentraleLabel, isChiusoCentrale, isTrasportoCentraleModificabile, statoCentraleLabel } from '../../lib/pazienteStati';
+import { useStickyAlertMessage } from '../../hooks/useStickyAlertMessage';
+import { SchedaInlineAlert } from '../ui/SchedaInlineAlert';
 import { pmaCodiceColoreConflictMessage } from '../../lib/pazienteSyncGuard';
 import {
   moduliSchedaPaziente,
@@ -54,9 +57,16 @@ import { useManifestazioneCollection } from '../../hooks/useManifestazioneCollec
 import { toDatetimeLocalValue, fromDatetimeLocalValue } from '../../lib/datetimeLocal';
 import {
   fieldsPerEsito,
-  mezziMissioniEvento,
+  mezziMissioniEventoOptions,
   missionePerMezzo,
+  resolveMissionePaziente,
 } from '../../lib/pazienteRules';
+import { formatMissioneMezzoLabel } from '../../lib/missioneDisplay';
+import {
+  decodeMezzoMissioneSelect,
+  encodeMezzoMissioneSelect,
+  mezzoMissioneSelectValue,
+} from '../../lib/mezzoMissioneSelect';
 import {
   createPaziente,
   deletePazienteCascade,
@@ -106,8 +116,11 @@ function emptyDraft() {
     esitoAltro: '',
     ospedaleDestinazione: '',
     destinazionePmaId: '',
+    percorsoCodiceMinore: false,
     stato: 'ATTESA',
     mezzo: '',
+    idMissione: '',
+    missioneIdUnivoco: '',
     nome: '',
     cognome: '',
     eta: '',
@@ -130,6 +143,12 @@ function parseEtaDraft(s) {
   return Number.isFinite(n) ? n : null;
 }
 
+function draftHaMissioneLink(draft) {
+  return Boolean(
+    String(draft?.missioneIdUnivoco ?? '').trim() || String(draft?.idMissione ?? '').trim(),
+  );
+}
+
 export function PazienteScheda({
   evento,
   paziente,
@@ -149,7 +168,6 @@ export function PazienteScheda({
   const ospedali = useMemo(() => listaOspedaliDestinazione(impostazioni), [impostazioni]);
   const pmaDestinazioni = useMemo(() => listaPmaImpostazioni(impostazioni), [impostazioni]);
   const missioniSafe = missioniEvento ?? [];
-  const mezziEvento = useMemo(() => mezziMissioniEvento(missioniSafe), [missioniSafe]);
   const { data: eventiAll } = useManifestazioneCollection(COLLECTIONS.eventi);
 
   const [serverPatient, setServerPatient] = useState(
@@ -171,6 +189,15 @@ export function PazienteScheda({
     [evento, eventiAll, displayPatient?.eventoIdUnivoco, displayPatient?.eventoCorrelato],
   );
 
+  const mezzoOptions = useMemo(
+    () => mezziMissioniEventoOptions(missioniSafe, evento ?? eventoCollegato),
+    [missioniSafe, evento, eventoCollegato],
+  );
+  const mezziEvento = useMemo(
+    () => [...new Set(mezzoOptions.map((o) => o.mezzo))],
+    [mezzoOptions],
+  );
+
   const eventoTipoDettaglio = useMemo(
     () => pazienteEventoTipoDettaglio(displayPatient, eventoCollegato),
     [displayPatient, eventoCollegato],
@@ -188,17 +215,19 @@ export function PazienteScheda({
   const [saving, setSaving] = useState(false);
   const [unlockBusy, setUnlockBusy] = useState(false);
   const [mainTab, setMainTab] = useState('centrale');
-  const [patientSnapshotError, setPatientSnapshotError] = useState(null);
+  const snapshotError = useStickyAlertMessage();
+  const schedaActionError = useStickyAlertMessage();
+  const createFormError = useStickyAlertMessage();
   /** Snapshot diretto sul documento paziente → merge preservando campi dirty. */
   useEffect(() => {
     if (isCreate || !patientDocId || !manifestationId) return undefined;
-    setPatientSnapshotError(null);
+    snapshotError.dismiss();
     const dref = doc(db, ...pazientiPath(manifestationId), patientDocId);
     const unsub = onSnapshot(
       dref,
       (snap) => {
         if (!snap.exists()) return;
-        setPatientSnapshotError(null);
+        snapshotError.clearAfterMinDisplay();
         const row = { _docId: snap.id, ...snap.data() };
         setServerPatient(row);
         setDraft((prev) =>
@@ -207,7 +236,7 @@ export function PazienteScheda({
       },
       (err) => {
         console.error('[PazienteScheda] Snapshot paziente:', err);
-        setPatientSnapshotError(
+        snapshotError.show(
           err instanceof Error ? err.message : 'Aggiornamento scheda non disponibile.',
         );
       },
@@ -256,6 +285,32 @@ export function PazienteScheda({
   const schedaSolaVisione =
     !isCreate && displayPatient ? isSchedaInSolaVisione(displayPatient) : false;
 
+  const pazientiStessoEvento = useMemo(
+    () => (evento ? pazientiPerEvento(allPazienti, evento) : []),
+    [allPazienti, evento],
+  );
+
+  const missioneCorrente = useMemo(
+    () => resolveMissionePaziente(missioniSafe, displayPatient ?? draft, evento ?? eventoCollegato),
+    [
+      displayPatient,
+      draft,
+      missioniSafe,
+      evento,
+      eventoCollegato,
+    ],
+  );
+
+  const missioneSelezionataLabel = useMemo(() => {
+    if (missioneCorrente) {
+      return formatMissioneMezzoLabel(missioneCorrente.idMissione, missioneCorrente.mezzo);
+    }
+    const idM = String(draft.idMissione ?? '').trim();
+    const mezzo = String(draft.mezzo ?? '').trim();
+    if (idM && mezzo) return formatMissioneMezzoLabel(idM, mezzo);
+    return '';
+  }, [missioneCorrente, draft.idMissione, draft.mezzo]);
+
   const patchPatientFields = useCallback(
     async (fields, dirtyKeysToClear = []) => {
       if (!fields || Object.keys(fields).length === 0) return;
@@ -264,23 +319,32 @@ export function PazienteScheda({
         return;
       }
       if (schedaSolaVisione) return;
-      await patchPaziente(manifestationId, patientDocId, fields);
-      dirtyKeysToClear.forEach((k) => dirtyPatientFieldsRef.current.delete(k));
+      try {
+        await patchPaziente(manifestationId, patientDocId, fields);
+        dirtyKeysToClear.forEach((k) => dirtyPatientFieldsRef.current.delete(k));
+      } catch (err) {
+        schedaActionError.show(err instanceof Error ? err.message : String(err));
+        throw err;
+      }
     },
-    [isCreate, manifestationId, patientDocId, schedaSolaVisione],
+    [isCreate, manifestationId, patientDocId, schedaSolaVisione, schedaActionError.show],
   );
 
   const applyDestinazioneChange = useCallback(
     async (nomeSelezionato) => {
       if (displayPatient && !isTrasportoCentraleModificabile(displayPatient)) return;
-      const mezzoAttivo = draft.mezzo || displayPatient?.mezzo;
-      if (mezzoAttivo && String(nomeSelezionato ?? '').trim()) {
+      if (!missioneCorrente) {
+        alert('Seleziona prima una missione per il trasporto.');
+        return;
+      }
+      if (String(nomeSelezionato ?? '').trim()) {
         const pazientiEvento = evento ? pazientiPerEvento(allPazienti, evento) : [];
         const check = validateDestinazionePerMezzo({
-          mezzo: mezzoAttivo,
+          mezzo: missioneCorrente.mezzo,
           nomeSelezionato,
           pazienti: pazientiEvento,
           evento,
+          missione: missioneCorrente,
           excludeDocId: patientDocId,
           impostazioni,
         });
@@ -289,19 +353,36 @@ export function PazienteScheda({
           return;
         }
       }
-      const dest = resolveDestinazionePaziente(nomeSelezionato, impostazioni);
+      const dest = resolveDestinazioneTrasportoSelect(nomeSelezionato, impostazioni);
       const soreuInit =
         dest.ospedaleDestinazione && !draft.soreuOraMissione
           ? { soreuOraMissione: defaultSoreuOraMissione() }
           : {};
-      const patch = { ...dest, ...soreuInit };
-      const nextPma = statoPzPmaInArrivoIfAllowed(displayPatient);
-      if (dest.destinazionePmaId && nextPma) {
-        patch.statoPzPma = nextPma;
+      const { statoPzPma: _statoSkip, ...destFields } = dest;
+      const patch = { ...destFields, ...soreuInit };
+      if (dest.destinazionePmaId) {
+        if (dest.percorsoCodiceMinore) {
+          patch.tipoPz = TIPO_PZ.CODICE_MINORE;
+          patch.percorsoCodiceMinore = true;
+        } else {
+          patch.tipoPz = TIPO_PZ.CENTRALE;
+          patch.percorsoCodiceMinore = isCreate ? false : deleteField();
+        }
+        const nextPma = statoPzPmaInArrivoIfAllowed(displayPatient ?? draft);
+        if (nextPma) patch.statoPzPma = nextPma;
+      } else {
+        patch.tipoPz = TIPO_PZ.CENTRALE;
+        patch.percorsoCodiceMinore = isCreate ? false : deleteField();
+        patch.statoPzPma = null;
       }
-      ['ospedaleDestinazione', 'destinazionePmaId', 'pmaId', ...Object.keys(soreuInit)].forEach(
-        touchDirty,
-      );
+      [
+        'ospedaleDestinazione',
+        'destinazionePmaId',
+        'pmaId',
+        'percorsoCodiceMinore',
+        'tipoPz',
+        ...Object.keys(soreuInit),
+      ].forEach(touchDirty);
       if (patch.statoPzPma) touchDirty('statoPzPma');
       setDraft((d) => ({ ...d, ...patch }));
       if (isCreate) return;
@@ -310,15 +391,7 @@ export function PazienteScheda({
         const updated = { ...displayPatient, ...patch, _docId: patientDocId };
         await setPazientePmaInArrivo(manifestationId, patientDocId, updated, evento);
         const mis =
-          missionePerMezzo(missioniSafe, updated.mezzo) ??
-          missioniSafe.find(
-            (m) =>
-              m.aperta !== false &&
-              (String(m.idMissione ?? '') === String(updated.idMissione ?? '') ||
-                (updated.missioneIdUnivoco &&
-                  m.idUnivoco === updated.missioneIdUnivoco)),
-          ) ??
-          null;
+          resolveMissionePaziente(missioniSafe, updated, evento) ?? null;
         if (mis) {
           await syncPmaStatoOnDestinazionePaziente(manifestationId, updated, mis, evento);
         }
@@ -327,6 +400,7 @@ export function PazienteScheda({
     [
       draft.mezzo,
       draft.soreuOraMissione,
+      missioneCorrente,
       allPazienti,
       impostazioni,
       isCreate,
@@ -364,33 +438,36 @@ export function PazienteScheda({
   const showAltro = draft.esito === ESITO_ALTRO;
   const mostraSoreu = trasporta && destinazioneRichiedeSoreu(displayPatient ?? draft, impostazioni);
 
-  const pazientiStessoEvento = useMemo(
-    () => (evento ? pazientiPerEvento(allPazienti, evento) : []),
-    [allPazienti, evento],
-  );
-
   const destinazionePerMezzo = useMemo(
     () =>
       mapDestinazionePerMezzoEvento({
-        mezziSigle: mezziEvento,
+        mezzoOptions,
         pazienti: pazientiStessoEvento,
         evento,
         excludeDocId: patientDocId,
         impostazioni,
       }),
-    [mezziEvento, pazientiStessoEvento, evento, patientDocId, impostazioni],
+    [mezzoOptions, pazientiStessoEvento, evento, patientDocId, impostazioni],
   );
 
   const destinazioneBloccataMezzo = useMemo(() => {
-    if (!trasporta || !draft.mezzo) return null;
+    if (!trasporta || !missioneCorrente?.mezzo) return null;
     return findDestinazioneTrasportoSuMezzoEvento({
       pazienti: pazientiStessoEvento,
       evento,
-      mezzo: draft.mezzo,
+      mezzo: missioneCorrente.mezzo,
+      missione: missioneCorrente,
       excludeDocId: patientDocId,
       impostazioni,
     });
-  }, [trasporta, draft.mezzo, pazientiStessoEvento, evento, patientDocId, impostazioni]);
+  }, [
+    trasporta,
+    missioneCorrente,
+    pazientiStessoEvento,
+    evento,
+    patientDocId,
+    impostazioni,
+  ]);
 
   const valutazioniList = useMemo(
     () =>
@@ -502,14 +579,21 @@ export function PazienteScheda({
 
   const onEsitoChange = async (esito) => {
     if (displayPatient && !isTrasportoCentraleModificabile(displayPatient)) return;
+    schedaActionError.dismiss();
+    createFormError.dismiss();
     const clearTrasporto = esito !== ESITO_TRASPORTA;
     const fields =
-      esito === ESITO_TRASPORTA && draft.mezzo
+      esito === ESITO_TRASPORTA && missioneCorrente
         ? fieldsPerEsito(esito, {
-            mezzo: draft.mezzo,
-            missione: missionePerMezzo(missioniSafe, draft.mezzo, evento ?? eventoCollegato),
+            mezzo: missioneCorrente.mezzo,
+            missione: missioneCorrente,
           })
-        : fieldsPerEsito(esito, { clearTrasporto });
+        : esito === ESITO_TRASPORTA && draft.mezzo
+          ? fieldsPerEsito(esito, {
+              mezzo: draft.mezzo,
+              missione: missioneCorrente,
+            })
+          : fieldsPerEsito(esito, { clearTrasporto });
     const soreuKeys = [
       'esito',
       'mezzo',
@@ -528,7 +612,11 @@ export function PazienteScheda({
     soreuKeys.forEach(touchDirty);
     setDraft((d) => ({ ...d, ...fields, esitoAltro: clearTrasporto ? '' : d.esitoAltro }));
     if (!isCreate) {
-      await patchPatientFields(fields, soreuKeys);
+      try {
+        await patchPatientFields(fields, soreuKeys);
+      } catch {
+        /* errore già mostrato in patchPatientFields */
+      }
     }
   };
 
@@ -556,14 +644,27 @@ export function PazienteScheda({
     }
   };
 
-  const onMezzoChange = async (mezzo) => {
+  const onMissioneChange = async (selectValue) => {
     if (displayPatient && !isTrasportoCentraleModificabile(displayPatient)) return;
-    const mis = missionePerMezzo(missioniSafe, mezzo, evento ?? eventoCollegato);
+    schedaActionError.dismiss();
+    createFormError.dismiss();
+    const { mezzo, missione: misFromSelect } = decodeMezzoMissioneSelect(
+      selectValue,
+      missioniSafe,
+    );
+    const mis =
+      misFromSelect ??
+      missionePerMezzo(missioniSafe, mezzo, evento ?? eventoCollegato);
+    if (!mis) {
+      alert('Missione non valida o non più aperta.');
+      return;
+    }
     const pazientiEvento = evento ? pazientiPerEvento(allPazienti, evento) : [];
     const ref = findDestinazioneTrasportoSuMezzoEvento({
       pazienti: pazientiEvento,
       evento,
-      mezzo,
+      mezzo: mis.mezzo ?? mezzo,
+      missione: mis,
       excludeDocId: patientDocId,
       impostazioni,
     });
@@ -572,12 +673,17 @@ export function PazienteScheda({
           ospedaleDestinazione: ref.ospedaleDestinazione,
           destinazionePmaId: ref.destinazionePmaId,
           pmaId: ref.pmaId,
+          percorsoCodiceMinore: ref.percorsoCodiceMinore === true,
+          tipoPz: ref.percorsoCodiceMinore ? TIPO_PZ.CODICE_MINORE : TIPO_PZ.CENTRALE,
           ...(ref.destinazionePmaId && statoPzPmaInArrivoIfAllowed(displayPatient)
             ? { statoPzPma: statoPzPmaInArrivoIfAllowed(displayPatient) }
             : {}),
         }
       : {};
-    const fields = { ...fieldsPerEsito(ESITO_TRASPORTA, { mezzo, missione: mis }), ...destDaMezzo };
+    const fields = {
+      ...fieldsPerEsito(ESITO_TRASPORTA, { mezzo: mis.mezzo ?? mezzo, missione: mis }),
+      ...destDaMezzo,
+    };
     const patchKeys = [
       'mezzo',
       'stato',
@@ -588,45 +694,69 @@ export function PazienteScheda({
     patchKeys.forEach(touchDirty);
     setDraft((d) => ({ ...d, ...fields }));
     if (!isCreate) {
-      await patchPatientFields(fields, patchKeys);
-      const updated = { ...displayPatient, ...fields, _docId: patientDocId };
-      if (ref?.destinazionePmaId && patientDocId) {
-        await setPazientePmaInArrivo(manifestationId, patientDocId, updated, evento);
+      try {
+        await patchPatientFields(fields, patchKeys);
+      } catch {
+        return;
       }
-      await syncMissioneCodiceColoreTrasportoForPaziente(manifestationId, updated);
+      try {
+        const updated = { ...displayPatient, ...fields, _docId: patientDocId };
+        if (ref?.destinazionePmaId && patientDocId) {
+          await setPazientePmaInArrivo(manifestationId, patientDocId, updated, evento);
+        }
+        await syncMissioneCodiceColoreTrasportoForPaziente(manifestationId, updated);
+      } catch (err) {
+        schedaActionError.show(err instanceof Error ? err.message : String(err));
+      }
     }
   };
 
   const handleCreate = async () => {
     if (!evento?.idEvento && !evento?.idUnivoco) {
-      alert('Evento non valido: chiudi e riapri la scheda evento.');
+      createFormError.show('Evento non valido: chiudi e riapri la scheda evento.');
       return;
     }
+    createFormError.dismiss();
     setSaving(true);
     try {
-      if (draft.esito === ESITO_TRASPORTA && draft.mezzo && String(draft.ospedaleDestinazione ?? '').trim()) {
+      const mis =
+        missioneCorrente ??
+        resolveMissionePaziente(missioniSafe, draft, evento ?? eventoCollegato);
+      if (trasporta && !mis && !draftHaMissioneLink(draft)) {
+        createFormError.show('Seleziona una missione per il trasporto.');
+        return;
+      }
+      const mezzoTrasporto = mis?.mezzo ?? draft.mezzo ?? '';
+      const idMissioneTrasporto = mis?.idMissione ?? draft.idMissione ?? '';
+      const missioneUidTrasporto = mis?.idUnivoco ?? draft.missioneIdUnivoco ?? '';
+      if (trasporta && !missioneUidTrasporto && !idMissioneTrasporto) {
+        createFormError.show('Seleziona una missione per il trasporto.');
+        return;
+      }
+      const destSelectValue = destinazioneTrasportoSelectValue(draft, impostazioni);
+      if (trasporta && mis && destSelectValue) {
         const pazientiEvento = evento ? pazientiPerEvento(allPazienti, evento) : [];
         const check = validateDestinazionePerMezzo({
-          mezzo: draft.mezzo,
-          nomeSelezionato: draft.ospedaleDestinazione,
+          mezzo: mezzoTrasporto,
+          nomeSelezionato: destSelectValue,
           pazienti: pazientiEvento,
           evento,
+          missione: mis,
           impostazioni,
         });
         if (!check.ok) {
-          alert(check.message);
+          createFormError.show(check.message);
           return;
         }
       }
       const creato = fromDatetimeLocalValue(draft.creatoLocal);
-      const mis = missionePerMezzo(missioniSafe, draft.mezzo);
-      const pmaSchedaSeed =
-        trasporta && String(draft.destinazionePmaId ?? '').trim()
-          ? seedFromPazienteEvento(
-              { codiceColoreSanitario: draft.codiceColoreSanitario },
-              evento,
-            )
-          : null;
+      const versoPmaClinico =
+        trasporta &&
+        String(draft.destinazionePmaId ?? '').trim() &&
+        draft.percorsoCodiceMinore !== true;
+      const pmaSchedaSeed = versoPmaClinico
+        ? seedFromPazienteEvento({ codiceColoreSanitario: draft.codiceColoreSanitario }, evento)
+        : null;
       const created = await createPaziente(
         manifestationId,
         {
@@ -640,16 +770,20 @@ export function PazienteScheda({
           ospedaleDestinazione: trasporta ? draft.ospedaleDestinazione : '',
           destinazionePmaId: trasporta ? draft.destinazionePmaId ?? '' : '',
           pmaId: trasporta ? draft.destinazionePmaId ?? '' : '',
-          tipoPz: TIPO_PZ.CENTRALE,
+          percorsoCodiceMinore: trasporta && draft.percorsoCodiceMinore === true,
+          tipoPz:
+            trasporta && draft.percorsoCodiceMinore === true
+              ? TIPO_PZ.CODICE_MINORE
+              : TIPO_PZ.CENTRALE,
           statoPzPma:
             trasporta && String(draft.destinazionePmaId ?? '').trim()
               ? STATO_PZ_PMA.IN_ARRIVO
               : null,
           ...(trasporta ? soreuFieldsForFirestore(draft) : {}),
           stato: draft.stato,
-          mezzo: trasporta ? draft.mezzo : '',
-          idMissione: trasporta ? mis?.idMissione ?? '' : '',
-          missioneIdUnivoco: trasporta ? mis?.idUnivoco ?? '' : '',
+          mezzo: trasporta ? mezzoTrasporto : '',
+          idMissione: trasporta ? idMissioneTrasporto : '',
+          missioneIdUnivoco: trasporta ? missioneUidTrasporto : '',
           codiceColoreSanitario: draft.codiceColoreSanitario ?? '',
           nome: draft.nome,
           cognome: draft.cognome,
@@ -680,20 +814,28 @@ export function PazienteScheda({
         },
         allPazienti ?? [],
       );
-      if (trasporta && draft.mezzo && parseCodiceColoreOptional(draft.codiceColoreSanitario)) {
-        await syncMissioneCodiceColoreTrasportoForPaziente(manifestationId, {
-          _docId: created.docId,
-          mezzo: draft.mezzo,
-          idMissione: mis?.idMissione ?? '',
-          missioneIdUnivoco: mis?.idUnivoco ?? '',
-          codiceColoreSanitario: draft.codiceColoreSanitario,
-        });
+      if (trasporta && parseCodiceColoreOptional(draft.codiceColoreSanitario)) {
+        try {
+          await syncMissioneCodiceColoreTrasportoForPaziente(manifestationId, {
+            _docId: created.docId,
+            mezzo: mezzoTrasporto,
+            idMissione: idMissioneTrasporto,
+            missioneIdUnivoco: missioneUidTrasporto,
+            codiceColoreSanitario: draft.codiceColoreSanitario,
+          });
+        } catch (syncErr) {
+          const syncMsg = syncErr instanceof Error ? syncErr.message : String(syncErr);
+          createFormError.show(
+            `Paziente ${created.idPaziente} creato, ma aggiornamento colore T missione non riuscito: ${syncMsg}`,
+          );
+          onSaved?.();
+          return;
+        }
       }
       onSaved?.();
       onClose?.();
     } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      alert('Errore: ' + msg);
+      createFormError.show(err instanceof Error ? err.message : String(err));
     } finally {
       setSaving(false);
     }
@@ -807,9 +949,9 @@ export function PazienteScheda({
               {eventoTipoDettaglio.dettaglio || '—'}
             </p>
           </FormField>
-          {!isCreate && displayPatient?.idMissione && (
-            <FormField label="ID missione">
-              <p className="font-mono text-slate-800">{displayPatient.idMissione}</p>
+          {!isCreate && missioneSelezionataLabel && (
+            <FormField label="Missione">
+              <p className="font-mono font-semibold text-slate-800">{missioneSelezionataLabel}</p>
             </FormField>
           )}
           {!isCreate && displayPatient?.stato === 'ARRIVATO H' && (
@@ -892,41 +1034,58 @@ export function PazienteScheda({
               )}
               {trasporta && (
                 <>
-                  <FormField label="Mezzo (missioni evento)">
+                  <FormField label="Missione">
                     <select
                       className={selectClass}
-                      value={draft.mezzo}
+                      value={mezzoMissioneSelectValue(draft, missioniSafe)}
                       disabled={!trasportoModificabile}
-                      onChange={(e) => onMezzoChange(e.target.value)}
+                      onChange={(e) => void onMissioneChange(e.target.value)}
                     >
                       <option value="">—</option>
-                      {mezziEvento.map((sigla) => {
-                        const destLabel = destinazionePerMezzo.get(normalizeMezzoKey(sigla));
+                      {mezzoOptions.map((opt) => {
+                        const optionValue = encodeMezzoMissioneSelect(
+                          opt.missioneIdUnivoco,
+                          opt.mezzo,
+                        );
+                        const destKey = `${normalizeMezzoKey(opt.mezzo)}:${opt.missioneIdUnivoco ?? opt.idMissione ?? ''}`;
+                        const destLabel =
+                          destinazionePerMezzo.get(destKey) ??
+                          destinazionePerMezzo.get(normalizeMezzoKey(opt.mezzo));
                         return (
-                          <option key={sigla} value={sigla}>
-                            {sigla}
+                          <option key={optionValue} value={optionValue}>
+                            {opt.label}
                             {destLabel ? ` — destinazione: ${destLabel}` : ''}
                           </option>
                         );
                       })}
                     </select>
+                    {missioneSelezionataLabel && (
+                      <p className="mt-1 font-mono text-xs text-violet-800">
+                        Selezionata: {missioneSelezionataLabel}
+                      </p>
+                    )}
                     {destinazioneBloccataMezzo ? (
                       <p className="mt-1 text-xs text-amber-800">
-                        Questo mezzo ha già destinazione «{destinazioneBloccataMezzo.label}»: tutti i
-                        pazienti sullo stesso mezzo condividono la stessa destinazione.
+                        La missione {missioneSelezionataLabel || ''} ha già destinazione «
+                        {destinazioneBloccataMezzo.label}»: tutti i pazienti sullo stesso ingaggio
+                        condividono la stessa destinazione.
                       </p>
                     ) : (
                       <p className="mt-1 text-xs text-slate-500">
-                        La prima destinazione scelta sul mezzo vale per gli altri pazienti dello
-                        stesso mezzo.
+                        Il paziente è legato alla missione (non solo al mezzo). La prima destinazione
+                        scelta sull&apos;ingaggio vale per gli altri pazienti della stessa missione.
                       </p>
                     )}
                   </FormField>
                   <FormField label="Ospedale destinazione">
                     <select
                       className={selectClass}
-                      value={draft.ospedaleDestinazione}
-                      disabled={!trasportoModificabile || Boolean(destinazioneBloccataMezzo)}
+                      value={destinazioneTrasportoSelectValue(draft, impostazioni)}
+                      disabled={
+                        !trasportoModificabile ||
+                        !missioneCorrente ||
+                        Boolean(destinazioneBloccataMezzo)
+                      }
                       onChange={(e) => void applyDestinazioneChange(e.target.value)}
                     >
                       <option value="">—</option>
@@ -936,10 +1095,25 @@ export function PazienteScheda({
                         </option>
                       ))}
                       {pmaDestinazioni.length > 0 && (
-                        <optgroup label="PMA">
+                        <optgroup label="PMA — cartella clinica">
                           {pmaDestinazioni.map((p) => (
-                            <option key={`pma-${p.id}`} value={p.nome}>
+                            <option
+                              key={`pma-${p.id}`}
+                              value={encodePmaDestinazioneSelectValue(p.id, { codiceMinore: false })}
+                            >
                               PMA — {p.nome}
+                            </option>
+                          ))}
+                        </optgroup>
+                      )}
+                      {pmaDestinazioni.length > 0 && (
+                        <optgroup label="PMA — codice minore (astanteria)">
+                          {pmaDestinazioni.map((p) => (
+                            <option
+                              key={`pma-cm-${p.id}`}
+                              value={encodePmaDestinazioneSelectValue(p.id, { codiceMinore: true })}
+                            >
+                              PMA — {p.nome} · Codice minore
                             </option>
                           ))}
                         </optgroup>
@@ -998,11 +1172,26 @@ export function PazienteScheda({
           Nuovo paziente per evento <strong className="font-mono">{evento?.idEvento}</strong>
         </p>
       )}
-      {patientSnapshotError ? (
-        <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-900" role="alert">
-          {patientSnapshotError} — i dati mostrati potrebbero non essere aggiornati.
-        </p>
-      ) : null}
+      <SchedaInlineAlert
+        message={snapshotError.message}
+        onDismiss={snapshotError.dismiss}
+        suffix="— i dati mostrati potrebbero non essere aggiornati."
+        className="text-xs"
+      />
+      <SchedaInlineAlert
+        message={schedaActionError.message}
+        onDismiss={schedaActionError.dismiss}
+      />
+      <SchedaInlineAlert
+        message={createFormError.message}
+        onDismiss={createFormError.dismiss}
+      />
+      {trasporta && !missioneCorrente && !draftHaMissioneLink(draft) && (
+        <SchedaInlineAlert
+          variant="warning"
+          message="Esito «Trasporta»: seleziona una missione per collegare mezzo e ingaggio."
+        />
+      )}
       {!isCreate && displayPatient && (
         <div className="flex flex-wrap items-center gap-3 border-b border-slate-200 pb-3">
           <span className="font-mono text-xl font-bold text-teal-800">

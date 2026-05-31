@@ -22,6 +22,7 @@ import {
   pazientePmaAperto,
   statoPzPmaLabel,
 } from './pmaModule';
+import { isPercorsoCodiceMinoreTrasporto } from './pmaDestinazioneTrasporto';
 
 /** Chiuso lato centrale (missione/trasporto concluso o flag esplicito). */
 export function isChiusoCentrale(paziente) {
@@ -38,12 +39,20 @@ export function isAttivoPma(paziente) {
 }
 
 /**
- * Elenco centrale «Chiusi»: missione/trasporto concluso e, se inviato al PMA, anche dimesso in tenda.
- * Un centrale ARRIVATO H ma ancora IN ARRIVO / in carico al PMA resta in «Aperti».
+ * Elenco centrale «Chiusi»: missione/trasporto concluso e, se inviato al PMA clinico, anche dimesso in tenda.
+ * Codice minore da trasporto centrale: chiuso ad ARRIVATO H (astanteria indipendente).
+ * Un centrale ARRIVATO H ma ancora IN ARRIVO / in carico al PMA clinico resta in «Aperti».
  */
 export function pazienteInElencoChiusi(paziente) {
   if (!paziente) return false;
   if (isPazienteCodiceMinore(paziente) || isPazienteOriginePma(paziente)) {
+    if (
+      isPazienteCodiceMinore(paziente) &&
+      isPercorsoCodiceMinoreTrasporto(paziente) &&
+      isChiusoCentrale(paziente)
+    ) {
+      return true;
+    }
     return pazientePmaChiuso(paziente);
   }
   if (!isChiusoCentrale(paziente)) return false;
@@ -110,8 +119,15 @@ export function displayStatoPazienteInLista(paziente) {
  */
 export function pazienteChiusuraAt(paziente) {
   if (!paziente || pazienteInElencoAperti(paziente)) return null;
+  if (
+    isPazienteCodiceMinore(paziente) &&
+    isPercorsoCodiceMinoreTrasporto(paziente) &&
+    isChiusoCentrale(paziente)
+  ) {
+    return paziente.codiceMinore?.oraFine ?? paziente.arrivatoHAt ?? null;
+  }
   if (pazientePmaChiuso(paziente)) {
-    return paziente.pmaScheda?.dimesso_at ?? null;
+    return paziente.pmaScheda?.dimesso_at ?? paziente.codiceMinore?.oraFine ?? null;
   }
   return paziente.arrivatoHAt ?? null;
 }

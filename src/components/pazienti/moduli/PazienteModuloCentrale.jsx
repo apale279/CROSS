@@ -11,6 +11,7 @@ import { SoreuTrasportoFields } from '../SoreuTrasportoFields';
 import { destinazioneRichiedeSoreu, soreuFieldsFromPatient } from '../../../lib/soreuTrasporto';
 import { useImpostazioni } from '../../../hooks/useImpostazioni';
 import { pazienteEventoTipoDettaglio } from '../../../lib/eventoDisplay';
+import { formatMissioneMezzoLabel } from '../../../lib/missioneDisplay';
 
 /**
  * Modulo soccorso/centrale in sola lettura (per scheda PMA su pazienti inviati da centrale).
@@ -66,8 +67,10 @@ export function PazienteModuloCentrale({
         </div>
         {paziente.idMissione && (
           <div>
-            <dt className="text-xs font-medium text-slate-500">ID missione</dt>
-            <dd className="font-mono">{paziente.idMissione}</dd>
+            <dt className="text-xs font-medium text-slate-500">Missione</dt>
+            <dd className="font-mono">
+              {formatMissioneMezzoLabel(paziente.idMissione, paziente.mezzo)}
+            </dd>
           </div>
         )}
         <div>
@@ -94,10 +97,12 @@ export function PazienteModuloCentrale({
         </div>
         {trasporta && (
           <>
-            <div>
-              <dt className="text-xs font-medium text-slate-500">Mezzo</dt>
-              <dd className="font-mono">{paziente.mezzo || '—'}</dd>
-            </div>
+            {!paziente.idMissione && (
+              <div>
+                <dt className="text-xs font-medium text-slate-500">Mezzo</dt>
+                <dd className="font-mono">{paziente.mezzo || '—'}</dd>
+              </div>
+            )}
             <div>
               <dt className="text-xs font-medium text-slate-500">Destinazione</dt>
               <dd>{paziente.ospedaleDestinazione || '—'}</dd>

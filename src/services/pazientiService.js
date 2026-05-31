@@ -18,6 +18,7 @@ import { normalizeMsbDetails } from '../lib/msbValutazione';
 import { normalizeMsaDetails } from '../lib/msaValutazione';
 import { newValutazioneSoccorsoItem, payloadValutazioneRow } from '../lib/valutazioniSoccorsoPayload';
 import { defaultsForPatientCreate } from '../lib/pazienteDefaults';
+import { buildCodiceMinoreTrasportoNome } from '../lib/codiceMinoreTrasportoNome';
 import { patchPazienteArrivatoHConPma, statoPzPmaInArrivoIfAllowed } from './pazientePmaMissionSync';
 import { omitUndefinedFields } from '../lib/firestorePatch';
 import { assertPazientePatchGranular } from '../lib/granularFirestorePatch';
@@ -25,7 +26,6 @@ import { initPmaSchedaIfMissing } from '../pma/lib/pazientePmaPatch';
 import {
   fetchEventoForMissione,
   fetchPazientiTrasportoForMissione,
-  pazienteSameEventoAsMissione,
 } from '../lib/pazientiTrasportoQuery';
 import {
   missioniPath,
@@ -149,6 +149,9 @@ export async function createPaziente(manifestationId, payload, existingPazienti)
 
   const vals = Array.isArray(payload.valutazioniSoccorso) ? payload.valutazioniSoccorso : [];
   const d = defaultsForPatientCreate(payload);
+  if (d.percorsoCodiceMinore && !String(d.nome ?? '').trim()) {
+    d.nome = buildCodiceMinoreTrasportoNome({ mezzo: d.mezzo, idPaziente });
+  }
 
   const batch = writeBatch(db);
 
@@ -172,7 +175,17 @@ export async function createPaziente(manifestationId, payload, existingPazienti)
   await batch.commit();
 
   if (String(d.destinazionePmaId ?? '').trim()) {
-    await initPmaSchedaIfMissing(manifestationId, patientRef.id, payload.pmaSchedaSeed ?? null);
+    if (d.percorsoCodiceMinore === true) {
+      const { ensureCodiceMinoreOnDestinazione } = await import('./pazientePmaMissionSync');
+      await ensureCodiceMinoreOnDestinazione(
+        manifestationId,
+        patientRef.id,
+        { ...payload, ...d, idPaziente, percorsoCodiceMinore: true },
+        null,
+      );
+    } else {
+      await initPmaSchedaIfMissing(manifestationId, patientRef.id, payload.pmaSchedaSeed ?? null);
+    }
   }
 
   return { docId: patientRef.id, idPaziente, idUnivoco };
@@ -285,9 +298,9 @@ export async function migrateLegacyValutazioniIfNeeded(
   await updateDoc(pref, { valutazioniSoccorso: deleteField() });
 }
 
-/** Quando la missione passa ad ARRIVATO H, aggiorna **tutti** i pazienti in trasporto su quel mezzo (carico multiplo). */
+/** Quando la missione passa ad ARRIVATO H, aggiorna i pazienti in trasporto su quella missione. */
 export async function syncPazientiArrivatoH(manifestationId, missione) {
-  if (!missione?.mezzo) return;
+  if (!missione) return;
 
   const [candidati, evento] = await Promise.all([
     fetchPazientiTrasportoForMissione(manifestationId, missione),
@@ -295,7 +308,6 @@ export async function syncPazientiArrivatoH(manifestationId, missione) {
   ]);
 
   for (const p of candidati) {
-    if (!pazienteSameEventoAsMissione(p, missione)) continue;
     await transitionPazienteArrivatoHTransaction(manifestationId, p._docId, evento);
   }
 }

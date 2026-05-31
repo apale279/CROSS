@@ -4,6 +4,7 @@ import { Modal } from '../ui/Modal';
 import { btnPrimary, btnSecondary } from '../ui/FormField';
 import { toDatetimeLocalValue, fromDatetimeLocalValue } from '../../lib/datetimeLocal';
 import { codiceMinoreFromPaziente } from '../../services/pmaCodiceMinoreService';
+import { isPercorsoCodiceMinoreTrasporto } from '../../lib/pmaDestinazioneTrasporto';
 import { useRegistryPartecipanti } from '../../hooks/useRegistryPartecipanti';
 import { cercaPerPettorale, etaDaDataNascita } from '../../lib/excelPartecipanti';
 import { FormField, inputClass } from '../ui/FormField';
@@ -59,6 +60,7 @@ export function PmaCodiceMinoreFormModal({
   onSave,
 }) {
   const editingId = row?._docId ?? null;
+  const daTrasportoCentrale = row ? isPercorsoCodiceMinoreTrasporto(row) : false;
   const [draft, setDraft] = useState(emptyDraft);
   const { registryPartecipanti } = useRegistryPartecipanti(
     impostazioni?.registryPartecipanti ?? [],
@@ -72,7 +74,7 @@ export function PmaCodiceMinoreFormModal({
   if (!open) return null;
 
   const title = editingId
-    ? `Modifica codice minore — pett. ${row?.pettorale ?? '—'}`
+    ? `Modifica codice minore — ${row?.pettorale ?? row?.idPaziente ?? 'in arrivo'}`
     : 'Nuovo codice minore';
 
   const patchDraft = (key, value) => setDraft((d) => ({ ...d, [key]: value }));
@@ -113,8 +115,14 @@ export function PmaCodiceMinoreFormModal({
   return (
     <Modal title={title} wide fitViewport onClose={onClose}>
       <div className="space-y-4">
+        {daTrasportoCentrale && (
+          <p className="text-xs text-slate-600">
+            Paziente inviato da centrale: nome, cognome e pettorale possono essere completati in
+            astanteria.
+          </p>
+        )}
         <div className="grid gap-3 sm:grid-cols-3">
-          <FormField label="N. pettorale">
+          <FormField label={daTrasportoCentrale ? 'N. pettorale (opzionale)' : 'N. pettorale'}>
             <div className="flex gap-1">
               <input
                 type="number"

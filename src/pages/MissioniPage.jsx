@@ -125,6 +125,7 @@ export default function MissioniPage() {
               setMissioneModal(null);
               setPazienteModal(p);
             }}
+            onDeleted={() => setMissioneModal(null)}
           />
         </Modal>
       )}

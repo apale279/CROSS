@@ -4,6 +4,7 @@ import { useImpostazioni } from '../../hooks/useImpostazioni';
 import { dettagliPerTipoEvento } from '../../lib/impostazioniNormalize';
 import { findEvento } from '../../lib/eventoLinks';
 import { MISSIONE_ECCEZIONE_MOTIVO } from '../../lib/missionEccezioni';
+import { esitoMissioneTerminaCopertura } from '../../lib/missioneEsito';
 import {
   eseguiAvariaSinistroMissione,
   eseguiDirottamentoMissione,
@@ -33,7 +34,8 @@ export function MissioneEccezioniPanel({
   const terminata =
     missione.aperta === false ||
     missione.stato === 'ANNULLATA' ||
-    missione.stato === 'FINE MISSIONE';
+    missione.stato === 'FINE MISSIONE' ||
+    esitoMissioneTerminaCopertura(missione.esitoMissione);
 
   const eventoCorrente = useMemo(
     () => findEvento(eventi, missione.eventoIdUnivoco || missione.eventoCorrelato),

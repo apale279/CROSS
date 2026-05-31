@@ -14,6 +14,7 @@ import {
   pazientePassatoDalPma,
   pmaIdPerPaziente,
 } from '../lib/pmaModule';
+import { displayAnagraficaCodiceMinore } from '../lib/codiceMinoreTrasportoNome';
 import {
   displayStatoPazienteInLista,
   pazienteChiusuraAt,
@@ -67,7 +68,7 @@ function PazientiTable({ rows, eventi, onRow, emptyLabel }) {
                   <td className={`${tdClass} font-mono font-bold`}>{row.idPaziente}</td>
                   <td className={tdClass}>
                     {isPazienteCodiceMinore(row)
-                      ? `Pettorale ${row.pettorale ?? '—'}`
+                      ? displayAnagraficaCodiceMinore(row)
                       : [row.cognome, row.nome].filter(Boolean).join(' ') || '—'}
                   </td>
                   <td className={`${tdClass} font-mono`}>{label}</td>

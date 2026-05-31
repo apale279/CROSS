@@ -1,12 +1,15 @@
 import { isChiusoCentrale, pazienteInElencoAperti } from '../lib/pazienteStati';
 import { pazienteHaSchedaPma, pazientePmaAperto } from '../lib/pmaModule';
+import { isPercorsoCodiceMinoreTrasporto } from '../lib/pmaDestinazioneTrasporto';
+import { esitoMissioneTerminaCopertura } from '../lib/missioneEsito';
 
 /** Missione considerata terminata (fine regolare o annullamento eccezione). */
 export function isMissioneTerminata(missione) {
   return (
     missione.aperta === false ||
     missione.stato === 'FINE MISSIONE' ||
-    missione.stato === 'ANNULLATA'
+    missione.stato === 'ANNULLATA' ||
+    esitoMissioneTerminaCopertura(missione.esitoMissione)
   );
 }
 
@@ -17,6 +20,7 @@ export function isMissioneTerminata(missione) {
 export function missioneAttiva(missione) {
   if (!missione) return false;
   if (missione.aperta === false) return false;
+  if (esitoMissioneTerminaCopertura(missione.esitoMissione)) return false;
   const s = missione.stato ?? '';
   if (s === 'FINE MISSIONE' || s === 'ANNULLATA') return false;
   if (s === 'RIENTRO' || s === 'ARRIVATO H') return false;
@@ -38,6 +42,12 @@ export function missioneConsenteChiusuraEvento(missione) {
  */
 export function pazienteBloccaChiusuraOperativaEvento(paziente) {
   if (!pazienteInElencoAperti(paziente)) return false;
+  if (
+    isChiusoCentrale(paziente) &&
+    isPercorsoCodiceMinoreTrasporto(paziente)
+  ) {
+    return false;
+  }
   if (
     isChiusoCentrale(paziente) &&
     pazienteHaSchedaPma(paziente) &&

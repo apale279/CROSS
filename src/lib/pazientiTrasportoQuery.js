@@ -20,24 +20,25 @@ export async function fetchPazientiTrasportoOnMezzo(manifestationId, mezzo) {
   return snap.docs.map((d) => ({ _docId: d.id, ...d.data() }));
 }
 
-/**
- * Pazienti «Trasporta» sulla missione: query per sigla + fallback per evento
- * con match normalizzato del mezzo (dati legacy con sigle diverse).
- */
-export async function fetchPazientiTrasportoForMissione(manifestationId, missione) {
-  const sigla = missione?.mezzo;
-  if (!sigla || !manifestationId) return [];
+async function queryTrasportoPerCampo(colRef, field, value, missione) {
+  if (!value) return [];
+  try {
+    const q = query(
+      colRef,
+      where(field, '==', value),
+      where('esito', '==', ESITO_TRASPORTA),
+      limit(64),
+    );
+    const snap = await getDocs(q);
+    return snap.docs
+      .map((d) => ({ _docId: d.id, ...d.data() }))
+      .filter((p) => pazienteSuMissione(p, missione));
+  } catch {
+    return [];
+  }
+}
 
-  const nk = normalizeMezzoKey(sigla);
-  if (!nk) return [];
-
-  const direct = await fetchPazientiTrasportoOnMezzo(manifestationId, sigla);
-  const fromDirect = direct.filter(
-    (p) => pazienteSameEventoAsMissione(p, missione) && normalizeMezzoKey(p.mezzo) === nk,
-  );
-  if (fromDirect.length > 0) return fromDirect;
-
-  const colRef = collection(db, ...pazientiPath(manifestationId));
+async function scanTrasportoEvento(colRef, missione) {
   const constraints = [where('esito', '==', ESITO_TRASPORTA)];
   if (missione.eventoIdUnivoco) {
     constraints.push(where('eventoIdUnivoco', '==', missione.eventoIdUnivoco));
@@ -58,7 +59,34 @@ export async function fetchPazientiTrasportoForMissione(manifestationId, mission
     lastDoc = snap.docs[snap.docs.length - 1];
     if (snap.size < TRASPORTO_FALLBACK_PAGE) break;
   }
-  return all.filter((p) => normalizeMezzoKey(p.mezzo) === nk);
+  return all.filter((p) => pazienteSuMissione(p, missione));
+}
+
+/**
+ * Pazienti «Trasporta» sulla missione: preferisce `missioneIdUnivoco`, poi `idMissione`,
+ * infine scan evento filtrato con {@link pazienteSuMissione}.
+ */
+export async function fetchPazientiTrasportoForMissione(manifestationId, missione) {
+  if (!missione || !manifestationId) return [];
+  const colRef = collection(db, ...pazientiPath(manifestationId));
+
+  const byUid = await queryTrasportoPerCampo(
+    colRef,
+    'missioneIdUnivoco',
+    String(missione.idUnivoco ?? '').trim(),
+    missione,
+  );
+  if (byUid.length > 0) return byUid;
+
+  const byIdMissione = await queryTrasportoPerCampo(
+    colRef,
+    'idMissione',
+    String(missione.idMissione ?? '').trim(),
+    missione,
+  );
+  if (byIdMissione.length > 0) return byIdMissione;
+
+  return scanTrasportoEvento(colRef, missione);
 }
 
 export { pazienteSameEventoAsMissione };
@@ -81,14 +109,24 @@ export async function fetchEventoForMissione(manifestationId, missione) {
   return null;
 }
 
+/** Legame canonico paziente ↔ missione (non solo sigla mezzo). */
+export function pazienteSuMissione(paziente, missione) {
+  if (!paziente || !missione || !pazienteSameEventoAsMissione(paziente, missione)) return false;
+  const uidM = String(missione.idUnivoco ?? '').trim();
+  const uidP = String(paziente.missioneIdUnivoco ?? '').trim();
+  if (uidM && uidP && uidP === uidM) return true;
+  const idM = String(missione.idMissione ?? '').trim();
+  const idP = String(paziente.idMissione ?? '').trim();
+  if (idM && idP && idP === idM) {
+    if (!paziente.mezzo || !missione.mezzo) return true;
+    return normalizeMezzoKey(paziente.mezzo) === normalizeMezzoKey(missione.mezzo);
+  }
+  return false;
+}
+
 export function pazientiTrasportoPerMissione(pazienti, mis) {
-  if (!mis?.mezzo) return [];
-  const nk = normalizeMezzoKey(mis.mezzo);
+  if (!mis) return [];
   return (pazienti ?? []).filter(
-    (p) =>
-      p.esito === ESITO_TRASPORTA &&
-      pazienteSameEventoAsMissione(p, mis) &&
-      p.mezzo &&
-      normalizeMezzoKey(p.mezzo) === nk,
+    (p) => p.esito === ESITO_TRASPORTA && pazienteSuMissione(p, mis),
   );
 }

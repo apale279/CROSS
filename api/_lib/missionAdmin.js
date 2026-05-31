@@ -9,8 +9,8 @@ import {
   applyDirettoHPatchAdminTransaction,
   initPmaSchedaIfMissingAdmin,
   pazienteEsclusoDaSyncMissioneAdmin,
-  pazienteMatchesMissioneTrasporto,
 } from './pazienteMissionPmaAdmin.js';
+import { pazienteSuMissione } from './pazienteMissionMatch.js';
 
 const DEFAULT_STATI_MISSIONE = [
   'ALLERTARE',
@@ -146,27 +146,23 @@ async function findEventoForPazienteAdmin(tenantId, paziente) {
   return null;
 }
 
-async function fetchPazientiTrasportoOnMezzoAdmin(tenantId, mezzo) {
-  const snap = await pazientiCol(tenantId)
-    .where('mezzo', '==', mezzo)
-    .where('esito', '==', 'Trasporta')
-    .get();
-  return snap.docs.map((d) => ({ _docId: d.id, ...d.data() }));
+async function queryTrasportoPerCampoAdmin(tenantId, field, value, missione) {
+  if (!value) return [];
+  try {
+    const snap = await pazientiCol(tenantId)
+      .where(field, '==', value)
+      .where('esito', '==', 'Trasporta')
+      .limit(64)
+      .get();
+    return snap.docs
+      .map((d) => ({ _docId: d.id, ...d.data() }))
+      .filter((p) => pazienteSuMissione(p, missione));
+  } catch {
+    return [];
+  }
 }
 
-/** Come client: sigla esatta + fallback evento con match normalizzato mezzo. */
-async function fetchPazientiTrasportoForMissioneAdmin(tenantId, missione) {
-  const sigla = missione?.mezzo;
-  if (!sigla) return [];
-  const nk = normalizeMezzoKey(sigla);
-  if (!nk) return [];
-
-  const direct = await fetchPazientiTrasportoOnMezzoAdmin(tenantId, sigla);
-  const fromDirect = direct.filter(
-    (p) => pazienteMatchesMissioneTrasporto(p, missione) && normalizeMezzoKey(p.mezzo) === nk,
-  );
-  if (fromDirect.length > 0) return fromDirect;
-
+async function scanTrasportoEventoAdmin(tenantId, missione) {
   let q = pazientiCol(tenantId).where('esito', '==', 'Trasporta');
   if (missione.eventoIdUnivoco) {
     q = q.where('eventoIdUnivoco', '==', missione.eventoIdUnivoco);
@@ -187,7 +183,30 @@ async function fetchPazientiTrasportoForMissioneAdmin(tenantId, missione) {
     last = snap.docs[snap.docs.length - 1];
     if (snap.size < pageSize) break;
   }
-  return all.filter((p) => normalizeMezzoKey(p.mezzo) === nk);
+  return all.filter((p) => pazienteSuMissione(p, missione));
+}
+
+/** Come client: preferisce missioneIdUnivoco, poi idMissione, infine scan evento. */
+async function fetchPazientiTrasportoForMissioneAdmin(tenantId, missione) {
+  if (!missione || !tenantId) return [];
+
+  const byUid = await queryTrasportoPerCampoAdmin(
+    tenantId,
+    'missioneIdUnivoco',
+    String(missione.idUnivoco ?? '').trim(),
+    missione,
+  );
+  if (byUid.length > 0) return byUid;
+
+  const byIdMissione = await queryTrasportoPerCampoAdmin(
+    tenantId,
+    'idMissione',
+    String(missione.idMissione ?? '').trim(),
+    missione,
+  );
+  if (byIdMissione.length > 0) return byIdMissione;
+
+  return scanTrasportoEventoAdmin(tenantId, missione);
 }
 
 async function findEventoForMissioneAdmin(tenantId, missione) {
@@ -209,7 +228,7 @@ async function findEventoForMissioneAdmin(tenantId, missione) {
 }
 
 async function syncPazientiArrivatoHAdmin(tenantId, missione) {
-  if (!missione?.mezzo) return;
+  if (!missione) return;
   const candidati = await fetchPazientiTrasportoForMissioneAdmin(tenantId, missione);
   const evento = await findEventoForMissioneAdmin(tenantId, missione);
 
@@ -221,7 +240,7 @@ async function syncPazientiArrivatoHAdmin(tenantId, missione) {
 }
 
 async function syncPazientiPmaOnDirettoHAdmin(tenantId, missione) {
-  if (!missione?.mezzo) return;
+  if (!missione) return;
   const candidati = await fetchPazientiTrasportoForMissioneAdmin(tenantId, missione);
   const db = getAdminDb();
 
@@ -229,7 +248,7 @@ async function syncPazientiPmaOnDirettoHAdmin(tenantId, missione) {
     if (pazienteEsclusoDaSyncMissioneAdmin(p)) continue;
     if (!String(p.destinazionePmaId ?? '').trim()) continue;
     const evento = !p.pmaScheda ? await findEventoForPazienteAdmin(tenantId, p) : null;
-    await applyDirettoHPatchAdminTransaction(db, tenantId, p._docId, evento);
+    await applyDirettoHPatchAdminTransaction(db, tenantId, p._docId, evento, missione);
   }
 }
 

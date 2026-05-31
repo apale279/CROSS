@@ -7,7 +7,7 @@ import {
   resolveCodiceColoreMissione,
   parseCodiceColoreOptional,
 } from '../../lib/codiciColore';
-import { ESITI_MISSIONE, ESITO_MISSIONE_DEFAULT, normalizeEsitoMissione } from '../../lib/missioneEsito';
+import { ESITI_MISSIONE, ESITO_MISSIONE_DEFAULT, normalizeEsitoMissione, esitoMissioneTerminaCopertura } from '../../lib/missioneEsito';
 import { ColoreIndicator } from '../ui/ColoreIndicator';
 import { ColoreSelectButtons } from '../ui/ColoreSelectButtons';
 import { useManifestazioneId } from '../../context/ManifestazioneContext';
@@ -15,12 +15,13 @@ import { eventoColonnaIndirizzo } from '../../lib/eventoDisplay';
 import { findEvento } from '../../lib/eventoLinks';
 import { toDatetimeLocalValue, fromDatetimeLocalValue } from '../../lib/datetimeLocal';
 import { buildStatoChangeFields, patchStoricoStatoAt } from '../../lib/missionStoricoStati';
+import { validateMissioneAperturaChange } from '../../lib/missioneAperturaValidate';
 import {
   normalizeTratteMissione,
   nuovaTrattaMissione,
   tratteMissioneToFirestore,
 } from '../../lib/missionTratte';
-import { patchMissione } from '../../services/missioniService';
+import { patchMissione, deleteMissione } from '../../services/missioniService';
 import { useElapsedSince } from '../../hooks/useElapsedSince';
 import { statoMissioneBadgeClass, formatTimestamp } from '../../utils/formatters';
 import { operatoreCreatoLine, operatoreUserLabel } from '../../lib/operatoreAudit';
@@ -43,6 +44,7 @@ import { useImpostazioni } from '../../hooks/useImpostazioni';
 import { MissioneTelegramSendButton } from '../telegram/MissioneTelegramSendButton';
 import { findMezzoBySigla } from '../../lib/mezzoMissione';
 import { pazientiTrasportoPerMissione } from '../../lib/pazientiTrasportoQuery';
+import { confirmDelete } from '../../utils/confirmDelete';
 
 export function MissioneScheda({
   missione,
@@ -53,6 +55,7 @@ export function MissioneScheda({
   pazienti = [],
   onOpenEvento,
   onOpenPaziente,
+  onDeleted,
   readOnly = false,
 }) {
   const manifestationId = useManifestazioneId();
@@ -93,6 +96,27 @@ export function MissioneScheda({
     [missione],
   );
   const missioneInvioPs = isMissionePmaInvioPs(missione);
+  const esitoTerminaCopertura = esitoMissioneTerminaCopertura(missione.esitoMissione);
+
+  const handleEliminaMissione = async () => {
+    if (pazientiTrasporto.length > 0) {
+      const n = pazientiTrasporto.length;
+      if (
+        !window.confirm(
+          `La missione ha ${n} paziente/i collegati: verranno scollegati dal mezzo ma resteranno sull'evento. Continuare?`,
+        )
+      ) {
+        return;
+      }
+    }
+    if (!confirmDelete(`missione ${missione.idMissione}`)) return;
+    try {
+      await deleteMissione(manifestationId, missione._docId);
+      onDeleted?.();
+    } catch (err) {
+      alert('Errore: ' + (err instanceof Error ? err.message : String(err)));
+    }
+  };
 
   const persistTratte = useCallback(
     async (next) => {
@@ -193,34 +217,36 @@ export function MissioneScheda({
     if (!value || value === prev) return;
     const date = fromDatetimeLocalValue(value);
     if (!date) return;
-    if (date > new Date()) {
-      alert('L\'orario di apertura non può essere nel futuro.');
+    const validation = validateMissioneAperturaChange({ nextDate: date, missione, evento });
+    if (!validation.ok) {
+      alert(validation.message);
       return;
     }
-    // Non può essere successivo a nessuna voce dello storicoStati
-    const storicoEntries = Object.values(storico ?? {});
-    for (const ts of storicoEntries) {
-      const tsDate = ts?.toDate ? ts.toDate() : new Date(ts);
-      if (!Number.isNaN(tsDate.getTime()) && date > tsDate) {
-        alert('L\'orario di apertura non può essere successivo a uno degli stati nella cronologia.');
-        return;
-      }
+    try {
+      await patchMissione(
+        manifestationId,
+        missione._docId,
+        { apertura: Timestamp.fromDate(date) },
+        missione.mezzo,
+      );
+    } catch (err) {
+      alert(err.message ?? 'Errore salvataggio apertura missione.');
     }
-    // Non può precedere l'apertura dell'evento collegato
-    if (evento?.apertura) {
-      const evDate = evento.apertura?.toDate ? evento.apertura.toDate() : new Date(evento.apertura);
-      if (!Number.isNaN(evDate.getTime()) && date < evDate) {
-        alert('L\'orario di apertura della missione non può precedere l\'apertura dell\'evento.');
-        return;
-      }
-    }
-    await patchMissione(
-      manifestationId,
-      missione._docId,
-      { apertura: Timestamp.fromDate(date) },
-      missione.mezzo,
-    );
   };
+
+  const aperturaMissioneInput = (
+    <label className="flex items-center gap-1.5 text-xs text-slate-500">
+      <span className="shrink-0 font-medium">Apertura:</span>
+      <input
+        type="datetime-local"
+        defaultValue={toDatetimeLocalValue(missione.apertura)}
+        key={toDatetimeLocalValue(missione.apertura)}
+        onBlur={(e) => void onAperturaMissioneBlur(e.target.value)}
+        className="rounded border border-slate-300 bg-white px-1.5 py-0.5 font-mono text-xs text-slate-700 focus:border-sky-400 focus:outline-none"
+        title="Data/ora creazione missione. Deve essere ≥ apertura evento e ≤ cronologia stati/tappe."
+      />
+    </label>
+  );
 
   if (readOnly) {
     return (
@@ -234,6 +260,7 @@ export function MissioneScheda({
             {missione.stato}
           </span>
           <span className="font-mono text-xs text-slate-500">{elapsed}</span>
+          <span className="text-xs text-slate-500">{operatoreCreatoLine(missione)}</span>
         </div>
         <dl className="grid gap-2">
           <Row label="Evento" value={missione.eventoCorrelato} mono />
@@ -347,6 +374,11 @@ export function MissioneScheda({
           {missione.stato}
         </span>
         <span className="font-mono text-xs text-slate-500">{elapsed}</span>
+        <span className="text-xs text-slate-500">{operatoreCreatoLine(missione)}</span>
+        {aperturaMissioneInput}
+        <button type="button" className={`${btnDanger} ml-auto`} onClick={() => void handleEliminaMissione()}>
+          Elimina missione
+        </button>
       </div>
 
       <dl className="grid gap-2">
@@ -428,6 +460,12 @@ export function MissioneScheda({
             }}
           />
         )}
+        {esitoTerminaCopertura && (
+          <p className="mt-2 text-xs text-amber-800">
+            Esito «{normalizeEsitoMissione(missione.esitoMissione)}»: missione chiusa e mezzo liberato per
+            un nuovo ingaggio.
+          </p>
+        )}
       </FormField>
 
       <FormField label="Note missione">
@@ -464,21 +502,11 @@ export function MissioneScheda({
           Modifica liberamente data/ora di ogni stato (anche non in ordine cronologico): aggiorna solo
           la cronologia, non lo stato operativo corrente. L&apos;orologio imposta invece lo stato
           attuale della missione (con effetti operativi legati a quello stato).
+          La data/ora di apertura (creazione) si modifica in testata: deve restare coerente con evento,
+          stati e tappe.
           {statoMissioneBloccato && ' Missione terminata: gli stati non sono più modificabili.'}
         </p>
         <ul className="space-y-2">
-          <li className="grid grid-cols-1 gap-2 rounded border border-slate-300 bg-white p-2 sm:grid-cols-[minmax(0,auto)_1fr] sm:items-center">
-            <span className="text-xs font-bold uppercase text-slate-700">Apertura missione</span>
-            <input
-              type="datetime-local"
-              className={`${inputClass} font-mono text-xs`}
-              defaultValue={toDatetimeLocalValue(missione.apertura)}
-              key={toDatetimeLocalValue(missione.apertura)}
-              onBlur={(e) => void onAperturaMissioneBlur(e.target.value)}
-              disabled={statoMissioneBloccato}
-              title="Data/ora di apertura della missione. Deve essere ≥ apertura evento e ≤ primo stato registrato."
-            />
-          </li>
           {stati.map((stato) => {
             const isCurrent = missione.stato === stato;
             return (

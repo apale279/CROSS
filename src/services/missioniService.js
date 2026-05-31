@@ -1,6 +1,7 @@
 import {
   addDoc,
   collection,
+  deleteDoc,
   deleteField,
   doc,
   getDoc,
@@ -13,7 +14,7 @@ import {
   where,
 } from 'firebase/firestore';
 import { db } from '../firebaseConfig';
-import { mezziPath, missioniPath } from '../lib/firestorePaths';
+import { mezziPath, missioniPath, pazientiPath } from '../lib/firestorePaths';
 import { formatEquipaggioText } from '../lib/missionEquipaggio';
 import { newIdUnivoco } from '../lib/ids';
 import { allocateProgressiveId } from './progressiveIdService';
@@ -33,7 +34,13 @@ import { coloriEventoValidiSet, resolveStatiMissione } from '../lib/impostazioni
 import { parseCodiceColoreOptional } from '../lib/codiciColore';
 import { mergeOperatoreCreatoPayload, stripOperatoreCreatoFromPatch } from '../lib/operatoreAudit';
 import { impostazioniDocRef } from './impostazioniService';
-import { ESITO_MISSIONE_DEFAULT } from '../lib/missioneEsito';
+import {
+  ESITO_MISSIONE_DEFAULT,
+  esitoMissioneTerminaCopertura,
+  normalizeEsitoMissione,
+} from '../lib/missioneEsito';
+import { pazienteSuMissione } from '../lib/pazientiTrasportoQuery';
+import { pazienteSameEventoAsMissione } from '../lib/eventoMissioneMatch';
 import { MISSIONE_ECCEZIONE_MOTIVO, MEZZO_STATO_AVARIA_SINISTRO } from '../lib/missionEccezioni';
 import { buildStatoChangeFields } from '../lib/missionStoricoStati';
 import { mergeTratteMissioneWrite } from '../lib/missionTratte';
@@ -43,7 +50,11 @@ import {
   isMissionePmaInvioPs,
 } from '../lib/pmaInvioPsMission';
 import { syncPazientiPmaOnDirettoH, syncPmaCodiceColoreFromSanitario } from './pazientePmaMissionSync';
-import { notifyTelegramStatoFromCentrale } from './telegramService';
+import {
+  fetchEventoForMissione,
+  timestampToDate,
+  validateMissioneAperturaChange,
+} from '../lib/missioneAperturaValidate';
 
 function assertMezzoLiberoPerNuovaMissione(mezzoSigla, existingMissioni, { chiudiMissioniRientro }) {
   if (!mezzoSigla) return;
@@ -137,6 +148,14 @@ export async function createMissione(manifestationId, payload, existingMissioni,
       : autopresentato
         ? 'IN POSTO'
         : 'ALLERTARE';
+  if (!statiAmmessi.includes(statoIniziale)) {
+    throw new Error(
+      autopresentato
+        ? `Stato «IN POSTO» non configurato negli stati missione (Impostazioni). ` +
+            'Aggiungi «IN POSTO» alla lista oppure crea la missione senza flag autopresentato.'
+        : `Stato missione iniziale «${statoIniziale}» non presente in Impostazioni.`,
+    );
+  }
   const coloreMissione = parseCodiceColoreOptional(payload.codiceColoreMissione);
   const ospedaleDest = String(payload.ospedaleDestinazione ?? '').trim();
   const mezzoSigla = mezzoSiglaEarly;
@@ -179,20 +198,22 @@ async function findMissioneDocForPaziente(manifestationId, paziente) {
     const hit = snap.docs.find((d) => d.data().aperta !== false) ?? snap.docs[0];
     if (hit) return { id: hit.id, data: hit.data() };
   }
-  if (paziente.idMissione && paziente.mezzo) {
-    const q = query(colRef, where('idMissione', '==', paziente.idMissione), limit(24));
+  const idMis = String(paziente.idMissione ?? '').trim();
+  if (idMis) {
+    const q = query(colRef, where('idMissione', '==', idMis), limit(24));
     const snap = await getDocs(q);
-    const nk = normalizeMezzoKey(paziente.mezzo);
-    const open = snap.docs.find((d) => {
-      const x = d.data();
-      return (
-        x.aperta !== false &&
-        x.mezzo &&
-        nk &&
-        normalizeMezzoKey(x.mezzo) === nk
+    const docs = snap.docs.map((d) => ({ id: d.id, data: d.data() }));
+    const open = docs.filter((x) => x.data.aperta !== false);
+    const nk = paziente.mezzo ? normalizeMezzoKey(paziente.mezzo) : '';
+    if (nk) {
+      const byMezzo = open.find(
+        (x) => x.data.mezzo && normalizeMezzoKey(x.data.mezzo) === nk,
       );
-    });
-    if (open) return { id: open.id, data: open.data() };
+      if (byMezzo) return byMezzo;
+    }
+    const byEvento = open.find((x) => pazienteSameEventoAsMissione(paziente, x.data));
+    if (byEvento) return byEvento;
+    if (docs.length === 1) return docs[0];
   }
   return null;
 }
@@ -300,8 +321,25 @@ export async function patchMissione(manifestationId, docId, fields, mezzoSigla) 
   if (!docId || !fields || Object.keys(fields).length === 0) return;
   const docRef = doc(db, ...missioniPath(manifestationId), docId);
   const payload = omitUndefinedFields(stripOperatoreCreatoFromPatch({ ...fields }));
+
+  if (Object.prototype.hasOwnProperty.call(payload, 'apertura')) {
+    const snap = await getDoc(docRef);
+    if (!snap.exists()) return;
+    const current = snap.data();
+    const nextDate = timestampToDate(payload.apertura);
+    const evento = await fetchEventoForMissione(manifestationId, current);
+    const validation = validateMissioneAperturaChange({ nextDate, missione: current, evento });
+    if (!validation.ok) throw new Error(validation.message);
+  }
+
   if (fields.stato != null) {
     payload.statoDa = serverTimestamp();
+  }
+  if (Object.prototype.hasOwnProperty.call(payload, 'esitoMissione')) {
+    payload.esitoMissione = normalizeEsitoMissione(payload.esitoMissione);
+    if (esitoMissioneTerminaCopertura(payload.esitoMissione)) {
+      payload.aperta = false;
+    }
   }
   if (Object.keys(payload).length === 0) return;
 
@@ -335,7 +373,14 @@ export async function patchMissione(manifestationId, docId, fields, mezzoSigla) 
   ) {
     await syncStatoMezzoDopoMissione(manifestationId, mezzoSigla, docId, fields);
   }
-  if (fields.stato != null || fields.aperta != null) {
+  if (
+    Object.prototype.hasOwnProperty.call(fields, 'esitoMissione') &&
+    esitoMissioneTerminaCopertura(fields.esitoMissione) &&
+    mezzoSigla
+  ) {
+    await syncStatoMezzoDopoMissione(manifestationId, mezzoSigla, docId, { aperta: false });
+  }
+  if (fields.stato != null || fields.aperta != null || Object.prototype.hasOwnProperty.call(fields, 'esitoMissione')) {
     await tryAutoCloseEventoForMissione(manifestationId, docId);
   }
   if (fields.stato != null) {
@@ -349,5 +394,44 @@ export async function patchMissione(manifestationId, docId, fields, mezzoSigla) 
         });
       }
     }
+  }
+}
+
+/** Scollega i pazienti dalla missione eliminata (restano sull'evento). */
+function fieldsScollegaPazienteDaMissione(paziente) {
+  const patch = {
+    mezzo: '',
+    idMissione: '',
+    missioneIdUnivoco: '',
+  };
+  if (paziente.stato === 'TRASPORTO') {
+    patch.stato = 'ATTESA';
+  }
+  return patch;
+}
+
+export async function deleteMissione(manifestationId, docId) {
+  const docRef = doc(db, ...missioniPath(manifestationId), docId);
+  const snap = await getDoc(docRef);
+  if (!snap.exists()) return;
+  const missione = { _docId: docId, ...snap.data() };
+  const mezzoSigla = missione.mezzo;
+
+  const pazSnap = await getDocs(collection(db, ...pazientiPath(manifestationId)));
+  const linked = pazSnap.docs.filter((d) =>
+    pazienteSuMissione({ _docId: d.id, ...d.data() }, missione),
+  );
+  for (const d of linked) {
+    await patchPaziente(
+      manifestationId,
+      d.id,
+      fieldsScollegaPazienteDaMissione({ ...d.data(), _docId: d.id }),
+    );
+  }
+
+  await deleteDoc(docRef);
+
+  if (mezzoSigla) {
+    await syncStatoMezzoDopoMissione(manifestationId, mezzoSigla, docId, { aperta: false });
   }
 }

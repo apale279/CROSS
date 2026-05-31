@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
+import { TIPO_PZ } from '../lib/pmaModule';
 import {
   eventoHaPazientiAperti,
   pazienteBloccaChiusuraOperativaEvento,
   shouldAutoCloseEvento,
 } from './eventoAutoClose';
+import { pazienteInElencoChiusi } from '../lib/pazienteStati';
 
 const missioneFine = {
   aperta: false,
@@ -30,6 +32,22 @@ describe('pazienteBloccaChiusuraOperativaEvento', () => {
     };
     expect(pazienteBloccaChiusuraOperativaEvento(p)).toBe(true);
   });
+
+  it('non blocca codice minore da centrale già ARRIVATO H (astanteria ancora aperta)', () => {
+    const p = {
+      aperta: false,
+      stato: 'ARRIVATO H',
+      esito: 'Trasporta',
+      tipoPz: TIPO_PZ.CODICE_MINORE,
+      percorsoCodiceMinore: true,
+      eventoCorrelato: 'E1',
+      destinazionePmaId: 'pma-1',
+      statoPzPma: 'in carico',
+      codiceMinore: { oraFine: null },
+    };
+    expect(pazienteBloccaChiusuraOperativaEvento(p)).toBe(false);
+    expect(pazienteInElencoChiusi(p)).toBe(true);
+  });
 });
 
 describe('shouldAutoCloseEvento', () => {
@@ -49,5 +67,23 @@ describe('shouldAutoCloseEvento', () => {
   it('E69-like: missione fine + paziente chiuso senza PMA', () => {
     const pazienti = [{ aperta: false, stato: 'ARRIVATO H', esito: 'Trasporta' }];
     expect(shouldAutoCloseEvento([missioneFine], pazienti)).toBe(true);
+  });
+
+  it('codice minore ARRIVATO H: evento terminabile con missione fine', () => {
+    const pazienti = [
+      {
+        aperta: false,
+        stato: 'ARRIVATO H',
+        esito: 'Trasporta',
+        tipoPz: TIPO_PZ.CODICE_MINORE,
+        percorsoCodiceMinore: true,
+        mezzo: 'BRAVO1',
+        destinazionePmaId: 'pma-1',
+        statoPzPma: 'in carico',
+        codiceMinore: {},
+      },
+    ];
+    expect(shouldAutoCloseEvento([missioneFine], pazienti)).toBe(true);
+    expect(eventoHaPazientiAperti(pazienti)).toBe(false);
   });
 });

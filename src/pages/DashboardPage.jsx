@@ -440,6 +440,7 @@ export default function DashboardPage() {
               setModal(null);
               navigate(`/pazienti?open=${encodeURIComponent(p._docId)}`);
             }}
+            onDeleted={() => setModal(null)}
           />
         </Modal>
       )}

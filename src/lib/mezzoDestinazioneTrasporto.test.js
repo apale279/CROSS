@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   findDestinazioneTrasportoSuMezzoEvento,
+  destinazioneTrasportoKey,
   stessaDestinazioneTrasporto,
   validateDestinazionePerMezzo,
 } from './mezzoDestinazioneTrasporto';
@@ -49,12 +50,69 @@ describe('mezzoDestinazioneTrasporto', () => {
     expect(v.message).toContain('Ospedale Lecco');
   });
 
-  it('confronta stessa destinazione', () => {
+  it('non eredita destinazione da altra missione sullo stesso mezzo', () => {
+    const pazienti = [
+      {
+        _docId: 'p1',
+        eventoCorrelato: 'E1',
+        esito: ESITO_TRASPORTA,
+        mezzo: 'BRAVO1',
+        missioneIdUnivoco: 'm1uid',
+        idMissione: 'M1',
+        ospedaleDestinazione: '',
+        destinazionePmaId: 'pma1',
+        percorsoCodiceMinore: true,
+      },
+    ];
+    const missione2 = { idUnivoco: 'm2uid', idMissione: 'M2', mezzo: 'BRAVO1' };
+    const ref = findDestinazioneTrasportoSuMezzoEvento({
+      pazienti,
+      evento,
+      mezzo: 'BRAVO1',
+      missione: missione2,
+      excludeDocId: 'p2',
+    });
+    expect(ref).toBeNull();
+  });
+
+  it('condivide destinazione sulla stessa missione', () => {
+    const pazienti = [
+      {
+        _docId: 'p1',
+        eventoCorrelato: 'E1',
+        esito: ESITO_TRASPORTA,
+        mezzo: 'BRAVO1',
+        missioneIdUnivoco: 'm1uid',
+        idMissione: 'M1',
+        ospedaleDestinazione: '',
+        destinazionePmaId: 'pma1',
+        percorsoCodiceMinore: true,
+      },
+    ];
+    const missione1 = { idUnivoco: 'm1uid', idMissione: 'M1', mezzo: 'BRAVO1' };
+    const ref = findDestinazioneTrasportoSuMezzoEvento({
+      pazienti,
+      evento,
+      mezzo: 'BRAVO1',
+      missione: missione1,
+      excludeDocId: 'p2',
+      impostazioni: { pma: [{ id: 'pma1', nome: 'PPI RESEGUP' }] },
+    });
+    expect(ref?.destinazionePmaId).toBe('pma1');
+  });
+
+  it('destinazioneTrasportoKey distingue PMA clinico e codice minore', () => {
     expect(
-      stessaDestinazioneTrasporto(
-        { ospedaleDestinazione: 'Ospedale X', destinazionePmaId: '' },
-        { ospedaleDestinazione: 'ospedale x', destinazionePmaId: '' },
-      ),
-    ).toBe(true);
+      destinazioneTrasportoKey({
+        destinazionePmaId: 'pma1',
+        percorsoCodiceMinore: false,
+      }),
+    ).toBe('pma:pma1:cl');
+    expect(
+      destinazioneTrasportoKey({
+        destinazionePmaId: 'pma1',
+        percorsoCodiceMinore: true,
+      }),
+    ).toBe('pma:pma1:cm');
   });
 });

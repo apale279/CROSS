@@ -188,6 +188,7 @@ export function pazienteHaDestinazionePma(paziente) {
 export function pazienteDimessoInPmaDesk(paziente, pmaId) {
   const pid = String(pmaId ?? '').trim();
   if (!pid || !paziente) return false;
+  if (isPazienteCodiceMinore(paziente)) return false;
   if (normalizeStatoPzPma(paziente.statoPzPma) !== STATO_PZ_PMA.DIMESSO) return false;
   if (normalizeTipoPz(paziente.tipoPz) === TIPO_PZ.PMA) {
     return String(paziente.pmaId ?? '').trim() === pid;
@@ -225,7 +226,9 @@ export function pazientiCodiceMinorePerPma(pazienti, pmaId) {
   const pid = String(pmaId ?? '').trim();
   if (!pid) return [];
   return (pazienti ?? []).filter(
-    (p) => isPazienteCodiceMinore(p) && String(p.pmaId ?? '').trim() === pid,
+    (p) =>
+      isPazienteCodiceMinore(p) &&
+      String(p.pmaId ?? p.destinazionePmaId ?? '').trim() === pid,
   );
 }
 

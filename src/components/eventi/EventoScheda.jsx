@@ -37,6 +37,8 @@ import {
   selectClass,
 } from '../ui/FormField';
 import { EventoDettaglioForm } from './EventoDettaglioForm';
+import { useStickyAlertMessage } from '../../hooks/useStickyAlertMessage';
+import { SchedaInlineAlert } from '../ui/SchedaInlineAlert';
 
 const emptyValues = () => ({
   chiamante: '',
@@ -88,6 +90,7 @@ export function EventoScheda({
   const [closing, setClosing] = useState(false);
   const [terminating, setTerminating] = useState(false);
   const [reopening, setReopening] = useState(false);
+  const missioneFormError = useStickyAlertMessage();
   const appliedInitialTabRef = useRef(false);
 
   useEffect(() => {
@@ -225,6 +228,7 @@ export function EventoScheda({
     if (!missioneForm.mezzo) return;
     const mezzo = findMezzoBySigla(mezzi, missioneForm.mezzo);
     setSaving(true);
+    missioneFormError.dismiss();
     try {
       await createMissione(
         manifestazioneId,
@@ -251,7 +255,7 @@ export function EventoScheda({
       }));
       setShowMissioneForm(false);
     } catch (err) {
-      alert('Errore: ' + err.message);
+      missioneFormError.show(err instanceof Error ? err.message : String(err));
     } finally {
       setSaving(false);
     }
@@ -466,15 +470,21 @@ export function EventoScheda({
                 <input
                   type="checkbox"
                   checked={missioneForm.pazienteAutopresentato}
-                  onChange={(e) =>
+                  onChange={(e) => {
+                    missioneFormError.dismiss();
                     setMissioneForm((f) => ({
                       ...f,
                       pazienteAutopresentato: e.target.checked,
-                    }))
-                  }
+                    }));
+                  }}
                 />
                 Paziente autopresentato (stato missione iniziale: IN POSTO)
               </label>
+              <SchedaInlineAlert
+                message={missioneFormError.message}
+                onDismiss={missioneFormError.dismiss}
+                className="mt-3"
+              />
               <div className="mt-3 flex gap-2">
                 <button type="submit" className={btnPrimary} disabled={saving}>
                   Invia

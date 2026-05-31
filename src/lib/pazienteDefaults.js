@@ -31,6 +31,7 @@ export function defaultsForPatientCreate(payload = {}) {
     soreuOraMissione: payload.soreuOraMissione ?? null,
     arrivatoHAt: payload.arrivatoHAt ?? null,
     codiceColoreSanitario: payload.codiceColoreSanitario ?? '',
+    percorsoCodiceMinore: payload.percorsoCodiceMinore === true,
     aperta: payload.aperta !== false,
   };
 }

@@ -22,7 +22,27 @@ import { STATO_PZ_PMA, TIPO_PZ } from './pmaModule';
 
 
 
+import { ESITO_TRASPORTA } from '../constants';
+
 describe('pmaArrivoAlert', () => {
+  const missioneBase = {
+    idMissione: 'M1',
+    idUnivoco: 'uid-m1',
+    mezzo: 'BRAVO_1',
+    eventoCorrelato: 'E1',
+  };
+
+  const pazienteVersoPma = (id, extra = {}) => ({
+    _docId: id,
+    esito: ESITO_TRASPORTA,
+    mezzo: 'BRAVO_1',
+    eventoCorrelato: 'E1',
+    idMissione: 'M1',
+    missioneIdUnivoco: 'uid-m1',
+    destinazionePmaId: 'pma1',
+    tipoPz: TIPO_PZ.CENTRALE,
+    ...extra,
+  });
 
   it('desk: IN ARRIVO e legacy senza stato', () => {
 
@@ -69,49 +89,18 @@ describe('pmaArrivoAlert', () => {
 
 
     const missioneInPosto = {
-
       id: 'm1',
-
-      data: () => ({ stato: 'IN POSTO', mezzo: 'BRAVO_1', eventoCorrelato: 'E1' }),
-
+      data: () => ({ ...missioneBase, stato: 'IN POSTO' }),
     };
-
     const missioneDiretto = {
-
       id: 'm1',
-
       data: () => ({
-
+        ...missioneBase,
         stato: MISSIONE_STATO_DIRETTO_H,
-
-        mezzo: 'BRAVO_1',
-
-        eventoCorrelato: 'E1',
-
       }),
-
     };
-
     const pazienti = [
-
-      {
-
-        _docId: 'p1',
-
-        esito: 'Trasporta',
-
-        mezzo: 'BRAVO_1',
-
-        eventoCorrelato: 'E1',
-
-        destinazionePmaId: 'pma1',
-
-        tipoPz: TIPO_PZ.CENTRALE,
-
-        statoPzPma: STATO_PZ_PMA.IN_ARRIVO,
-
-      },
-
+      pazienteVersoPma('p1', { statoPzPma: STATO_PZ_PMA.IN_ARRIVO }),
     ];
 
 
@@ -147,64 +136,17 @@ describe('pmaArrivoAlert', () => {
   it('raggruppa più pazienti nello stesso alert DIRETTO H', () => {
 
     const missioneInPosto = {
-
       id: 'm1',
-
-      data: () => ({ stato: 'PARTITO', mezzo: 'BRAVO_1', eventoCorrelato: 'E1' }),
-
+      data: () => ({ ...missioneBase, stato: 'PARTITO' }),
     };
-
     const missioneDiretto = {
-
       id: 'm1',
-
       data: () => ({
-
+        ...missioneBase,
         stato: MISSIONE_STATO_DIRETTO_H,
-
-        mezzo: 'BRAVO_1',
-
-        eventoCorrelato: 'E1',
-
       }),
-
     };
-
-    const pazienti = [
-
-      {
-
-        _docId: 'p1',
-
-        esito: 'Trasporta',
-
-        mezzo: 'BRAVO_1',
-
-        eventoCorrelato: 'E1',
-
-        destinazionePmaId: 'pma1',
-
-        tipoPz: TIPO_PZ.CENTRALE,
-
-      },
-
-      {
-
-        _docId: 'p2',
-
-        esito: 'Trasporta',
-
-        mezzo: 'BRAVO_1',
-
-        eventoCorrelato: 'E1',
-
-        destinazionePmaId: 'pma1',
-
-        tipoPz: TIPO_PZ.CENTRALE,
-
-      },
-
-    ];
+    const pazienti = [pazienteVersoPma('p1'), pazienteVersoPma('p2')];
 
     const first = detectNuoviDirettoHPma([missioneInPosto], pazienti, ['pma1'], new Map(), false);
 
@@ -231,40 +173,13 @@ describe('pmaArrivoAlert', () => {
   it('non ripete alert se già notificato per missione+PMA', () => {
 
     const missioneDiretto = {
-
       id: 'm1',
-
       data: () => ({
-
+        ...missioneBase,
         stato: MISSIONE_STATO_DIRETTO_H,
-
-        mezzo: 'BRAVO_1',
-
-        eventoCorrelato: 'E1',
-
       }),
-
     };
-
-    const pazienti = [
-
-      {
-
-        _docId: 'p1',
-
-        esito: 'Trasporta',
-
-        mezzo: 'BRAVO_1',
-
-        eventoCorrelato: 'E1',
-
-        destinazionePmaId: 'pma1',
-
-        tipoPz: TIPO_PZ.CENTRALE,
-
-      },
-
-    ];
+    const pazienti = [pazienteVersoPma('p1')];
 
     const notified = new Set([pmaDirettoHAlertKey('m1', 'pma1')]);
 

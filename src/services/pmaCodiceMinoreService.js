@@ -1,15 +1,20 @@
 import { Timestamp } from 'firebase/firestore';
 import { STATO_PAZIENTE_PMA } from '../constants';
 import { STATO_PZ_PMA, TIPO_PZ } from '../lib/pmaModule';
+import { isPercorsoCodiceMinoreTrasporto } from '../lib/pmaDestinazioneTrasporto';
+import { buildCodiceMinoreTrasportoNome } from '../lib/codiceMinoreTrasportoNome';
 import { etaDaDataNascita } from '../lib/excelPartecipanti';
 import { createPaziente, deletePazienteCascade } from './pazientiService';
 import { deleteAllCodiceMinoreFoto } from './pmaCodiceMinoreFotoService';
 import { patchPazienteCodiceMinoreScalars } from '../lib/patchPazienteCodiceMinore';
 
-function normalizeCodiceMinorePayload(payload = {}) {
+function normalizeCodiceMinorePayload(payload = {}, { requirePettorale = true } = {}) {
   const pettoraleRaw = payload.pettorale ?? payload.numeroPettorale;
   const pettorale =
     pettoraleRaw != null && pettoraleRaw !== '' ? Number(pettoraleRaw) : null;
+  if (requirePettorale && pettorale == null) {
+    throw new Error('Numero pettorale obbligatorio');
+  }
   const oraArrivo = payload.oraArrivo instanceof Timestamp ? payload.oraArrivo : Timestamp.now();
   const oraFine =
     payload.oraFine instanceof Timestamp
@@ -83,12 +88,15 @@ export async function createPazienteCodiceMinore(
 
 /** Aggiorna paziente «codice minore». */
 export async function updatePazienteCodiceMinore(manifestationId, docId, payload, existingRow) {
+  const requirePettorale = !isPercorsoCodiceMinoreTrasporto(existingRow);
   const { pettorale, nome, cognome, dataNascita, eta, codiceMinore } =
-    normalizeCodiceMinorePayload(payload);
-  if (pettorale == null) throw new Error('Numero pettorale obbligatorio');
+    normalizeCodiceMinorePayload(payload, { requirePettorale });
+  if (requirePettorale && pettorale == null) throw new Error('Numero pettorale obbligatorio');
 
   const chiuso = codiceMinore.oraFine != null;
-  const nomeFinale = nome || `Pett. ${pettorale}`;
+  const nomeFinale =
+    nome ||
+    (pettorale != null ? `Pett. ${pettorale}` : buildCodiceMinoreTrasportoNome(existingRow));
   const etaFinale =
     Number.isFinite(eta) ? eta : dataNascita ? etaDaDataNascita(dataNascita) : null;
   const codiceMinorePatch = { ...codiceMinore };

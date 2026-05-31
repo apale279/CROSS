@@ -3,6 +3,7 @@ import { Pencil, Trash2 } from 'lucide-react';
 import { btnDanger, btnSecondary } from '../ui/FormField';
 import { formatTimestamp } from '../../utils/formatters';
 import { codiceMinoreFromPaziente } from '../../services/pmaCodiceMinoreService';
+import { normalizeStatoPzPma, STATO_PZ_PMA } from '../../lib/pmaModule';
 import { PmaCodiceMinoreFormModal } from './PmaCodiceMinoreFormModal';
 import { PmaCodiciMinoriTabellaFotoStrip } from './PmaCodiciMinoriTabellaFotoStrip';
 
@@ -110,10 +111,12 @@ export function PmaCodiciMinoriPanel({
               {sorted.map((row) => {
                 const cm = codiceMinoreFromPaziente(row);
                 const chiuso = cm.oraFine != null;
+                const inArrivo =
+                  normalizeStatoPzPma(row.statoPzPma) === STATO_PZ_PMA.IN_ARRIVO;
                 return (
                   <tr key={row._docId} className="hover:bg-slate-50/80">
                     <td className={`${tdClass} font-mono font-bold`}>{row.pettorale ?? '—'}</td>
-                    <td className={tdClass}>{cm.nome || '—'}</td>
+                    <td className={tdClass}>{cm.nome || (inArrivo ? 'In arrivo' : '—')}</td>
                     <td className={tdClass}>{cm.cognome || '—'}</td>
                     <td className={`${tdClass} text-center font-mono`}>{cm.eta ?? '—'}</td>
                     <td className={`${tdClass} max-w-[16rem] truncate`} title={cm.motivoArrivo}>
@@ -129,6 +132,10 @@ export function PmaCodiciMinoriPanel({
                       {chiuso ? (
                         <span className="rounded bg-slate-200 px-1.5 py-0.5 text-[10px] font-bold uppercase text-slate-600">
                           Chiuso
+                        </span>
+                      ) : inArrivo ? (
+                        <span className="rounded bg-sky-100 px-1.5 py-0.5 text-[10px] font-bold uppercase text-sky-800">
+                          In arrivo
                         </span>
                       ) : (
                         <span className="rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-bold uppercase text-emerald-800">
