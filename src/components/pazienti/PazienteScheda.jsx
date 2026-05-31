@@ -526,7 +526,24 @@ export function PazienteScheda({
     soreuKeys.forEach(touchDirty);
     setDraft((d) => ({ ...d, ...fields, esitoAltro: clearTrasporto ? '' : d.esitoAltro }));
     if (!isCreate) {
+      // Snapshot del paziente PRIMA del patch: serve per trovare la missione se si esce da Trasporta
+      const prevPatient = displayPatient ? { ...displayPatient, _docId: patientDocId } : null;
       await patchPatientFields(fields, soreuKeys);
+
+      // Aggiorna T sulla missione collegata quando l'esito cambia
+      if (clearTrasporto && prevPatient?.missioneIdUnivoco) {
+        // Paziente esce da Trasporta: ricalcola T sulla missione (ora senza questo paziente)
+        await syncMissioneCodiceColoreTrasportoForPaziente(manifestationId, prevPatient);
+      } else if (esito === ESITO_TRASPORTA && fields.missioneIdUnivoco) {
+        // Paziente entra in Trasporta con mezzo+missione: aggiunge il suo colore al T
+        await syncMissioneCodiceColoreTrasportoForPaziente(manifestationId, {
+          _docId: patientDocId,
+          codiceColoreSanitario: draft.codiceColoreSanitario ?? '',
+          mezzo: fields.mezzo ?? '',
+          idMissione: fields.idMissione ?? '',
+          missioneIdUnivoco: fields.missioneIdUnivoco ?? '',
+        });
+      }
     }
   };
 

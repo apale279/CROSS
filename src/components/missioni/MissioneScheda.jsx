@@ -367,11 +367,25 @@ export function MissioneScheda({
           </div>
           <div>
             <p className="mb-1 text-[11px] font-semibold text-slate-500">T — Trasporto</p>
-            {!missione.codiceColoreTrasportoManuale && (
+            {missione.codiceColoreTrasportoManuale ? (
+              <div className="mb-1 flex items-center gap-2">
+                <span className="text-[10px] text-amber-600 font-medium">Impostato manualmente</span>
+                <button
+                  type="button"
+                  onClick={() => void patchColoreTrasporto(null)}
+                  className="text-[10px] text-sky-600 underline hover:text-sky-800"
+                  title="Ripristina calcolo automatico dal codice paziente"
+                >
+                  Ripristina automatico
+                </button>
+              </div>
+            ) : (
               <p className="mb-1 text-[10px] text-slate-500">
                 {missioneInvioPs
-                  ? 'Trasporto PMA → PS: da codice paziente, modificabile manualmente.'
-                  : 'Da codice paziente (Esito e trasporto); modificabile manualmente.'}
+                  ? 'Da codice paziente PMA → PS. Clicca un colore per sovrascrivere.'
+                  : coloreTrasportoEffettivo
+                    ? `Auto dal paziente (${coloreTrasportoEffettivo}). Clicca per sovrascrivere.`
+                    : 'Nessun paziente in trasporto. Clicca un colore per impostarlo.'}
               </p>
             )}
             <ColoreSelectButtons
@@ -382,9 +396,6 @@ export function MissioneScheda({
               }
               onChange={(c) => void patchColoreTrasporto(c)}
             />
-            {missione.codiceColoreTrasportoManuale && (
-              <p className="mt-1 text-[10px] text-slate-500">Impostato manualmente</p>
-            )}
           </div>
         </div>
       </section>
