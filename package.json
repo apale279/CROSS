@@ -11,6 +11,8 @@
     "preview": "vite preview",
     "seed:demo": "node scripts/seed-demo-data.mjs",
     "seed:prova": "node scripts/seed-prova-centrale.mjs",
+    "sandbox:create": "node scripts/create-sandbox-tenant.mjs",
+    "dev:sandbox": "node scripts/dev-sandbox.mjs",
     "import:impostazioni-eventi": "node scripts/import-impostazioni-eventi.mjs",
     "import:stazionamenti-flotta": "node --env-file=.env.local scripts/import-stazionamenti-flotta.mjs",
     "import:mezzi-flotta": "node --env-file=.env.local scripts/import-mezzi-flotta.mjs",
