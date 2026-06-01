@@ -92,6 +92,13 @@ Scrivi (poi Invio):
 npm run dev:sandbox
 ```
 
+In alto vedrai la barra gialla **SANDBOX** (dati di prova).
+
+**Login admin sandbox** (se creato con `npm run sandbox:admin`):
+
+- Email: `admin.sandbox@admin.it`
+- Password: `admin.sandbox`
+
 Aspetta finché compare una riga simile a:
 
 ```text
@@ -142,9 +149,11 @@ Serve solo se vuoi la sandbox **su internet**, non solo sul PC.
 2. **Add New… → Project** e collega di nuovo il repository **CROSS** (secondo progetto, nome tipo `cross-sandbox`).
 3. Nelle **Environment Variables** del **nuovo** progetto:
    - Copia da produzione: Firebase, Google Maps, Cloudinary, `FIREBASE_SERVICE_ACCOUNT_JSON`.
-   - Imposta `VITE_TENANT_ID` = contenuto di `sandbox/TENANT_ID`.
-   - **Non** aggiungere variabili `TELEGRAM_*`.
-4. Fai **Deploy**.
+   - `VITE_TENANT_ID` = contenuto di `sandbox/TENANT_ID`
+   - `VITE_APP_SANDBOX` = `true` (barra gialla + blocco DB produzione)
+   - `VITE_PRODUCTION_TENANT_ID` = ID tenant del sito vero
+   - **Non** `TELEGRAM_*` né `VITE_API_BASE_URL` verso produzione
+4. Fai **Deploy** (poi **Redeploy** se cambi variabili).
 5. Apri l’URL che ti dà Vercel: è la sandbox online.
 
 **Importante:** sul progetto Vercel **del sito vero**, non cambiare le variabili di **Production**.

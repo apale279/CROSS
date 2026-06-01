@@ -1,5 +1,7 @@
 /** Variabili server (Vercel → Settings → Environment Variables). */
 
+import { assertSandboxWritableTenant } from './sandboxGuard.js';
+
 /** Rimuove virgolette se Vercel le ha salvate nel valore (es. `"Lr4XjZ..."`). */
 export function stripEnvValue(value) {
   const s = (value ?? '').trim();
@@ -26,6 +28,7 @@ export function getTelegramTenantId() {
   if (!id) {
     throw new Error('TELEGRAM_TENANT_ID (o VITE_TENANT_ID) non configurato su Vercel');
   }
+  assertSandboxWritableTenant(id);
   return id;
 }
 export function getWebhookSecret() {

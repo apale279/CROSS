@@ -100,7 +100,6 @@ const COPY_ENV_KEYS = [
   'VITE_CLOUDINARY_CLOUD_NAME',
   'VITE_CLOUDINARY_UPLOAD_PRESET',
   'VITE_SUPERADMIN',
-  'VITE_API_BASE_URL',
 ];
 
 function stripTelegramFromImpostazioni(data) {
@@ -187,6 +186,10 @@ function writeSandboxEnvFiles(tenantId, sourceId) {
   for (const key of COPY_ENV_KEYS) {
     if (ENV[key]) lines.push(`${key}=${ENV[key]}`);
   }
+  lines.push('VITE_APP_SANDBOX=true');
+  lines.push(`VITE_PRODUCTION_TENANT_ID=${sourceId}`);
+  lines.push('');
+  lines.push('# Non usare VITE_API_BASE_URL verso produzione — le API restano sullo stesso host del deploy sandbox.');
   writeFileSync(join(SANDBOX_DIR, '.env.sandbox.local'), `${lines.join('\n')}\n`, 'utf8');
   writeFileSync(join(SANDBOX_DIR, 'TENANT_ID'), `${tenantId}\n`, 'utf8');
 }

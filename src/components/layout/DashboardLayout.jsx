@@ -20,7 +20,7 @@ export function DashboardLayout() {
       <SosAlertListener />
       <PmaDiarioAlertListener />
       <PmaArrivoAlertListener />
-      <div className="flex h-screen flex-col bg-slate-100">
+      <div className="app-viewport-h flex flex-col bg-slate-100">
         <AppHeader />
         <PmaOperatorBottomNav />
         <main

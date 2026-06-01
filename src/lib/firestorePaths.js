@@ -1,4 +1,5 @@
 import { TENANT_ID } from '../constants';
+import { assertWritableTenant } from './sandboxMode';
 
 /** Collezioni root (legacy: `manifestazioni` contiene un solo documento tenant) */
 export const COLLECTIONS = {
@@ -16,6 +17,7 @@ export const manifestazioniCollection = () => [COLLECTIONS.manifestazioni];
 
 function resolveTenantId(tenantId) {
   const id = (tenantId ?? TENANT_ID)?.trim?.() ?? '';
+  if (id) assertWritableTenant(id);
   return id;
 }
 

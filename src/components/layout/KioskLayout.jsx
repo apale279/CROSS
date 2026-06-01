@@ -8,7 +8,7 @@ export function KioskLayout() {
 
   return (
     <KioskSchedaProvider>
-      <div className="relative h-screen w-screen overflow-hidden bg-slate-50">
+      <div className="app-viewport-h relative w-screen overflow-hidden bg-slate-50">
         <div
           className="pointer-events-none absolute right-3 top-3 z-[100] rounded-md border border-red-300 bg-red-50 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-red-900 shadow-sm"
           aria-live="polite"
