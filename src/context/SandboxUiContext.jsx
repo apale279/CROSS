@@ -7,7 +7,7 @@ import {
   isProductionTenantId,
   isSandboxAppEnv,
   isSandboxMisconfigured,
-  shouldShowSandboxBanner,
+  shouldShowSandboxBadge,
 } from '../lib/sandboxMode';
 import { useTenantContext } from './TenantContext';
 
@@ -43,7 +43,7 @@ export function SandboxUiProvider({ children }) {
     };
   }, [tenantId]);
 
-  const showSandboxBadge = shouldShowSandboxBanner({ manifestSandbox });
+  const showSandboxBadge = shouldShowSandboxBadge({ manifestSandbox });
   const misconfigured = isSandboxMisconfigured();
   const blockedByTenant =
     !tenantLoading &&

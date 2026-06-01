@@ -38,6 +38,11 @@ export function isSandboxMisconfigured() {
   return configuredTenantId === productionTenantId;
 }
 
-export function shouldShowSandboxBanner({ manifestSandbox } = {}) {
+export function shouldShowSandboxBadge({ manifestSandbox } = {}) {
   return isSandboxAppEnv() || manifestSandbox === true;
+}
+
+/** @deprecated usa shouldShowSandboxBadge */
+export function shouldShowSandboxBanner(opts) {
+  return shouldShowSandboxBadge(opts);
 }
