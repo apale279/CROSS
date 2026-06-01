@@ -7,7 +7,7 @@ import { useEventoScheda } from '../../context/EventoSchedaContext';
 import { useFirestoreSync } from '../../context/FirestoreSyncContext';
 import { resetDashboardLayout } from '../../lib/dashboardLayout';
 import { useKioskPopOutContextOptional } from '../../context/KioskPopOutContext';
-import { AppLogo } from '../brand/AppLogo';
+import { BrandLockup } from '../brand/BrandLockup';
 import { usePmaAccess } from '../../hooks/usePmaAccess';
 import { isPmaMedicoAccount } from '../../lib/userAccess';
 import { AccessDebugStrip } from './AccessDebugStrip';
@@ -86,9 +86,8 @@ export function AppHeader() {
         }`}
       >
         {!pmaFieldUx ? <AppVersionBadge className="order-first" /> : null}
-        <Link to={homeTo} className="flex shrink-0 items-center gap-2">
-          <AppLogo className="h-9 w-auto" />
-          <span className="text-sm font-bold uppercase tracking-wide text-slate-800">CROSS</span>
+        <Link to={homeTo} className="flex shrink-0 items-center">
+          <BrandLockup />
         </Link>
 
         {pmaFieldUx ? (

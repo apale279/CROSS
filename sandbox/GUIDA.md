@@ -92,7 +92,7 @@ Scrivi (poi Invio):
 npm run dev:sandbox
 ```
 
-In alto vedrai la barra gialla **SANDBOX** (dati di prova).
+Vedrai il badge giallo **Sandbox** accanto al logo (dati di prova).
 
 **Login admin sandbox** (se creato con `npm run sandbox:admin`):
 
@@ -150,7 +150,7 @@ Serve solo se vuoi la sandbox **su internet**, non solo sul PC.
 3. Nelle **Environment Variables** del **nuovo** progetto:
    - Copia da produzione: Firebase, Google Maps, Cloudinary, `FIREBASE_SERVICE_ACCOUNT_JSON`.
    - `VITE_TENANT_ID` = contenuto di `sandbox/TENANT_ID`
-   - `VITE_APP_SANDBOX` = `true` (barra gialla + blocco DB produzione)
+   - `VITE_APP_SANDBOX` = `true` (badge Sandbox + blocco DB produzione)
    - `VITE_PRODUCTION_TENANT_ID` = ID tenant del sito vero
    - **Non** `TELEGRAM_*` né `VITE_API_BASE_URL` verso produzione
 4. Fai **Deploy** (poi **Redeploy** se cambi variabili).

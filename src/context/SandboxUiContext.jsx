@@ -1,7 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../firebaseConfig';
-import { SandboxBanner } from '../components/sandbox/SandboxBanner';
 import { SandboxTenantBlocked } from '../components/sandbox/SandboxTenantBlocked';
 import { COLLECTIONS } from '../lib/firestorePaths';
 import {
@@ -12,7 +11,7 @@ import {
 } from '../lib/sandboxMode';
 import { useTenantContext } from './TenantContext';
 
-const SandboxUiContext = createContext({ showBanner: false });
+const SandboxUiContext = createContext({ showSandboxBadge: false });
 
 export function SandboxUiProvider({ children }) {
   const { tenantId, loading: tenantLoading } = useTenantContext();
@@ -44,7 +43,7 @@ export function SandboxUiProvider({ children }) {
     };
   }, [tenantId]);
 
-  const showBanner = shouldShowSandboxBanner({ manifestSandbox });
+  const showSandboxBadge = shouldShowSandboxBanner({ manifestSandbox });
   const misconfigured = isSandboxMisconfigured();
   const blockedByTenant =
     !tenantLoading &&
@@ -52,16 +51,7 @@ export function SandboxUiProvider({ children }) {
     manifestChecked &&
     (misconfigured || (isSandboxAppEnv() && isProductionTenantId(tenantId)));
 
-  useEffect(() => {
-    if (!showBanner) {
-      document.documentElement.classList.remove('sandbox-mode');
-      return undefined;
-    }
-    document.documentElement.classList.add('sandbox-mode');
-    return () => document.documentElement.classList.remove('sandbox-mode');
-  }, [showBanner]);
-
-  const value = useMemo(() => ({ showBanner }), [showBanner]);
+  const value = useMemo(() => ({ showSandboxBadge }), [showSandboxBadge]);
 
   if (blockedByTenant) {
     return (
@@ -72,12 +62,7 @@ export function SandboxUiProvider({ children }) {
     );
   }
 
-  return (
-    <SandboxUiContext.Provider value={value}>
-      {showBanner ? <SandboxBanner tenantId={tenantId} /> : null}
-      {children}
-    </SandboxUiContext.Provider>
-  );
+  return <SandboxUiContext.Provider value={value}>{children}</SandboxUiContext.Provider>;
 }
 
 export function useSandboxUi() {
