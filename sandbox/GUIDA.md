@@ -1,19 +1,72 @@
 # Guida sandbox — passo passo (senza programmare)
 
-La **sandbox** è una copia **separata** dei dati dell’evento (eventi, missioni, pazienti vuoti), sullo **stesso Firebase** del sito vero. Puoi provare funzioni senza rischiare la produzione.
+Hai **due protezioni** separate:
 
-| | Sito vero (produzione) | Sandbox (prove) |
-|---|------------------------|-----------------|
-| Dove gira in locale | `npm run dev` → porta **5320** | `npm run dev:sandbox` → porta **5321** |
-| Dati su Firebase | tenant produzione | tenant sandbox (altro ID) |
-| Telegram | come in produzione | **spento** |
-| Mappe e Cloudinary | sì | sì (stesse chiavi) |
+1. **Branch Git `sandbox`** — codice di prova in Cursor, senza toccare `main` (ufficiale).
+2. **Tenant Firebase sandbox** — dati di prova (eventi/missioni vuoti), senza toccare la produzione.
 
-**ID tenant sandbox attuale:** leggi il file `sandbox/TENANT_ID` (una riga di testo).
+| | Codice (Cursor) | Dati (Firebase) |
+|---|-----------------|-----------------|
+| Ufficiale | branch **`main`** | tenant produzione |
+| Prove | branch **`sandbox`** | tenant in `sandbox/TENANT_ID` |
+
+| | Sito vero in locale | Sandbox in locale |
+|---|---------------------|-------------------|
+| Branch | `main` | `sandbox` |
+| Comando | `npm run dev` → **5320** | `npm run dev:sandbox` → **5321** |
+| Telegram | sì (se configurato) | **spento** |
+
+---
+
+## 0. Branch in Cursor (codice) — leggi prima di lavorare
+
+### Come capire dove sei
+
+In basso a sinistra in Cursor c’è il nome del branch (es. `main` o `sandbox`).
+
+- **`sandbox`** → puoi modificare file e provare funzioni.
+- **`main`** → codice ufficiale: evita modifiche se stai solo sperimentando.
+
+### Passare al branch sandbox (per provare)
+
+**Metodo facile (clic):**
+
+1. Clic sul nome del branch in basso a sinistra (`main` o altro).
+2. Nella lista scegli **`sandbox`**.
+3. Attendi qualche secondo: Cursor cambia i file alla versione sandbox.
+
+**Metodo terminale:**
+
+```text
+git checkout sandbox
+```
+
+### Tornare al codice ufficiale
+
+1. Clic sul branch in basso a sinistra.
+2. Scegli **`main`**.
+
+Oppure nel terminale:
+
+```text
+git checkout main
+```
+
+### Regola d’oro
+
+- Nuove funzioni, test, modifiche ai file → resta su **`sandbox`**.
+- Solo quando sei sicuro → si può unire in `main` (meglio farlo insieme a chi segue il progetto).
+
+**ID tenant dati:** file `sandbox/TENANT_ID`.
 
 ---
 
 ## A. Aprire la sandbox sul tuo PC (ogni volta che vuoi provare)
+
+### Passo 0 — Sei sul branch giusto?
+
+Controlla in basso a sinistra: deve esserci **`sandbox`**.  
+Se vedi `main`, segui la sezione **0** sopra.
 
 ### Passo 1 — Apri il terminale in Cursor
 
@@ -100,9 +153,10 @@ Serve solo se vuoi la sandbox **su internet**, non solo sul PC.
 
 ## D. Cose da non fare
 
-- Non modificare `.env.local` per “passare alla sandbox” (usa solo `dev:sandbox`).
-- Non usare `npm run dev` (porta 5320) quando vuoi provare in sandbox: usa **5321**.
-- Non cancellare documenti in Firebase Console a mano senza sapere quale tenant è quale.
+- Non modificare file importanti stando su **`main`** se stai solo provando → usa **`sandbox`**.
+- Non modificare `.env.local` per “passare alla sandbox” (usa `dev:sandbox` e branch `sandbox`).
+- Non usare `npm run dev` (5320) quando vuoi la sandbox dati: usa **5321** su branch **sandbox**.
+- Non cancellare documenti in Firebase Console senza sapere quale tenant è quale.
 
 ---
 
