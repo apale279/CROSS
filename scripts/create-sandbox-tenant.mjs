@@ -264,6 +264,12 @@ async function main() {
   console.log(`   sandbox/TENANT_ID`);
   console.log(`   sandbox/.env.sandbox.local`);
   console.log('\n   Dev sandbox: npm run dev:sandbox  →  http://localhost:5321/');
+  console.log('   Admin sandbox: npm run sandbox:admin');
+  console.log('\n   Vercel (progetto cross_sandbox):');
+  console.log(`     VITE_TENANT_ID=${sandboxId}`);
+  console.log('     VITE_APP_SANDBOX=true');
+  console.log(`     VITE_PRODUCTION_TENANT_ID=${sourceId}`);
+  console.log('     Settings → Environments → Production → Branch Tracking → sandbox');
   console.log('\n⚠️  Produzione invariata: VITE_TENANT_ID in .env.local / Vercel prod non toccati.\n');
 }
 

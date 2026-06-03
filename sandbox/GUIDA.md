@@ -92,20 +92,20 @@ Scrivi (poi Invio):
 npm run dev:sandbox
 ```
 
-Vedrai il badge giallo **Sandbox** accanto al logo (dati di prova).
-
-**Login admin sandbox** (se creato con `npm run sandbox:admin`):
-
-- Email: `admin.sandbox@admin.it`
-- Password: `admin.sandbox`
-
-Aspetta finché compare una riga simile a:
+Aspetta finché compare:
 
 ```text
 Local:   http://localhost:5321/
 ```
 
-**Non chiudere** quella finestra mentre usi la sandbox (è il “motore” dell’app).
+**Non chiudere** quella finestra mentre usi la sandbox.
+
+Vedrai il badge **Sandbox** accanto al logo (header) e sulla **home** (barra Operativo / Mappa tattica). Non c’è più il banner giallo fisso in alto.
+
+**Login admin sandbox** (dopo `npm run sandbox:admin`):
+
+- Email: `admin.sandbox@admin.it`
+- Password: `admin.sandbox`
 
 ### Passo 4 — Apri il browser
 
@@ -145,18 +145,44 @@ La produzione **non** viene modificata.
 
 Serve solo se vuoi la sandbox **su internet**, non solo sul PC.
 
-1. Vai su [vercel.com](https://vercel.com) e accedi.
-2. **Add New… → Project** e collega di nuovo il repository **CROSS** (secondo progetto, nome tipo `cross-sandbox`).
-3. Nelle **Environment Variables** del **nuovo** progetto:
-   - Copia da produzione: Firebase, Google Maps, Cloudinary, `FIREBASE_SERVICE_ACCOUNT_JSON`.
-   - `VITE_TENANT_ID` = contenuto di `sandbox/TENANT_ID`
-   - `VITE_APP_SANDBOX` = `true` (badge Sandbox + blocco DB produzione)
-   - `VITE_PRODUCTION_TENANT_ID` = ID tenant del sito vero
-   - **Non** `TELEGRAM_*` né `VITE_API_BASE_URL` verso produzione
-4. Fai **Deploy** (poi **Redeploy** se cambi variabili).
-5. Apri l’URL che ti dà Vercel: è la sandbox online.
+**Un solo repository GitHub** (`apale279/CROSS`). Due progetti Vercel (prod + `cross_sandbox`).
 
-**Importante:** sul progetto Vercel **del sito vero**, non cambiare le variabili di **Production**.
+### C.1 Variabili (progetto cross_sandbox)
+
+**Settings → Environment Variables** (Production, Preview, Development):
+
+| Variabile | Valore |
+|-----------|--------|
+| `VITE_TENANT_ID` | contenuto di `sandbox/TENANT_ID` |
+| `VITE_APP_SANDBOX` | `true` |
+| `VITE_PRODUCTION_TENANT_ID` | ID tenant del sito vero (produzione) |
+| Firebase, Maps, Cloudinary | come produzione |
+| `FIREBASE_SERVICE_ACCOUNT_JSON` | come produzione |
+
+**Non** impostare: `TELEGRAM_*`, `VITE_API_BASE_URL` verso il sito di produzione.
+
+Dopo ogni modifica env: **Deployments → Redeploy**.
+
+### C.2 Branch deploy (non è in “Git”)
+
+**Settings → Environments → Production** → **Branch Tracking** → branch **`sandbox`** → Save.
+
+(Passato si chiamava “Production Branch” sotto Git; ora è qui.)
+
+### C.3 Deploy che mostra ancora `main` come Source
+
+Normale se il deploy è **vecchio** (fatto prima del cambio branch). Controlla:
+
+1. **Deployments** → ultimo deploy → **Source** deve essere **`sandbox`** e commit recente.
+2. Se è ancora `main`: **Create Deployment** con branch `sandbox`, oppure push su `sandbox` e attendi, oppure **Redeploy** dopo Save su Environments.
+
+In basso alla pagina deploy può comparire: *“push to the sandbox branch”* — significa che la **prossima** produzione userà `sandbox`.
+
+### C.4 URL
+
+Apri il dominio del progetto sandbox (es. `crosssandbox.vercel.app`), non quello del sito vero.
+
+**Importante:** sul progetto Vercel **del sito vero**, lascia Production su branch **`main`** e `VITE_TENANT_ID` di produzione.
 
 ---
 
@@ -176,5 +202,7 @@ Serve solo se vuoi la sandbox **su internet**, non solo sul PC.
 | `Manca sandbox/.env.sandbox.local` | Esegui `npm run sandbox:create` |
 | Porta occupata | Chiudi altre finestre terminale con `dev:sandbox` o riavvia il PC |
 | Mappa o upload non funzionano | Le chiavi sono in `sandbox/.env.sandbox.local` (generate dallo script); controlla che `sandbox:create` sia andato a buon fine |
+| Vedo ancora il banner giallo in alto | Deploy vecchio: Redeploy da branch `sandbox` con `VITE_APP_SANDBOX=true` |
+| Vedo gli stessi eventi della produzione | `VITE_TENANT_ID` sbagliato sul progetto Vercel sandbox — usa `sandbox/TENANT_ID` |
 
 Per aiuto tecnico, indica: messaggio di errore nel terminale e se stavi usando porta **5320** o **5321**.

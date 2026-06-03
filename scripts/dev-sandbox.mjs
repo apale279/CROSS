@@ -42,8 +42,20 @@ for (const [key, val] of Object.entries(loadEnvFile(SANDBOX_ENV))) {
 }
 
 const tenantId = process.env.VITE_TENANT_ID?.trim();
+const prodTenant = process.env.VITE_PRODUCTION_TENANT_ID?.trim();
+const sandboxFlag = (process.env.VITE_APP_SANDBOX ?? '').trim().toLowerCase();
+
 if (!tenantId) {
   console.error('\n❌  VITE_TENANT_ID mancante in sandbox/.env.sandbox.local\n');
+  process.exit(1);
+}
+if (sandboxFlag !== 'true' && sandboxFlag !== '1') {
+  console.warn('\n⚠️  VITE_APP_SANDBOX non è true — badge e blocco DB prod potrebbero non attivarsi.');
+  console.warn('   Esegui: npm run sandbox:create\n');
+}
+if (prodTenant && tenantId === prodTenant) {
+  console.error('\n❌  VITE_TENANT_ID coincide con VITE_PRODUCTION_TENANT_ID (tenant produzione).');
+  console.error('   Esegui npm run sandbox:create o correggi sandbox/.env.sandbox.local\n');
   process.exit(1);
 }
 
