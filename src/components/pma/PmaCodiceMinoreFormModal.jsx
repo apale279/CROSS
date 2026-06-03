@@ -241,11 +241,11 @@ export function PmaCodiceMinoreFormModal({
           <div className="border-t border-slate-100 pt-2">
             <button
               type="button"
-              className={`${btnSecondary} w-full text-xs font-bold uppercase tracking-wide`}
+              className={`${btnPrimary} w-full`}
               disabled={busy}
               onClick={() => onOpenMissioneCorrelata(missioneCorrelata)}
             >
-              APRI MISSIONE CORRELATA
+              Apri missione correlata
             </button>
           </div>
         ) : null}
