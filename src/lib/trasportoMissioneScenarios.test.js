@@ -7,7 +7,11 @@ import {
   stessaDestinazioneTrasporto,
   validateDestinazionePerMezzo,
 } from './mezzoDestinazioneTrasporto';
-import { fieldsPerEsito, resolveMissionePaziente } from './pazienteRules';
+import {
+  fieldsPerEsito,
+  mergePazienteDraftForResolve,
+  resolveMissionePaziente,
+} from './pazienteRules';
 import { pazientiTrasportoPerMissione } from './pazientiTrasportoQuery';
 
 const evento = { idEvento: 'E1', idUnivoco: 'ev1' };
@@ -34,6 +38,23 @@ const missioneM2 = {
 
 describe('trasportoMissioneScenarios', () => {
   describe('legame missione su paziente', () => {
+    it('mergePazienteDraftForResolve: draft missione visibile prima dello snapshot', () => {
+      const server = {
+        eventoCorrelato: 'E1',
+        eventoIdUnivoco: 'ev1',
+        mezzo: '',
+        missioneIdUnivoco: '',
+      };
+      const draft = {
+        missioneIdUnivoco: 'uid-m1',
+        idMissione: 'M1',
+        mezzo: 'BRAVO_1',
+      };
+      const merged = mergePazienteDraftForResolve(server, draft);
+      expect(resolveMissionePaziente([missioneM1], merged, evento)).toEqual(missioneM1);
+      expect(resolveMissionePaziente([missioneM1], server, evento)).toBeNull();
+    });
+
     it('fieldsPerEsito Trasporta imposta missioneIdUnivoco e mezzo derivato', () => {
       const f = fieldsPerEsito(ESITO_TRASPORTA, { mezzo: 'BRAVO_1', missione: missioneM1 });
       expect(f.missioneIdUnivoco).toBe('uid-m1');

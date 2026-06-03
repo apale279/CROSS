@@ -5,22 +5,24 @@ import {
   normalizeCute,
   normalizeMeccanica,
 } from './msbValutazione';
+import { normalizeLesioni } from './valutazioneLesioni';
+import { normalizeStringNameArray } from './valutazioneMsbMsaLists';
 
 export const RITMO_PRESENTAZIONE_OPTS = ['defibrillabile', 'non defibrillabile'];
 
 export function emptyMsaParametri() {
   return {
-    fr: 12,
-    meccanicaRespiratoria: ['Eupnoico'],
+    fr: null,
+    meccanicaRespiratoria: [],
     cute: [],
-    spo2Aa: 100,
-    spo2O2: 100,
-    fc: 70,
-    paSis: 120,
-    paDia: 80,
-    temperatura: 37,
+    spo2Aa: null,
+    spo2O2: null,
+    fc: null,
+    paSis: null,
+    paDia: null,
+    temperatura: null,
     glicemia: null,
-    gcs: 15,
+    gcs: null,
   };
 }
 
@@ -47,6 +49,9 @@ export function emptyMsaDetails() {
     acc: emptyMsaAcc(),
     parametri: emptyMsaParametri(),
     farmaci: [],
+    lesioni: [],
+    presidi: [],
+    prestazioniMsa: [],
     noteMsa: '',
     codiceColore: null,
     mezzoMsa: '',
@@ -80,24 +85,39 @@ function clampNum(v, def, max = Infinity, min = -Infinity) {
   return Math.round(x * 1000) / 1000;
 }
 
+/** Numero misurato o null se assente (0 è valore valido). */
+function vitalNumOrNull(raw, { max = Infinity, min = -Infinity, integer = false } = {}) {
+  if (raw === null || raw === undefined || raw === '') return null;
+  const x = Number(raw);
+  if (!Number.isFinite(x)) return null;
+  let n = integer ? Math.floor(x) : x;
+  if (max !== Infinity && n > max) n = max;
+  if (min !== -Infinity && n < min) n = min;
+  return integer ? Math.floor(n) : Math.round(n * 1000) / 1000;
+}
+
 export function normalizeMsaParametri(raw) {
   const d = emptyMsaParametri();
   if (!raw || typeof raw !== 'object') return d;
-  d.fr = clampNum(raw.fr, 12, Infinity, 0);
-  d.spo2Aa = clampNum(raw.spo2Aa, 100, 100, 0);
-  d.spo2O2 = clampNum(raw.spo2O2, 100, 100, 0);
-  d.fc = clampNum(raw.fc, 70, Infinity, 0);
-  d.paSis = clampNum(raw.paSis ?? raw.paSist, 120, Infinity, 0);
-  d.paDia = clampNum(raw.paDia, 80, Infinity, 0);
-  d.temperatura = clampNum(raw.temperatura, 37, 45, 30);
+  d.fr = vitalNumOrNull(raw.fr, { min: 0, integer: true });
+  d.spo2Aa = vitalNumOrNull(raw.spo2Aa, { min: 0, max: 100, integer: true });
+  d.spo2O2 = vitalNumOrNull(raw.spo2O2, { min: 0, max: 100, integer: true });
+  d.fc = vitalNumOrNull(raw.fc, { min: 0, integer: true });
+  d.paSis = vitalNumOrNull(raw.paSis ?? raw.paSist, { min: 0, integer: true });
+  d.paDia = vitalNumOrNull(raw.paDia, { min: 0, integer: true });
+  d.temperatura = vitalNumOrNull(raw.temperatura, { min: 30, max: 45 });
   const glicRaw = raw.glicemia;
   d.glicemia =
     glicRaw === null || glicRaw === undefined || glicRaw === ''
       ? null
-      : clampNum(glicRaw, null, 800, 0);
+      : vitalNumOrNull(glicRaw, { min: 0, max: 800, integer: true });
   d.meccanicaRespiratoria = normalizeMeccanica(raw.meccanicaRespiratoria);
   d.cute = normalizeCute(raw.cute);
-  d.gcs = clampNum(raw.gcs, 15, 15, 1);
+  const gcsRaw = raw.gcs;
+  d.gcs =
+    gcsRaw === null || gcsRaw === undefined || gcsRaw === ''
+      ? null
+      : vitalNumOrNull(gcsRaw, { min: 1, max: 15, integer: true });
   return d;
 }
 
@@ -135,10 +155,13 @@ export function normalizeMsaDetails(raw) {
   d.acc = normalizeMsaAcc(raw.acc);
   const parametri = normalizeMsaParametri(raw.parametri);
   if (raw.gcs != null && raw.parametri?.gcs == null) {
-    parametri.gcs = clampNum(raw.gcs, 15, 15, 1);
+    parametri.gcs = vitalNumOrNull(raw.gcs, { min: 1, max: 15, integer: true });
   }
   d.parametri = parametri;
   d.farmaci = Array.isArray(raw.farmaci) ? raw.farmaci.map((f) => String(f ?? '')) : [];
+  d.lesioni = normalizeLesioni(raw.lesioni);
+  d.presidi = normalizeStringNameArray(raw.presidi);
+  d.prestazioniMsa = normalizeStringNameArray(raw.prestazioniMsa);
   d.noteMsa = raw.noteMsa ?? '';
   const rawColore = String(raw.codiceColore ?? '').trim();
   d.codiceColore = DEFAULT_IMPOSTAZIONI.coloriEvento.includes(rawColore) ? rawColore : null;

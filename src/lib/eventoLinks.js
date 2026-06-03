@@ -26,12 +26,18 @@ export function missioneCoperturaEvento(missione) {
   return s !== 'FINE MISSIONE' && s !== 'ANNULLATA';
 }
 
+/** Evento creato con «Sempre aperto?» (es. arrivo gara): resta operativo senza missioni. */
+export function isEventoSempreAperto(evento) {
+  return evento?.sempreAperto === true;
+}
+
 /**
  * Evento aperto senza missioni attive (nessuna copertura in corso).
  * Utile per segnalare “orfano logistico” dopo dirottamento / annulli.
  */
 export function eventoSenzaCoperturaMissione(missioni, evento) {
   if (!evento) return false;
+  if (isEventoSempreAperto(evento)) return false;
   const list = missioniPerEvento(missioni, evento);
   if (!list.length) return true;
   return !list.some((m) => missioneCoperturaEvento(m));

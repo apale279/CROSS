@@ -32,13 +32,13 @@ export interface ParametroVitaleRilevazione {
   id: string
   registrato_at: Timestamp
   operatore_nome: string
-  gcs: number
-  fr: number
+  gcs: number | null
+  fr: number | null
   spo2_aa: number | null
   spo2_o2: number | null
-  fc: number
-  pa_sistolica: number
-  pa_diastolica: number
+  fc: number | null
+  pa_sistolica: number | null
+  pa_diastolica: number | null
   temperatura: number | null
   nrs: number | null
 }

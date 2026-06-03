@@ -97,6 +97,12 @@ export const CROSS_CHANGE_LOG = [
   { date: '2026-05-30', description: 'Impostazioni dettaglio luogo: salvataggio solo per tipo (FieldPath); niente merge default implicito in editor; no-op se invariato.' },
   { date: '2026-05-30', description: 'Codici minori PMA: data nascita e calcolo età; scheda paziente con comune/indirizzo; dimissione con preset note da impostazioni.' },
   { date: '2026-05-30', version: 'v2.25', description: 'Release v2.25 — sicurezza scritture Firestore, tab pazienti e impostazioni luogo granulari.' },
+  { date: '2026-05-28', description: 'Evento «Sempre aperto»: nessuna chiusura operativa automatica; nuove missioni senza reset flag sospensione.' },
+  { date: '2026-05-28', description: 'Zona pericolosa impostazioni: wipe selettivo (eventi, missioni, mezzi, pazienti, note) e azzeramento contatori ID.' },
+  { date: '2026-05-28', description: 'MSB/MSA: liste da impostazioni, patch granulari valutazioni, lesioni VAS senza perdita focus, farmaci con suggest catalogo PMA.' },
+  { date: '2026-05-28', description: 'Scheda paziente: legame missione (non solo mezzo), errori persistenti sotto missione/creazione, merge draft snapshot con dirty PMA/trasporto.' },
+  { date: '2026-05-28', description: 'Cartella clinica PMA: prestazioni e parametri vitali refactor; PDF allineato.' },
+  { date: '2026-05-28', version: 'v3', description: 'Release v3 — operativo missione-centric, salvataggi granulari rafforzati, UX errori e strumenti impostazioni.' },
 ];
 
 /** Raggruppa voci per data (ordine cronologico ascendente). */

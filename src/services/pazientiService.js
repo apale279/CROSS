@@ -17,6 +17,7 @@ import { ESITO_TRASPORTA } from '../constants';
 import { normalizeMsbDetails } from '../lib/msbValutazione';
 import { normalizeMsaDetails } from '../lib/msaValutazione';
 import { newValutazioneSoccorsoItem, payloadValutazioneRow } from '../lib/valutazioniSoccorsoPayload';
+import { buildValutazioneGranularUpdates } from '../lib/valutazioneSoccorsoGranularUpdate';
 import { defaultsForPatientCreate } from '../lib/pazienteDefaults';
 import { buildCodiceMinoreTrasportoNome } from '../lib/codiceMinoreTrasportoNome';
 import { patchPazienteArrivatoHConPma, statoPzPmaInArrivoIfAllowed } from './pazientePmaMissionSync';
@@ -174,21 +175,26 @@ export async function createPaziente(manifestationId, payload, existingPazienti)
 
   await batch.commit();
 
+  let pmaFollowUpError = null;
   if (String(d.destinazionePmaId ?? '').trim()) {
-    if (d.percorsoCodiceMinore === true) {
-      const { ensureCodiceMinoreOnDestinazione } = await import('./pazientePmaMissionSync');
-      await ensureCodiceMinoreOnDestinazione(
-        manifestationId,
-        patientRef.id,
-        { ...payload, ...d, idPaziente, percorsoCodiceMinore: true },
-        null,
-      );
-    } else {
-      await initPmaSchedaIfMissing(manifestationId, patientRef.id, payload.pmaSchedaSeed ?? null);
+    try {
+      if (d.percorsoCodiceMinore === true) {
+        const { ensureCodiceMinoreOnDestinazione } = await import('./pazientePmaMissionSync');
+        await ensureCodiceMinoreOnDestinazione(
+          manifestationId,
+          patientRef.id,
+          { ...payload, ...d, idPaziente, percorsoCodiceMinore: true },
+          null,
+        );
+      } else {
+        await initPmaSchedaIfMissing(manifestationId, patientRef.id, payload.pmaSchedaSeed ?? null);
+      }
+    } catch (err) {
+      pmaFollowUpError = err instanceof Error ? err.message : String(err);
     }
   }
 
-  return { docId: patientRef.id, idPaziente, idUnivoco };
+  return { docId: patientRef.id, idPaziente, idUnivoco, pmaFollowUpError };
 }
 
 export async function patchPaziente(manifestationId, docId, fields) {
@@ -228,21 +234,7 @@ export async function updateValutazioneSoccorsoDoc(manifestationId, pazienteDocI
     }
 
     const current = snap.data();
-    const merged = { ...current, ...payload };
-    if (payload.msbDetails && typeof payload.msbDetails === 'object') {
-      merged.msbDetails = { ...(current.msbDetails ?? {}), ...payload.msbDetails };
-    }
-    if (payload.msaDetails && typeof payload.msaDetails === 'object') {
-      merged.msaDetails = { ...(current.msaDetails ?? {}), ...payload.msaDetails };
-    }
-
-    const row = payloadValutazioneRow({ id: valutazioneId, ...merged });
-    const updates = {};
-    for (const [key, value] of Object.entries(row)) {
-      if (JSON.stringify(current[key]) !== JSON.stringify(value)) {
-        updates[key] = value;
-      }
-    }
+    const updates = buildValutazioneGranularUpdates(current, payload);
     if (Object.keys(updates).length > 0) {
       transaction.update(ref, updates);
     }

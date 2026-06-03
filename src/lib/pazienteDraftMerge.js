@@ -1,5 +1,5 @@
 import { STATO_PAZIENTE_PMA } from '../constants';
-import { isPazienteOriginePma } from './pmaModule';
+import { isPazienteOriginePma, normalizeStatoPzPma } from './pmaModule';
 import { toDatetimeLocalValue } from './datetimeLocal';
 import { soreuFieldsFromPatient } from './soreuTrasporto';
 
@@ -29,6 +29,9 @@ const DRAFT_KEYS_DIRTY_MERGE = new Set([
   'soreuAccompagnato',
   'soreuCodice',
   'codiceColoreSanitario',
+  'tipoPz',
+  'pmaId',
+  'statoPzPma',
 ]);
 
 /**
@@ -59,12 +62,15 @@ export function patientDocToDraftFields(p) {
     dataNascita: p.dataNascita ?? '',
     ...soreuFieldsFromPatient(p),
     codiceColoreSanitario: p.codiceColoreSanitario ?? '',
+    tipoPz: p.tipoPz ?? '',
+    pmaId: p.pmaId ?? p.destinazionePmaId ?? '',
+    statoPzPma: p.statoPzPma != null ? normalizeStatoPzPma(p.statoPzPma) : null,
   };
 }
 
 /**
  * Merge server → draft: i campi in `dirty` non vengono sovrascritti.
- * `stato` segue sempre il server (non è “digitato” come testo libero).
+ * `stato` segue il server solo se non è in modifica locale (select disabilitato ma aggiornato da sync).
  */
 export function mergePatientDraftFromServer(prevDraft, serverRow, dirty) {
   const srv = patientDocToDraftFields(serverRow);
@@ -73,6 +79,6 @@ export function mergePatientDraftFromServer(prevDraft, serverRow, dirty) {
     if (dirty.has(k)) continue;
     if (k in srv) out[k] = srv[k];
   }
-  out.stato = srv.stato;
+  if (!dirty.has('stato') && 'stato' in srv) out.stato = srv.stato;
   return out;
 }

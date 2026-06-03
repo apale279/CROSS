@@ -1,4 +1,3 @@
-import { useEffect, useRef } from 'react';
 import { DEFAULT_IMPOSTAZIONI } from '../../constants';
 import {
   CUTE_OPTIONS,
@@ -7,10 +6,25 @@ import {
   toggleCute,
   toggleMeccanica,
 } from '../../lib/msbValutazione';
+import { parseVitalNumericInput, vitalInputValue } from '../../lib/vitalNumeric';
 import { ColoreIndicator } from '../ui/ColoreIndicator';
 import { FormField, inputClass, selectClass } from '../ui/FormField';
 import { AccValutazioneBlock } from './AccValutazioneBlock';
 import { ValutazioneMezzoButtons } from './ValutazioneMezzoButtons';
+import { ValutazioneLesioniTable } from './ValutazioneLesioniTable';
+import { ValutazioneImpostazioniMultiselect } from './ValutazioneImpostazioniMultiselect';
+import { useImpostazioni } from '../../hooks/useImpostazioni';
+import {
+  listaMsbMsaPresidi,
+  listaPrestazioniMsb,
+  intersectSelectionWithCatalog,
+} from '../../lib/valutazioneMsbMsaLists';
+
+function patchVital(onPatch, key, raw, opts) {
+  const parsed = parseVitalNumericInput(raw, opts);
+  if (parsed === undefined) return;
+  onPatch({ [key]: parsed });
+}
 
 const avpuOpts = ['A', 'V', 'P', 'U'];
 
@@ -28,21 +42,11 @@ function isMeccanicaActive(d, opt) {
   return mr.includes(opt.key);
 }
 
-export function MsbValutazioneForm({ msbDetails, onPatch, mezziEventoSigle, valuationId }) {
+export function MsbValutazioneForm({ msbDetails, onPatch, mezziEventoSigle }) {
+  const { impostazioni } = useImpostazioni();
+  const catalogPresidi = listaMsbMsaPresidi(impostazioni);
+  const catalogPrestazioniMsb = listaPrestazioniMsb(impostazioni);
   const d = normalizeMsbDetails(msbDetails);
-  const persistedRef = useRef(false);
-
-  useEffect(() => {
-    persistedRef.current = false;
-  }, [valuationId]);
-
-  /** Persiste i default precompilati senza attendere un cambio campo. */
-  useEffect(() => {
-    if (!valuationId || persistedRef.current) return;
-    persistedRef.current = true;
-    onPatch(normalizeMsbDetails(msbDetails));
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- snapshot una tantum per valutazione
-  }, [valuationId]);
 
   return (
     <div className="space-y-3 border-l-2 border-teal-300 pl-3">
@@ -71,9 +75,11 @@ export function MsbValutazioneForm({ msbDetails, onPatch, mezziEventoSigle, valu
       <FormField label="FR">
         <input
           type="number"
+          min={0}
           className={inputClass}
-          value={d.fr}
-          onChange={(e) => onPatch({ fr: Number(e.target.value) })}
+          value={vitalInputValue(d.fr)}
+          placeholder="—"
+          onChange={(e) => patchVital(onPatch, 'fr', e.target.value, { min: 0, integer: true })}
         />
       </FormField>
 
@@ -107,9 +113,10 @@ export function MsbValutazioneForm({ msbDetails, onPatch, mezziEventoSigle, valu
             max={100}
             min={0}
             className={inputClass}
-            value={d.spo2Aa}
+            value={vitalInputValue(d.spo2Aa)}
+            placeholder="—"
             onChange={(e) =>
-              onPatch({ spo2Aa: Math.min(100, Math.max(0, Number(e.target.value))) })
+              patchVital(onPatch, 'spo2Aa', e.target.value, { min: 0, max: 100, integer: true })
             }
           />
         </FormField>
@@ -119,9 +126,10 @@ export function MsbValutazioneForm({ msbDetails, onPatch, mezziEventoSigle, valu
             max={100}
             min={0}
             className={inputClass}
-            value={d.spo2O2}
+            value={vitalInputValue(d.spo2O2)}
+            placeholder="—"
             onChange={(e) =>
-              onPatch({ spo2O2: Math.min(100, Math.max(0, Number(e.target.value))) })
+              patchVital(onPatch, 'spo2O2', e.target.value, { min: 0, max: 100, integer: true })
             }
           />
         </FormField>
@@ -152,24 +160,27 @@ export function MsbValutazioneForm({ msbDetails, onPatch, mezziEventoSigle, valu
           <input
             type="number"
             className={inputClass}
-            value={d.fc}
-            onChange={(e) => onPatch({ fc: Number(e.target.value) })}
+            value={vitalInputValue(d.fc)}
+            placeholder="—"
+            onChange={(e) => patchVital(onPatch, 'fc', e.target.value, { min: 0, integer: true })}
           />
         </FormField>
         <FormField label="PA sist">
           <input
             type="number"
             className={inputClass}
-            value={d.paSis}
-            onChange={(e) => onPatch({ paSis: Number(e.target.value) })}
+            value={vitalInputValue(d.paSis)}
+            placeholder="—"
+            onChange={(e) => patchVital(onPatch, 'paSis', e.target.value, { min: 0, integer: true })}
           />
         </FormField>
         <FormField label="PA dia">
           <input
             type="number"
             className={inputClass}
-            value={d.paDia}
-            onChange={(e) => onPatch({ paDia: Number(e.target.value) })}
+            value={vitalInputValue(d.paDia)}
+            placeholder="—"
+            onChange={(e) => patchVital(onPatch, 'paDia', e.target.value, { min: 0, integer: true })}
           />
         </FormField>
         <FormField label="Temperatura (°C)">
@@ -179,8 +190,9 @@ export function MsbValutazioneForm({ msbDetails, onPatch, mezziEventoSigle, valu
             min={30}
             max={45}
             className={inputClass}
-            value={d.temperatura}
-            onChange={(e) => onPatch({ temperatura: Number(e.target.value) })}
+            value={vitalInputValue(d.temperatura)}
+            placeholder="—"
+            onChange={(e) => patchVital(onPatch, 'temperatura', e.target.value, { min: 30, max: 45 })}
           />
         </FormField>
         <FormField label="Glicemia (mg/dL)">
@@ -189,17 +201,41 @@ export function MsbValutazioneForm({ msbDetails, onPatch, mezziEventoSigle, valu
             min={0}
             max={800}
             className={inputClass}
-            value={d.glicemia ?? ''}
+            value={vitalInputValue(d.glicemia)}
             placeholder="—"
-            onChange={(e) => {
-              const raw = e.target.value;
-              onPatch({
-                glicemia: raw === '' ? null : Number(raw),
-              });
-            }}
+            onChange={(e) =>
+              patchVital(onPatch, 'glicemia', e.target.value, { min: 0, max: 800, integer: true })
+            }
           />
         </FormField>
       </div>
+
+      <ValutazioneLesioniTable
+        lesioni={d.lesioni}
+        onPatchLesioni={(next) => onPatch({ lesioni: next })}
+      />
+
+      <ValutazioneImpostazioniMultiselect
+        label="Presidi"
+        options={catalogPresidi}
+        selected={d.presidi}
+        onChange={(next) =>
+          onPatch({
+            presidi: intersectSelectionWithCatalog(catalogPresidi, next),
+          })
+        }
+      />
+
+      <ValutazioneImpostazioniMultiselect
+        label="Prestazioni MSB"
+        options={catalogPrestazioniMsb}
+        selected={d.prestazioniMsb}
+        onChange={(next) =>
+          onPatch({
+            prestazioniMsb: intersectSelectionWithCatalog(catalogPrestazioniMsb, next),
+          })
+        }
+      />
 
       <FormField label="APP">
         <textarea

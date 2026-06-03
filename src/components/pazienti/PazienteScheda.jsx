@@ -57,6 +57,7 @@ import { useManifestazioneCollection } from '../../hooks/useManifestazioneCollec
 import { toDatetimeLocalValue, fromDatetimeLocalValue } from '../../lib/datetimeLocal';
 import {
   fieldsPerEsito,
+  mergePazienteDraftForResolve,
   mezziMissioniEventoOptions,
   missionePerMezzo,
   resolveMissionePaziente,
@@ -217,7 +218,10 @@ export function PazienteScheda({
   const [mainTab, setMainTab] = useState('centrale');
   const snapshotError = useStickyAlertMessage();
   const schedaActionError = useStickyAlertMessage();
+  const missioneFieldAlert = useStickyAlertMessage();
   const createFormError = useStickyAlertMessage();
+  const createErrorAnchorRef = useRef(null);
+  const missioneFieldAlertRef = useRef(null);
   /** Snapshot diretto sul documento paziente → merge preservando campi dirty. */
   useEffect(() => {
     if (isCreate || !patientDocId || !manifestationId) return undefined;
@@ -290,16 +294,30 @@ export function PazienteScheda({
     [allPazienti, evento],
   );
 
-  const missioneCorrente = useMemo(
-    () => resolveMissionePaziente(missioniSafe, displayPatient ?? draft, evento ?? eventoCollegato),
-    [
-      displayPatient,
-      draft,
-      missioniSafe,
-      evento,
-      eventoCollegato,
-    ],
+  const patientRowForMission = useMemo(
+    () => mergePazienteDraftForResolve(displayPatient, draft),
+    [displayPatient, draft],
   );
+
+  const missioneCorrente = useMemo(
+    () =>
+      resolveMissionePaziente(
+        missioniSafe,
+        patientRowForMission,
+        evento ?? eventoCollegato,
+      ),
+    [missioniSafe, patientRowForMission, evento, eventoCollegato],
+  );
+
+  useEffect(() => {
+    if (!isCreate || !createFormError.message) return;
+    createErrorAnchorRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }, [isCreate, createFormError.message]);
+
+  useEffect(() => {
+    if (!missioneFieldAlert.message) return;
+    missioneFieldAlertRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }, [missioneFieldAlert.message]);
 
   const missioneSelezionataLabel = useMemo(() => {
     if (missioneCorrente) {
@@ -334,7 +352,7 @@ export function PazienteScheda({
     async (nomeSelezionato) => {
       if (displayPatient && !isTrasportoCentraleModificabile(displayPatient)) return;
       if (!missioneCorrente) {
-        alert('Seleziona prima una missione per il trasporto.');
+        missioneFieldAlert.show('Seleziona prima una missione per il trasporto.');
         return;
       }
       if (String(nomeSelezionato ?? '').trim()) {
@@ -349,7 +367,7 @@ export function PazienteScheda({
           impostazioni,
         });
         if (!check.ok) {
-          alert(check.message);
+          missioneFieldAlert.show(check.message);
           return;
         }
       }
@@ -411,6 +429,7 @@ export function PazienteScheda({
       missioniSafe,
       patchPatientFields,
       touchDirty,
+      missioneFieldAlert.show,
     ],
   );
 
@@ -469,6 +488,17 @@ export function PazienteScheda({
     impostazioni,
   ]);
 
+  const missioneDraftNonRisolta =
+    trasporta && draftHaMissioneLink(draft) && !missioneCorrente;
+
+  const destinazioneBloccataMsg = useMemo(() => {
+    if (!destinazioneBloccataMezzo) return null;
+    return (
+      `La missione ${missioneSelezionataLabel || ''} ha già destinazione «${destinazioneBloccataMezzo.label}»: ` +
+      'tutti i pazienti sullo stesso ingaggio condividono la stessa destinazione.'
+    );
+  }, [destinazioneBloccataMezzo, missioneSelezionataLabel]);
+
   const valutazioniList = useMemo(
     () =>
       isCreate
@@ -510,12 +540,14 @@ export function PazienteScheda({
       ...row.msbDetails,
       ...partial,
     });
-    await updateValutazioneSoccorsoDoc(
-      manifestationId,
-      patientDocId,
-      id,
-      payloadValutazioneRow({ ...row, msbDetails: merged }),
+    setValuationRows((rows) =>
+      rows.map((r) => (r.id === id && r.tipo === 'MSB' ? { ...r, msbDetails: merged } : r)),
     );
+    const { mezzoMsb, ...msbPartial } = partial;
+    const payload = {};
+    if (Object.keys(msbPartial).length > 0) payload.msbDetails = msbPartial;
+    if (mezzoMsb !== undefined) payload.mezzo = mezzoMsb;
+    await updateValutazioneSoccorsoDoc(manifestationId, patientDocId, id, payload);
   };
 
   const patchMsaValutazione = async (id, partial) => {
@@ -538,16 +570,18 @@ export function PazienteScheda({
       ...row.msaDetails,
       ...partial,
     });
-    await updateValutazioneSoccorsoDoc(
-      manifestationId,
-      patientDocId,
-      id,
-      payloadValutazioneRow({
-        ...row,
-        msaDetails: merged,
-        mezzo: merged.mezzoMsa ?? row.mezzo ?? '',
-      }),
+    setValuationRows((rows) =>
+      rows.map((r) =>
+        r.id === id && r.tipo === 'MSA'
+          ? { ...r, msaDetails: merged, mezzo: partial.mezzoMsa ?? merged.mezzoMsa ?? r.mezzo }
+          : r,
+      ),
     );
+    const { mezzoMsa, ...msaPartial } = partial;
+    const payload = {};
+    if (Object.keys(msaPartial).length > 0) payload.msaDetails = msaPartial;
+    if (mezzoMsa !== undefined) payload.mezzo = mezzoMsa;
+    await updateValutazioneSoccorsoDoc(manifestationId, patientDocId, id, payload);
   };
 
   const patchMsaCreatoIl = async (id, creatoIl) => {
@@ -580,7 +614,7 @@ export function PazienteScheda({
   const onEsitoChange = async (esito) => {
     if (displayPatient && !isTrasportoCentraleModificabile(displayPatient)) return;
     schedaActionError.dismiss();
-    createFormError.dismiss();
+    if (!isCreate) createFormError.dismiss();
     const clearTrasporto = esito !== ESITO_TRASPORTA;
     const fields =
       esito === ESITO_TRASPORTA && missioneCorrente
@@ -604,6 +638,8 @@ export function PazienteScheda({
       'destinazionePmaId',
       'pmaId',
       'statoPzPma',
+      'percorsoCodiceMinore',
+      'tipoPz',
       'soreuOraMissione',
       'soreuNumeroMissione',
       'soreuAccompagnato',
@@ -646,8 +682,6 @@ export function PazienteScheda({
 
   const onMissioneChange = async (selectValue) => {
     if (displayPatient && !isTrasportoCentraleModificabile(displayPatient)) return;
-    schedaActionError.dismiss();
-    createFormError.dismiss();
     const { mezzo, missione: misFromSelect } = decodeMezzoMissioneSelect(
       selectValue,
       missioniSafe,
@@ -656,9 +690,10 @@ export function PazienteScheda({
       misFromSelect ??
       missionePerMezzo(missioniSafe, mezzo, evento ?? eventoCollegato);
     if (!mis) {
-      alert('Missione non valida o non più aperta.');
+      missioneFieldAlert.show('Missione non valida o non più aperta.');
       return;
     }
+    missioneFieldAlert.dismiss();
     const pazientiEvento = evento ? pazientiPerEvento(allPazienti, evento) : [];
     const ref = findDestinazioneTrasportoSuMezzoEvento({
       pazienti: pazientiEvento,
@@ -696,7 +731,10 @@ export function PazienteScheda({
     if (!isCreate) {
       try {
         await patchPatientFields(fields, patchKeys);
-      } catch {
+      } catch (err) {
+        missioneFieldAlert.show(
+          `Collegamento missione: ${err instanceof Error ? err.message : String(err)}`,
+        );
         return;
       }
       try {
@@ -706,7 +744,9 @@ export function PazienteScheda({
         }
         await syncMissioneCodiceColoreTrasportoForPaziente(manifestationId, updated);
       } catch (err) {
-        schedaActionError.show(err instanceof Error ? err.message : String(err));
+        missioneFieldAlert.show(
+          `Collegamento missione: ${err instanceof Error ? err.message : String(err)}`,
+        );
       }
     }
   };
@@ -716,12 +756,15 @@ export function PazienteScheda({
       createFormError.show('Evento non valido: chiudi e riapri la scheda evento.');
       return;
     }
-    createFormError.dismiss();
     setSaving(true);
     try {
       const mis =
         missioneCorrente ??
-        resolveMissionePaziente(missioniSafe, draft, evento ?? eventoCollegato);
+        resolveMissionePaziente(
+          missioniSafe,
+          patientRowForMission,
+          evento ?? eventoCollegato,
+        );
       if (trasporta && !mis && !draftHaMissioneLink(draft)) {
         createFormError.show('Seleziona una missione per il trasporto.');
         return;
@@ -814,6 +857,13 @@ export function PazienteScheda({
         },
         allPazienti ?? [],
       );
+      if (created.pmaFollowUpError) {
+        createFormError.show(
+          `Paziente ${created.idPaziente} creato. Completamento PMA: ${created.pmaFollowUpError}`,
+        );
+        onSaved?.();
+        return;
+      }
       if (trasporta && parseCodiceColoreOptional(draft.codiceColoreSanitario)) {
         try {
           await syncMissioneCodiceColoreTrasportoForPaziente(manifestationId, {
@@ -832,10 +882,12 @@ export function PazienteScheda({
           return;
         }
       }
+      createFormError.dismiss();
       onSaved?.();
       onClose?.();
     } catch (err) {
-      createFormError.show(err instanceof Error ? err.message : String(err));
+      const msg = err instanceof Error ? err.message : String(err);
+      createFormError.show(`Creazione paziente: ${msg}`);
     } finally {
       setSaving(false);
     }
@@ -1064,18 +1116,31 @@ export function PazienteScheda({
                         Selezionata: {missioneSelezionataLabel}
                       </p>
                     )}
-                    {destinazioneBloccataMezzo ? (
-                      <p className="mt-1 text-xs text-amber-800">
-                        La missione {missioneSelezionataLabel || ''} ha già destinazione «
-                        {destinazioneBloccataMezzo.label}»: tutti i pazienti sullo stesso ingaggio
-                        condividono la stessa destinazione.
-                      </p>
-                    ) : (
-                      <p className="mt-1 text-xs text-slate-500">
-                        Il paziente è legato alla missione (non solo al mezzo). La prima destinazione
-                        scelta sull&apos;ingaggio vale per gli altri pazienti della stessa missione.
-                      </p>
-                    )}
+                    <div ref={missioneFieldAlertRef} className="mt-2 space-y-2 empty:hidden">
+                      <SchedaInlineAlert
+                        message={missioneFieldAlert.message}
+                        onDismiss={missioneFieldAlert.dismiss}
+                      />
+                      {trasporta && !missioneCorrente && !draftHaMissioneLink(draft) && (
+                        <SchedaInlineAlert
+                          variant="warning"
+                          message="Esito «Trasporta»: seleziona una missione per collegare mezzo e ingaggio."
+                        />
+                      )}
+                      {missioneDraftNonRisolta && (
+                        <SchedaInlineAlert
+                          variant="warning"
+                          message="Missione indicata ma non trovata tra le missioni aperte dell'evento. Verifica che l'ingaggio sia ancora aperto."
+                        />
+                      )}
+                      {destinazioneBloccataMsg && (
+                        <SchedaInlineAlert variant="warning" message={destinazioneBloccataMsg} />
+                      )}
+                    </div>
+                    <p className="mt-1 text-xs text-slate-500">
+                      Il paziente è legato alla missione (non solo al mezzo). La prima destinazione
+                      scelta sull&apos;ingaggio vale per gli altri pazienti della stessa missione.
+                    </p>
                   </FormField>
                   <FormField label="Ospedale destinazione">
                     <select
@@ -1182,16 +1247,6 @@ export function PazienteScheda({
         message={schedaActionError.message}
         onDismiss={schedaActionError.dismiss}
       />
-      <SchedaInlineAlert
-        message={createFormError.message}
-        onDismiss={createFormError.dismiss}
-      />
-      {trasporta && !missioneCorrente && !draftHaMissioneLink(draft) && (
-        <SchedaInlineAlert
-          variant="warning"
-          message="Esito «Trasporta»: seleziona una missione per collegare mezzo e ingaggio."
-        />
-      )}
       {!isCreate && displayPatient && (
         <div className="flex flex-wrap items-center gap-3 border-b border-slate-200 pb-3">
           <span className="font-mono text-xl font-bold text-teal-800">
@@ -1372,7 +1427,16 @@ export function PazienteScheda({
         </div>
       ) : null}
 
-      <div className="flex gap-2 border-t border-slate-200 pt-3">
+      <div className="flex flex-col gap-2 border-t border-slate-200 pt-3">
+        {isCreate ? (
+          <div ref={createErrorAnchorRef} className="empty:hidden">
+            <SchedaInlineAlert
+              message={createFormError.message}
+              onDismiss={createFormError.dismiss}
+            />
+          </div>
+        ) : null}
+        <div className="flex gap-2">
         {isCreate ? (
           <>
             <button type="button" className={btnPrimary} disabled={saving} onClick={handleCreate}>
@@ -1387,6 +1451,7 @@ export function PazienteScheda({
             Chiudi
           </button>
         )}
+        </div>
       </div>
     </div>
   );

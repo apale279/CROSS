@@ -400,12 +400,12 @@ export async function buildPazientePdfBlob(p: Paziente, ctx: PazientePdfContext)
     .map((r) => [
       tsIt(r.registrato_at),
       r.operatore_nome,
-      String(r.gcs),
-      String(r.fr),
+      r.gcs != null ? String(r.gcs) : '—',
+      r.fr != null ? String(r.fr) : '—',
       r.spo2_aa != null ? String(r.spo2_aa) : '—',
       r.spo2_o2 != null ? String(r.spo2_o2) : '—',
-      String(r.fc),
-      `${r.pa_sistolica}/${r.pa_diastolica}`,
+      r.fc != null ? String(r.fc) : '—',
+      `${r.pa_sistolica != null ? r.pa_sistolica : '—'}/${r.pa_diastolica != null ? r.pa_diastolica : '—'}`,
       r.temperatura != null ? String(r.temperatura) : '—',
       r.nrs != null ? String(r.nrs) : '—',
     ])

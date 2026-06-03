@@ -2,6 +2,7 @@ import { DEFAULT_IMPOSTAZIONI } from '../constants';
 import { DEFAULT_DETTAGLI_PER_TIPO_LUOGO } from '../data/defaultLuoghiImpostazioni';
 import { resolvePmaClinicaFarmaciFields } from '../pma/lib/pmaClinicaFarmaciFields';
 import { normalizeTipiMezzo } from './tipiMezzo';
+import { normalizeValutazioniMsbMsaImpostazioni } from './valutazioneMsbMsaLists';
 
 /** Unifica dati Firestore con default e migra dettagliEvento → dettagliPerTipoEvento. */
 export function normalizeImpostazioni(data) {
@@ -75,6 +76,8 @@ export function normalizeImpostazioni(data) {
     farmaci_consumati,
   };
 
+  const lesioniCfg = normalizeValutazioniMsbMsaImpostazioni(merged);
+
   return {
     ...merged,
     dettagliPerTipoEvento: dettagliPerTipo,
@@ -84,6 +87,7 @@ export function normalizeImpostazioni(data) {
     mappaDashboardDefault,
     tipiMezzo: normalizeTipiMezzo(merged.tipiMezzo),
     pmaClinica,
+    ...lesioniCfg,
   };
 }
 
