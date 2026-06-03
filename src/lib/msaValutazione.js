@@ -7,6 +7,7 @@ import {
 } from './msbValutazione';
 import { normalizeLesioni } from './valutazioneLesioni';
 import { normalizeStringNameArray } from './valutazioneMsbMsaLists';
+import { vitalMeasuredOrNull } from './vitalNumeric';
 
 export const RITMO_PRESENTAZIONE_OPTS = ['defibrillabile', 'non defibrillabile'];
 
@@ -85,39 +86,20 @@ function clampNum(v, def, max = Infinity, min = -Infinity) {
   return Math.round(x * 1000) / 1000;
 }
 
-/** Numero misurato o null se assente (0 è valore valido). */
-function vitalNumOrNull(raw, { max = Infinity, min = -Infinity, integer = false } = {}) {
-  if (raw === null || raw === undefined || raw === '') return null;
-  const x = Number(raw);
-  if (!Number.isFinite(x)) return null;
-  let n = integer ? Math.floor(x) : x;
-  if (max !== Infinity && n > max) n = max;
-  if (min !== -Infinity && n < min) n = min;
-  return integer ? Math.floor(n) : Math.round(n * 1000) / 1000;
-}
-
 export function normalizeMsaParametri(raw) {
   const d = emptyMsaParametri();
   if (!raw || typeof raw !== 'object') return d;
-  d.fr = vitalNumOrNull(raw.fr, { min: 0, integer: true });
-  d.spo2Aa = vitalNumOrNull(raw.spo2Aa, { min: 0, max: 100, integer: true });
-  d.spo2O2 = vitalNumOrNull(raw.spo2O2, { min: 0, max: 100, integer: true });
-  d.fc = vitalNumOrNull(raw.fc, { min: 0, integer: true });
-  d.paSis = vitalNumOrNull(raw.paSis ?? raw.paSist, { min: 0, integer: true });
-  d.paDia = vitalNumOrNull(raw.paDia, { min: 0, integer: true });
-  d.temperatura = vitalNumOrNull(raw.temperatura, { min: 30, max: 45 });
-  const glicRaw = raw.glicemia;
-  d.glicemia =
-    glicRaw === null || glicRaw === undefined || glicRaw === ''
-      ? null
-      : vitalNumOrNull(glicRaw, { min: 0, max: 800, integer: true });
+  d.fr = vitalMeasuredOrNull(raw.fr, { min: 0, integer: true });
+  d.spo2Aa = vitalMeasuredOrNull(raw.spo2Aa, { min: 0, max: 100, integer: true });
+  d.spo2O2 = vitalMeasuredOrNull(raw.spo2O2, { min: 0, max: 100, integer: true });
+  d.fc = vitalMeasuredOrNull(raw.fc, { min: 0, integer: true });
+  d.paSis = vitalMeasuredOrNull(raw.paSis ?? raw.paSist, { min: 0, integer: true });
+  d.paDia = vitalMeasuredOrNull(raw.paDia, { min: 0, integer: true });
+  d.temperatura = vitalMeasuredOrNull(raw.temperatura, { min: 30, max: 45 });
+  d.glicemia = vitalMeasuredOrNull(raw.glicemia, { min: 0, max: 800, integer: true });
   d.meccanicaRespiratoria = normalizeMeccanica(raw.meccanicaRespiratoria);
   d.cute = normalizeCute(raw.cute);
-  const gcsRaw = raw.gcs;
-  d.gcs =
-    gcsRaw === null || gcsRaw === undefined || gcsRaw === ''
-      ? null
-      : vitalNumOrNull(gcsRaw, { min: 1, max: 15, integer: true });
+  d.gcs = vitalMeasuredOrNull(raw.gcs, { min: 1, max: 15, integer: true });
   return d;
 }
 
@@ -155,7 +137,7 @@ export function normalizeMsaDetails(raw) {
   d.acc = normalizeMsaAcc(raw.acc);
   const parametri = normalizeMsaParametri(raw.parametri);
   if (raw.gcs != null && raw.parametri?.gcs == null) {
-    parametri.gcs = vitalNumOrNull(raw.gcs, { min: 1, max: 15, integer: true });
+    parametri.gcs = vitalMeasuredOrNull(raw.gcs, { min: 1, max: 15, integer: true });
   }
   d.parametri = parametri;
   d.farmaci = Array.isArray(raw.farmaci) ? raw.farmaci.map((f) => String(f ?? '')) : [];

@@ -103,6 +103,7 @@ export const CROSS_CHANGE_LOG = [
   { date: '2026-05-28', description: 'Scheda paziente: legame missione (non solo mezzo), errori persistenti sotto missione/creazione, merge draft snapshot con dirty PMA/trasporto.' },
   { date: '2026-05-28', description: 'Cartella clinica PMA: prestazioni e parametri vitali refactor; PDF allineato.' },
   { date: '2026-05-28', version: 'v3', description: 'Release v3 — operativo missione-centric, salvataggi granulari rafforzati, UX errori e strumenti impostazioni.' },
+  { date: '2026-06-04', description: 'Parametri vitali MSB/MSA/PMA: default vuoti; zero trattato come non rilevato (null), non come misura.' },
 ];
 
 /** Raggruppa voci per data (ordine cronologico ascendente). */

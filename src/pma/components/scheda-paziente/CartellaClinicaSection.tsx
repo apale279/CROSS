@@ -52,6 +52,7 @@ import {
   PmaMobileSheetHeader,
 } from './PmaMobileSheet'
 import { emptyParametroVitaleDraft } from '@pma/lib/emptyParametroVitale'
+import { parseVitalNumericInput, vitalInputValue } from '../../../lib/vitalNumeric'
 
 function allergieVerificaButtonClass(selected: boolean, k: AllergieVerificaStato): string {
   const base =
@@ -120,10 +121,6 @@ function worstSpo2(row: ParametroVitaleRilevazione): number | null {
   return Math.min(a, b)
 }
 
-function pvDisplay(n: number | null | undefined): string | number {
-  return n == null ? '' : n
-}
-
 function patchPvNumericBlur(
   raw: string,
   onPatch: (id: string, partial: Partial<ParametroVitaleRilevazione>) => void,
@@ -131,17 +128,9 @@ function patchPvNumericBlur(
   field: keyof ParametroVitaleRilevazione,
   opts?: { min?: number; max?: number; integer?: boolean },
 ) {
-  const v = raw.trim()
-  if (v === '') {
-    onPatch(id, { [field]: null } as Partial<ParametroVitaleRilevazione>)
-    return
-  }
-  const n = Number(v.replace(',', '.'))
-  if (!Number.isFinite(n)) return
-  let x = opts?.integer ? Math.floor(n) : n
-  if (opts?.min != null) x = Math.max(opts.min, x)
-  if (opts?.max != null) x = Math.min(opts.max, x)
-  onPatch(id, { [field]: x } as Partial<ParametroVitaleRilevazione>)
+  const parsed = parseVitalNumericInput(raw, opts)
+  if (parsed === undefined) return
+  onPatch(id, { [field]: parsed } as Partial<ParametroVitaleRilevazione>)
 }
 
 /** Soglie semplificate per evidenziare valori critici in monitoraggio. */
@@ -322,7 +311,7 @@ function ParametriVitaliBlock({
             min={1}
             max={15}
             disabled={!canEdit}
-            defaultValue={pvDisplay(row.gcs)}
+            defaultValue={vitalInputValue(row.gcs)}
             onBlur={(e) =>
               patchPvNumericBlur(e.target.value, onPatch, row.id, 'gcs', {
                 min: 1,
@@ -338,7 +327,7 @@ function ParametriVitaliBlock({
             type="number"
             min={0}
             disabled={!canEdit}
-            defaultValue={pvDisplay(row.fr)}
+            defaultValue={vitalInputValue(row.fr)}
             onBlur={(e) =>
               patchPvNumericBlur(e.target.value, onPatch, row.id, 'fr', { min: 0, integer: true })
             }
@@ -351,16 +340,15 @@ function ParametriVitaliBlock({
             min={0}
             max={100}
             disabled={!canEdit}
-            defaultValue={row.spo2_aa ?? ''}
+            defaultValue={vitalInputValue(row.spo2_aa)}
             onBlur={(e) => {
-              const v = e.target.value.trim()
-              if (v === '') {
-                onPatch(row.id, { spo2_aa: null })
-                return
-              }
-              const n = Number(v)
-              if (!Number.isFinite(n)) return
-              onPatch(row.id, { spo2_aa: Math.min(100, Math.max(0, Math.floor(n))) })
+              const parsed = parseVitalNumericInput(e.target.value, {
+                min: 0,
+                max: 100,
+                integer: true,
+              })
+              if (parsed === undefined) return
+              onPatch(row.id, { spo2_aa: parsed })
             }}
             className={pvFieldInput}
           />
@@ -371,16 +359,15 @@ function ParametriVitaliBlock({
             min={0}
             max={100}
             disabled={!canEdit}
-            defaultValue={row.spo2_o2 ?? ''}
+            defaultValue={vitalInputValue(row.spo2_o2)}
             onBlur={(e) => {
-              const v = e.target.value.trim()
-              if (v === '') {
-                onPatch(row.id, { spo2_o2: null })
-                return
-              }
-              const n = Number(v)
-              if (!Number.isFinite(n)) return
-              onPatch(row.id, { spo2_o2: Math.min(100, Math.max(0, Math.floor(n))) })
+              const parsed = parseVitalNumericInput(e.target.value, {
+                min: 0,
+                max: 100,
+                integer: true,
+              })
+              if (parsed === undefined) return
+              onPatch(row.id, { spo2_o2: parsed })
             }}
             className={pvFieldInput}
           />
@@ -390,7 +377,7 @@ function ParametriVitaliBlock({
             type="number"
             min={0}
             disabled={!canEdit}
-            defaultValue={pvDisplay(row.fc)}
+            defaultValue={vitalInputValue(row.fc)}
             onBlur={(e) =>
               patchPvNumericBlur(e.target.value, onPatch, row.id, 'fc', { min: 0, integer: true })
             }
@@ -403,7 +390,7 @@ function ParametriVitaliBlock({
             min={0}
             max={999}
             disabled={!canEdit}
-            defaultValue={pvDisplay(row.pa_sistolica)}
+            defaultValue={vitalInputValue(row.pa_sistolica)}
             onBlur={(e) =>
               patchPvNumericBlur(e.target.value, onPatch, row.id, 'pa_sistolica', {
                 min: 0,
@@ -420,7 +407,7 @@ function ParametriVitaliBlock({
             min={0}
             max={999}
             disabled={!canEdit}
-            defaultValue={pvDisplay(row.pa_diastolica)}
+            defaultValue={vitalInputValue(row.pa_diastolica)}
             onBlur={(e) =>
               patchPvNumericBlur(e.target.value, onPatch, row.id, 'pa_diastolica', {
                 min: 0,
@@ -436,16 +423,11 @@ function ParametriVitaliBlock({
             type="number"
             step="0.1"
             disabled={!canEdit}
-            defaultValue={row.temperatura ?? ''}
+            defaultValue={vitalInputValue(row.temperatura)}
             onBlur={(e) => {
-              const v = e.target.value.trim()
-              if (v === '') {
-                onPatch(row.id, { temperatura: null })
-                return
-              }
-              const n = Number(v.replace(',', '.'))
-              if (!Number.isFinite(n)) return
-              onPatch(row.id, { temperatura: n })
+              const parsed = parseVitalNumericInput(e.target.value, { min: 30, max: 45 })
+              if (parsed === undefined) return
+              onPatch(row.id, { temperatura: parsed })
             }}
             className={pvFieldInput}
           />
@@ -456,16 +438,15 @@ function ParametriVitaliBlock({
             min={0}
             max={10}
             disabled={!canEdit}
-            defaultValue={row.nrs ?? ''}
+            defaultValue={vitalInputValue(row.nrs)}
             onBlur={(e) => {
-              const v = e.target.value.trim()
-              if (v === '') {
-                onPatch(row.id, { nrs: null })
-                return
-              }
-              const n = Number(v)
-              if (!Number.isFinite(n)) return
-              onPatch(row.id, { nrs: Math.min(10, Math.max(0, Math.floor(n))) })
+              const parsed = parseVitalNumericInput(e.target.value, {
+                min: 0,
+                max: 10,
+                integer: true,
+              })
+              if (parsed === undefined) return
+              onPatch(row.id, { nrs: parsed })
             }}
             className={PV_IN_ROW}
           />

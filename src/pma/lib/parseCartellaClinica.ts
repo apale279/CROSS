@@ -6,25 +6,26 @@ import type {
   RivalutazioneVoce,
 } from '../types/cartellaClinica'
 import { isFarmacoVia } from '../types/cartellaClinica'
+import { vitalMeasuredOrNull } from '../../lib/vitalNumeric'
 
 function ts(v: unknown): Timestamp | null {
   if (v && typeof (v as Timestamp).toMillis === 'function') return v as Timestamp
   return null
 }
 
-function numOrNull(v: unknown): number | null {
-  if (v === null || v === undefined || v === '') return null
-  const n = Number(v)
-  return Number.isFinite(n) ? n : null
+function pvInt(v: unknown, min?: number, max?: number): number | null {
+  return vitalMeasuredOrNull(v, {
+    min: min ?? -Infinity,
+    max: max ?? Infinity,
+    integer: true,
+  })
 }
 
-function intOrNull(v: unknown, min?: number, max?: number): number | null {
-  const n = numOrNull(v)
-  if (n == null) return null
-  let x = Math.floor(n)
-  if (min != null) x = Math.max(min, x)
-  if (max != null) x = Math.min(max, x)
-  return x
+function pvNum(v: unknown, min?: number, max?: number): number | null {
+  return vitalMeasuredOrNull(v, {
+    min: min ?? -Infinity,
+    max: max ?? Infinity,
+  })
 }
 
 function str(v: unknown, def = ''): string {
@@ -44,15 +45,15 @@ export function parseParametriVitali(raw: unknown): ParametroVitaleRilevazione[]
       id,
       registrato_at,
       operatore_nome: str(o.operatore_nome, '—'),
-      gcs: intOrNull(o.gcs, 1, 15),
-      fr: intOrNull(o.fr, 0),
-      spo2_aa: intOrNull(o.spo2_aa, 0, 100),
-      spo2_o2: intOrNull(o.spo2_o2, 0, 100),
-      fc: intOrNull(o.fc, 0),
-      pa_sistolica: intOrNull(o.pa_sistolica, 0, 999),
-      pa_diastolica: intOrNull(o.pa_diastolica, 0, 999),
-      temperatura: numOrNull(o.temperatura),
-      nrs: intOrNull(o.nrs, 0, 10),
+      gcs: pvInt(o.gcs, 1, 15),
+      fr: pvInt(o.fr, 0),
+      spo2_aa: pvInt(o.spo2_aa, 0, 100),
+      spo2_o2: pvInt(o.spo2_o2, 0, 100),
+      fc: pvInt(o.fc, 0),
+      pa_sistolica: pvInt(o.pa_sistolica, 0, 999),
+      pa_diastolica: pvInt(o.pa_diastolica, 0, 999),
+      temperatura: pvNum(o.temperatura, 30, 45),
+      nrs: pvInt(o.nrs, 0, 10),
     })
   }
   return out

@@ -1,4 +1,5 @@
 import { DEFAULT_IMPOSTAZIONI } from '../constants';
+import { vitalMeasuredOrNull } from './vitalNumeric';
 import { emptyMsaAcc, normalizeMsaAcc } from './msaValutazione';
 import { normalizeLesioni } from './valutazioneLesioni';
 import { normalizeStringNameArray } from './valutazioneMsbMsaLists';
@@ -75,27 +76,14 @@ export function normalizeMsbDetails(raw) {
   const d = emptyMsbDetails();
   const av = raw.avpu ?? raw.AVPU;
   if (['A', 'V', 'P', 'U'].includes(av)) d.avpu = av;
-  const vitalNumOrNull = (v, { max = Infinity, min = -Infinity, integer = false } = {}) => {
-    if (v === null || v === undefined || v === '') return null;
-    const x = Number(v);
-    if (!Number.isFinite(x)) return null;
-    let n = integer ? Math.floor(x) : x;
-    if (max !== Infinity && n > max) n = max;
-    if (min !== -Infinity && n < min) n = min;
-    return integer ? Math.floor(n) : Math.round(n * 1000) / 1000;
-  };
-  d.fr = vitalNumOrNull(raw.fr, { min: 0, integer: true });
-  d.spo2Aa = vitalNumOrNull(raw.spo2Aa, { min: 0, max: 100, integer: true });
-  d.spo2O2 = vitalNumOrNull(raw.spo2O2, { min: 0, max: 100, integer: true });
-  d.fc = vitalNumOrNull(raw.fc, { min: 0, integer: true });
-  d.paSis = vitalNumOrNull(raw.paSis ?? raw.paSist, { min: 0, integer: true });
-  d.paDia = vitalNumOrNull(raw.paDia, { min: 0, integer: true });
-  d.temperatura = vitalNumOrNull(raw.temperatura, { min: 30, max: 45 });
-  const glicRaw = raw.glicemia;
-  d.glicemia =
-    glicRaw === null || glicRaw === undefined || glicRaw === ''
-      ? null
-      : vitalNumOrNull(glicRaw, { min: 0, max: 800, integer: true });
+  d.fr = vitalMeasuredOrNull(raw.fr, { min: 0, integer: true });
+  d.spo2Aa = vitalMeasuredOrNull(raw.spo2Aa, { min: 0, max: 100, integer: true });
+  d.spo2O2 = vitalMeasuredOrNull(raw.spo2O2, { min: 0, max: 100, integer: true });
+  d.fc = vitalMeasuredOrNull(raw.fc, { min: 0, integer: true });
+  d.paSis = vitalMeasuredOrNull(raw.paSis ?? raw.paSist, { min: 0, integer: true });
+  d.paDia = vitalMeasuredOrNull(raw.paDia, { min: 0, integer: true });
+  d.temperatura = vitalMeasuredOrNull(raw.temperatura, { min: 30, max: 45 });
+  d.glicemia = vitalMeasuredOrNull(raw.glicemia, { min: 0, max: 800, integer: true });
   d.app = raw.app ?? '';
   d.lesioni = normalizeLesioni(raw.lesioni);
   d.presidi = normalizeStringNameArray(raw.presidi);
