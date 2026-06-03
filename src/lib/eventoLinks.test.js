@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
+  compareEventiAperti,
   eventoSenzaCoperturaMissione,
   missioneCoperturaEvento,
   missioniPerEvento,
+  sortEventiAperti,
 } from './eventoLinks';
 
 const evento = {
@@ -87,5 +89,26 @@ describe('missioneCoperturaEvento', () => {
   it('esclude FINE MISSIONE e ANNULLATA', () => {
     expect(missioneCoperturaEvento({ aperta: true, stato: 'FINE MISSIONE' })).toBe(false);
     expect(missioneCoperturaEvento({ aperta: true, stato: 'IN POSTO' })).toBe(true);
+  });
+});
+
+describe('compareEventiAperti — sempre aperto', () => {
+  const ts = (ms) => ({ toMillis: () => ms });
+
+  it('evento sempre aperto resta primo anche se operativo terminato', () => {
+    const sempre = {
+      stato: true,
+      sempreAperto: true,
+      operativoTerminato: true,
+      apertura: ts(1000),
+    };
+    const recente = {
+      stato: true,
+      operativoTerminato: false,
+      apertura: ts(9000),
+    };
+    const sorted = sortEventiAperti([recente, sempre]);
+    expect(sorted[0]).toBe(sempre);
+    expect(compareEventiAperti(sempre, recente)).toBeLessThan(0);
   });
 });

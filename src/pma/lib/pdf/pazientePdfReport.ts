@@ -479,17 +479,17 @@ export async function buildPazientePdfBlob(p: Paziente, ctx: PazientePdfContext)
   })
   y = afterAutoTableY(doc, y)
 
-  // Rivalutazioni
+  // Rivalutazioni (firma operatore omessa: come PV/farmaci, solo medico in dimissione)
   const rivBody = [...p.rivalutazioni]
     .sort((a, b) => (a.creato_at?.toMillis?.() ?? 0) - (b.creato_at?.toMillis?.() ?? 0))
-    .map((r) => [tsIt(r.creato_at), r.firma_nome, r.testo])
+    .map((r) => [tsIt(r.creato_at), r.testo])
   doc.setFont('helvetica', 'normal')
   doc.setFontSize(7.5)
   const rivNoteW = 104
   let rivTableMm = 10
-  const rivRowsForEst = rivBody.length ? rivBody : [['—', '—', '—']]
+  const rivRowsForEst = rivBody.length ? rivBody : [['—', '—']]
   for (const r of rivRowsForEst) {
-    const noteLines = doc.splitTextToSize(String(r[2]), rivNoteW).length
+    const noteLines = doc.splitTextToSize(String(r[1]), rivNoteW).length
     rivTableMm += 4 + noteLines * 2.7
   }
   rivTableMm = Math.min(rivTableMm, pageInnerH)
@@ -497,11 +497,11 @@ export async function buildPazientePdfBlob(p: Paziente, ctx: PazientePdfContext)
   writeTitle('Rivalutazioni', 9, 0)
   autoTable(doc, {
     startY: y,
-    head: [['Data/ora', 'Firma', 'Nota']],
-    body: rivBody.length ? rivBody : [['—', '—', '—']],
+    head: [['Data/ora', 'Nota']],
+    body: rivBody.length ? rivBody : [['—', '—']],
     styles: { fontSize: 7.5, cellPadding: 1 },
     headStyles: { fillColor: [51, 65, 85], fontSize: 8 },
-    columnStyles: { 2: { cellWidth: 110 } },
+    columnStyles: { 1: { cellWidth: 110 } },
     margin: { left: M, right: M },
     ...TABLE_KEEP_ON_PAGE,
   })

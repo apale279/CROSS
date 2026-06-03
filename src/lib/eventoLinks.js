@@ -81,6 +81,9 @@ export function isEventoOperativoTerminato(evento) {
  * dentro ogni gruppo, apertura più recente prima.
  */
 export function compareEventiAperti(a, b) {
+  const sempreA = isEventoSempreAperto(a);
+  const sempreB = isEventoSempreAperto(b);
+  if (sempreA !== sempreB) return sempreA ? -1 : 1;
   const termA = isEventoOperativoTerminato(a) ? 1 : 0;
   const termB = isEventoOperativoTerminato(b) ? 1 : 0;
   if (termA !== termB) return termA - termB;

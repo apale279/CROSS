@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Timestamp } from 'firebase/firestore';
 import { Modal } from '../ui/Modal';
 import { btnPrimary, btnSecondary } from '../ui/FormField';
 import { toDatetimeLocalValue, fromDatetimeLocalValue } from '../../lib/datetimeLocal';
 import { codiceMinoreFromPaziente } from '../../services/pmaCodiceMinoreService';
 import { isPercorsoCodiceMinoreTrasporto } from '../../lib/pmaDestinazioneTrasporto';
+import { missioneCorrelataCodiceMinore } from '../../lib/codiceMinoreMissione';
 import { useRegistryPartecipanti } from '../../hooks/useRegistryPartecipanti';
 import { cercaPerPettorale, etaDaDataNascita } from '../../lib/excelPartecipanti';
 import { FormField, inputClass } from '../ui/FormField';
@@ -56,11 +57,18 @@ export function PmaCodiceMinoreFormModal({
   row,
   busy,
   impostazioni,
+  missioni = [],
+  eventi = [],
+  onOpenMissioneCorrelata,
   onClose,
   onSave,
 }) {
   const editingId = row?._docId ?? null;
   const daTrasportoCentrale = row ? isPercorsoCodiceMinoreTrasporto(row) : false;
+  const missioneCorrelata = useMemo(
+    () => (row ? missioneCorrelataCodiceMinore(row, missioni, eventi) : null),
+    [row, missioni, eventi],
+  );
   const [draft, setDraft] = useState(emptyDraft);
   const { registryPartecipanti } = useRegistryPartecipanti(
     impostazioni?.registryPartecipanti ?? [],
@@ -228,6 +236,19 @@ export function PmaCodiceMinoreFormModal({
             />
           </label>
         </div>
+
+        {missioneCorrelata?._docId && onOpenMissioneCorrelata ? (
+          <div className="border-t border-slate-100 pt-2">
+            <button
+              type="button"
+              className={`${btnSecondary} w-full text-xs font-bold uppercase tracking-wide`}
+              disabled={busy}
+              onClick={() => onOpenMissioneCorrelata(missioneCorrelata)}
+            >
+              APRI MISSIONE CORRELATA
+            </button>
+          </div>
+        ) : null}
 
         <div className="flex flex-wrap gap-2 border-t border-slate-100 pt-2">
           <button
