@@ -23,3 +23,5 @@ Tenant attuale: `sandbox/TENANT_ID`
 Stesso repo GitHub, secondo progetto Vercel. Branch Production: **`sandbox`** (Settings → Environments → Production → Branch Tracking).
 
 Vedi `env.sandbox.vercel.example` e la sezione C in [GUIDA.md](./GUIDA.md).
+
+**Utenti operatori:** Impostazioni → Utenti (identico alla produzione). Primo login admin: `npm run sandbox:admin`.

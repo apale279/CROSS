@@ -186,7 +186,24 @@ Apri il dominio del progetto sandbox (es. `crosssandbox.vercel.app`), non quello
 
 ---
 
-## D. Cose da non fare
+## D. Creare utenti operatori (come in produzione)
+
+Stesso flusso dell’app originale: **Impostazioni → tab Utenti → Account operatori**.
+
+1. Accedi con un account **Centrale** che possa modificare le impostazioni (es. creato con `npm run sandbox:admin` → `admin.sandbox@admin.it` / `admin.sandbox`).
+2. **Nuovo utente**: email, password, nome, tipo accesso **PMA** o **Centrale**.
+3. Per operatori tenda: **PMA** + **Rank** (Medico, Infermiere, Soccorritore, Triage) + **PMA assegnato** (stesse opzioni della produzione).
+4. Le API `/api/admin-users` scrivono solo sul tenant sandbox (`VITE_TENANT_ID` del deploy sandbox); il tenant produzione è bloccato se `VITE_APP_SANDBOX=true` e `VITE_PRODUCTION_TENANT_ID` sono configurati.
+
+Primo admin sandbox da terminale (una tantum):
+
+```bash
+npm run sandbox:admin
+```
+
+---
+
+## E. Cose da non fare
 
 - Non modificare file importanti stando su **`main`** se stai solo provando → usa **`sandbox`**.
 - Non modificare `.env.local` per “passare alla sandbox” (usa `dev:sandbox` e branch `sandbox`).
@@ -195,7 +212,7 @@ Apri il dominio del progetto sandbox (es. `crosssandbox.vercel.app`), non quello
 
 ---
 
-## Se qualcosa non parte
+## F. Se qualcosa non parte
 
 | Problema | Cosa fare |
 |----------|-----------|
