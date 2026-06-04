@@ -1,9 +1,7 @@
-import { isSandboxAppEnv } from './sandboxMode';
-
 /**
  * URL API:
  * - Dev: path relativo `/api/...` → proxy Vite (vite.config) verso VITE_API_BASE_URL
- * - Produzione: stesso host (`/api/...`) su Vercel
+ * - Produzione / sandbox: `/api` sullo stesso host del sito (Vercel Functions)
  */
 export function apiUrl(path) {
   const p = path.startsWith('/') ? path : `/${path}`;
@@ -11,11 +9,12 @@ export function apiUrl(path) {
     return p;
   }
   const base = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '');
-  if (base && isSandboxAppEnv() && typeof window !== 'undefined') {
+  if (typeof window !== 'undefined') {
     const origin = window.location.origin.replace(/\/$/, '');
-    if (base !== origin) {
+    // Cross-origin dal browser → CORS → "Failed to fetch". Usa le API del deploy corrente.
+    if (base && base !== origin) {
       console.warn(
-        '[SANDBOX] VITE_API_BASE_URL punta a un altro host; uso /api sul deploy sandbox.',
+        `[CROSS] VITE_API_BASE_URL (${base}) ≠ sito corrente (${origin}); uso ${p} sullo stesso host.`,
       );
       return p;
     }

@@ -221,5 +221,6 @@ npm run sandbox:admin
 | Mappa o upload non funzionano | Le chiavi sono in `sandbox/.env.sandbox.local` (generate dallo script); controlla che `sandbox:create` sia andato a buon fine |
 | Vedo ancora il banner giallo in alto | Deploy vecchio: Redeploy da branch `sandbox` con `VITE_APP_SANDBOX=true` |
 | Vedo gli stessi eventi della produzione | `VITE_TENANT_ID` sbagliato sul progetto Vercel sandbox — usa `sandbox/TENANT_ID` |
+| **Failed to fetch** in Impostazioni → Utenti | Su Vercel sandbox: **non** impostare `VITE_API_BASE_URL` verso il sito di produzione (lascia vuoto o uguale al dominio sandbox). Serve `FIREBASE_SERVICE_ACCOUNT_JSON` sul progetto sandbox. Redeploy dopo il fix su branch `sandbox`. |
 
 Per aiuto tecnico, indica: messaggio di errore nel terminale e se stavi usando porta **5320** o **5321**.
