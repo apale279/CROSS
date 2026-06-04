@@ -3,6 +3,7 @@ import { TipiEventoChipsEditor } from './TipiEventoChipsEditor';
 import { DettagliPerTipoEditor } from './DettagliPerTipoEditor';
 import { ImpostazioniLuogoPanel } from './ImpostazioniLuogoPanel';
 import { ChiamantiEventoEditor } from './ChiamantiEventoEditor';
+import { ValutazioniMsbMsaImpostazioniEditor } from './ValutazioniMsbMsaImpostazioniEditor';
 
 const subTabClass = (active) =>
   `border-b-2 px-3 py-2 text-xs font-bold uppercase tracking-wide ${
@@ -26,6 +27,13 @@ export function ImpostazioniEventiPanel() {
         </button>
         <button
           type="button"
+          className={subTabClass(subTab === 'lesioni')}
+          onClick={() => setSubTab('lesioni')}
+        >
+          MSB / MSA
+        </button>
+        <button
+          type="button"
           className={subTabClass(subTab === 'luogo')}
           onClick={() => setSubTab('luogo')}
         >
@@ -46,6 +54,8 @@ export function ImpostazioniEventiPanel() {
           <DettagliPerTipoEditor />
         </div>
       )}
+
+      {subTab === 'lesioni' && <ValutazioniMsbMsaImpostazioniEditor />}
 
       {subTab === 'luogo' && <ImpostazioniLuogoPanel />}
 

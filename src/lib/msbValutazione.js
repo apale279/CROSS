@@ -1,5 +1,8 @@
 import { DEFAULT_IMPOSTAZIONI } from '../constants';
+import { vitalMeasuredOrNull } from './vitalNumeric';
 import { emptyMsaAcc, normalizeMsaAcc } from './msaValutazione';
+import { normalizeLesioni } from './valutazioneLesioni';
+import { normalizeStringNameArray } from './valutazioneMsbMsaLists';
 
 export const MR_OPTIONS = [
   { key: 'Eupnoico', path: false, absent: false },
@@ -16,17 +19,20 @@ export const ESITI_MSB = ['Trasportato', 'Rifiuta trasporto', 'Si allontana', 'A
 export function emptyMsbDetails() {
   return {
     avpu: 'A',
-    fr: 12,
-    meccanicaRespiratoria: ['Eupnoico'],
+    fr: null,
+    meccanicaRespiratoria: [],
     cute: [],
-    spo2Aa: 100,
-    spo2O2: 100,
-    fc: 70,
-    paSis: 120,
-    paDia: 80,
-    temperatura: 37,
+    spo2Aa: null,
+    spo2O2: null,
+    fc: null,
+    paSis: null,
+    paDia: null,
+    temperatura: null,
     glicemia: null,
     app: '',
+    lesioni: [],
+    presidi: [],
+    prestazioniMsb: [],
     descrizione: '',
     codiceColore: null,
     esitoMsb: 'Trasportato',
@@ -49,12 +55,14 @@ function canonCute(s) {
 }
 
 export function normalizeMeccanica(arr) {
-  if (!Array.isArray(arr)) return ['Eupnoico'];
+  if (!Array.isArray(arr)) return [];
   const keys = [...new Set(arr.map(canonMr).filter(Boolean))];
+  if (keys.length === 0) return [];
   if (keys.includes('ASSENTE')) return ['ASSENTE'];
   const paths = keys.filter((k) => MR_OPTIONS.find((o) => o.key === k)?.path);
   if (paths.length > 0) return [...paths].sort();
-  return ['Eupnoico'];
+  if (keys.includes('Eupnoico')) return ['Eupnoico'];
+  return [];
 }
 
 export function normalizeCute(arr) {
@@ -68,26 +76,18 @@ export function normalizeMsbDetails(raw) {
   const d = emptyMsbDetails();
   const av = raw.avpu ?? raw.AVPU;
   if (['A', 'V', 'P', 'U'].includes(av)) d.avpu = av;
-  const clampNum = (v, def, max = Infinity, min = -Infinity) => {
-    const x = Number(v);
-    if (!Number.isFinite(x)) return def;
-    if (max !== Infinity && x > max) return max;
-    if (min !== -Infinity && x < min) return min;
-    return Math.round(x * 1000) / 1000;
-  };
-  d.fr = clampNum(raw.fr, 12, Infinity, 0);
-  d.spo2Aa = clampNum(raw.spo2Aa, 100, 100, 0);
-  d.spo2O2 = clampNum(raw.spo2O2, 100, 100, 0);
-  d.fc = clampNum(raw.fc, 70, Infinity, 0);
-  d.paSis = clampNum(raw.paSis ?? raw.paSist, 120, Infinity, 0);
-  d.paDia = clampNum(raw.paDia, 80, Infinity, 0);
-  d.temperatura = clampNum(raw.temperatura, 37, 45, 30);
-  const glicRaw = raw.glicemia;
-  d.glicemia =
-    glicRaw === null || glicRaw === undefined || glicRaw === ''
-      ? null
-      : clampNum(glicRaw, null, 800, 0);
+  d.fr = vitalMeasuredOrNull(raw.fr, { min: 0, integer: true });
+  d.spo2Aa = vitalMeasuredOrNull(raw.spo2Aa, { min: 0, max: 100, integer: true });
+  d.spo2O2 = vitalMeasuredOrNull(raw.spo2O2, { min: 0, max: 100, integer: true });
+  d.fc = vitalMeasuredOrNull(raw.fc, { min: 0, integer: true });
+  d.paSis = vitalMeasuredOrNull(raw.paSis ?? raw.paSist, { min: 0, integer: true });
+  d.paDia = vitalMeasuredOrNull(raw.paDia, { min: 0, integer: true });
+  d.temperatura = vitalMeasuredOrNull(raw.temperatura, { min: 30, max: 45 });
+  d.glicemia = vitalMeasuredOrNull(raw.glicemia, { min: 0, max: 800, integer: true });
   d.app = raw.app ?? '';
+  d.lesioni = normalizeLesioni(raw.lesioni);
+  d.presidi = normalizeStringNameArray(raw.presidi);
+  d.prestazioniMsb = normalizeStringNameArray(raw.prestazioniMsb);
   d.descrizione = raw.descrizione ?? '';
   const rawColore = String(raw.codiceColore ?? '').trim();
   d.codiceColore = DEFAULT_IMPOSTAZIONI.coloriEvento.includes(rawColore) ? rawColore : null;

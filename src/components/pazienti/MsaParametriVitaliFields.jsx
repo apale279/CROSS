@@ -5,6 +5,7 @@ import {
   toggleMeccanica,
 } from '../../lib/msbValutazione';
 import { normalizeMsaParametri } from '../../lib/msaValutazione';
+import { parseVitalNumericInput, vitalInputValue } from '../../lib/vitalNumeric';
 import { FormField, inputClass } from '../ui/FormField';
 
 const chipBtn = (active) =>
@@ -21,6 +22,12 @@ function isMeccanicaActive(d, opt) {
   return mr.includes(opt.key);
 }
 
+function patchVital(onPatch, key, raw, opts) {
+  const parsed = parseVitalNumericInput(raw, opts);
+  if (parsed === undefined) return;
+  onPatch({ [key]: parsed });
+}
+
 /** Parametri vitali MSA (duplicato MSB senza AVPU). */
 export function MsaParametriVitaliFields({ parametri, onPatch }) {
   const d = normalizeMsaParametri(parametri);
@@ -35,19 +42,20 @@ export function MsaParametriVitaliFields({ parametri, onPatch }) {
           min={1}
           max={15}
           className={inputClass}
-          value={d.gcs}
-          onChange={(e) =>
-            onPatch({ gcs: Math.min(15, Math.max(1, Number(e.target.value) || 15)) })
-          }
+          value={vitalInputValue(d.gcs)}
+          placeholder="—"
+          onChange={(e) => patchVital(onPatch, 'gcs', e.target.value, { min: 1, max: 15, integer: true })}
         />
       </FormField>
 
       <FormField label="FR">
         <input
           type="number"
+          min={0}
           className={inputClass}
-          value={d.fr}
-          onChange={(e) => onPatch({ fr: Number(e.target.value) })}
+          value={vitalInputValue(d.fr)}
+          placeholder="—"
+          onChange={(e) => patchVital(onPatch, 'fr', e.target.value, { min: 0, integer: true })}
         />
       </FormField>
 
@@ -78,9 +86,10 @@ export function MsaParametriVitaliFields({ parametri, onPatch }) {
             max={100}
             min={0}
             className={inputClass}
-            value={d.spo2Aa}
+            value={vitalInputValue(d.spo2Aa)}
+            placeholder="—"
             onChange={(e) =>
-              onPatch({ spo2Aa: Math.min(100, Math.max(0, Number(e.target.value))) })
+              patchVital(onPatch, 'spo2Aa', e.target.value, { min: 0, max: 100, integer: true })
             }
           />
         </FormField>
@@ -90,9 +99,10 @@ export function MsaParametriVitaliFields({ parametri, onPatch }) {
             max={100}
             min={0}
             className={inputClass}
-            value={d.spo2O2}
+            value={vitalInputValue(d.spo2O2)}
+            placeholder="—"
             onChange={(e) =>
-              onPatch({ spo2O2: Math.min(100, Math.max(0, Number(e.target.value))) })
+              patchVital(onPatch, 'spo2O2', e.target.value, { min: 0, max: 100, integer: true })
             }
           />
         </FormField>
@@ -122,25 +132,31 @@ export function MsaParametriVitaliFields({ parametri, onPatch }) {
         <FormField label="FC">
           <input
             type="number"
+            min={0}
             className={inputClass}
-            value={d.fc}
-            onChange={(e) => onPatch({ fc: Number(e.target.value) })}
+            value={vitalInputValue(d.fc)}
+            placeholder="—"
+            onChange={(e) => patchVital(onPatch, 'fc', e.target.value, { min: 0, integer: true })}
           />
         </FormField>
         <FormField label="PA sist">
           <input
             type="number"
+            min={0}
             className={inputClass}
-            value={d.paSis}
-            onChange={(e) => onPatch({ paSis: Number(e.target.value) })}
+            value={vitalInputValue(d.paSis)}
+            placeholder="—"
+            onChange={(e) => patchVital(onPatch, 'paSis', e.target.value, { min: 0, integer: true })}
           />
         </FormField>
         <FormField label="PA dia">
           <input
             type="number"
+            min={0}
             className={inputClass}
-            value={d.paDia}
-            onChange={(e) => onPatch({ paDia: Number(e.target.value) })}
+            value={vitalInputValue(d.paDia)}
+            placeholder="—"
+            onChange={(e) => patchVital(onPatch, 'paDia', e.target.value, { min: 0, integer: true })}
           />
         </FormField>
         <FormField label="Temperatura (°C)">
@@ -150,8 +166,9 @@ export function MsaParametriVitaliFields({ parametri, onPatch }) {
             min={30}
             max={45}
             className={inputClass}
-            value={d.temperatura}
-            onChange={(e) => onPatch({ temperatura: Number(e.target.value) })}
+            value={vitalInputValue(d.temperatura)}
+            placeholder="—"
+            onChange={(e) => patchVital(onPatch, 'temperatura', e.target.value, { min: 30, max: 45 })}
           />
         </FormField>
         <FormField label="Glicemia (mg/dL)">
@@ -160,12 +177,11 @@ export function MsaParametriVitaliFields({ parametri, onPatch }) {
             min={0}
             max={800}
             className={inputClass}
-            value={d.glicemia ?? ''}
+            value={vitalInputValue(d.glicemia)}
             placeholder="—"
-            onChange={(e) => {
-              const raw = e.target.value;
-              onPatch({ glicemia: raw === '' ? null : Number(raw) });
-            }}
+            onChange={(e) =>
+              patchVital(onPatch, 'glicemia', e.target.value, { min: 0, max: 800, integer: true })
+            }
           />
         </FormField>
       </div>

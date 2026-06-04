@@ -4,6 +4,7 @@ import { eventoRefForMissioneMatch, pazienteSameEventoAsMissione } from './event
 import { formatMissioneMezzoLabel } from './missioneDisplay';
 import { normalizeMezzoKey } from './mezzoMissione';
 import { emptySoreuFirestoreClear } from './soreuTrasporto';
+import { TIPO_PZ } from './pmaModule';
 
 /**
  * Modello trasporto (centrale / evento):
@@ -44,6 +45,12 @@ export function missionePerMezzo(missioni, mezzo, evento = null, { missioneIdUni
   if (scoped.length === 0) return null;
   scoped.sort((a, b) => missionAperturaMs(b) - missionAperturaMs(a));
   return scoped[0] ?? null;
+}
+
+/** Server + bozza locale: la tendina missione aggiorna il draft prima dello snapshot Firestore. */
+export function mergePazienteDraftForResolve(serverPatient, draft) {
+  if (!serverPatient) return draft ?? {};
+  return { ...serverPatient, ...draft };
 }
 
 export function resolveMissionePaziente(missioni, pazienteOrDraft, evento = null) {
@@ -119,6 +126,8 @@ export function fieldsPerEsito(esito, { mezzo, missione, clearTrasporto } = {}) 
       destinazionePmaId: '',
       pmaId: '',
       statoPzPma: null,
+      percorsoCodiceMinore: false,
+      tipoPz: TIPO_PZ.CENTRALE,
       stato: 'ATTESA',
       arrivatoHAt: null,
       ...emptySoreuFirestoreClear(),

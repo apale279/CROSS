@@ -1,6 +1,7 @@
 import { doc, runTransaction } from 'firebase/firestore';
 import { db } from '../firebaseConfig';
-import { maxProgressiveFromItems, nextProgressiveId } from './idGenerator';
+import { shouldSkipIdSeedFromCounterDoc } from '../lib/progressiveCounters';
+import { maxProgressiveFromItems } from './idGenerator';
 
 function contatoriRef(manifestationId) {
   return doc(db, 'manifestazioni', manifestationId, 'settings', 'contatori');
@@ -12,10 +13,13 @@ async function ensureCounterAtLeast(manifestationId, counterKey, seedItems, disp
   if (seedMax <= 0) return;
 
   await runTransaction(db, async (transaction) => {
-    const snap = await transaction.get(contatoriRef(manifestationId));
+    const ref = contatoriRef(manifestationId);
+    const snap = await transaction.get(ref);
+    const data = snap.exists() ? snap.data() : null;
+    if (shouldSkipIdSeedFromCounterDoc(data, counterKey)) return;
     const current = snap.exists() ? Number(snap.data()[counterKey] ?? 0) : 0;
     if (seedMax > current) {
-      transaction.set(contatoriRef(manifestationId), { [counterKey]: seedMax }, { merge: true });
+      transaction.set(ref, { [counterKey]: seedMax }, { merge: true });
     }
   });
 }

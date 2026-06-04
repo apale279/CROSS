@@ -48,6 +48,12 @@ export function readImpostazioniFieldForDisplay(data, fieldKey) {
   if (fieldKey === 'codiciMinoriTabellaFoto') return DEFAULT_IMPOSTAZIONI.codiciMinoriTabellaFoto;
   if (fieldKey === 'tipiLuogo') return [...DEFAULT_IMPOSTAZIONI.tipiLuogo];
   if (fieldKey === 'chiamantiEvento') return [...DEFAULT_IMPOSTAZIONI.chiamantiEvento];
+  if (fieldKey === 'lesioniLocalizzazioni') return [...DEFAULT_IMPOSTAZIONI.lesioniLocalizzazioni];
+  if (fieldKey === 'lesioniTipologie') return [...DEFAULT_IMPOSTAZIONI.lesioniTipologie];
+  if (fieldKey === 'lesioniVasMax') return DEFAULT_IMPOSTAZIONI.lesioniVasMax;
+  if (fieldKey === 'msbMsaPresidi') return [...DEFAULT_IMPOSTAZIONI.msbMsaPresidi];
+  if (fieldKey === 'prestazioniMsb') return [...DEFAULT_IMPOSTAZIONI.prestazioniMsb];
+  if (fieldKey === 'prestazioniMsa') return [...DEFAULT_IMPOSTAZIONI.prestazioniMsa];
   return DEFAULT_IMPOSTAZIONI[fieldKey] ?? null;
 }
 

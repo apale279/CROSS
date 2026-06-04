@@ -52,6 +52,7 @@ const emptyValues = () => ({
   luogo_fisico: '',
   coordinate: null,
   noteEvento: '',
+  sempreAperto: false,
 });
 
 export function EventoScheda({
@@ -243,7 +244,7 @@ export function EventoScheda({
         allMissioni,
         mezzo,
       );
-      if (evento.operativoAutoCloseSospeso === true) {
+      if (evento.operativoAutoCloseSospeso === true && evento.sempreAperto !== true) {
         await patchEvento(manifestazioneId, evento._docId, {
           operativoAutoCloseSospeso: deleteField(),
         });
@@ -335,6 +336,11 @@ export function EventoScheda({
           >
             {eventoTerminato ? 'Terminato' : eventoAperto ? 'Aperto' : 'Chiuso'}
           </span>
+          {evento.sempreAperto === true ? (
+            <span className="rounded-full bg-sky-100 px-2.5 py-0.5 text-xs font-medium text-sky-900">
+              Sempre aperto
+            </span>
+          ) : null}
           <span className="text-xs text-slate-500">
             {operatoreCreatoLine(evento)}
           </span>
@@ -400,7 +406,18 @@ export function EventoScheda({
             readOnly={readOnly || eventoTerminato}
           />
           {isCreate && (
-            <div className="mt-4">
+            <div className="mt-4 flex flex-wrap items-center gap-4">
+              <label className="inline-flex cursor-pointer items-center gap-2 text-sm text-slate-700">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 rounded border-slate-300 text-sky-600 focus:ring-sky-500"
+                  checked={draft.sempreAperto === true}
+                  onChange={(e) =>
+                    setDraft((d) => ({ ...d, sempreAperto: e.target.checked }))
+                  }
+                />
+                Sempre aperto?
+              </label>
               <button
                 type="button"
                 className={btnPrimary}

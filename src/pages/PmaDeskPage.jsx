@@ -20,6 +20,7 @@ import { PmaPatientQuickForm } from '../components/pma/PmaPatientQuickForm';
 import { PmaPatientReadonlyCard } from '../components/pma/PmaPatientReadonlyCard';
 import { PmaInCaricoCard } from '../components/pma/PmaInCaricoCard';
 import { PmaCodiciMinoriPanel } from '../components/pma/PmaCodiciMinoriPanel';
+import { MissioneScheda } from '../components/missioni/MissioneScheda';
 import { PmaIpadFirmaInfoPanel } from '../components/pma/PmaIpadFirmaInfoPanel';
 import { btnPrimary, btnSecondary } from '../components/ui/FormField';
 import { DiarioImportantTicker } from '../components/diario/DiarioImportantTicker';
@@ -47,6 +48,8 @@ export default function PmaDeskPage() {
   const fieldUx = usePmaFieldUx();
   const { data: pazienti, loading } = useManifestazioneCollection(COLLECTIONS.pazienti);
   const { data: eventi } = useManifestazioneCollection(COLLECTIONS.eventi);
+  const { data: missioni } = useManifestazioneCollection(COLLECTIONS.missioni);
+  const { data: mezzi } = useManifestazioneCollection(COLLECTIONS.mezzi);
   const { data: noteDiario, loading: loadingDiario } = useManifestazioneCollection(
     COLLECTIONS.note_diario,
   );
@@ -55,6 +58,7 @@ export default function PmaDeskPage() {
   const [showIpadFirma, setShowIpadFirma] = useState(false);
   const [busyId, setBusyId] = useState(null);
   const [codiciBusy, setCodiciBusy] = useState(false);
+  const [missioneCodiceMinore, setMissioneCodiceMinore] = useState(null);
 
   useEffect(() => {
     if (searchParams.get('codiciMinori') !== '1') return;
@@ -239,6 +243,9 @@ export default function PmaDeskPage() {
             manifestationId={manifestationId}
             pmaId={pma.id}
             impostazioni={impostazioni}
+            missioni={missioni}
+            eventi={eventi}
+            onOpenMissioneCorrelata={setMissioneCodiceMinore}
             onCreate={async (payload) => {
               setCodiciBusy(true);
               try {
@@ -283,6 +290,29 @@ export default function PmaDeskPage() {
                 setCodiciBusy(false);
               }
             }}
+          />
+        </Modal>
+      )}
+
+      {missioneCodiceMinore && (
+        <Modal
+          title={`Missione ${missioneCodiceMinore.idMissione ?? ''}`}
+          wide
+          fitViewport
+          scheda
+          onClose={() => setMissioneCodiceMinore(null)}
+        >
+          <MissioneScheda
+            missione={
+              missioni.find((m) => m._docId === missioneCodiceMinore._docId) ??
+              missioneCodiceMinore
+            }
+            eventi={eventi}
+            mezzi={mezzi}
+            allMissioni={missioni}
+            existingEventi={eventi}
+            pazienti={pazienti}
+            onDeleted={() => setMissioneCodiceMinore(null)}
           />
         </Modal>
       )}

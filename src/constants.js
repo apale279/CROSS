@@ -27,6 +27,18 @@ export const DEFAULT_IMPOSTAZIONI = {
   chiamantiEvento: [...CHIAMANTI_EVENTO],
   /** Dettaglio evento per ogni voce di tipiEvento (chiave = nome tipo) */
   dettagliPerTipoEvento: {},
+  /** MSB/MSA — localizzazioni lesioni (array di nomi). */
+  lesioniLocalizzazioni: [],
+  /** MSB/MSA — tipologie lesioni (array di nomi). */
+  lesioniTipologie: [],
+  /** MSB/MSA — VAS massimo in scheda (1–10). */
+  lesioniVasMax: 10,
+  /** MSB/MSA — catalogo presidi (multiselect). */
+  msbMsaPresidi: [],
+  /** MSB — catalogo prestazioni valutazione. */
+  prestazioniMsb: [],
+  /** MSA — catalogo prestazioni valutazione. */
+  prestazioniMsa: [],
   tipiLuogo: [...DEFAULT_TIPI_LUOGO],
   /** Dettaglio luogo per ogni voce di tipiLuogo (chiave = nome tipo luogo) */
   dettagliPerTipoLuogo: { ...DEFAULT_DETTAGLI_PER_TIPO_LUOGO },

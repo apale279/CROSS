@@ -5,22 +5,25 @@ import {
   normalizeCute,
   normalizeMeccanica,
 } from './msbValutazione';
+import { normalizeLesioni } from './valutazioneLesioni';
+import { normalizeStringNameArray } from './valutazioneMsbMsaLists';
+import { vitalMeasuredOrNull } from './vitalNumeric';
 
 export const RITMO_PRESENTAZIONE_OPTS = ['defibrillabile', 'non defibrillabile'];
 
 export function emptyMsaParametri() {
   return {
-    fr: 12,
-    meccanicaRespiratoria: ['Eupnoico'],
+    fr: null,
+    meccanicaRespiratoria: [],
     cute: [],
-    spo2Aa: 100,
-    spo2O2: 100,
-    fc: 70,
-    paSis: 120,
-    paDia: 80,
-    temperatura: 37,
+    spo2Aa: null,
+    spo2O2: null,
+    fc: null,
+    paSis: null,
+    paDia: null,
+    temperatura: null,
     glicemia: null,
-    gcs: 15,
+    gcs: null,
   };
 }
 
@@ -47,6 +50,9 @@ export function emptyMsaDetails() {
     acc: emptyMsaAcc(),
     parametri: emptyMsaParametri(),
     farmaci: [],
+    lesioni: [],
+    presidi: [],
+    prestazioniMsa: [],
     noteMsa: '',
     codiceColore: null,
     mezzoMsa: '',
@@ -83,21 +89,17 @@ function clampNum(v, def, max = Infinity, min = -Infinity) {
 export function normalizeMsaParametri(raw) {
   const d = emptyMsaParametri();
   if (!raw || typeof raw !== 'object') return d;
-  d.fr = clampNum(raw.fr, 12, Infinity, 0);
-  d.spo2Aa = clampNum(raw.spo2Aa, 100, 100, 0);
-  d.spo2O2 = clampNum(raw.spo2O2, 100, 100, 0);
-  d.fc = clampNum(raw.fc, 70, Infinity, 0);
-  d.paSis = clampNum(raw.paSis ?? raw.paSist, 120, Infinity, 0);
-  d.paDia = clampNum(raw.paDia, 80, Infinity, 0);
-  d.temperatura = clampNum(raw.temperatura, 37, 45, 30);
-  const glicRaw = raw.glicemia;
-  d.glicemia =
-    glicRaw === null || glicRaw === undefined || glicRaw === ''
-      ? null
-      : clampNum(glicRaw, null, 800, 0);
+  d.fr = vitalMeasuredOrNull(raw.fr, { min: 0, integer: true });
+  d.spo2Aa = vitalMeasuredOrNull(raw.spo2Aa, { min: 0, max: 100, integer: true });
+  d.spo2O2 = vitalMeasuredOrNull(raw.spo2O2, { min: 0, max: 100, integer: true });
+  d.fc = vitalMeasuredOrNull(raw.fc, { min: 0, integer: true });
+  d.paSis = vitalMeasuredOrNull(raw.paSis ?? raw.paSist, { min: 0, integer: true });
+  d.paDia = vitalMeasuredOrNull(raw.paDia, { min: 0, integer: true });
+  d.temperatura = vitalMeasuredOrNull(raw.temperatura, { min: 30, max: 45 });
+  d.glicemia = vitalMeasuredOrNull(raw.glicemia, { min: 0, max: 800, integer: true });
   d.meccanicaRespiratoria = normalizeMeccanica(raw.meccanicaRespiratoria);
   d.cute = normalizeCute(raw.cute);
-  d.gcs = clampNum(raw.gcs, 15, 15, 1);
+  d.gcs = vitalMeasuredOrNull(raw.gcs, { min: 1, max: 15, integer: true });
   return d;
 }
 
@@ -135,10 +137,13 @@ export function normalizeMsaDetails(raw) {
   d.acc = normalizeMsaAcc(raw.acc);
   const parametri = normalizeMsaParametri(raw.parametri);
   if (raw.gcs != null && raw.parametri?.gcs == null) {
-    parametri.gcs = clampNum(raw.gcs, 15, 15, 1);
+    parametri.gcs = vitalMeasuredOrNull(raw.gcs, { min: 1, max: 15, integer: true });
   }
   d.parametri = parametri;
   d.farmaci = Array.isArray(raw.farmaci) ? raw.farmaci.map((f) => String(f ?? '')) : [];
+  d.lesioni = normalizeLesioni(raw.lesioni);
+  d.presidi = normalizeStringNameArray(raw.presidi);
+  d.prestazioniMsa = normalizeStringNameArray(raw.prestazioniMsa);
   d.noteMsa = raw.noteMsa ?? '';
   const rawColore = String(raw.codiceColore ?? '').trim();
   d.codiceColore = DEFAULT_IMPOSTAZIONI.coloriEvento.includes(rawColore) ? rawColore : null;

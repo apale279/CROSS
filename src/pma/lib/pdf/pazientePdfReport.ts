@@ -394,18 +394,17 @@ export async function buildPazientePdfBlob(p: Paziente, ctx: PazientePdfContext)
     writeParagraph('EO rapido', eoRiepilogo)
   }
 
-  // Parametri vitali
+  // Parametri vitali (operatore per riga omesso: in PDF compare solo il medico di dimissione)
   const pvBody = [...p.parametri_vitali]
     .sort((a, b) => (a.registrato_at?.toMillis?.() ?? 0) - (b.registrato_at?.toMillis?.() ?? 0))
     .map((r) => [
       tsIt(r.registrato_at),
-      r.operatore_nome,
-      String(r.gcs),
-      String(r.fr),
+      r.gcs != null ? String(r.gcs) : '—',
+      r.fr != null ? String(r.fr) : '—',
       r.spo2_aa != null ? String(r.spo2_aa) : '—',
       r.spo2_o2 != null ? String(r.spo2_o2) : '—',
-      String(r.fc),
-      `${r.pa_sistolica}/${r.pa_diastolica}`,
+      r.fc != null ? String(r.fc) : '—',
+      `${r.pa_sistolica != null ? r.pa_sistolica : '—'}/${r.pa_diastolica != null ? r.pa_diastolica : '—'}`,
       r.temperatura != null ? String(r.temperatura) : '—',
       r.nrs != null ? String(r.nrs) : '—',
     ])
@@ -415,27 +414,13 @@ export async function buildPazientePdfBlob(p: Paziente, ctx: PazientePdfContext)
   writeTitle('Parametri vitali', 9, 0)
   autoTable(doc, {
     startY: y,
-    head: [
-      [
-        'Data/ora',
-        'Op.',
-        'GCS',
-        'FR',
-        'SpO₂ aa',
-        'SpO₂ O₂',
-        'FC',
-        'PA',
-        'T°C',
-        'NRS',
-      ],
-    ],
-    body: pvBody.length ? pvBody : [['—', '—', '—', '—', '—', '—', '—', '—', '—', '—']],
+    head: [['Data/ora', 'GCS', 'FR', 'SpO₂ aa', 'SpO₂ O₂', 'FC', 'PA', 'T°C', 'NRS']],
+    body: pvBody.length ? pvBody : [['—', '—', '—', '—', '—', '—', '—', '—', '—']],
     styles: { fontSize: 7, cellPadding: 0.8, overflow: 'linebreak' },
     headStyles: { fillColor: [51, 65, 85], fontSize: 7 },
     columnStyles: {
       0: { cellWidth: 22 },
-      1: { cellWidth: 18 },
-      9: { cellWidth: 10 },
+      8: { cellWidth: 10 },
     },
     margin: { left: M, right: M },
     ...TABLE_KEEP_ON_PAGE,
@@ -469,6 +454,7 @@ export async function buildPazientePdfBlob(p: Paziente, ctx: PazientePdfContext)
   })
   y = afterAutoTableY(doc, y)
 
+  // Farmaci: solo data/ora, nome, dose, via (no inserito_da_nome / operatore riga)
   const farmBody = [...p.farmaci]
     .sort((a, b) => (a.registrato_at?.toMillis?.() ?? 0) - (b.registrato_at?.toMillis?.() ?? 0))
     .map((f) => [
@@ -493,17 +479,17 @@ export async function buildPazientePdfBlob(p: Paziente, ctx: PazientePdfContext)
   })
   y = afterAutoTableY(doc, y)
 
-  // Rivalutazioni
+  // Rivalutazioni (firma operatore omessa: come PV/farmaci, solo medico in dimissione)
   const rivBody = [...p.rivalutazioni]
     .sort((a, b) => (a.creato_at?.toMillis?.() ?? 0) - (b.creato_at?.toMillis?.() ?? 0))
-    .map((r) => [tsIt(r.creato_at), r.firma_nome, r.testo])
+    .map((r) => [tsIt(r.creato_at), r.testo])
   doc.setFont('helvetica', 'normal')
   doc.setFontSize(7.5)
   const rivNoteW = 104
   let rivTableMm = 10
-  const rivRowsForEst = rivBody.length ? rivBody : [['—', '—', '—']]
+  const rivRowsForEst = rivBody.length ? rivBody : [['—', '—']]
   for (const r of rivRowsForEst) {
-    const noteLines = doc.splitTextToSize(String(r[2]), rivNoteW).length
+    const noteLines = doc.splitTextToSize(String(r[1]), rivNoteW).length
     rivTableMm += 4 + noteLines * 2.7
   }
   rivTableMm = Math.min(rivTableMm, pageInnerH)
@@ -511,11 +497,11 @@ export async function buildPazientePdfBlob(p: Paziente, ctx: PazientePdfContext)
   writeTitle('Rivalutazioni', 9, 0)
   autoTable(doc, {
     startY: y,
-    head: [['Data/ora', 'Firma', 'Nota']],
-    body: rivBody.length ? rivBody : [['—', '—', '—']],
+    head: [['Data/ora', 'Nota']],
+    body: rivBody.length ? rivBody : [['—', '—']],
     styles: { fontSize: 7.5, cellPadding: 1 },
     headStyles: { fillColor: [51, 65, 85], fontSize: 8 },
-    columnStyles: { 2: { cellWidth: 110 } },
+    columnStyles: { 1: { cellWidth: 110 } },
     margin: { left: M, right: M },
     ...TABLE_KEEP_ON_PAGE,
   })
@@ -587,6 +573,9 @@ export async function buildPazientePdfBlob(p: Paziente, ctx: PazientePdfContext)
   doc.setFont('helvetica', 'normal')
   doc.setTextColor(30, 30, 30)
   doc.text(`Esito: ${esitoLabel}`, M, y)
+  y += 4
+  const medicoDimissione = String(p.medico_rif ?? '').trim()
+  doc.text(`Medico dimissione: ${medicoDimissione || '—'}`, M, y)
   y += 4
   writeParagraph('Note dimissione', p.dimissione_note)
   const cgPdf = ctx.consensoGenericoCure?.trim()

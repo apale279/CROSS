@@ -73,6 +73,10 @@ function buildEventoPayload(manifestationId, idEvento, idUnivoco, payload) {
   if (payload.origineEccezione) {
     data.origineEccezione = payload.origineEccezione;
   }
+  if (payload.sempreAperto === true) {
+    data.sempreAperto = true;
+    data.operativoAutoCloseSospeso = true;
+  }
   Object.assign(data, mergeOperatoreCreatoPayload(payload));
   return data;
 }

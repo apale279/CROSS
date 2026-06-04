@@ -1,14 +1,25 @@
-import { useEffect, useRef } from 'react';
+import { useMemo } from 'react';
 import { Timestamp } from 'firebase/firestore';
-import { Plus, Trash2 } from 'lucide-react';
+import { Trash2 } from 'lucide-react';
+import { defaultFarmaciConsumatiCatalog } from '@pma/lib/farmaciCatalogoSeed';
+import { usePmaClinicaListe } from '../../pma/hooks/usePmaClinicaListe';
 import { DEFAULT_IMPOSTAZIONI } from '../../constants';
 import { fromDatetimeLocalValue, toDatetimeLocalValue } from '../../lib/datetimeLocal';
 import { normalizeMsaDetails } from '../../lib/msaValutazione';
 import { AccValutazioneBlock } from './AccValutazioneBlock';
 import { ColoreIndicator } from '../ui/ColoreIndicator';
-import { FormField, btnSecondary, inputClass, selectClass } from '../ui/FormField';
+import { FormField, btnPrimary, inputClass, selectClass } from '../ui/FormField';
 import { ValutazioneMezzoButtons } from './ValutazioneMezzoButtons';
 import { MsaParametriVitaliFields } from './MsaParametriVitaliFields';
+import { ValutazioneLesioniTable } from './ValutazioneLesioniTable';
+import { ValutazioneImpostazioniMultiselect } from './ValutazioneImpostazioniMultiselect';
+import { FarmacoNomeSuggestInput } from './FarmacoNomeSuggestInput';
+import { useImpostazioni } from '../../hooks/useImpostazioni';
+import {
+  listaMsbMsaPresidi,
+  listaPrestazioniMsa,
+  intersectSelectionWithCatalog,
+} from '../../lib/valutazioneMsbMsaLists';
 
 export function MsaValutazioneForm({
   msaDetails,
@@ -16,21 +27,17 @@ export function MsaValutazioneForm({
   mezziEventoSigle,
   onPatchDetails,
   onPatchCreatoIl,
-  valuationId,
 }) {
+  const { impostazioni } = useImpostazioni();
+  const { farmaciCatalogo: farmaciCatalogoRaw } = usePmaClinicaListe();
+  const farmaciCatalogo = useMemo(
+    () =>
+      farmaciCatalogoRaw.length > 0 ? farmaciCatalogoRaw : defaultFarmaciConsumatiCatalog(),
+    [farmaciCatalogoRaw],
+  );
+  const catalogPresidi = listaMsbMsaPresidi(impostazioni);
+  const catalogPrestazioniMsa = listaPrestazioniMsa(impostazioni);
   const d = normalizeMsaDetails(msaDetails);
-  const persistedRef = useRef(false);
-
-  useEffect(() => {
-    persistedRef.current = false;
-  }, [valuationId]);
-
-  useEffect(() => {
-    if (!valuationId || persistedRef.current) return;
-    persistedRef.current = true;
-    onPatchDetails(normalizeMsaDetails(msaDetails));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [valuationId]);
 
   const patchFarmaci = (next) => onPatchDetails({ farmaci: next });
 
@@ -73,35 +80,28 @@ export function MsaValutazioneForm({
           <p className="text-xs font-bold uppercase text-slate-700">Farmaci</p>
           <button
             type="button"
-            className={`${btnSecondary} inline-flex items-center gap-1 text-xs`}
+            className={`${btnPrimary} inline-flex h-9 items-center justify-center px-3 text-xs`}
             onClick={() => patchFarmaci([...(d.farmaci ?? []), ''])}
           >
-            <Plus className="h-3.5 w-3.5" />
-            Farmaco
+            Aggiungi farmaco
           </button>
         </div>
         <ul className="space-y-2">
           {(d.farmaci ?? []).length === 0 ? (
-            <li>
-              <button
-                type="button"
-                className={`${btnSecondary} w-full text-xs`}
-                onClick={() => patchFarmaci([''])}
-              >
-                + Aggiungi farmaco
-              </button>
+            <li className="text-sm text-slate-500">
+              Nessun farmaco registrato. Usa «Aggiungi farmaco» per inserire una riga.
             </li>
           ) : (
             (d.farmaci ?? []).map((farmaco, idx) => (
               <li key={idx} className="flex gap-2">
-                <input
-                  type="text"
-                  className={inputClass}
-                  placeholder="Nome / dose / via…"
+                <FarmacoNomeSuggestInput
+                  catalog={farmaciCatalogo}
                   value={farmaco}
-                  onChange={(e) => {
+                  inputClassName={inputClass}
+                  placeholder="Nome / dose / via…"
+                  onChange={(value) => {
                     const next = [...d.farmaci];
-                    next[idx] = e.target.value;
+                    next[idx] = value;
                     patchFarmaci(next);
                   }}
                 />
@@ -118,6 +118,33 @@ export function MsaValutazioneForm({
           )}
         </ul>
       </div>
+
+      <ValutazioneLesioniTable
+        lesioni={d.lesioni}
+        onPatchLesioni={(next) => onPatchDetails({ lesioni: next })}
+      />
+
+      <ValutazioneImpostazioniMultiselect
+        label="Presidi"
+        options={catalogPresidi}
+        selected={d.presidi}
+        onChange={(next) =>
+          onPatchDetails({
+            presidi: intersectSelectionWithCatalog(catalogPresidi, next),
+          })
+        }
+      />
+
+      <ValutazioneImpostazioniMultiselect
+        label="Prestazioni MSA"
+        options={catalogPrestazioniMsa}
+        selected={d.prestazioniMsa}
+        onChange={(next) =>
+          onPatchDetails({
+            prestazioniMsa: intersectSelectionWithCatalog(catalogPrestazioniMsa, next),
+          })
+        }
+      />
 
       <FormField label="Note MSA">
         <textarea

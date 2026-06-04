@@ -17,6 +17,9 @@ export function PmaCodiciMinoriPanel({
   manifestationId,
   pmaId,
   impostazioni,
+  missioni = [],
+  eventi = [],
+  onOpenMissioneCorrelata,
   onCreate,
   onUpdate,
   onDelete,
@@ -186,6 +189,9 @@ export function PmaCodiciMinoriPanel({
         row={formRow}
         busy={busy}
         impostazioni={impostazioni}
+        missioni={missioni}
+        eventi={eventi}
+        onOpenMissioneCorrelata={onOpenMissioneCorrelata}
         onClose={closeForm}
         onSave={handleSave}
       />

@@ -51,6 +51,8 @@ import {
   PmaMobileSheetFooterActions,
   PmaMobileSheetHeader,
 } from './PmaMobileSheet'
+import { emptyParametroVitaleDraft } from '@pma/lib/emptyParametroVitale'
+import { parseVitalNumericInput, vitalInputValue } from '../../../lib/vitalNumeric'
 
 function allergieVerificaButtonClass(selected: boolean, k: AllergieVerificaStato): string {
   const base =
@@ -83,6 +85,17 @@ function sortFarmaciChronoAsc(rows: FarmacoSomministrato[]) {
   return [...rows].sort((a, b) => a.registrato_at.toMillis() - b.registrato_at.toMillis())
 }
 
+function emptyFarmacoDraft(operatoreNome: string): FarmacoSomministrato {
+  return {
+    id: crypto.randomUUID(),
+    nome: '',
+    dose: '',
+    via: 'EV',
+    registrato_at: Timestamp.now(),
+    inserito_da_nome: operatoreNome.trim() || '—',
+  }
+}
+
 function sortRivDesc(rows: RivalutazioneVoce[]) {
   return [...rows].sort((a, b) => b.creato_at.toMillis() - a.creato_at.toMillis())
 }
@@ -108,24 +121,46 @@ function worstSpo2(row: ParametroVitaleRilevazione): number | null {
   return Math.min(a, b)
 }
 
+function patchPvNumericBlur(
+  raw: string,
+  onPatch: (id: string, partial: Partial<ParametroVitaleRilevazione>) => void,
+  id: string,
+  field: keyof ParametroVitaleRilevazione,
+  opts?: { min?: number; max?: number; integer?: boolean },
+) {
+  const parsed = parseVitalNumericInput(raw, opts)
+  if (parsed === undefined) return
+  onPatch(id, { [field]: parsed } as Partial<ParametroVitaleRilevazione>)
+}
+
 /** Soglie semplificate per evidenziare valori critici in monitoraggio. */
 function pvTones(row: ParametroVitaleRilevazione): Record<string, PvTone> {
   const spo = worstSpo2(row)
   const tones: Record<string, PvTone> = {}
-  if (row.gcs <= 8) tones.gcs = 'critical'
-  else if (row.gcs <= 12) tones.gcs = 'warn'
-  if (row.fr < 8 || row.fr > 32) tones.fr = 'critical'
-  else if (row.fr < 10 || row.fr > 28) tones.fr = 'warn'
+  if (row.gcs != null) {
+    if (row.gcs <= 8) tones.gcs = 'critical'
+    else if (row.gcs <= 12) tones.gcs = 'warn'
+  }
+  if (row.fr != null) {
+    if (row.fr < 8 || row.fr > 32) tones.fr = 'critical'
+    else if (row.fr < 10 || row.fr > 28) tones.fr = 'warn'
+  }
   if (spo != null) {
     if (spo < 90) tones.spo2 = 'critical'
     else if (spo < 94) tones.spo2 = 'warn'
   }
-  if (row.fc < 45 || row.fc > 140) tones.fc = 'critical'
-  else if (row.fc < 55 || row.fc > 120) tones.fc = 'warn'
-  if (row.pa_sistolica < 85 || row.pa_sistolica > 180) tones.pa_sys = 'critical'
-  else if (row.pa_sistolica < 90 || row.pa_sistolica > 160) tones.pa_sys = 'warn'
-  if (row.pa_diastolica < 45 || row.pa_diastolica > 110) tones.pa_dia = 'critical'
-  else if (row.pa_diastolica < 55 || row.pa_diastolica > 100) tones.pa_dia = 'warn'
+  if (row.fc != null) {
+    if (row.fc < 45 || row.fc > 140) tones.fc = 'critical'
+    else if (row.fc < 55 || row.fc > 120) tones.fc = 'warn'
+  }
+  if (row.pa_sistolica != null) {
+    if (row.pa_sistolica < 85 || row.pa_sistolica > 180) tones.pa_sys = 'critical'
+    else if (row.pa_sistolica < 90 || row.pa_sistolica > 160) tones.pa_sys = 'warn'
+  }
+  if (row.pa_diastolica != null) {
+    if (row.pa_diastolica < 45 || row.pa_diastolica > 110) tones.pa_dia = 'critical'
+    else if (row.pa_diastolica < 55 || row.pa_diastolica > 100) tones.pa_dia = 'warn'
+  }
   if (row.temperatura != null) {
     if (row.temperatura >= 39.5 || row.temperatura < 35) tones.temp = 'critical'
     else if (row.temperatura >= 38.5 || row.temperatura < 36) tones.temp = 'warn'
@@ -276,12 +311,14 @@ function ParametriVitaliBlock({
             min={1}
             max={15}
             disabled={!canEdit}
-            defaultValue={row.gcs}
-            onBlur={(e) => {
-              const n = Number(e.target.value)
-              if (!Number.isFinite(n)) return
-              onPatch(row.id, { gcs: Math.min(15, Math.max(1, Math.floor(n))) })
-            }}
+            defaultValue={vitalInputValue(row.gcs)}
+            onBlur={(e) =>
+              patchPvNumericBlur(e.target.value, onPatch, row.id, 'gcs', {
+                min: 1,
+                max: 15,
+                integer: true,
+              })
+            }
             className={pvFieldInput}
           />
         </MonitorCell>
@@ -290,12 +327,10 @@ function ParametriVitaliBlock({
             type="number"
             min={0}
             disabled={!canEdit}
-            defaultValue={row.fr}
-            onBlur={(e) => {
-              const n = Number(e.target.value)
-              if (!Number.isFinite(n)) return
-              onPatch(row.id, { fr: Math.max(0, Math.floor(n)) })
-            }}
+            defaultValue={vitalInputValue(row.fr)}
+            onBlur={(e) =>
+              patchPvNumericBlur(e.target.value, onPatch, row.id, 'fr', { min: 0, integer: true })
+            }
             className={pvFieldInput}
           />
         </MonitorCell>
@@ -305,16 +340,15 @@ function ParametriVitaliBlock({
             min={0}
             max={100}
             disabled={!canEdit}
-            defaultValue={row.spo2_aa ?? ''}
+            defaultValue={vitalInputValue(row.spo2_aa)}
             onBlur={(e) => {
-              const v = e.target.value.trim()
-              if (v === '') {
-                onPatch(row.id, { spo2_aa: null })
-                return
-              }
-              const n = Number(v)
-              if (!Number.isFinite(n)) return
-              onPatch(row.id, { spo2_aa: Math.min(100, Math.max(0, Math.floor(n))) })
+              const parsed = parseVitalNumericInput(e.target.value, {
+                min: 0,
+                max: 100,
+                integer: true,
+              })
+              if (parsed === undefined) return
+              onPatch(row.id, { spo2_aa: parsed })
             }}
             className={pvFieldInput}
           />
@@ -325,16 +359,15 @@ function ParametriVitaliBlock({
             min={0}
             max={100}
             disabled={!canEdit}
-            defaultValue={row.spo2_o2 ?? ''}
+            defaultValue={vitalInputValue(row.spo2_o2)}
             onBlur={(e) => {
-              const v = e.target.value.trim()
-              if (v === '') {
-                onPatch(row.id, { spo2_o2: null })
-                return
-              }
-              const n = Number(v)
-              if (!Number.isFinite(n)) return
-              onPatch(row.id, { spo2_o2: Math.min(100, Math.max(0, Math.floor(n))) })
+              const parsed = parseVitalNumericInput(e.target.value, {
+                min: 0,
+                max: 100,
+                integer: true,
+              })
+              if (parsed === undefined) return
+              onPatch(row.id, { spo2_o2: parsed })
             }}
             className={pvFieldInput}
           />
@@ -344,12 +377,10 @@ function ParametriVitaliBlock({
             type="number"
             min={0}
             disabled={!canEdit}
-            defaultValue={row.fc}
-            onBlur={(e) => {
-              const n = Number(e.target.value)
-              if (!Number.isFinite(n)) return
-              onPatch(row.id, { fc: Math.max(0, Math.floor(n)) })
-            }}
+            defaultValue={vitalInputValue(row.fc)}
+            onBlur={(e) =>
+              patchPvNumericBlur(e.target.value, onPatch, row.id, 'fc', { min: 0, integer: true })
+            }
             className={pvFieldInput}
           />
         </MonitorCell>
@@ -359,12 +390,14 @@ function ParametriVitaliBlock({
             min={0}
             max={999}
             disabled={!canEdit}
-            defaultValue={row.pa_sistolica}
-            onBlur={(e) => {
-              const n = Number(e.target.value)
-              if (!Number.isFinite(n)) return
-              onPatch(row.id, { pa_sistolica: Math.max(0, Math.min(999, Math.floor(n))) })
-            }}
+            defaultValue={vitalInputValue(row.pa_sistolica)}
+            onBlur={(e) =>
+              patchPvNumericBlur(e.target.value, onPatch, row.id, 'pa_sistolica', {
+                min: 0,
+                max: 999,
+                integer: true,
+              })
+            }
             className={pvFieldInput}
           />
         </MonitorCell>
@@ -374,12 +407,14 @@ function ParametriVitaliBlock({
             min={0}
             max={999}
             disabled={!canEdit}
-            defaultValue={row.pa_diastolica}
-            onBlur={(e) => {
-              const n = Number(e.target.value)
-              if (!Number.isFinite(n)) return
-              onPatch(row.id, { pa_diastolica: Math.max(0, Math.min(999, Math.floor(n))) })
-            }}
+            defaultValue={vitalInputValue(row.pa_diastolica)}
+            onBlur={(e) =>
+              patchPvNumericBlur(e.target.value, onPatch, row.id, 'pa_diastolica', {
+                min: 0,
+                max: 999,
+                integer: true,
+              })
+            }
             className={pvFieldInput}
           />
         </MonitorCell>
@@ -388,16 +423,11 @@ function ParametriVitaliBlock({
             type="number"
             step="0.1"
             disabled={!canEdit}
-            defaultValue={row.temperatura ?? ''}
+            defaultValue={vitalInputValue(row.temperatura)}
             onBlur={(e) => {
-              const v = e.target.value.trim()
-              if (v === '') {
-                onPatch(row.id, { temperatura: null })
-                return
-              }
-              const n = Number(v.replace(',', '.'))
-              if (!Number.isFinite(n)) return
-              onPatch(row.id, { temperatura: n })
+              const parsed = parseVitalNumericInput(e.target.value, { min: 30, max: 45 })
+              if (parsed === undefined) return
+              onPatch(row.id, { temperatura: parsed })
             }}
             className={pvFieldInput}
           />
@@ -408,16 +438,15 @@ function ParametriVitaliBlock({
             min={0}
             max={10}
             disabled={!canEdit}
-            defaultValue={row.nrs ?? ''}
+            defaultValue={vitalInputValue(row.nrs)}
             onBlur={(e) => {
-              const v = e.target.value.trim()
-              if (v === '') {
-                onPatch(row.id, { nrs: null })
-                return
-              }
-              const n = Number(v)
-              if (!Number.isFinite(n)) return
-              onPatch(row.id, { nrs: Math.min(10, Math.max(0, Math.floor(n))) })
+              const parsed = parseVitalNumericInput(e.target.value, {
+                min: 0,
+                max: 10,
+                integer: true,
+              })
+              if (parsed === undefined) return
+              onPatch(row.id, { nrs: parsed })
             }}
             className={PV_IN_ROW}
           />
@@ -839,8 +868,12 @@ export function CartellaClinicaSection({
       void write({
         farmaci: p.farmaci.map((f) => (f.id === id ? next : f)),
       })
+      const nome = next.nome.trim()
+      if (nome) {
+        void registerFarmacoInImpostazioni(nome, next.dose.trim(), next.via)
+      }
     },
-    [p.farmaci, write],
+    [p.farmaci, write, registerFarmacoInImpostazioni],
   )
 
   const removeFarmaco = useCallback(
@@ -864,16 +897,10 @@ export function CartellaClinicaSection({
   const [ecgUploadBusy, setEcgUploadBusy] = useState(false)
   const [ecgUploadErr, setEcgUploadErr] = useState<string | null>(null)
   const ecgFileInputRef = useRef<HTMLInputElement>(null)
-  const [farmNomeInput, setFarmNomeInput] = useState('')
-  const [farmDose, setFarmDose] = useState('')
-  const [farmVia, setFarmVia] = useState<FarmacoVia>('EV')
-  const [farmTs, setFarmTs] = useState(() => toDatetimeLocal(Timestamp.now()))
-
   const [pvModalOpen, setPvModalOpen] = useState(false)
   const [pvDraft, setPvDraft] = useState<ParametroVitaleRilevazione | null>(null)
   const [prestModalOpen, setPrestModalOpen] = useState(false)
   const [farmModalOpen, setFarmModalOpen] = useState(false)
-  const [farmModalEditId, setFarmModalEditId] = useState<string | null>(null)
   const [farmModalNome, setFarmModalNome] = useState('')
   const [farmModalDose, setFarmModalDose] = useState('')
   const [farmModalVia, setFarmModalVia] = useState<FarmacoVia>('EV')
@@ -887,18 +914,8 @@ export function CartellaClinicaSection({
   const openPvModal = useCallback(() => {
     if (!schedaClinicalEdit) return
     setPvDraft({
+      ...emptyParametroVitaleDraft((user?.nome ?? '').trim() || '—'),
       id: `pv-local-${crypto.randomUUID()}`,
-      registrato_at: Timestamp.now(),
-      operatore_nome: (user?.nome ?? '').trim() || '—',
-      gcs: 15,
-      fr: 12,
-      spo2_aa: 100,
-      spo2_o2: null,
-      fc: 80,
-      pa_sistolica: 130,
-      pa_diastolica: 80,
-      temperatura: null,
-      nrs: null,
     })
     setPvModalOpen(true)
   }, [schedaClinicalEdit, user?.nome])
@@ -919,98 +936,41 @@ export function CartellaClinicaSection({
     if (!nome) return
     const ts = datetimeLocalToTimestamp(farmModalTs) ?? Timestamp.now()
     const ins = (user?.nome ?? '').trim() || '—'
-    if (farmModalEditId) {
-      const row = p.farmaci.find((f) => f.id === farmModalEditId)
-      if (!row) {
-        setFarmModalOpen(false)
-        setFarmModalEditId(null)
-        return
-      }
-      const next: FarmacoSomministrato = {
-        ...row,
-        nome,
-        dose: farmModalDose.trim(),
-        via: farmModalVia,
-        registrato_at: ts,
-      }
-      await write({ farmaci: p.farmaci.map((f) => (f.id === farmModalEditId ? next : f)) })
-      await registerFarmacoInImpostazioni(nome, farmModalDose.trim(), farmModalVia)
-    } else {
-      const nuovo: FarmacoSomministrato = {
-        id: crypto.randomUUID(),
-        nome,
-        dose: farmModalDose.trim(),
-        via: farmModalVia,
-        registrato_at: ts,
-        inserito_da_nome: ins,
-      }
-      await write({ farmaci: [...(p.farmaci ?? []), nuovo] })
-      await registerFarmacoInImpostazioni(nome, farmModalDose.trim(), farmModalVia)
-    }
-    setFarmModalOpen(false)
-    setFarmModalEditId(null)
-    setFarmModalDose('')
-    setFarmModalNome('')
-    setFarmModalVia('EV')
-    setFarmModalTs(toDatetimeLocal(Timestamp.now()))
-  }
-
-  const openInfermiereFarmacoEdit = useCallback((row: FarmacoSomministrato) => {
-    setFarmModalEditId(row.id)
-    setFarmModalNome(row.nome)
-    setFarmModalDose(row.dose)
-    setFarmModalVia(row.via)
-    setFarmModalTs(toDatetimeLocal(row.registrato_at))
-    setFarmModalOpen(true)
-  }, [])
-
-  const openFarmModal = useCallback(() => {
-    setFarmModalEditId(null)
-    setFarmModalNome('')
-    setFarmModalDose('')
-    setFarmModalVia('EV')
-    setFarmModalTs(toDatetimeLocal(Timestamp.now()))
-    setFarmModalOpen(true)
-  }, [])
-
-  async function aggiungiPv() {
-    if (!schedaClinicalEdit) return
-    const nuovo: ParametroVitaleRilevazione = {
-      id: crypto.randomUUID(),
-      registrato_at: Timestamp.now(),
-      operatore_nome: (user?.nome ?? '').trim() || '—',
-      gcs: 15,
-      fr: 12,
-      spo2_aa: 100,
-      spo2_o2: null,
-      fc: 80,
-      pa_sistolica: 130,
-      pa_diastolica: 80,
-      temperatura: null,
-      nrs: null,
-    }
-    await write({ parametri_vitali: [...(p.parametri_vitali ?? []), nuovo] })
-  }
-
-  async function aggiungiFarmaco() {
-    if (!canEditFarmaci) return
-    const nome = farmNomeInput.trim()
-    if (!nome) return
-    const ts = datetimeLocalToTimestamp(farmTs) ?? Timestamp.now()
-    const ins = (user?.nome ?? '').trim() || '—'
     const nuovo: FarmacoSomministrato = {
       id: crypto.randomUUID(),
       nome,
-      dose: farmDose.trim(),
-      via: farmVia,
+      dose: farmModalDose.trim(),
+      via: farmModalVia,
       registrato_at: ts,
       inserito_da_nome: ins,
     }
     await write({ farmaci: [...(p.farmaci ?? []), nuovo] })
-    await registerFarmacoInImpostazioni(nome, farmDose.trim(), farmVia)
-    setFarmDose('')
-    setFarmNomeInput('')
-    setFarmTs(toDatetimeLocal(Timestamp.now()))
+    await registerFarmacoInImpostazioni(nome, farmModalDose.trim(), farmModalVia)
+    setFarmModalOpen(false)
+    setFarmModalDose('')
+    setFarmModalNome('')
+    setFarmModalVia('EV')
+    setFarmModalTs(toDatetimeLocal(Timestamp.now()))
+  }
+
+  const openFarmModal = useCallback(() => {
+    setFarmModalNome('')
+    setFarmModalDose('')
+    setFarmModalVia('EV')
+    setFarmModalTs(toDatetimeLocal(Timestamp.now()))
+    setFarmModalOpen(true)
+  }, [])
+
+  async function aggiungiFarmaco() {
+    if (!farmaciEdit) return
+    const nuovo = emptyFarmacoDraft((user?.nome ?? '').trim() || '—')
+    await write({ farmaci: [...(p.farmaci ?? []), nuovo] })
+  }
+
+  async function aggiungiPv() {
+    if (!schedaClinicalEdit) return
+    const nuovo = emptyParametroVitaleDraft((user?.nome ?? '').trim() || '—')
+    await write({ parametri_vitali: [...(p.parametri_vitali ?? []), nuovo] })
   }
 
   async function importaPresetFarmaciPack(packIdx: number) {
@@ -1311,10 +1271,55 @@ export function CartellaClinicaSection({
             <div className="space-y-0">
           <div className="mt-4">
             <div className="flex flex-wrap items-end justify-between gap-3">
-              <div className="min-w-0 flex-1">
+              <div className="min-w-0 flex-1 max-w-xl">
                 <span className="pma-field__label">Prestazioni</span>
               </div>
+              <div className="ml-auto flex shrink-0 flex-wrap items-center justify-end gap-2">
+                <input
+                  ref={ecgFileInputRef}
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  className="sr-only"
+                  aria-hidden
+                  tabIndex={-1}
+                  onChange={(e) => void onEcgFileChange(e)}
+                />
+                <button
+                  type="button"
+                  disabled={!schedaClinicalEdit || ecgUploadBusy}
+                  title="Carica foto ECG su Cloudinary e collega alla scheda"
+                  onClick={() => ecgFileInputRef.current?.click()}
+                  className={`${btnSecondary} inline-flex h-10 min-w-0 items-center justify-center gap-1.5 px-3 sm:h-9 disabled:cursor-not-allowed disabled:opacity-50`}
+                >
+                  <svg width="18" height="14" viewBox="0 0 24 18" fill="none" aria-hidden className="shrink-0 text-red-600">
+                    <path
+                      d="M1 9h2l2-6 3 12 3-8 2 5h2l2-3h3"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                  {ecgUploadBusy ? '…' : 'ALLEGA ECG'}
+                </button>
+                {p.ecg_cloudinary_url ? (
+                  <a
+                    href={p.ecg_cloudinary_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs font-semibold text-sky-700 underline decoration-sky-300 underline-offset-2 hover:text-sky-900"
+                  >
+                    Apri ECG
+                  </a>
+                ) : null}
+              </div>
             </div>
+            {ecgUploadErr ? (
+              <p className="mt-1 text-right text-xs text-red-600" role="alert">
+                {ecgUploadErr}
+              </p>
+            ) : null}
             {pmaMobile ? (
               <button
                 type="button"
@@ -1393,117 +1398,51 @@ export function CartellaClinicaSection({
               )}
             </div>
           </div>
-
-          <div className="mt-4 flex max-w-3xl flex-col items-stretch gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-center sm:gap-3">
-            <input
-              ref={ecgFileInputRef}
-              type="file"
-              accept="image/*"
-              capture="environment"
-              className="sr-only"
-              aria-hidden
-              tabIndex={-1}
-              onChange={(e) => void onEcgFileChange(e)}
-            />
-            <button
-              type="button"
-              disabled={!schedaClinicalEdit || ecgUploadBusy}
-              title="Carica foto ECG su Cloudinary e collega alla scheda"
-              onClick={() => ecgFileInputRef.current?.click()}
-              className={`${btnSecondary} inline-flex h-10 w-full min-w-0 items-center justify-center gap-1.5 sm:h-9 sm:w-auto sm:shrink-0 disabled:cursor-not-allowed disabled:opacity-50`}
-            >
-              <svg width="18" height="14" viewBox="0 0 24 18" fill="none" aria-hidden className="shrink-0 text-red-600">
-                <path
-                  d="M1 9h2l2-6 3 12 3-8 2 5h2l2-3h3"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-              {ecgUploadBusy ? '…' : 'ALLEGA ECG'}
-            </button>
-            {p.ecg_cloudinary_url ? (
-              <a
-                href={p.ecg_cloudinary_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-xs font-semibold text-sky-700 underline decoration-sky-300 underline-offset-2 hover:text-sky-900"
-              >
-                Apri ECG
-              </a>
-            ) : null}
-          </div>
-          {ecgUploadErr ? (
-            <p className="mt-1 max-w-3xl text-xs text-red-600" role="alert">
-              {ecgUploadErr}
-            </p>
-          ) : null}
             </div>
             </PmaFieldGuard>
 
           <PmaFieldGuard fieldKey="farmaci">
-          <div className="mt-5">
-            {pmaMobile ? (
-              <div className="mt-2 overflow-x-auto rounded border border-slate-200">
-                <table className="w-full border-collapse text-left text-sm">
-                  <thead>
-                    <tr className="border-b border-slate-200 bg-slate-100 text-xs font-bold uppercase text-slate-600">
-                      <th className="p-2 text-left">Farmaco</th>
-                      <th className="p-2 text-left">Dose</th>
-                      {farmaciEdit ? (
-                        <th className="w-11 p-2 text-center" scope="col">
-                          <span className="sr-only">Modifica</span>
-                        </th>
-                      ) : null}
+            <div className="border-b border-slate-200 bg-slate-50/80 px-3 py-2 text-sm font-bold text-slate-900 sm:px-3">
+              Farmaci
+            </div>
+            <div className="space-y-0">
+            {farmaciEdit ? (
+              <button
+                type="button"
+                onClick={() => (pmaMobile ? openFarmModal() : void aggiungiFarmaco())}
+                className={`${btnPrimary} mx-auto mt-2 flex h-10 w-full max-w-md items-center justify-center`}
+              >
+                Aggiungi farmaco
+              </button>
+            ) : null}
+            <div className="mt-2 overflow-x-auto rounded border border-slate-200 [-webkit-overflow-scrolling:touch]">
+              <table className="w-full min-w-[760px] border-collapse text-left text-sm">
+                <thead>
+                  <tr className="border-b border-slate-200 bg-slate-100 text-[10px] font-bold uppercase tracking-wide text-slate-600">
+                    <th className="border border-slate-200 p-1">Farmaco</th>
+                    <th className="border border-slate-200 p-1">Dose</th>
+                    <th className="border border-slate-200 p-1">Via</th>
+                    <th className="border border-slate-200 p-1">Orario</th>
+                    <th className="border border-slate-200 p-1">Operatore</th>
+                    {farmaciEdit ? (
+                      <th className="border border-slate-200 p-1 text-center" scope="col">
+                        <span className="sr-only">Elimina</span>
+                      </th>
+                    ) : null}
+                  </tr>
+                </thead>
+                <tbody>
+                  {farmaciSorted.length === 0 ? (
+                    <tr>
+                      <td
+                        colSpan={farmaciEdit ? 6 : 5}
+                        className="border border-slate-200 p-3 text-sm text-slate-500"
+                      >
+                        Nessun farmaco registrato.
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {farmaciSorted.length === 0 ? (
-                      <tr>
-                        <td colSpan={farmaciEdit ? 3 : 2} className="p-3 text-sm text-slate-500">
-                          Nessun farmaco registrato.
-                        </td>
-                      </tr>
-                    ) : (
-                      farmaciSorted.map((row) => (
-                        <tr key={row.id} className="border-b border-slate-100">
-                          <td className="p-2 font-semibold text-slate-900">{row.nome}</td>
-                          <td className="p-2 text-slate-800">{row.dose.trim() ? row.dose : '—'}</td>
-                          {farmaciEdit ? (
-                            <td className="p-1 text-center">
-                              <button
-                                type="button"
-                                aria-label="Modifica farmaco"
-                                title="Modifica"
-                                onClick={() => openInfermiereFarmacoEdit(row)}
-                                className="pma-theme-skip inline-flex h-9 w-9 items-center justify-center rounded border border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
-                              >
-                                ✎
-                              </button>
-                            </td>
-                          ) : null}
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <div className="mt-2 overflow-x-auto rounded border border-slate-200 [-webkit-overflow-scrolling:touch]">
-                <table className="w-full min-w-[760px] border-collapse text-left text-sm">
-                  <thead>
-                    <tr className="border-b border-slate-200 bg-slate-100 text-[10px] font-bold uppercase tracking-wide text-slate-600">
-                      <th className="border border-slate-200 p-1">Farmaco</th>
-                      <th className="border border-slate-200 p-1">Dose</th>
-                      <th className="border border-slate-200 p-1">Via</th>
-                      <th className="border border-slate-200 p-1">Orario</th>
-                      <th className="border border-slate-200 p-1">Operatore</th>
-                      {farmaciEdit ? <th className="border border-slate-200 p-1 text-center"> </th> : null}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {farmaciSorted.map((row) => (
+                  ) : (
+                    farmaciSorted.map((row) => (
                       <FarmacoRow
                         key={row.id}
                         variant="tableRow"
@@ -1513,11 +1452,11 @@ export function CartellaClinicaSection({
                         onRemove={removeFarmaco}
                         layout="row"
                       />
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
 
             {presetFarmaciPacks.length > 0 && farmaciEdit ? (
               <div className="mt-4 flex max-w-xl min-w-0 flex-col gap-1 sm:flex-row sm:items-center sm:gap-3">
@@ -1547,69 +1486,7 @@ export function CartellaClinicaSection({
                 </label>
               </div>
             ) : null}
-
-            {farmaciEdit && !pmaMobile ? (
-              <div className="mt-4 rounded-lg border border-dashed border-slate-300 bg-slate-50/80 p-3">
-                <div className="grid max-w-3xl gap-3 sm:grid-cols-2">
-                  <div className="sm:col-span-2">
-                    <FarmacoNomeDoseFields
-                      catalog={farmaciCatalogo}
-                      nome={farmNomeInput}
-                      dose={farmDose}
-                      onNomeChange={setFarmNomeInput}
-                      onDoseChange={setFarmDose}
-                      inputClassName={PV_INPUT}
-                    />
-                  </div>
-                  <label className="block text-xs">
-                    <span className="font-semibold uppercase tracking-wider text-slate-500">Via</span>
-                    <select
-                      value={farmVia}
-                      onChange={(e) => {
-                        const v = e.target.value
-                        if (isFarmacoVia(v)) setFarmVia(v)
-                      }}
-                      className={`${PV_INPUT} mt-1 w-full`}
-                      aria-label="Via somministrazione"
-                    >
-                      {FARMACO_VIE.map((via) => (
-                        <option key={via} value={via}>
-                          {FARMACO_VIA_LABEL[via]}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label className="block text-xs">
-                    <span className="font-semibold uppercase tracking-wider text-slate-500">Orario</span>
-                    <input
-                      type="datetime-local"
-                      value={farmTs}
-                      onChange={(e) => setFarmTs(e.target.value)}
-                      className={`${PV_INPUT} mt-1 w-full`}
-                      aria-label="Orario somministrazione"
-                    />
-                  </label>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => void aggiungiFarmaco()}
-                  className={`${btnPrimary} mt-3`}
-                >
-                  Aggiungi farmaco
-                </button>
-              </div>
-            ) : null}
-
-            {farmaciEdit && pmaMobile ? (
-              <button
-                type="button"
-                onClick={openFarmModal}
-                className={`${btnPrimary} mx-auto mt-4 flex h-10 w-full max-w-md items-center justify-center`}
-              >
-                Aggiungi farmaco
-              </button>
-            ) : null}
-          </div>
+            </div>
           </PmaFieldGuard>
           </>
         ) : null}
@@ -1685,28 +1562,19 @@ export function CartellaClinicaSection({
 
         {!hideClinicalBlocks && pmaMobile && farmModalOpen && farmaciEdit ? (
           <PmaMobileSheet
-            ariaLabel={farmModalEditId ? 'Modifica farmaco' : 'Aggiungi farmaco'}
-            onBackdropClick={() => {
-              setFarmModalOpen(false)
-              setFarmModalEditId(null)
-            }}
+            ariaLabel="Aggiungi farmaco"
+            onBackdropClick={() => setFarmModalOpen(false)}
             header={
               <PmaMobileSheetHeader
-                title={farmModalEditId ? 'Modifica farmaco' : 'Nuovo farmaco'}
-                onClose={() => {
-                  setFarmModalOpen(false)
-                  setFarmModalEditId(null)
-                }}
+                title="Nuovo farmaco"
+                onClose={() => setFarmModalOpen(false)}
               />
             }
             footer={
               <PmaMobileSheetFooterActions
-                onCancel={() => {
-                  setFarmModalOpen(false)
-                  setFarmModalEditId(null)
-                }}
+                onCancel={() => setFarmModalOpen(false)}
                 onConfirm={() => void salvaFarmacoModal()}
-                confirmLabel={farmModalEditId ? 'Salva' : 'Aggiungi'}
+                confirmLabel="Aggiungi"
                 confirmDisabled={!farmModalNome.trim()}
                 confirmClassName={btnPrimary}
               />

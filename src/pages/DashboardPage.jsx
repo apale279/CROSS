@@ -375,6 +375,9 @@ export default function DashboardPage() {
             manifestationId={manifestationId}
             pmaId={codiciMinoriPma.id}
             impostazioni={impostazioni}
+            missioni={missioni}
+            eventi={eventi}
+            onOpenMissioneCorrelata={(mis) => setModal({ type: 'missione', data: mis })}
             onCreate={async (payload) => {
               setCodiciMinoriBusy(true);
               try {

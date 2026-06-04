@@ -6,21 +6,26 @@ import type {
   RivalutazioneVoce,
 } from '../types/cartellaClinica'
 import { isFarmacoVia } from '../types/cartellaClinica'
+import { vitalMeasuredOrNull } from '../../lib/vitalNumeric'
 
 function ts(v: unknown): Timestamp | null {
   if (v && typeof (v as Timestamp).toMillis === 'function') return v as Timestamp
   return null
 }
 
-function num(v: unknown, def: number): number {
-  const n = Number(v)
-  return Number.isFinite(n) ? n : def
+function pvInt(v: unknown, min?: number, max?: number): number | null {
+  return vitalMeasuredOrNull(v, {
+    min: min ?? -Infinity,
+    max: max ?? Infinity,
+    integer: true,
+  })
 }
 
-function numOrNull(v: unknown): number | null {
-  if (v === null || v === undefined || v === '') return null
-  const n = Number(v)
-  return Number.isFinite(n) ? n : null
+function pvNum(v: unknown, min?: number, max?: number): number | null {
+  return vitalMeasuredOrNull(v, {
+    min: min ?? -Infinity,
+    max: max ?? Infinity,
+  })
 }
 
 function str(v: unknown, def = ''): string {
@@ -40,18 +45,15 @@ export function parseParametriVitali(raw: unknown): ParametroVitaleRilevazione[]
       id,
       registrato_at,
       operatore_nome: str(o.operatore_nome, '—'),
-      gcs: Math.min(15, Math.max(1, Math.floor(num(o.gcs, 15)))),
-      fr: Math.max(0, Math.floor(num(o.fr, 12))),
-      spo2_aa: numOrNull(o.spo2_aa),
-      spo2_o2: numOrNull(o.spo2_o2),
-      fc: Math.max(0, Math.floor(num(o.fc, 80))),
-      pa_sistolica: Math.max(0, Math.floor(num(o.pa_sistolica, 130))),
-      pa_diastolica: Math.max(0, Math.floor(num(o.pa_diastolica, 80))),
-      temperatura: numOrNull(o.temperatura),
-      nrs:
-        o.nrs === null || o.nrs === undefined || o.nrs === ''
-          ? null
-          : Math.min(10, Math.max(0, Math.floor(num(o.nrs, 0)))),
+      gcs: pvInt(o.gcs, 1, 15),
+      fr: pvInt(o.fr, 0),
+      spo2_aa: pvInt(o.spo2_aa, 0, 100),
+      spo2_o2: pvInt(o.spo2_o2, 0, 100),
+      fc: pvInt(o.fc, 0),
+      pa_sistolica: pvInt(o.pa_sistolica, 0, 999),
+      pa_diastolica: pvInt(o.pa_diastolica, 0, 999),
+      temperatura: pvNum(o.temperatura, 30, 45),
+      nrs: pvInt(o.nrs, 0, 10),
     })
   }
   return out
