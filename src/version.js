@@ -6,4 +6,4 @@
  *   v2.N — YYYY-MM-DD HH:mm — descrizione opzionale
  * Esempio: v2.12 — 2026-05-27 14:30 — Codici minori: foto e UI mobile
  */
-export const APP_VERSION = 'v3.5';
+export const APP_VERSION = 'v3.4';

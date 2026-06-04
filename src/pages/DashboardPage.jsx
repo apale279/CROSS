@@ -33,8 +33,6 @@ import {
   deletePazienteCodiceMinore,
   updatePazienteCodiceMinore,
 } from '../services/pmaCodiceMinoreService';
-import { BrandLockup } from '../components/brand/BrandLockup';
-import { useSandboxUi } from '../context/SandboxUiContext';
 import { DiarioImportantTicker } from '../components/diario/DiarioImportantTicker';
 import { DiarioNotaModal } from '../components/diario/DiarioNotaModal';
 import { useDiarioNotaActions } from '../hooks/useDiarioNotaActions';
@@ -50,7 +48,6 @@ import {
 
 export default function DashboardPage() {
   const navigate = useNavigate();
-  const { showSandboxBadge } = useSandboxUi();
   const manifestationId = useManifestazioneId();
   const { impostazioni } = useImpostazioni();
   const { fullCentrale } = usePmaAccess();
@@ -196,9 +193,6 @@ export default function DashboardPage() {
     <div className="relative flex h-full w-full flex-col overflow-hidden bg-slate-200">
       <header className="z-[30] flex shrink-0 flex-col border-b border-slate-300 bg-white shadow-sm">
         <div className="flex flex-wrap items-center gap-2 px-3 py-2">
-          {showSandboxBadge ? (
-            <BrandLockup logoClassName="h-8 w-auto" showTitle={false} />
-          ) : null}
           <nav className="flex gap-1 rounded-lg bg-slate-100 p-0.5">
             <button
               type="button"
