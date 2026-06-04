@@ -3,7 +3,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTenantContext } from '../context/TenantContext';
 import { TenantConfigMissing } from '../components/routing/TenantConfigMissing';
-import { AppLogo } from '../components/brand/AppLogo';
+import { BrandLockup } from '../components/brand/BrandLockup';
 import { AppVersionBadge } from '../components/ui/AppVersionBadge';
 import { getDefaultAppPath } from '../lib/defaultAppPath';
 import { isPmaOperatorProfile } from '../lib/pmaModule';
@@ -91,7 +91,7 @@ export default function LoginPage() {
       <div className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-b from-slate-100 to-slate-200 px-4 py-10">
         <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8 shadow-lg">
           <div className="flex flex-col items-center gap-2">
-            <AppLogo className="h-16 w-auto" />
+            <BrandLockup logoClassName="h-16 w-auto" showTitle={false} />
             <p className="text-sm font-semibold text-slate-800">Sessione già attiva</p>
           </div>
 
@@ -196,7 +196,7 @@ export default function LoginPage() {
       </div>
       <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8 shadow-lg">
         <div className="flex flex-col items-center gap-2">
-          <AppLogo className="h-16 w-auto" />
+          <BrandLockup logoClassName="h-16 w-auto" showTitle={false} />
           <p className="text-sm text-slate-600">Accesso operativo</p>
         </div>
 

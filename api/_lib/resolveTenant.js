@@ -1,4 +1,5 @@
 import { getTelegramTenantId } from './env.js';
+import { assertSandboxWritableTenant } from './sandboxGuard.js';
 
 /**
  * Tenant da body richiesta (app) o da variabili server / webhook query.
@@ -31,5 +32,6 @@ export function requireTenant(req, body) {
       { status: 400 },
     );
   }
+  assertSandboxWritableTenant(id);
   return id;
 }
