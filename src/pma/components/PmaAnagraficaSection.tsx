@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { Paziente } from '@pma/types/paziente';
 import { CODICE_COLORE_LABEL, type CodiceColorePaziente } from '@pma/types/paziente';
-import { opToolbarBtnSm } from '@pma/cross/operativeTokens';
 import { PmaFieldGuard } from './PmaFieldGuard';
 
 const CODICI: CodiceColorePaziente[] = ['bianco', 'verde', 'giallo', 'rosso'];
@@ -43,17 +42,6 @@ export function PmaAnagraficaSection({ p, canEdit, centraleReadonly, write }: Pr
 
   const anagraficaLocked = centraleReadonly || !canEdit;
 
-  const saveAnagrafica = async () => {
-    await write({
-      nome: draft.nome.trim(),
-      cognome: draft.cognome.trim(),
-      pettorale: draft.pettorale === '' ? null : Number(draft.pettorale),
-      telefono: draft.telefono.trim(),
-      note_centrale: draft.note.trim(),
-      breve_descrizione: draft.breve.trim(),
-    });
-  };
-
   return (
     <div className="space-y-4 rounded-lg border border-slate-200 bg-white p-4">
       {centraleReadonly && (
@@ -72,6 +60,7 @@ export function PmaAnagraficaSection({ p, canEdit, centraleReadonly, write }: Pr
             value={draft.cognome}
             disabled={anagraficaLocked}
             onChange={(e) => setDraft((d) => ({ ...d, cognome: e.target.value }))}
+            onBlur={() => void write({ cognome: draft.cognome.trim() })}
           />
         </label>
         </PmaFieldGuard>
@@ -83,6 +72,7 @@ export function PmaAnagraficaSection({ p, canEdit, centraleReadonly, write }: Pr
             value={draft.nome}
             disabled={anagraficaLocked}
             onChange={(e) => setDraft((d) => ({ ...d, nome: e.target.value }))}
+            onBlur={() => void write({ nome: draft.nome.trim() })}
           />
         </label>
         </PmaFieldGuard>
@@ -95,6 +85,11 @@ export function PmaAnagraficaSection({ p, canEdit, centraleReadonly, write }: Pr
             value={draft.pettorale}
             disabled={anagraficaLocked}
             onChange={(e) => setDraft((d) => ({ ...d, pettorale: e.target.value }))}
+            onBlur={() =>
+              void write({
+                pettorale: draft.pettorale === '' ? null : Number(draft.pettorale),
+              })
+            }
           />
         </label>
         </PmaFieldGuard>
@@ -106,6 +101,7 @@ export function PmaAnagraficaSection({ p, canEdit, centraleReadonly, write }: Pr
             value={draft.telefono}
             disabled={anagraficaLocked}
             onChange={(e) => setDraft((d) => ({ ...d, telefono: e.target.value }))}
+            onBlur={() => void write({ telefono: draft.telefono.trim() })}
           />
         </label>
         </PmaFieldGuard>
@@ -124,12 +120,6 @@ export function PmaAnagraficaSection({ p, canEdit, centraleReadonly, write }: Pr
         />
       </label>
       </PmaFieldGuard>
-
-      {!anagraficaLocked && (
-        <button type="button" className={opToolbarBtnSm} onClick={() => void saveAnagrafica()}>
-          Salva anagrafica
-        </button>
-      )}
 
       <PmaFieldGuard fieldKey="codice_colore">
       <div>

@@ -15,6 +15,22 @@ import {
 } from '../../../lib/pmaModule';
 import { chiusuraCentraleLabel, isChiusoCentrale, statoCentraleLabel } from '../../../lib/pazienteStati';
 import { invioPsSoreuPatchForScheda, invioPsSoreuFieldsFromScheda } from '../../../lib/invioPsSoreu';
+
+const SOREU_PARTIAL_TO_SCHEDA_PATH = {
+  soreuOraMissione: 'invio_ps_soreu_ora_missione',
+  soreuNumeroMissione: 'invio_ps_soreu_numero_missione',
+  soreuAccompagnato: 'invio_ps_soreu_accompagnato',
+  soreuCodice: 'invio_ps_soreu_codice',
+};
+
+function soreuSchedaPathValuesEqual(a, b) {
+  if (a === b) return true;
+  if (a == null && b == null) return true;
+  if (typeof a?.toMillis === 'function' && typeof b?.toMillis === 'function') {
+    return a.toMillis() === b.toMillis();
+  }
+  return JSON.stringify(a) === JSON.stringify(b);
+}
 import {
   isSchedaInSolaVisione,
   isSchedaModificaForzata,
@@ -348,16 +364,31 @@ export function PazienteModuloPma({
           soreuReadOnly={!schedaModificabile}
           onWriteSoreu={async (partial) => {
             if (!schedaModificabile || !manifestationId || !patientDocId) return;
-            const merged = {
-              ...invioPsSoreuFieldsFromScheda(rawDoc.pmaScheda ?? {}),
-              ...partial,
-            };
-            await patchPazientePmaGranular(
-              manifestationId,
-              patientDocId,
-              invioPsSoreuPatchForScheda(merged),
-              { operatorUid: user?.uid ?? null },
-            );
+            if (!partial || Object.keys(partial).length === 0) return;
+
+            const current = invioPsSoreuFieldsFromScheda(rawDoc.pmaScheda ?? {});
+            const currentPaths = invioPsSoreuPatchForScheda(current);
+            const nextPaths = invioPsSoreuPatchForScheda({ ...current, ...partial });
+            const patch = {};
+
+            for (const [key, schedaPath] of Object.entries(SOREU_PARTIAL_TO_SCHEDA_PATH)) {
+              if (!(key in partial)) continue;
+              if (!soreuSchedaPathValuesEqual(nextPaths[schedaPath], currentPaths[schedaPath])) {
+                patch[schedaPath] = nextPaths[schedaPath];
+              }
+            }
+
+            if ('invio_ps_ospedale' in partial) {
+              const prev = String(rawDoc.pmaScheda?.invio_ps_ospedale ?? '').trim();
+              const next = String(partial.invio_ps_ospedale ?? '').trim();
+              if (next !== prev) patch.invio_ps_ospedale = next;
+            }
+
+            if (Object.keys(patch).length === 0) return;
+
+            await patchPazientePmaGranular(manifestationId, patientDocId, patch, {
+              operatorUid: user?.uid ?? null,
+            });
           }}
           onOpenEvento={(ev) => {
             const full = eventi.find((e) => e._docId === ev._docId) ?? ev;
