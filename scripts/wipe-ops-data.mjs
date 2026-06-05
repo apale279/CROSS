@@ -96,6 +96,43 @@ async function flushBatchDeletes(refs) {
   await commit();
 }
 
+async function flushBatchUpdates(entries) {
+  if (!entries.length) return;
+  let batch = db.batch();
+  let ops = 0;
+  const commit = async () => {
+    if (ops === 0) return;
+    await batch.commit();
+    batch = db.batch();
+    ops = 0;
+  };
+  for (const { ref, data } of entries) {
+    batch.update(ref, data);
+    ops += 1;
+    if (ops >= 450) await commit();
+  }
+  await commit();
+}
+
+const MEZZO_STATO_DISPONIBILE = 'Disponibile';
+
+async function resetMezziDisponibili(tenantId) {
+  const mezCol = db.collection('manifestazioni').doc(tenantId).collection('mezzi');
+  const mezSnap = await mezCol.get();
+  if (mezSnap.empty) return 0;
+  await flushBatchUpdates(
+    mezSnap.docs.map((d) => ({
+      ref: d.ref,
+      data: {
+        statoMezzo: MEZZO_STATO_DISPONIBILE,
+        operativo: true,
+        noteOperativo: '',
+      },
+    })),
+  );
+  return mezSnap.size;
+}
+
 async function deleteSubcollection(parentRef, subName) {
   const snap = await parentRef.collection(subName).get();
   if (snap.empty) return 0;
@@ -141,8 +178,8 @@ async function selectTenant() {
 async function main() {
   const tenantId = await selectTenant();
   console.log(`\n🗑️  Wipe dati operativi — tenant ${tenantId}`);
-  if (includeMezzi) console.log('   (include mezzi)\n');
-  else console.log('   (eventi + missioni + pazienti; mezzi NON toccati)\n');
+  if (includeMezzi) console.log('   (include eliminazione mezzi)\n');
+  else console.log('   (eventi + missioni + pazienti; mezzi → Disponibile)\n');
 
   const pazCol = db.collection('manifestazioni').doc(tenantId).collection('pazienti');
   const pazSnap = await pazCol.get();
@@ -166,6 +203,9 @@ async function main() {
     const mezSnap = await mezCol.get();
     await flushBatchDeletes(mezSnap.docs.map((d) => d.ref));
     console.log(`   Mezzi eliminati: ${mezSnap.size}`);
+  } else {
+    const n = await resetMezziDisponibili(tenantId);
+    console.log(`   Mezzi ripristinati a Disponibile: ${n}`);
   }
 
   const contatoriRef = db

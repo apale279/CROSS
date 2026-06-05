@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   emptyLesioneTuple,
+  lesioniToFirestoreRows,
   normalizeLesioni,
   normalizeLesioniImpostazioni,
 } from './valutazioneLesioni';
@@ -44,6 +45,14 @@ describe('normalizeLesioniImpostazioni', () => {
       lesioniTipologie: ['Abrasione'],
       lesioniVasMax: 10,
     });
+  });
+});
+
+describe('lesioniToFirestoreRows', () => {
+  it('converte tuple in oggetti senza array annidati', () => {
+    expect(lesioniToFirestoreRows([['Ginocchio', 'DX', 'abrasione', 4]])).toEqual([
+      { localizzazione: 'Ginocchio', lato: 'DX', tipologia: 'abrasione', vas: 4 },
+    ]);
   });
 });
 

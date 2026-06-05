@@ -37,7 +37,7 @@ function rowFromObject(o) {
   ];
 }
 
-/** Normalizza in array di tuple (niente oggetti in Firestore). */
+/** Tuple in memoria/UI. In Firestore usare {@link lesioniToFirestoreRows}. */
 export function normalizeLesioni(raw, vasMax = 10) {
   if (!Array.isArray(raw)) return [];
   const max = Number.isFinite(vasMax) && vasMax >= 1 ? Math.floor(vasMax) : 10;
@@ -52,6 +52,16 @@ export function normalizeLesioni(raw, vasMax = 10) {
     }
     return rowFromObject(item);
   });
+}
+
+/** Righe lesione serializzate per Firestore (array di oggetti, no array annidati). */
+export function lesioniToFirestoreRows(raw, vasMax = 10) {
+  return normalizeLesioni(raw, vasMax).map(([localizzazione, lato, tipologia, vas]) => ({
+    localizzazione,
+    lato,
+    tipologia,
+    vas,
+  }));
 }
 
 export function normalizeLesioniImpostazioni(raw) {
