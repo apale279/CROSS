@@ -6,8 +6,10 @@ import {
   doc,
   getDoc,
   getDocs,
+  query,
   serverTimestamp,
   updateDoc,
+  where,
   writeBatch,
 } from 'firebase/firestore';
 import { db } from '../firebaseConfig';
@@ -24,8 +26,33 @@ import { allocateProgressiveId } from './progressiveIdService';
 import { normalizeCodiceColore } from '../lib/codiciColore';
 import { mergeOperatoreCreatoPayload, stripOperatoreCreatoFromPatch } from '../lib/operatoreAudit';
 import { omitUndefinedFields } from '../lib/firestorePatch';
+import { missioniPerEvento } from '../lib/eventoLinks';
 import { patchMissione } from './missioniService';
 import { patchMezzo } from './mezziService';
+
+async function fetchMissioniCollegateEvento(manifestationId, eventoDocId) {
+  const eventoSnap = await getDoc(doc(db, ...eventiPath(manifestationId), eventoDocId));
+  if (!eventoSnap.exists()) return [];
+  const evento = { _docId: eventoSnap.id, ...eventoSnap.data() };
+
+  const missioniCol = collection(db, ...missioniPath(manifestationId));
+  const missionSnaps = await Promise.all([
+    evento.idUnivoco
+      ? getDocs(query(missioniCol, where('eventoIdUnivoco', '==', evento.idUnivoco)))
+      : Promise.resolve({ docs: [] }),
+    evento.idEvento
+      ? getDocs(query(missioniCol, where('eventoCorrelato', '==', evento.idEvento)))
+      : Promise.resolve({ docs: [] }),
+  ]);
+
+  const missioniById = new Map();
+  for (const snap of missionSnaps) {
+    for (const d of snap.docs) {
+      missioniById.set(d.id, { _docId: d.id, ...d.data() });
+    }
+  }
+  return missioniPerEvento([...missioniById.values()], evento);
+}
 
 async function flushBatchDeletes(refs) {
   if (!refs.length) return;
@@ -186,11 +213,14 @@ export async function closeEventoForzato(
     throw new Error('Evento non valido.');
   }
 
-  const closeMissioni = (missioniCollegate ?? [])
+  const missioniFresh = await fetchMissioniCollegateEvento(manifestationId, eventoDocId);
+  const closeMissioni = missioniFresh
     .filter(missioneRichiedeChiusuraSuEventoForzato)
     .map((mis) => {
       const fields = fieldsChiusuraMissioneSuEventoForzato(mis);
-      return patchMissione(manifestationId, mis._docId, fields, mis.mezzo);
+      return patchMissione(manifestationId, mis._docId, fields, mis.mezzo, {
+        skipTelegramNotify: true,
+      });
     });
 
   await Promise.all(closeMissioni);

@@ -79,15 +79,19 @@ async function postTelegramNotifyStato(manifestationId, missionDocId, extra = {}
   const id = (missionDocId ?? '').trim();
   if (!id) return;
 
-  const headers = await authHeaders();
-  const res = await fetch(apiUrl('/api/telegram-notify-stato'), {
-    method: 'POST',
-    headers,
-    body: JSON.stringify(tenantApiBody(manifestationId, { missionDocId: id, ...extra })),
-  });
-  if (!res.ok) {
-    const data = await res.json().catch(() => ({}));
-    console.warn('[telegram notify stato]', data.error ?? res.status);
+  try {
+    const headers = await authHeaders();
+    const res = await fetch(apiUrl('/api/telegram-notify-stato'), {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(tenantApiBody(manifestationId, { missionDocId: id, ...extra })),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      console.warn('[telegram notify stato]', data.error ?? res.status);
+    }
+  } catch (err) {
+    console.warn('[telegram notify stato]', err);
   }
 }
 
@@ -97,15 +101,20 @@ export function notifyTelegramStatoFromCentrale(manifestationId, missionDocId) {
 }
 
 /**
- * Prima di eliminare la missione: chiude l'interazione Telegram (pulsanti + avviso equipaggio).
- * Atteso in deleteMissione prima del deleteDoc (la missione deve esistere ancora su Firestore).
+ * Chiude l'interazione Telegram su missione eliminata/chiusa dalla centrale.
+ * @param {object} [options]
+ * @param {boolean} [options.awaitCompletion] — true in deleteMissione (missione ancora su Firestore)
  */
-export async function notifyTelegramMissioneEliminataFromCentrale(manifestationId, missionDocId) {
-  try {
-    await postTelegramNotifyStato(manifestationId, missionDocId, { eliminata: true });
-  } catch (err) {
-    console.warn('[telegram eliminata]', err);
+export function notifyTelegramMissioneEliminataFromCentrale(
+  manifestationId,
+  missionDocId,
+  options = {},
+) {
+  const run = () => postTelegramNotifyStato(manifestationId, missionDocId, { eliminata: true });
+  if (options.awaitCompletion === true) {
+    return run();
   }
+  runTelegramSideEffect('eliminata', run);
 }
 
 export async function fetchTelegramLoggedUsers(manifestationId) {

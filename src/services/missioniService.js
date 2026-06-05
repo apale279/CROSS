@@ -463,11 +463,9 @@ export async function deleteMissione(manifestationId, docId) {
     await patchPaziente(manifestationId, d.id, fieldsScollegaPazienteDaMissione(row));
   }
 
-  try {
-    await notifyTelegramMissioneEliminataFromCentrale(manifestationId, docId);
-  } catch (err) {
-    console.warn('[telegram eliminata missione]', err);
-  }
+  await notifyTelegramMissioneEliminataFromCentrale(manifestationId, docId, {
+    awaitCompletion: true,
+  });
   await deleteDoc(docRef);
 
   if (mezzoSigla) {
