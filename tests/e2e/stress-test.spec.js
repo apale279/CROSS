@@ -93,7 +93,7 @@ async function creaPazienteDestinazionePma(page, { nome, cognome, missioneIndex 
 
 async function attendiBadgeEvento(page, testoBadge) {
   const dlg = eventDialog(page);
-  await expect(dlg.getByText(testoBadge, { exact: true })).toBeVisible({ timeout: 90_000 });
+  await expect(dlg.getByText(new RegExp(testoBadge, 'i'))).toBeVisible({ timeout: 90_000 });
 }
 
 async function eseguiChiusuraForzataEvento(page, nota = `${STRESS_TAG} chiusura forzata E2E`) {

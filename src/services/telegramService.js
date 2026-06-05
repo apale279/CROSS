@@ -100,21 +100,11 @@ export function notifyTelegramStatoFromCentrale(manifestationId, missionDocId) {
   runTelegramSideEffect('notify stato', () => postTelegramNotifyStato(manifestationId, missionDocId));
 }
 
-/**
- * Chiude l'interazione Telegram su missione eliminata/chiusa dalla centrale.
- * @param {object} [options]
- * @param {boolean} [options.awaitCompletion] — true in deleteMissione (missione ancora su Firestore)
- */
-export function notifyTelegramMissioneEliminataFromCentrale(
-  manifestationId,
-  missionDocId,
-  options = {},
-) {
-  const run = () => postTelegramNotifyStato(manifestationId, missionDocId, { eliminata: true });
-  if (options.awaitCompletion === true) {
-    return run();
-  }
-  runTelegramSideEffect('eliminata', run);
+/** Chiude l'interazione Telegram su missione eliminata/chiusa dalla centrale (non bloccante). */
+export function notifyTelegramMissioneEliminataFromCentrale(manifestationId, missionDocId) {
+  runTelegramSideEffect('eliminata', () =>
+    postTelegramNotifyStato(manifestationId, missionDocId, { eliminata: true }),
+  );
 }
 
 export async function fetchTelegramLoggedUsers(manifestationId) {

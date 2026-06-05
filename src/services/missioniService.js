@@ -57,9 +57,9 @@ import {
   validateMissioneAperturaChange,
 } from '../lib/missioneAperturaValidate';
 import {
-  notifyTelegramMissioneEliminataFromCentrale,
-  notifyTelegramStatoFromCentrale,
-} from './telegramService';
+  scheduleNotifyTelegramMissioneEliminata,
+  scheduleNotifyTelegramStatoFromCentrale,
+} from '../lib/telegramSideEffects';
 
 function assertMezzoLiberoPerNuovaMissione(
   mezzoSigla,
@@ -105,6 +105,7 @@ async function terminaMissioniRientroPrecedenti(manifestationId, mezzoSigla, exi
       mis._docId,
       buildStatoChangeFields(mis, 'FINE MISSIONE'),
       mis.mezzo,
+      { skipTelegramNotify: true },
     );
   }
 }
@@ -420,7 +421,7 @@ export async function patchMissione(manifestationId, docId, fields, mezzoSigla, 
     }
   }
   if (fields.stato != null && !options.skipTelegramNotify) {
-    notifyTelegramStatoFromCentrale(manifestationId, docId);
+    scheduleNotifyTelegramStatoFromCentrale(manifestationId, docId);
     if (fields.stato === 'DIRETTO H') {
       const misSnap = await getDoc(docRef);
       if (misSnap.exists()) {
@@ -446,7 +447,7 @@ function fieldsScollegaPazienteDaMissione(paziente) {
   return patch;
 }
 
-export async function deleteMissione(manifestationId, docId) {
+export async function deleteMissione(manifestationId, docId, options = {}) {
   const docRef = doc(db, ...missioniPath(manifestationId), docId);
   const snap = await getDoc(docRef);
   if (!snap.exists()) return;
@@ -463,9 +464,9 @@ export async function deleteMissione(manifestationId, docId) {
     await patchPaziente(manifestationId, d.id, fieldsScollegaPazienteDaMissione(row));
   }
 
-  await notifyTelegramMissioneEliminataFromCentrale(manifestationId, docId, {
-    awaitCompletion: true,
-  });
+  if (!options.skipTelegramNotify) {
+    scheduleNotifyTelegramMissioneEliminata(manifestationId, docId);
+  }
   await deleteDoc(docRef);
 
   if (mezzoSigla) {

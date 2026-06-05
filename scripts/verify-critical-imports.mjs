@@ -24,8 +24,30 @@ const checks = [
   },
   {
     file: 'src/services/missioniService.js',
-    mustInclude: ['missioniRientroAperteSuMezzo'],
-    mustNotInclude: ['export async function chiudiMissioniAperteSuMezzo'],
+    mustInclude: [
+      'missioniRientroAperteSuMezzo',
+      'scheduleNotifyTelegramStatoFromCentrale',
+      "from '../lib/telegramSideEffects'",
+    ],
+    mustNotInclude: [
+      'export async function chiudiMissioniAperteSuMezzo',
+      'notifyTelegramStatoFromCentrale(manifestationId',
+    ],
+  },
+  {
+    file: 'src/lib/telegramSideEffects.js',
+    mustInclude: [
+      'scheduleNotifyTelegramStatoFromCentrale',
+      "import('../services/telegramService.js')",
+    ],
+  },
+  {
+    file: 'src/services/missioniEccezioniService.js',
+    mustInclude: [
+      'scheduleNotifyTelegramStatoFromCentrale',
+      'skipTelegramNotify: true',
+    ],
+    mustNotInclude: ['notifyTelegramStatoFromCentrale(manifestationId'],
   },
   {
     file: 'src/services/mezzoDisponibileService.js',

@@ -7,9 +7,9 @@ import {
 import { parseCodiceColoreOptional } from '../lib/codiciColore';
 import { ESITO_MISSIONE_DEFAULT } from '../lib/missioneEsito';
 import { mergeOperatoreCreatoPayload } from '../lib/operatoreAudit';
-import { notifyTelegramStatoFromCentrale } from './telegramService';
+import { scheduleNotifyTelegramStatoFromCentrale } from '../lib/telegramSideEffects';
 import { createEvento } from './eventiService';
-import { createMissione, patchMissione } from './missioniService';
+import { createMissione, deleteMissione, patchMissione } from './missioniService';
 
 const PATCH_NO_TELEGRAM = { skipTelegramNotify: true };
 
@@ -67,14 +67,16 @@ function missioniDopoAnnulla(allMissioni, missioneDocId) {
 }
 
 function notifyTelegramDopoEccezione(manifestationId, missioneAnnullataDocId, nuovaMissioneDocId) {
-  notifyTelegramStatoFromCentrale(manifestationId, missioneAnnullataDocId);
+  scheduleNotifyTelegramStatoFromCentrale(manifestationId, missioneAnnullataDocId);
   if (nuovaMissioneDocId) {
-    notifyTelegramStatoFromCentrale(manifestationId, nuovaMissioneDocId);
+    scheduleNotifyTelegramStatoFromCentrale(manifestationId, nuovaMissioneDocId);
   }
 }
 
 /**
- * Dirottamento: annulla missione sull’evento A, stesso mezzo su nuova missione sull’evento B.
+ * Dirottamento: stesso mezzo su nuova missione sull’evento B, poi annulla missione sull’evento A.
+ * Ordine: prima il legame su B (con ignoreOpenMissionDocId), poi annullamento su A — così un
+ * fallimento in creazione non lascia mai il mezzo scollegato da entrambi gli eventi.
  * Telegram e notifiche equipaggio sono secondari: non bloccano mai l’operazione.
  */
 export async function eseguiDirottamentoMissione({
@@ -88,20 +90,43 @@ export async function eseguiDirottamentoMissione({
   creatoDaNomeUtente,
   creatoDaNome,
 }) {
+  if (!missione?._docId) {
+    throw new Error('Missione di origine non valida.');
+  }
+  if (!missione.mezzo) {
+    throw new Error('Missione senza mezzo assegnato.');
+  }
+  if (!eventoDestinazione?.idUnivoco && !eventoDestinazione?.idEvento) {
+    throw new Error('Evento di destinazione senza identificativo valido (idUnivoco / idEvento).');
+  }
+
   const audit = mergeOperatoreCreatoPayload({
     creatoDaUid,
     creatoDaNomeUtente,
     creatoDaNome,
   });
-  const rollback = snapshotMissionePrimaAnnulla(missione);
-  const allMissioniNext = missioniDopoAnnulla(allMissioni, missione._docId);
   const fields = buildAnnullaMissioneFields(
     missione,
     MISSIONE_ECCEZIONE_MOTIVO.DIROTTAMENTO,
     note,
   );
 
-  let annullata = false;
+  const created = await createMissione(
+    manifestationId,
+    {
+      eventoIdUnivoco: eventoDestinazione.idUnivoco,
+      eventoCorrelato: eventoDestinazione.idEvento,
+      mezzo: missione.mezzo,
+      pazienteAutopresentato: false,
+      statoInizialeForzato: 'ALLERTARE',
+      ...optionalColoreMissionePayload(eventoDestinazione.colore),
+      ...audit,
+    },
+    allMissioni,
+    mezzoRecord,
+    { ignoreOpenMissionDocId: missione._docId },
+  );
+
   try {
     await patchMissione(
       manifestationId,
@@ -110,40 +135,21 @@ export async function eseguiDirottamentoMissione({
       missione.mezzo,
       PATCH_NO_TELEGRAM,
     );
-    annullata = true;
-
-    const created = await createMissione(
-      manifestationId,
-      {
-        eventoIdUnivoco: eventoDestinazione.idUnivoco,
-        eventoCorrelato: eventoDestinazione.idEvento,
-        mezzo: missione.mezzo,
-        pazienteAutopresentato: false,
-        statoInizialeForzato: 'ALLERTARE',
-        ...optionalColoreMissionePayload(eventoDestinazione.colore),
-        ...audit,
-      },
-      allMissioniNext,
-      mezzoRecord,
-      { ignoreOpenMissionDocId: missione._docId },
-    );
-
-    notifyTelegramDopoEccezione(manifestationId, missione._docId, created.docId);
-    return created;
-  } catch (err) {
-    if (annullata) {
-      try {
-        await revertAnnullamentoMissione(manifestationId, missione, rollback);
-      } catch (revertErr) {
-        console.error('[dirottamento rollback]', revertErr);
-        const base = err instanceof Error ? err.message : String(err);
-        throw new Error(
-          `${base} Inoltre il ripristino della missione precedente non è riuscito: controlla manualmente evento e mezzo.`,
-        );
-      }
+  } catch (annulErr) {
+    try {
+      await deleteMissione(manifestationId, created.docId, { skipTelegramNotify: true });
+    } catch (deleteErr) {
+      console.error('[dirottamento compensazione]', deleteErr);
+      const base = annulErr instanceof Error ? annulErr.message : String(annulErr);
+      throw new Error(
+        `${base} Inoltre la rimozione della missione provvisoria sull’evento destinazione non è riuscita: controlla manualmente eventi e mezzo.`,
+      );
     }
-    throw err;
+    throw annulErr;
   }
+
+  notifyTelegramDopoEccezione(manifestationId, missione._docId, created.docId);
+  return created;
 }
 
 /**
