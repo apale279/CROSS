@@ -1,0 +1,540 @@
+================================================================================
+CROSS — AUDIT EVENTI / MISSIONI
+Dipendenze per punto di rottura + rischi delle correzioni
+Generato: 2026-06-05
+Scope: analisi pre-fix (NESSUNA modifica applicata in questo documento)
+================================================================================
+
+LEGENDA
+  BP-xx   = breakage point (punto di rottura già identificato)
+  DIP     = dipendenze a monte/valle (chi chiama, chi viene chiamato, UI, test)
+  FIX     = correzione proposta
+  RISCHIO = cosa si può rompere applicando il fix
+  MITIG   = come evitare regressioni
+
+================================================================================
+ASSUNZIONE GLOBALE G1 — Doppia chiave evento (idUnivoco + idEvento)
+================================================================================
+
+CODICE ANCORATO
+  - src/lib/eventoLinks.js
+      missioniPerEvento, pazientiPerEvento, findEvento, missioneCollegataAEvento
+  - src/services/eventiService.js → deleteRecordiCollegati (OR su entrambe le chiavi)
+  - src/services/eventoAutoCloseService.js → resolveEventoDoc, query missioni OR
+  - src/lib/pazientiTrasportoQuery.js, src/lib/missioneAperturaValidate.js
+  - src/lib/eventoMissioneMatch.js
+  - api/_lib/missionAdmin.js → fetchPazientiForEventoAdmin, tryAutoCloseEventoAdmin
+
+DIPENDENZE DIRETTE (consumatori linking OR)
+  UI/Dashboard
+    - src/hooks/useOperativoDashboardData.js (blocchi evento, orfani, conteggi pazienti)
+    - src/components/dashboard/EventiMissioniTable.jsx
+    - src/pages/DashboardPage.jsx
+  Schede
+    - src/components/eventi/EventoScheda.jsx (missioniEvento, pazienti)
+    - src/components/missioni/MissioneScheda.jsx, MissioneEccezioniPanel.jsx
+    - src/components/pazienti/PazienteScheda.jsx
+    - src/pma/components/PmaSchedaShell.tsx, PmaDeskPage.jsx
+  Servizi write
+    - src/services/missioniService.js → createMissione (persiste entrambi i campi)
+    - src/services/pazientiService.js → create/patch paziente
+    - src/services/pmaInvioPsTrasportoService.js
+    - src/services/missioniEccezioniService.js
+  API Telegram
+    - api/_lib/missionAdmin.js, api/_lib/telegramStatoNotify.js
+    - src/lib/telegramMissionPayload.js
+  Test
+    - src/lib/eventoLinks.test.js, src/lib/eventoSempreAperto.test.js
+
+FIX POSSIBILI
+  F-G1a: Validazione in write — rifiutare patch che mutano idUnivoco/idEvento
+  F-G1b: Risoluzione evento unificata (sempre preferire docId, poi UID, poi display)
+  F-G1c: Script migrazione dati legacy incoerenti
+  F-G1d: Query sempre AND quando entrambe le chiavi presenti (più restrittivo)
+
+RISCHI FIX
+  - F-G1b: eventi legacy con solo idEvento corretto ma UID stale → risoluzione “sbagliata”
+          finché non migrati
+  - F-G1d: missioni/pazienti con una sola chiave valorizzata spariscono da liste
+  - F-G1a: tool/script esterni che patchano idEvento manualmente si rompono
+
+MITIGAZIONE
+  1. Audit Firestore: contare doc con UID/display mismatch prima di cambiare resolver
+  2. Fase 1: solo validazione write (no mutazione chiavi) — basso rischio
+  3. Fase 2: allineare resolver client + api/_lib/missionAdmin.js nello stesso modulo
+  4. Test: estendere eventoLinks.test.js con coppie incoerenti esplicite
+  5. Non toccare delete cascade finché audit non è pulito
+
+================================================================================
+BP-M2-CRITICO — notifyTelegramStatoFromCentrale chiamata senza import
+================================================================================
+
+CODICE ANCORATO
+  - src/services/missioniService.js
+      patchMissione() riga ~417: notifyTelegramStatoFromCentrale(...)
+      MANCA: import da src/services/telegramService.js
+  - src/services/telegramService.js
+      export function notifyTelegramStatoFromCentrale
+
+DIPENDENZE (ogni patchMissione con fields.stato != null)
+  Chiamanti patchMissione → tutti esposti a ReferenceError POST-write:
+    - src/components/eventi/EventoScheda.jsx (changeStatoMissione)
+    - src/components/missioni/MissioneScheda.jsx (stato, esito, tratte, apertura, colori)
+    - src/pages/DashboardPage.jsx (avanzamento stato badge)
+    - src/components/dashboard/MappaTatticaDashboard.jsx
+    - src/services/eventiService.js → closeEventoForzato → patchMissione loop
+    - src/services/mezzoDisponibileService.js → chiudiMissioniAperteSuMezzo loop
+    - src/services/missioniEccezioniService.js → annullamenti (se skipTelegramNotify false)
+    - src/services/missioniService.js → terminaMissioniRientroPrecedenti (interno)
+
+  Side effect NELLO STESSO BLOCCO if (stato) — saltati se throw:
+    - syncPazientiPmaOnDirettoH (stato === 'DIRETTO H')
+      → src/services/pazientePmaMissionSync.js
+      → impatta pazienti PMA in trasporto, PmaDeskPage, stati statoPzPma
+
+  Telegram (secondario, ma dipendente dalla stessa chiamata):
+    - api/telegram-notify-stato.js → api/_lib/telegramStatoNotify.js
+    - Equipaggi bot: pulsante stato successivo
+
+FIX PROPOSTO
+  F-M2a: Aggiungere import mancante (fix minimo, 1 riga)
+  F-M2b: Spostare notify + sync PMA in try/catch separati DOPO tutti i side effect critici
+  F-M2c: Estrarre runPostStatoSideEffects() con ordine: pazienti → mezzo → auto-close → telegram
+
+RISCHI FIX
+  - F-M2a da solo: nessun rischio funzionale; ripristina comportamento atteso
+  - F-M2b/c: riordinare side effect può cambiare timing UI (listener Firestore)
+          se telegram parte prima di sync PMA, equipaggio vede stato prima che PMA si aggiorni
+
+MITIGAZIONE
+  1. Applicare F-M2a immediatamente (sicuro)
+  2. Ordine side effect documentato: FS write → ARRIVATO H sync → mezzo → auto-close → PMA DIRETTO H → telegram
+  3. Test manuale: cambio stato a DIRETTO H e verificare statoPzPma + assenza errori console
+  4. Verificare che skipTelegramNotify in eccezioni resti rispettato
+
+================================================================================
+BP-E1a — Create evento + missione non atomico (Nuovo evento rapido, Invio PS)
+================================================================================
+
+CODICE ANCORATO
+  - src/components/tactical/NuovoEventoRapidoForm.jsx
+      createEvento → createMissione (sequenziale)
+  - src/services/pmaInvioPsTrasportoService.js
+      createEvento → createMissione
+  - src/services/eventiService.js → createEvento
+  - src/services/missioniService.js → createMissione
+
+DIPENDENZE
+  UI: EventiTatticaSidebar, MappaTatticaDashboard, TabelloneTattico
+  Dashboard: useOperativoDashboardData → eventoSenzaCoperturaMissione (badge orfano)
+  EventoScheda: nuova missione su evento esistente (stesso pattern parziale)
+
+FIX PROPOSTI
+  F-E1a: Transazione/batch Firestore evento+missione (complesso: ID progressivi)
+  F-E1b: Compensazione: se createMissione fallisce → deleteEvento appena creato
+  F-E1c: Stato evento "bozza" finché missione non confermata
+
+RISCHI FIX
+  - F-E1a: allocateProgressiveId non transazionale oggi — refactor ampio
+  - F-E1b: deleteEvento cascade può cancellare altro se link già incoerente (G1)
+  - F-E1c: UI/dashboard devono ignorare eventi bozza — molti filtri da aggiornare
+
+MITIGAZIONE
+  - Preferire F-E1b locale a NuovoEventoRapidoForm e pmaInvioPs (scope minimo)
+  - Log errore + messaggio operatore “evento creato ma missione fallita, eliminare E?”
+  - Non unificare in batch finché progressiveId non è in transaction
+
+================================================================================
+BP-E3a — Auto-close client vs API (operativoAutoCloseSospeso)
+================================================================================
+
+CODICE ANCORATO
+  CLIENT
+    - src/services/eventoAutoCloseService.js (guard operativoAutoCloseSospeso)
+    - src/hooks/useOperativoDashboardData.js (reconcile + guard)
+    - src/components/eventi/EventoScheda.jsx (autoCloseEventoRef)
+    - src/utils/eventoAutoClose.js (shouldAutoCloseEvento)
+  API
+    - api/_lib/missionAdmin.js → tryAutoCloseEventoAdmin (NO guard sospeso)
+    - api/_lib/telegramStatoFlow.js → advanceMissioneStato → tryAutoCloseEventoAdmin
+
+DIPENDENZE
+  - Eventi "sempre aperto" / gara: buildEventoPayload imposta operativoAutoCloseSospeso
+  - EventoScheda: rimuove sospeso quando si crea nuova missione
+  - Dashboard badge "T" / prontoOperativoTerminato
+  - Kiosk: autoReconcileOperativo false → solo calcolo UI
+  - Telegram equipaggio: avanzamento stato chiude operativo su eventi sospesi
+
+FIX PROPOSTI
+  F-E3a: Aggiungere in tryAutoCloseEventoAdmin:
+          if (ev.operativoAutoCloseSospeso) return;
+          if (ev.sempreAperto) return;
+  F-E3b: Estrarre shouldAutoClose + guard in modulo condiviso isomorphic (client+api)
+
+RISCHI FIX
+  - Eventi sospesi manualmente che ORA non si chiudono mai da Telegram
+    (comportamento voluto lato client — allineamento corretto)
+  - Eventi operativo terminato solo da centrale: equipaggio non “sblocca” evento
+
+MITIGAZIONE
+  1. Allineare missionAdmin a eventoAutoCloseService.js (copia guard, non reinventare)
+  2. Test: evento con operativoAutoCloseSospeso + avanzamento Telegram → non operativoTerminato
+  3. Documentare in GUIDA.md che sospeso = solo centrale può terminare operativo
+
+================================================================================
+BP-E3b — shouldAutoClose richiede RIENTRO/FINE (non solo ANNULLATA)
+================================================================================
+
+CODICE ANCORATO
+  - src/utils/eventoAutoClose.js → shouldAutoCloseEvento (righe 70-76)
+  - src/lib/eventoLinks.js → eventoSenzaCoperturaMissione
+
+DIPENDENZE
+  - Dirottamento: missione A ANNULLATA, mezzo su evento B → evento A orfano operativo
+  - Dashboard: flag orfano + operatore deve inviare altro mezzo o chiudere
+  - missioneEccezioniService (comportamento atteso documentato in GUIDA)
+
+FIX PROPOSTI
+  F-E3b: Includere ANNULLATA come “consentono chiusura” se tutte annullate e zero pazienti aperti
+  F-E3c: Lasciare logica, migliorare solo UI messaggio “evento senza copertura”
+
+RISCHI FIX
+  - F-E3b: auto-close prematuro se pazienti ancora in gestione su evento annullato
+  - F-E3b: conflitto con regola “almeno una RIENTRO/FINE” (storico requisito operativo)
+
+MITIGAZIONE
+  - Prima chiarire requisito con operatore: dopo dirottamento evento A deve restare aperto?
+  - Se sì: solo F-E3c (UX), non toccare shouldAutoClose
+  - Se no: F-E3b + test pazientiBloccaChiusuraOperativaEvento
+
+================================================================================
+BP-E3c — reconciledOperativoRef / autoCloseEventoRef sticky
+================================================================================
+
+CODICE ANCORATO
+  - src/hooks/useOperativoDashboardData.js → reconciledOperativoRef (Set docId)
+  - src/components/eventi/EventoScheda.jsx → autoCloseEventoRef
+
+DIPENDENZE
+  - riapriEventoOperatore (eventiService)
+  - Dashboard reconcile automatico operativoTerminato
+  - EventoScheda auto-close al mount
+
+FIX PROPOSTI
+  F-E3c: Reset ref quando ev.operativoTerminato passa false o su riapriEvento
+  F-E3c: Usare ev._docId + ev.operativoTerminato come chiave effetto, non Set permanente
+
+RISCHI FIX
+  - Loop reconcile se shouldAutoClose flappa true/false su snapshot non atomici
+  - Doppia patch operativoTerminato (già true, rewrite timestamp)
+
+MITIGAZIONE
+  - Guard: patch solo se operativoTerminato !== true in snapshot corrente
+  - Debounce reconcile o confronto shouldAutoClose stabile su 2 tick listener
+
+================================================================================
+BP-E4 — Chiusura forzata evento (snapshot + Promise.all)
+================================================================================
+
+CODICE ANCORATO
+  - src/components/eventi/EventoScheda.jsx → handleChiudiEvento
+  - src/services/eventiService.js → closeEventoForzato
+  - src/lib/eventoChiusuraMissioni.js → fieldsChiusuraMissioneSuEventoForzato
+  - Richiama patchMissione per ogni missione (→ BP-M2 se stato cambia)
+
+DIPENDENZE
+  - Mezzi: syncStatoMezzo dopo ogni patchMissione
+  - Pazienti: restano sull’evento (non cancellati)
+  - Telegram: notify per ogni missione chiusa (se import fixato)
+  - Auto-close: irrilevante (evento va a stato false)
+
+FIX PROPOSTI
+  F-E4a: Re-query missioni da Firestore in closeEventoForzato
+  F-E4b: Transazione o batch write missioni + evento
+  F-E4c: Se una patch fallisce, abort e segnala quali missioni chiuse
+
+RISCHI FIX
+  - F-E4b: limiti batch Firestore (500 op), missioni molte su evento grande
+  - F-E4a: race ancora possibile tra query e patch
+
+MITIGAZIONE
+  - F-E4a subito (basso rischio)
+  - closeEventoForzato: passare skipTelegramNotify per chiusura massiva (evita spam API)
+  - Test: evento con 3 missioni aperte, chiudi, verificare tutte FINE/ANNULLATA + stato false
+
+================================================================================
+BP-E5 — Delete evento (cascade OR, non transazionale)
+================================================================================
+
+CODICE ANCORATO
+  - src/services/eventiService.js → deleteEvento, deleteRecordiCollegati
+  - src/components/eventi/EventoScheda.jsx → delete button
+
+DIPENDENZE
+  - pazientiService.deletePazienteCascade
+  - mezziService.patchMezzo (disponibile se nessuna missione attiva rimanente)
+  - Dashboard listener (scomparsa blocco evento)
+
+FIX PROPOSTI
+  F-E5a: Transazione delete (difficile con sottocollezioni pazienti)
+  F-E5b: Soft-delete evento + job cleanup
+  F-E5c: Pre-check: bloccare delete se mismatch G1 rilevato
+
+RISCHI FIX
+  - Qualsiasi fix cascade: cancellazione dati irreversibile se G1 falso positivo
+
+MITIGAZIONE
+  - F-E5c prima di toccare delete: warning UI se missioni con UID/display mismatch
+  - Backup/export prima di delete su produzione
+  - Non automatizzare delete in script senza dry-run
+
+================================================================================
+BP-M1 — Lock mezzo su snapshot client (createMissione)
+================================================================================
+
+CODICE ANCORATO
+  - src/services/missioniService.js
+      assertMezzoLiberoPerNuovaMissione, createMissione
+      terminaMissioniRientroPrecedenti
+  - src/lib/mezzoMissione.js
+      missioniAperteSuMezzo, missioneBloccaMezzo, isMezzoSelezionabilePerNuovaMissione
+
+DIPENDENZE
+  UI selezione mezzo:
+    - EventoScheda (form missione)
+    - NuovoEventoRapidoForm
+    - MissioneEccezioniPanel (dirottamento — ignoreOpenMissionDocId già presente)
+    - InvioPsSoreuTrasportoBlock / pmaInvioPsTrasportoService
+    - PazienteScheda (sync missione trasporto)
+  Mezzo scheda:
+    - mezzoDisponibileService.patchMezzoStatoMezzo
+  Test:
+    - src/lib/mezzoMissione.test.js
+
+FIX PROPOSTI
+  F-M1a: Transaction Firestore: query missioni aperte su mezzo + create atomica
+  F-M1b: Cloud Function guard (server-side)
+  F-M1c: Mantenere client guard + refresh allMissioni da getDocs prima di create
+
+RISCHI FIX
+  - F-M1a: performance + complessità progressive ID
+  - F-M1c: latenza extra su ogni create; race residuo tra getDocs e addDoc
+
+MITIGAZIONE
+  - F-M1c come step intermedio sui form critici (EventoScheda, NuovoEventoRapido)
+  - Eccezioni: mantenere ignoreOpenMissionDocId (già mitiga dirottamento)
+  - Monitor: log quando assertMezzoLibero fallisce con elenco missioni bloccanti
+
+================================================================================
+BP-M1-post — createMissione + patchMezzo non atomico
+================================================================================
+
+CODICE ANCORATO
+  - src/services/missioniService.js createMissione: addDoc poi patchMezzo
+
+DIPENDENZE
+  - StatoMezziTable, OpsMap, filter mezzi disponibili
+  - isMezzoSelezionabilePerNuovaMissione (legge statoMezzo + missioni)
+
+RISCHI FIX batch
+  - Mezzo “Non disponibile” senza missione visibile se addDoc rollback manuale
+
+MITIGAZIONE
+  - Su fallimento patchMezzo: deleteDoc missione appena creata (compensazione)
+
+================================================================================
+BP-M4-dirott — Dirottamento (già parzialmente mitigato)
+================================================================================
+
+CODICE ANCORATO
+  - src/services/missioniEccezioniService.js → eseguiDirottamentoMissione
+  - src/components/missioni/MissioneEccezioniPanel.jsx
+
+DIPENDENZE
+  - patchMissione (annulla) + createMissione (nuova)
+  - notifyTelegramDopoEccezione (post-success)
+  - evento origine: orfano (BP-E3b)
+  - Dashboard orfano flag
+
+FIX GIÀ PRESENTI IN CODICE (verificare in deploy)
+  - skipTelegramNotify su annullamento intermedio
+  - rollback revertAnnullamentoMissione su fallimento create
+  - ignoreOpenMissionDocId
+
+RISCHI ULTERIORI FIX
+  - Compensazione più aggressiva (delete nuova missione) può cancellare audit trail
+
+MITIGAZIONE
+  - Non toccare rollback senza test e2e dirottamento
+  - Dopo fix M2 import: verificare che dirottamento non mostri errori console
+
+================================================================================
+BP-M4-flag — Flag-down: evento figlio orfano su fallimento create missione
+================================================================================
+
+CODICE ANCORATO
+  - src/services/missioniEccezioniService.js → eseguiFlagDownMissione
+
+DIPENDENZE
+  - createEvento (figlio con eventoGenitore*)
+  - createMissione su figlio
+  - rollback solo missione padre (NON delete evento figlio)
+
+FIX PROPOSTO
+  F-M4f: Su fallimento createMissione dopo createEvento → deleteEvento(figlioDocId)
+
+RISCHI FIX
+  - deleteEvento cascade se figlio ha già ricevuto patch da altro operatore
+  - Perdita evento figlio valido se errore transitorio rete (retry utente)
+
+MITIGAZIONE
+  - delete solo evento figlio appena creato (docId noto), non cascade pazienti
+  - Messaggio UI esplicito; operatore può riprovare flag-down
+
+================================================================================
+BP-M6 — Tratte missione (merge distruttivo)
+================================================================================
+
+CODICE ANCORATO
+  - src/lib/missionTratte.js → mergeTratteMissioneWrite
+  - src/services/missioniService.js → runTransaction tratte
+  - src/components/missioni/MissioneScheda.jsx
+
+DIPENDENZE
+  - Solo scheda missione (operatori multipli rari sulla stessa missione)
+
+FIX PROPOSTI
+  F-M6a: Merge union-by-id invece di “client list = truth”
+  F-M6b: Version field optimistic locking su missione
+
+RISCHI FIX
+  - F-M6a: rimozione intenzionale tratta dal client non più possibile senza tombstone
+
+MITIGAZIONE
+  - F-M6a + campo tratteRemoved esplicito, o delete con id dedicato
+  - Test mergeTratte con add concorrente simulato
+
+================================================================================
+BP-M2b — Salti stato liberi
+================================================================================
+
+CODICE ANCORATO
+  - patchMissione (nessuna validate transizione)
+  - src/utils/missionStati.js / api/_lib/missionStati.js → nextStatoMissione
+  - UI: EventoScheda select stati, EventoStatoRapidoButtons, Dashboard badge
+
+DIPENDENZE
+  - storicoStati dot paths
+  - Telegram keyboard “prossimo stato” (sequenza impostazioni)
+  - Auto-close (missioneConsenteChiusuraEvento per RIENTRO)
+
+FIX PROPOSTO
+  F-M2b: validateStatoTransition in patchMissione (solo avanti di 1 o salti espliciti centrale)
+
+RISCHI FIX
+  - Centrale OGGI salta stati di proposito → validazione stretta rompe flusso operativo
+  - Storico missioni con salti legacy non riproducibili
+
+MITIGAZIONE
+  - Validazione “soft”: warn in UI, non block, oppure flag impostazioni “sequenza rigida”
+  - NON validare lato API Telegram (già sequenziale)
+
+================================================================================
+BP-M2-storico — storicoStati.<stato> con punto nello stato
+================================================================================
+
+CODICE ANCORATO
+  - src/lib/missionStoricoStati.js → storicoStatoDotPath
+
+DIPENDENZE
+  - MissioneScheda storico edit
+  - PDF/report se usano storico (verificare)
+
+RISCHI FIX escape chiavi
+  - Stati esistenti in DB con path annidato già scritto → doppia struttura
+
+MITIGAZIONE
+  - Sanitize stati in impostazioni (vietare .)
+  - Migration read compat: leggere sia flat che nested
+
+================================================================================
+BP-UI-S1 — Snapshot collezioni non atomici
+================================================================================
+
+CODICE ANCORATO
+  - src/context/ManifestazioneDataContext.jsx (listener separati)
+  - src/hooks/useOperativoDashboardData.js
+
+DIPENDENZE
+  - Tutta la dashboard operativa, kiosk, conteggi
+
+FIX
+  - Accettare eventuale inconsistenza transitoria (documentare)
+  - Oppure derived state con “loading until all three ready” (già parziale)
+
+RISCHI
+  - Nascondere dashboard finché tutto loaded → percezione lentezza
+
+MITIGAZIONE
+  - Skeleton + non persistere reconcile su snapshot parziali (guard loading flags)
+
+================================================================================
+PIANO CORREZIONI SUGGERITO (ORDINE SICURO — NON ESEGUITO)
+================================================================================
+
+FASE 0 — Zero rischio regressione funzionale
+  [1] BP-M2-CRITICO: import notifyTelegramStatoFromCentrale
+  [2] Test smoke: cambio stato dashboard + DIRETTO H + dirottamento
+
+FASE 1 — Basso rischio, alto valore
+  [3] BP-E3a: guard operativoAutoCloseSospeso in missionAdmin.js
+  [4] BP-E4a: re-query missioni in closeEventoForzato
+  [5] BP-E3c: reset ref su riapriEvento / operativoTerminato false
+
+FASE 2 — Compensazioni atomiche locali
+  [6] BP-E1a / BP-M4-flag: rollback delete evento orfano su fail missione
+  [7] BP-M1-post: delete missione se patchMezzo fallisce
+  [8] BP-M4-flag: delete evento figlio su fail missione flag-down
+
+FASE 3 — Architettura (richiede audit dati G1)
+  [9] BP-G1: validazione immutabilità chiavi + resolver unificato
+  [10] BP-M1a: transaction lock mezzo (o server guard)
+  [11] BP-E5/E4b: batch/transazioni chiusura e delete
+
+FASE 4 — Requisiti operativi da confermare
+  [12] BP-E3b: auto-close dopo solo ANNULLATE (sì/no?)
+  [13] BP-M2b: sequenza stati rigida (sì/no?)
+
+================================================================================
+TEST DA ESEGUIRE PRIMA/DOPO OGNI FASE
+================================================================================
+
+  npm exec vitest run src/utils/eventoAutoClose.test.js src/lib/eventoLinks.test.js
+  npm exec vitest run src/lib/mezzoMissione.test.js src/services/missioniEccezioniService.test.js
+  npm exec vitest run src/lib/eventoChiusuraMissioni.test.js
+
+  Manuale:
+    - Nuovo evento rapido (evento+missione)
+    - Dirottamento mezzo tra 2 eventi aperti
+    - Flag-down con indirizzo
+    - Chiusura forzata evento con 2 missioni
+    - Avanzamento stato → DIRETTO H con paziente PMA
+    - Dashboard: verifica orfano dopo dirottamento
+    - (se bot attivo) Telegram avanzamento su evento sospeso
+
+================================================================================
+LOGICA CHE NON DEVE ESSERE ROTTA DALLE FIX (CHECKLIST)
+================================================================================
+
+  [ ] Mezzo in RIENTRO/ARRIVATO H ancora selezionabile per nuovo ingaggio (chiudiMissioniRientro)
+  [ ] Eventi sempreAperto restano in cima e non auto-chiudono
+  [ ] Dirottamento: annulla A, crea su B, telegram non blocca
+  [ ] Paziente PMA IN ARRIVO non blocca auto-close quando ARRIVATO H (regola E68/E70)
+  [ ] Chiusura forzata: ANNULLATA resta ANNULLATA (non sovrascritta a FINE)
+  [ ] Codice minore / invio PS: evento trasporto + missione collegati
+  [ ] Kiosk read-only: nessuna write reconcile (autoReconcileOperativo false)
+  [ ] Telegram equipaggio: avanzamento sequenziale da impostazioni stati
+
+================================================================================
+FINE DOCUMENTO
+================================================================================

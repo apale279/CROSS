@@ -5,6 +5,8 @@ import { useManifestazioneId } from '../../context/ManifestazioneContext';
 import { mezziConMissioneAttiva, isMissioneAttiva } from '../../lib/mezzoMissione';
 import { filterMezziMappaTattica } from '../../lib/mezzoFilters';
 import { buildStatoChangeFields } from '../../lib/missionStoricoStati';
+import { MISSION_PMA_CLOSE_MOTIVO } from '../../lib/missionPmaPatientClose';
+import { resolveMissionPmaPatientsBeforeClose } from '../../services/missionPmaPatientCloseService';
 import { patchMissione } from '../../services/missioniService';
 import { TabelloneTattico } from '../tactical/TabelloneTattico';
 import { MezziPilaSidebar } from '../tactical/MezziPilaSidebar';
@@ -12,7 +14,7 @@ import { EventiTatticaSidebar } from '../tactical/EventiTatticaSidebar';
 import { MezzoScheda } from '../mezzi/MezzoScheda';
 import { Modal } from '../ui/Modal';
 
-export function MappaTatticaDashboard({ eventi, missioni, mezzi }) {
+export function MappaTatticaDashboard({ eventi, missioni, mezzi, pazienti = [] }) {
   const manifestationId = useManifestazioneId();
   const { impostazioni, loading: loadingImpostazioni } = useImpostazioni();
   const { openEventoScheda } = useEventoScheda();
@@ -43,6 +45,22 @@ export function MappaTatticaDashboard({ eventi, missioni, mezzi }) {
       if (!missione?._docId || !isMissioneAttiva(missione)) return;
       setStatoSaving(true);
       try {
+        if (nuovoStato === 'FINE MISSIONE' || nuovoStato === 'ANNULLATA') {
+          const motivo =
+            nuovoStato === 'ANNULLATA'
+              ? MISSION_PMA_CLOSE_MOTIVO.ANNULLATA
+              : MISSION_PMA_CLOSE_MOTIVO.FINE_MISSIONE;
+          const { proceed } = await resolveMissionPmaPatientsBeforeClose({
+            manifestationId,
+            missioni: missione,
+            pazienti,
+            eventi,
+            motivoChiusura: motivo,
+            impostazioni,
+            titolo: `${nuovoStato === 'ANNULLATA' ? 'Annullamento' : 'Chiusura'} missione ${missione.idMissione}`,
+          });
+          if (!proceed) return;
+        }
         await patchMissione(
           manifestationId,
           missione._docId,
@@ -55,7 +73,7 @@ export function MappaTatticaDashboard({ eventi, missioni, mezzi }) {
         setStatoSaving(false);
       }
     },
-    [manifestationId],
+    [manifestationId, pazienti, eventi, impostazioni],
   );
 
   if (!loadingImpostazioni && !piantinaUrl) {

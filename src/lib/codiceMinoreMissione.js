@@ -6,5 +6,10 @@ import { resolveMissionePaziente } from './pazienteRules';
 export function missioneCorrelataCodiceMinore(paziente, missioni, eventi) {
   if (!paziente || !isPercorsoCodiceMinoreTrasporto(paziente)) return null;
   const evento = findEvento(eventi, paziente.eventoIdUnivoco ?? paziente.eventoCorrelato);
+  const uid = String(paziente.missioneIdUnivoco ?? '').trim();
+  if (uid) {
+    const exact = (missioni ?? []).find((m) => String(m.idUnivoco ?? '').trim() === uid);
+    return exact ?? null;
+  }
   return resolveMissionePaziente(missioni, paziente, evento) ?? null;
 }

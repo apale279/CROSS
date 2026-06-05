@@ -135,6 +135,7 @@ export function codiceMinoreFromPaziente(paziente) {
     dataNascita: paziente?.dataNascita ?? '',
     eta: paziente?.eta ?? null,
     motivoArrivo: cm.motivoArrivo ?? '',
+    provenienzaTrasporto: cm.provenienzaTrasporto ?? '',
     trattamento: cm.trattamento ?? '',
     oraArrivo: cm.oraArrivo ?? paziente?.apertura ?? null,
     oraFine: cm.oraFine ?? null,

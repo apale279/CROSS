@@ -18,7 +18,10 @@ import {
 } from '../../services/eventiService';
 import { filterMezziSelezionabiliPerNuovaMissione, findMezzoBySigla } from '../../lib/mezzoMissione';
 import { EVENTO_TIPO_CHIUSURA } from '../../lib/missionEccezioni';
+import { missioneRichiedeChiusuraSuEventoForzato } from '../../lib/eventoChiusuraMissioni';
+import { MISSION_PMA_CLOSE_MOTIVO } from '../../lib/missionPmaPatientClose';
 import { missioniPerEvento, pazientiPerEvento } from '../../lib/eventoLinks';
+import { resolveMissionPmaPatientsBeforeClose } from '../../services/missionPmaPatientCloseService';
 import { shouldAutoCloseEvento } from '../../utils/eventoAutoClose';
 import { confirmDelete } from '../../utils/confirmDelete';
 import { buildStatoChangeFields } from '../../lib/missionStoricoStati';
@@ -263,12 +266,32 @@ export function EventoScheda({
   };
 
   const changeStatoMissione = async (missione, nuovoStato) => {
-    await patchMissione(
-      manifestazioneId,
-      missione._docId,
-      buildStatoChangeFields(missione, nuovoStato),
-      missione.mezzo,
-    );
+    try {
+      if (nuovoStato === 'FINE MISSIONE' || nuovoStato === 'ANNULLATA') {
+        const motivo =
+          nuovoStato === 'ANNULLATA'
+            ? MISSION_PMA_CLOSE_MOTIVO.ANNULLATA
+            : MISSION_PMA_CLOSE_MOTIVO.FINE_MISSIONE;
+        const { proceed } = await resolveMissionPmaPatientsBeforeClose({
+          manifestationId,
+          missioni: missione,
+          pazienti: pazientiEvento,
+          eventi: existingEventi ?? [],
+          motivoChiusura: motivo,
+          impostazioni,
+          titolo: `${nuovoStato === 'ANNULLATA' ? 'Annullamento' : 'Chiusura'} missione ${missione.idMissione}`,
+        });
+        if (!proceed) return;
+      }
+      await patchMissione(
+        manifestazioneId,
+        missione._docId,
+        buildStatoChangeFields(missione, nuovoStato),
+        missione.mezzo,
+      );
+    } catch (err) {
+      alert('Errore: ' + (err instanceof Error ? err.message : String(err)));
+    }
   };
 
   const handleChiudiEvento = async () => {
@@ -288,6 +311,18 @@ export function EventoScheda({
         ? `Chiudere l'evento ${evento.idEvento}? Verranno chiuse ${missioniAperte.length} missione/i aperte e i mezzi torneranno disponibili.`
         : `Chiudere l'evento ${evento.idEvento}?`;
     if (!window.confirm(msg)) return;
+
+    const missioniDaChiudere = missioniEvento.filter(missioneRichiedeChiusuraSuEventoForzato);
+    const { proceed } = await resolveMissionPmaPatientsBeforeClose({
+      manifestationId,
+      missioni: missioniDaChiudere,
+      pazienti: pazientiEvento,
+      eventi: existingEventi ?? [],
+      motivoChiusura: MISSION_PMA_CLOSE_MOTIVO.CHIUSURA_EVENTO,
+      impostazioni,
+      titolo: `Chiusura forzata evento ${evento.idEvento}`,
+    });
+    if (!proceed) return;
 
     setClosing(true);
     try {
@@ -368,8 +403,12 @@ export function EventoScheda({
               className={`${btnDanger} ml-auto`}
               onClick={async () => {
                 if (!confirmDelete(`evento ${evento.idEvento}`)) return;
-                await deleteEvento(manifestazioneId, evento._docId);
-                onDeleted?.();
+                try {
+                  await deleteEvento(manifestazioneId, evento._docId);
+                  onDeleted?.();
+                } catch (err) {
+                  alert('Errore: ' + (err instanceof Error ? err.message : String(err)));
+                }
               }}
             >
               Elimina evento

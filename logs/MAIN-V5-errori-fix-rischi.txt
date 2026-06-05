@@ -1,0 +1,376 @@
+================================================================================
+CROSS — MAIN V5 — Piano correzione errori EVENTI / MISSIONI
+Branch: main-v5
+Data: 2026-06-05
+================================================================================
+
+Questo file è la guida di lavoro per il branch main-v5.
+Ogni voce: ERRORE → FIX → COSA SI ROMPE → COME EVITARE LA ROTURA
+
+Legenda priorità: [P0]=critico  [P1]=alto  [P2]=medio  [P3]=basso/architettura
+
+================================================================================
+[P0-01] ReferenceError: notifyTelegramStatoFromCentrale non importata
+================================================================================
+
+ERRORE
+  File: src/services/missioniService.js → patchMissione() ~riga 417
+  Chiama notifyTelegramStatoFromCentrale() senza import da telegramService.js.
+  Firestore aggiorna lo stato; poi throw → sync PMA DIRETTO H nello stesso blocco saltata.
+
+DIPENDE DA QUESTO CODICE
+  - DashboardPage (avanzamento stato badge)
+  - EventoScheda.changeStatoMissione
+  - MissioneScheda (stato, esito, tratte, colori, apertura)
+  - MappaTatticaDashboard
+  - closeEventoForzato → loop patchMissione
+  - mezzoDisponibileService.chiudiMissioniAperteSuMezzo
+  - missioniEccezioniService (se non skipTelegramNotify)
+
+FIX
+  F0-01a: Aggiungere import { notifyTelegramStatoFromCentrale } from './telegramService.js'
+  F0-01b (opz.): Separare side effect in try/catch distinti:
+        1) sync pazienti/mezzo/auto-close  2) telegram (solo warn)
+
+COSA RISCHI DI ROMPERE
+  - F0-01b: ordine diverso → equipaggio Telegram vede stato prima sync PMA
+
+COME EVITARE
+  - Applicare F0-01a subito (1 riga, zero rischio)
+  - Test manuale: stato → DIRETTO H, verificare statoPzPma + nessun errore console
+  - vitest esistenti su mezzo/eccezioni
+
+STATO MAIN-V5: APPLICATO — import aggiunto in missioniService.js
+
+================================================================================
+[P0-02] Operazioni multi-step non atomiche (stato parziale in Firestore)
+================================================================================
+
+ERRORE
+  Sequenze senza transazione né compensazione robusta:
+  - NuovoEventoRapidoForm: createEvento → createMissione
+  - pmaInvioPsTrasportoService: createEvento → createMissione
+  - flag-down: annulla → createEvento figlio → createMissione (rollback non cancella figlio)
+  - createMissione: addDoc missione → patchMezzo (separati)
+  - closeEventoForzato: Promise.all missioni → patch evento
+  - deleteEvento: cascade missioni/pazienti/mezzi non transazionale
+
+DIPENDE DA QUESTO CODICE
+  - Dashboard orfani (eventoSenzaCoperturaMissione)
+  - EventiTatticaSidebar, Invio PS PMA, MissioneEccezioniPanel
+  - StatoMezziTable, selezione mezzi in EventoScheda
+
+FIX
+  F0-02a: Compensazione locale — on fail step 2, delete record step 1 (per flusso)
+  F0-02b: closeEventoForzato: re-query missioni da Firestore prima di chiudere
+  F0-02c (lungo): batch/transaction Firestore
+
+COSA RISCHI DI ROMPERE
+  - delete compensazione su evento con link G1 incoerente → cancella record sbagliati
+  - batch chiusura: eventi con >500 missioni (limite batch)
+
+COME EVITARE
+  - F0-02a solo sui 3 flussi noti (rapido, invio PS, flag-down)
+  - delete compensazione solo per docId appena creato (non cascade)
+  - F0-02b prima di F0-02c
+  - Test: interrompere rete dopo createEvento (simulazione) → verificare cleanup
+
+STATO MAIN-V5: dirottamento già ha rollback missione; manca cleanup evento flag-down
+
+================================================================================
+[P1-01] Doppia chiave evento (idUnivoco + idEvento) senza vincolo — G1
+================================================================================
+
+ERRORE
+  Linking OR: match se UID **oppure** display id coincide.
+  Se incoerenti: missioni/pazienti su evento sbagliato, delete cascade errata,
+  auto-close su doc errato.
+
+DIPENDE DA QUESTO CODICE
+  - src/lib/eventoLinks.js (missioniPerEvento, pazientiPerEvento, findEvento)
+  - eventiService.deleteRecordiCollegati
+  - eventoAutoCloseService.resolveEventoDoc
+  - pazientiTrasportoQuery, missioneAperturaValidate
+  - api/_lib/missionAdmin.js
+  - Dashboard, tutte le schede evento/missione/paziente/PMA
+
+FIX
+  F1-01a: Vietare patch di idUnivoco/idEvento in patchEvento/patchMissione
+  F1-01b: Modulo unico resolveEventoRef() usato da client + API
+  F1-01c: Script audit/migrazione dati legacy
+
+COSA RISCHI DI ROMPERE
+  - Resolver unificato: record legacy con solo idEvento corretto finché non migrati
+  - Validazione write: script esterni che cambiano idEvento
+
+COME EVITARE
+  - Audit Firestore PRIMA di F1-01b
+  - F1-01a subito (solo blocca nuove inconsistenze)
+  - Test eventoLinks.test.js con coppie mismatch esplicite
+
+STATO MAIN-V5: pianificato fase 3
+
+================================================================================
+[P1-02] Auto-close client ≠ API Telegram (operativoAutoCloseSospeso)
+================================================================================
+
+ERRORE
+  Client (eventoAutoCloseService): rispetta operativoAutoCloseSospeso e sempreAperto.
+  API (missionAdmin.tryAutoCloseEventoAdmin): ignora sospeso.
+  Telegram può impostare operativoTerminato su eventi che la centrale tiene aperti.
+
+DIPENDE DA QUESTO CODICE
+  - patchMissione → tryAutoCloseEventoForMissione (client)
+  - advanceMissioneStato → tryAutoCloseEventoAdmin (API)
+  - useOperativoDashboardData reconcile
+  - Eventi "sempre aperto" / gara
+
+FIX
+  F1-02: Copiare guard da eventoAutoCloseService in tryAutoCloseEventoAdmin:
+         if (operativoAutoCloseSospeso || sempreAperto) return;
+
+COSA RISCHI DI ROMPERE
+  - Equipaggio Telegram non chiude più operativo su eventi sospesi (comportamento voluto)
+
+COME EVITARE
+  - Allineare testo GUIDA: "sospeso = solo centrale termina operativo"
+  - Test: evento sospeso + avanzamento bot → operativoTerminato resta false
+
+STATO MAIN-V5: da implementare fase 1
+
+================================================================================
+[P1-03] Lock mezzo su snapshot client (concorrenza + stale list)
+================================================================================
+
+ERRORE
+  createMissione usa existingMissioni in memoria per assertMezzoLibero.
+  Due operatori o lista non aggiornata → doppio ingaggio stesso mezzo.
+
+DIPENDE DA QUESTO CODICE
+  - missioniService.createMissione, mezzoMissione.js
+  - EventoScheda, NuovoEventoRapidoForm, Invio PS, Eccezioni (ignoreOpenMissionDocId)
+
+FIX
+  F1-03a: getDocs missioni aperte su mezzo subito prima di addDoc
+  F1-03b: Transaction server-side (lungo termine)
+
+COSA RISCHI DI ROMPERE
+  - Latenza su ogni create
+  - Race residuo tra getDocs e addDoc senza transaction
+
+COME EVITARE
+  - F1-03a su form critici; mantenere ignoreOpenMissionDocId per dirottamento
+  - Log quando assert fallisce (missione bloccante elencata)
+
+STATO MAIN-V5: pianificato fase 2
+
+================================================================================
+[P1-04] Chiusura forzata evento su snapshot UI stale
+================================================================================
+
+ERRORE
+  EventoScheda passa missioniEvento da props a closeEventoForzato.
+  Missioni create dopo apertura scheda non chiuse. Promise.all non transazionale.
+
+DIPENDE DA QUESTO CODICE
+  - eventiService.closeEventoForzato
+  - eventoChiusuraMissioni.js
+  - Ogni patchMissione in loop (→ P0-01)
+
+FIX
+  F1-04a: closeEventoForzato ri-legge missioni da Firestore per evento
+  F1-04b: skipTelegramNotify su chiusura massiva (evita spam/errori API)
+  F1-04c: batch write (fase 3)
+
+COSA RISCHI DI ROMPERE
+  - Missioni con link G1 errato escluse/incluse erroneamente nella re-query
+
+COME EVITARE
+  - Query OR come oggi ma con entrambe le chiavi dell'evento chiuso
+  - Test: apri 2 missioni, chiudi evento, verificare tutte FINE/ANNULLATA + stato false
+
+STATO MAIN-V5: da implementare fase 1
+
+================================================================================
+[P2-01] Dirottamento: evento origine resta orfano operativo
+================================================================================
+
+ERRORE
+  shouldAutoCloseEvento richiede almeno una missione RIENTRO/FINE.
+  Solo ANNULLATA dopo dirottamento → evento A aperto senza copertura (orfano dashboard).
+
+DIPENDE DA QUESTO CODICE
+  - utils/eventoAutoClose.js, eventoLinks.eventoSenzaCoperturaMissione
+  - useOperativoDashboardData (flag orfano)
+
+FIX
+  F2-01a: UX — messaggio chiaro "invia altro mezzo o chiudi evento"
+  F2-01b: Estendere shouldAutoClose se tutte ANNULLATE e zero pazienti blocker
+
+COSA RISCHI DI ROMPERE
+  - F2-01b: auto-close con pazienti ancora in gestione sull'evento annullato
+
+COME EVITARE
+  - Conferma requisito operativo con utente PRIMA di F2-01b
+  - Default: solo F2-01a (nessun cambio logica)
+
+STATO MAIN-V5: decisione operativa richiesta
+
+================================================================================
+[P2-02] ref sticky auto-close (reconcile / EventoScheda)
+================================================================================
+
+ERRORE
+  reconciledOperativoRef e autoCloseEventoRef non si resettano su riapriEvento.
+  Auto-close non riparte fino a reload.
+
+DIPENDE DA QUESTO CODICE
+  - useOperativoDashboardData.js, EventoScheda.jsx, riapriEventoOperatore
+
+FIX
+  F2-02: Rimuovere docId da Set/ref quando operativoTerminato torna false
+
+COSA RISCHI DI ROMPERE
+  - Loop reconcile se snapshot flappa
+
+COME EVITARE
+  - Patch solo se operativoTerminato !== true nel doc corrente
+  - Dipendenza useEffect su ev.operativoTerminato
+
+STATO MAIN-V5: da implementare fase 1
+
+================================================================================
+[P2-03] Tratte missione — merge distruttivo
+================================================================================
+
+ERRORE
+  mergeTratteMissioneWrite: assenza id nel payload client = rimozione tratta.
+  Edit concorrenti perdono tratte.
+
+DIPENDE DA QUESTO CODICE
+  - missionTratte.js, MissioneScheda persistTratte
+
+FIX
+  F2-03: Union-by-id + delete esplicito con flag removedIds
+
+COSA RISCHI DI ROMPERE
+  - Rimozione tratte non più possibile senza API esplicita delete
+
+COME EVITARE
+  - Pulsante "rimuovi tratta" invia id in lista removed
+  - Test merge con due liste simulate
+
+STATO MAIN-V5: backlog
+
+================================================================================
+[P2-04] Salti stato missione liberi (nessuna validate transizione)
+================================================================================
+
+ERRORE
+  patchMissione accetta qualsiasi stato dalla lista impostazioni.
+  storicoStati con buchi; Telegram next-stato disallineato.
+
+DIPENDE DA QUESTO CODICE
+  - patchMissione, EventoScheda select, EventoStatoRapidoButtons, Dashboard
+
+FIX
+  F2-04: Validazione opzionale (impostazione "sequenza rigida")
+
+COSA RISCHI DI ROMPERE
+  - Flusso centrale che salta stati di proposito oggi
+
+COME EVITARE
+  - Default OFF; solo warn UI prima di block
+  - Non validare su path Telegram (già sequenziale)
+
+STATO MAIN-V5: backlog — conferma operatore
+
+================================================================================
+[P2-05] storicoStati.<stato> — stato con punto nel nome
+================================================================================
+
+ERRORE
+  storicoStatoDotPath non escapa "." → path Firestore annidato errato.
+
+FIX
+  F2-05: Vietare "." in statiMissione (impostazioni) + sanitize read legacy
+
+COSA RISCHI DI ROMPERE
+  - Stati già salvati con path annidato in DB
+
+COME EVITARE
+  - Migration read compatibile prima di vietare in write
+
+STATO MAIN-V5: backlog
+
+================================================================================
+[P2-06] Snapshot collezioni non atomici (dashboard transient)
+================================================================================
+
+ERRORE
+  Listener separati eventi/missioni/pazienti → UI derivata incoerente per ms.
+
+FIX
+  F2-06: Non reconcile finché loadingE/M/P tutti false (già parziale); skeleton
+
+COSA RISCHI DI ROMPERE
+  - Dashboard vuota più a lungo all'avvio
+
+COME EVITARE
+  - Accettare transitorio; non scrivere operativoTerminato su snapshot parziale
+
+STATO MAIN-V5: documentato, fix minimo opzionale
+
+================================================================================
+[P2-07] Client vs API — PMA ARRIVATO H / codice minore / statoPzPma casing
+================================================================================
+
+ERRORE
+  missionAdmin advance path semplificato vs pazientePmaMissionSync client.
+  Normalizzazione statoPzPma diversa → auto-close/guard pazienti divergono.
+
+DIPENDE DA QUESTO CODICE
+  - api/_lib/missionAdmin.js, pazienteMissionPmaAdmin.js
+  - pazientePmaMissionSync.js, pmaModule.js
+
+FIX
+  F2-07: Estrarre regole PMA condivise in modulo usato da client test + API
+
+COSA RISCHI DI ROMPERE
+  - Comportamento Telegram su pazienti PMA cambia vs oggi
+
+COME EVITARE
+  - Test parità casi E68/E70 prima/dopo
+  - Allineare un caso per PR
+
+STATO MAIN-V5: fase 3
+
+================================================================================
+ORDINE DI LAVORO MAIN-V5 (checklist)
+================================================================================
+
+[x] P0-01  Import notifyTelegramStatoFromCentrale
+[ ] P0-02a Compensazione evento orfano (rapido, invio PS, flag-down)
+[ ] P1-02   Guard auto-close API = client
+[ ] P1-04a  Re-query missioni in closeEventoForzato
+[ ] P2-02   Reset ref sticky su riapri
+[ ] P1-01a  Blocco patch chiavi evento (dopo audit opzionale)
+[ ] P1-03a  Refresh missioni mezzo prima di create
+[ ] Decisione P2-01 (orfano dopo dirottamento: UX vs auto-close)
+
+TEST OBBLIGATORI DOPO OGNI STEP
+  npm exec vitest run src/utils/eventoAutoClose.test.js src/lib/eventoLinks.test.js
+  npm exec vitest run src/lib/mezzoMissione.test.js src/services/missioniEccezioniService.test.js
+
+  Manuale: dirottamento, DIRETTO H+PMA, chiusura forzata, nuovo evento rapido
+
+NON ROMPERE (checklist finale)
+  [ ] Mezzo RIENTRO selezionabile per nuovo ingaggio (chiudiMissioniRientro)
+  [ ] Eventi sempreAperto non auto-chiudono
+  [ ] Telegram non blocca mai operazioni centrale
+  [ ] ANNULLATA in chiusura forzata non diventa FINE MISSIONE
+  [ ] Kiosk read-only senza write reconcile
+
+================================================================================
+FINE — aggiornare questo file ad ogni fix completato (STATO MAIN-V5)
+================================================================================

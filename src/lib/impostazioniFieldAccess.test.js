@@ -7,7 +7,7 @@ import {
   isImpostazioniTransactionalArrayField,
   readImpostazioniFieldForDisplay,
   readImpostazioniFieldRaw,
-} from '../src/lib/impostazioniFieldAccess.js';
+} from './impostazioniFieldAccess.js';
 
 describe('impostazioniFieldAccess', () => {
   it('blocca campi map annidate e array transazionali', () => {
@@ -37,7 +37,9 @@ describe('impostazioniFieldAccess', () => {
   });
 
   it('path puntato rifiuta chiavi con punto', () => {
-    expect(() => impostazioniMapFieldPath('dettagliPerTipoLuogo', 'A.B')).toThrow(/\\./);
+    expect(() => impostazioniMapFieldPath('dettagliPerTipoLuogo', 'A.B')).toThrow(
+      /non può contenere il carattere «\.»/,
+    );
     expect(impostazioniMapFieldPath('dettagliPerTipoLuogo', 'UFFICIO')).toBe(
       'dettagliPerTipoLuogo.UFFICIO',
     );

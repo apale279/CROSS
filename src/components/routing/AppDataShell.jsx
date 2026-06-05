@@ -3,6 +3,7 @@ import { FirestoreSyncProvider } from '../../context/FirestoreSyncContext';
 import { ManifestazioneDataProvider } from '../../context/ManifestazioneDataContext';
 import { EventoSchedaProvider } from '../../context/EventoSchedaContext';
 import { GoogleMapsProvider } from '../../context/GoogleMapsContext';
+import { ManifestazioneIdProvider } from '../../context/ManifestazioneContext';
 import { useTenantContext } from '../../context/TenantContext';
 import { TenantConfigMissing } from './TenantConfigMissing';
 
@@ -22,15 +23,17 @@ function AppDataShellInner() {
   }
 
   return (
-    <GoogleMapsProvider>
-      <FirestoreSyncProvider>
-        <ManifestazioneDataProvider>
-          <EventoSchedaProvider>
-            <Outlet />
-          </EventoSchedaProvider>
-        </ManifestazioneDataProvider>
-      </FirestoreSyncProvider>
-    </GoogleMapsProvider>
+    <ManifestazioneIdProvider tenantId={tenantId}>
+      <GoogleMapsProvider>
+        <FirestoreSyncProvider>
+          <ManifestazioneDataProvider>
+            <EventoSchedaProvider>
+              <Outlet />
+            </EventoSchedaProvider>
+          </ManifestazioneDataProvider>
+        </FirestoreSyncProvider>
+      </GoogleMapsProvider>
+    </ManifestazioneIdProvider>
   );
 }
 

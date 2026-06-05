@@ -39,6 +39,7 @@ import {
   esitoMissioneTerminaCopertura,
   normalizeEsitoMissione,
 } from '../lib/missioneEsito';
+import { pazienteInviatoVersoPma } from '../lib/missionPmaPatientClose';
 import { pazienteSuMissione } from '../lib/pazientiTrasportoQuery';
 import { pazienteSameEventoAsMissione } from '../lib/eventoMissioneMatch';
 import { MISSIONE_ECCEZIONE_MOTIVO, MEZZO_STATO_AVARIA_SINISTRO } from '../lib/missionEccezioni';
@@ -55,10 +56,20 @@ import {
   timestampToDate,
   validateMissioneAperturaChange,
 } from '../lib/missioneAperturaValidate';
+import {
+  notifyTelegramMissioneEliminataFromCentrale,
+  notifyTelegramStatoFromCentrale,
+} from './telegramService';
 
-function assertMezzoLiberoPerNuovaMissione(mezzoSigla, existingMissioni, { chiudiMissioniRientro }) {
+function assertMezzoLiberoPerNuovaMissione(
+  mezzoSigla,
+  existingMissioni,
+  { chiudiMissioniRientro, ignoreOpenMissionDocId } = {},
+) {
   if (!mezzoSigla) return;
-  const aperte = missioniAperteSuMezzo(existingMissioni ?? [], mezzoSigla);
+  const ignoreId = String(ignoreOpenMissionDocId ?? '').trim();
+  const lista = (existingMissioni ?? []).filter((m) => !ignoreId || m?._docId !== ignoreId);
+  const aperte = missioniAperteSuMezzo(lista, mezzoSigla);
   const bloccanti = aperte.filter((m) => missioneBloccaMezzo(m));
   const rientro = aperte.filter((m) => isStatoMissioneRientroOLiberato(m.stato));
 
@@ -112,21 +123,32 @@ async function equipaggioTestoAlLegameMezzo(manifestationId, mezzoSigla, mezzoIn
   return formatEquipaggioText(record?.equipaggio);
 }
 
-export async function createMissione(manifestationId, payload, existingMissioni, mezzo) {
+export async function createMissione(
+  manifestationId,
+  payload,
+  existingMissioni,
+  mezzo,
+  options = {},
+) {
   const mezzoSiglaEarly = payload.mezzo
     ? await resolveMezzoDocIdFirestore(manifestationId, payload.mezzo)
     : '';
   let missionPayload = payload;
   if (mezzoSiglaEarly) {
-    const aperte = missioniAperteSuMezzo(existingMissioni ?? [], mezzoSiglaEarly);
+    const ignoreId = options.ignoreOpenMissionDocId;
+    const lista = (existingMissioni ?? []).filter(
+      (m) => !ignoreId || m?._docId !== ignoreId,
+    );
+    const aperte = missioniAperteSuMezzo(lista, mezzoSiglaEarly);
     const rientro = aperte.filter((m) => isStatoMissioneRientroOLiberato(m.stato));
     if (rientro.length > 0 && !payload.chiudiMissioniRientro) {
       missionPayload = { ...payload, chiudiMissioniRientro: true };
     }
     assertMezzoLiberoPerNuovaMissione(mezzoSiglaEarly, existingMissioni, {
       chiudiMissioniRientro: !!missionPayload.chiudiMissioniRientro,
+      ignoreOpenMissionDocId: ignoreId,
     });
-    await terminaMissioniRientroPrecedenti(manifestationId, mezzoSiglaEarly, existingMissioni);
+    await terminaMissioniRientroPrecedenti(manifestationId, mezzoSiglaEarly, lista);
   }
 
   const idMissione = await allocateProgressiveId(
@@ -317,7 +339,12 @@ async function syncStatoMezzoDopoMissione(manifestationId, mezzoSiglaRaw, exclud
   await patchMezzo(manifestationId, mezzoDoc, { statoMezzo: 'Disponibile' });
 }
 
-export async function patchMissione(manifestationId, docId, fields, mezzoSigla) {
+/**
+ * @param {object} [options]
+ * @param {boolean} [options.skipTelegramNotify] — true in flussi multi-step (es. dirottamento)
+ * @param {boolean} [options.skipAutoCloseEvento]
+ */
+export async function patchMissione(manifestationId, docId, fields, mezzoSigla, options = {}) {
   if (!docId || !fields || Object.keys(fields).length === 0) return;
   const docRef = doc(db, ...missioniPath(manifestationId), docId);
   const payload = omitUndefinedFields(stripOperatoreCreatoFromPatch({ ...fields }));
@@ -380,10 +407,19 @@ export async function patchMissione(manifestationId, docId, fields, mezzoSigla) 
   ) {
     await syncStatoMezzoDopoMissione(manifestationId, mezzoSigla, docId, { aperta: false });
   }
-  if (fields.stato != null || fields.aperta != null || Object.prototype.hasOwnProperty.call(fields, 'esitoMissione')) {
-    await tryAutoCloseEventoForMissione(manifestationId, docId);
+  if (
+    !options.skipAutoCloseEvento &&
+    (fields.stato != null ||
+      fields.aperta != null ||
+      Object.prototype.hasOwnProperty.call(fields, 'esitoMissione'))
+  ) {
+    try {
+      await tryAutoCloseEventoForMissione(manifestationId, docId);
+    } catch (err) {
+      console.warn('[auto-close evento]', err);
+    }
   }
-  if (fields.stato != null) {
+  if (fields.stato != null && !options.skipTelegramNotify) {
     notifyTelegramStatoFromCentrale(manifestationId, docId);
     if (fields.stato === 'DIRETTO H') {
       const misSnap = await getDoc(docRef);
@@ -422,13 +458,16 @@ export async function deleteMissione(manifestationId, docId) {
     pazienteSuMissione({ _docId: d.id, ...d.data() }, missione),
   );
   for (const d of linked) {
-    await patchPaziente(
-      manifestationId,
-      d.id,
-      fieldsScollegaPazienteDaMissione({ ...d.data(), _docId: d.id }),
-    );
+    const row = { ...d.data(), _docId: d.id };
+    if (pazienteInviatoVersoPma(row)) continue;
+    await patchPaziente(manifestationId, d.id, fieldsScollegaPazienteDaMissione(row));
   }
 
+  try {
+    await notifyTelegramMissioneEliminataFromCentrale(manifestationId, docId);
+  } catch (err) {
+    console.warn('[telegram eliminata missione]', err);
+  }
   await deleteDoc(docRef);
 
   if (mezzoSigla) {

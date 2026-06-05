@@ -18,7 +18,8 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Campo missionDocId obbligatorio' });
     }
 
-    const result = await notifyMissionStatoToTelegram(tenantId, missionDocId);
+    const eliminata = body.eliminata === true || body.motivo === 'eliminata';
+    const result = await notifyMissionStatoToTelegram(tenantId, missionDocId, { eliminata });
     return res.status(200).json({ ok: true, ...result });
   } catch (err) {
     const status = err.status ?? 500;

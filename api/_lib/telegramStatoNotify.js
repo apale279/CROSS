@@ -4,15 +4,58 @@ import {
   isTelegramBotEnabled,
 } from './telegramFirestore.js';
 import { getMissioneById, getStatiMissione } from './missionAdmin.js';
-import { isStatoMissioneTerminale, nextStatoMissione } from './missionStati.js';
+import {
+  isStatoMissioneTerminale,
+  nextStatoMissione,
+  shouldOfferTelegramStatoAdvanceButton,
+} from './missionStati.js';
 import { buildStatoAdvanceKeyboard } from './telegramMissionStato.js';
 import { appendMissionTelegramMessage } from './telegramMissionMessages.js';
+import { sealMissionTelegramMessages } from './telegramMissionClose.js';
+
+function buildChiusuraTelegramLines(missione, { eliminata = false } = {}) {
+  const stato = missione.stato ?? '—';
+  const lines = [];
+
+  if (eliminata) {
+    lines.push('<b>🗑️ Missione eliminata dalla centrale</b>');
+  } else if (stato === 'ANNULLATA') {
+    lines.push('<b>🚫 Missione annullata dalla centrale</b>');
+  } else if (stato === 'FINE MISSIONE') {
+    lines.push('<b>✅ Missione terminata dalla centrale</b>');
+  } else {
+    lines.push('<b>📡 Stato aggiornato dalla centrale</b>');
+  }
+
+  lines.push(
+    '',
+    `<b>Missione:</b> ${escapeHtml(missione.idMissione ?? '—')}`,
+    `<b>Evento:</b> ${escapeHtml(missione.eventoCorrelato ?? '—')}`,
+    `<b>Stato attuale:</b> ${escapeHtml(stato)}`,
+  );
+
+  return lines;
+}
+
+function chiusuraTelegramFooter(missione, { eliminata = false, terminal = false } = {}) {
+  if (eliminata) {
+    return '<i>Missione <b>rimossa</b> da CROSS. Non è più modificabile su Telegram.</i>';
+  }
+  if (missione.stato === 'ANNULLATA') {
+    return '<i>Missione <b>chiusa</b> (annullata). Non è più modificabile su Telegram.</i>';
+  }
+  if (terminal || missione.stato === 'FINE MISSIONE') {
+    return '<i>Missione <b>terminata</b>. Non è più modificabile su Telegram.</i>';
+  }
+  return null;
+}
 
 /**
  * Avvisa l'equipaggio su Telegram dopo un cambio stato dalla centrale CROSS.
  * Legge sempre lo stato aggiornato su Firestore (anche se forzato / saltato).
  */
-export async function notifyMissionStatoToTelegram(tenantId, missionDocId) {
+export async function notifyMissionStatoToTelegram(tenantId, missionDocId, options = {}) {
+  const eliminata = options.eliminata === true;
   const enabled = await isTelegramBotEnabled(tenantId);
   if (!enabled) return { sent: 0, skipped: 'bot_disabled' };
 
@@ -26,28 +69,23 @@ export async function notifyMissionStatoToTelegram(tenantId, missionDocId) {
 
   const stati = await getStatiMissione(tenantId);
   const stato = missione.stato ?? 'ALLERTARE';
-  const terminal = missione.aperta === false || isStatoMissioneTerminale(stato);
+  const terminal = eliminata || missione.aperta === false || isStatoMissioneTerminale(stato);
   const next = nextStatoMissione(stato, stati);
 
-  const lines = [
-    stato === 'ANNULLATA'
-      ? '<b>🚫 Missione annullata dalla centrale</b>'
-      : '<b>📡 Stato aggiornato dalla centrale</b>',
-    '',
-    `<b>Missione:</b> ${escapeHtml(missione.idMissione ?? '—')}`,
-    `<b>Evento:</b> ${escapeHtml(missione.eventoCorrelato ?? '—')}`,
-    `<b>Stato attuale:</b> ${escapeHtml(stato)}`,
-  ];
+  let sealed;
+  if (terminal) {
+    sealed = await sealMissionTelegramMessages(missione);
+  }
+
+  const lines = buildChiusuraTelegramLines(missione, { eliminata });
+  const footer = chiusuraTelegramFooter(missione, { eliminata, terminal });
 
   let replyMarkup;
-  if (stato === 'ANNULLATA' || terminal) {
-    lines.push(
-      '',
-      stato === 'ANNULLATA'
-        ? '<i>Missione <b>chiusa</b> (annullata). I pulsanti stato su Telegram non sono più attivi.</i>'
-        : '<i>Missione chiusa — nessun passo successivo.</i>',
-    );
-  } else if (next !== stato) {
+  if (terminal) {
+    if (footer) lines.push('', footer);
+  } else if (
+    shouldOfferTelegramStatoAdvanceButton({ stato, next, aperta: missione.aperta })
+  ) {
     lines.push('', `<i>Prossimo passo equipaggio:</i> ${escapeHtml(next)}`);
     replyMarkup = buildStatoAdvanceKeyboard(missionDocId, next);
   }
@@ -60,7 +98,7 @@ export async function notifyMissionStatoToTelegram(tenantId, missionDocId) {
     try {
       const apiRes = await sendMessage(chatId, text, replyMarkup ? { reply_markup: replyMarkup } : {});
       const messageId = apiRes?.result?.message_id;
-      if (messageId != null) {
+      if (!eliminata && messageId != null) {
         await appendMissionTelegramMessage(tenantId, missionDocId, chatId, messageId);
       }
       sent += 1;
@@ -69,5 +107,10 @@ export async function notifyMissionStatoToTelegram(tenantId, missionDocId) {
     }
   }
 
-  return { sent, total: chatIds.length, errors: errors.length ? errors : undefined };
+  return {
+    sent,
+    total: chatIds.length,
+    sealed,
+    errors: errors.length ? errors : undefined,
+  };
 }

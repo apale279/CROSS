@@ -2,7 +2,11 @@ import { FieldValue } from 'firebase-admin/firestore';
 import { getAdminDb } from './firebaseAdmin.js';
 import { impostazioniDocRef } from './telegramFirestore.js';
 import { buildStatoChangeFields } from './missionStoricoStati.js';
-import { isStatoMissioneTerminale, nextStatoMissione } from './missionStati.js';
+import {
+  canEquipaggioAvanzareStatoDaTelegram,
+  isStatoMissioneTerminale,
+  nextStatoMissione,
+} from './missionStati.js';
 import { resolveMezzoSiglaForTelegram } from './mezzoResolve.js';
 import {
   applyArrivatoHPatchAdminTransaction,
@@ -123,8 +127,7 @@ export async function listMissioniAperteByMezzo(tenantId, mezzo) {
       (m) =>
         normalizeMezzoKey(m.mezzo) === nk &&
         m.aperta !== false &&
-        !isStatoMissioneTerminale(m.stato) &&
-        (m.stato ?? '') !== 'RIENTRO',
+        !isStatoMissioneTerminale(m.stato),
     )
     .sort((a, b) => String(a.idMissione ?? '').localeCompare(String(b.idMissione ?? ''), 'it'));
 }
@@ -359,7 +362,8 @@ async function tryAutoCloseEventoAdmin(tenantId, eventoIdUnivoco, eventoCorrelat
  * Avanza lo stato leggendo la missione aggiornata (rispetta salti imposti dalla centrale).
  * @returns {{ ok: boolean, error?: string, precedente?: string, nuovo?: string, missione?: object, terminal?: boolean }}
  */
-export async function advanceMissioneStato(tenantId, missionDocId, expectedMezzo) {
+export async function advanceMissioneStato(tenantId, missionDocId, expectedMezzo, options = {}) {
+  const fromTelegram = options.fromTelegram === true;
   const missione = await getMissioneById(tenantId, missionDocId);
   if (!missione) return { ok: false, error: 'Missione non trovata' };
   if (!normalizeMezzoKey(missione.mezzo) || normalizeMezzoKey(missione.mezzo) !== normalizeMezzoKey(expectedMezzo)) {
@@ -374,6 +378,16 @@ export async function advanceMissioneStato(tenantId, missionDocId, expectedMezzo
   const nuovo = nextStatoMissione(precedente, stati);
   if (nuovo === precedente) {
     return { ok: false, error: 'Nessuno stato successivo disponibile', missione, terminal: true };
+  }
+  if (fromTelegram && !canEquipaggioAvanzareStatoDaTelegram(nuovo)) {
+    return {
+      ok: false,
+      error:
+        nuovo === 'ANNULLATA'
+          ? 'Annullamento missione solo da centrale operativa'
+          : 'Chiusura missione solo con stato FINE MISSIONE',
+      missione,
+    };
   }
 
   const fields = buildStatoChangeFields(missione, nuovo);

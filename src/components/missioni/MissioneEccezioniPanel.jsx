@@ -5,6 +5,8 @@ import { dettagliPerTipoEvento } from '../../lib/impostazioniNormalize';
 import { findEvento } from '../../lib/eventoLinks';
 import { MISSIONE_ECCEZIONE_MOTIVO } from '../../lib/missionEccezioni';
 import { esitoMissioneTerminaCopertura } from '../../lib/missioneEsito';
+import { MISSION_PMA_CLOSE_MOTIVO } from '../../lib/missionPmaPatientClose';
+import { resolveMissionPmaPatientsBeforeClose } from '../../services/missionPmaPatientCloseService';
 import {
   eseguiAvariaSinistroMissione,
   eseguiDirottamentoMissione,
@@ -26,6 +28,7 @@ export function MissioneEccezioniPanel({
   missione,
   eventi,
   mezzi,
+  pazienti = [],
   allMissioni,
   existingEventi,
 }) {
@@ -82,6 +85,19 @@ export function MissioneEccezioniPanel({
     }
   };
 
+  const gestisciPazientiPmaPrimaAnnullamento = async (titolo) => {
+    const { proceed } = await resolveMissionPmaPatientsBeforeClose({
+      manifestationId,
+      missioni: missione,
+      pazienti,
+      eventi,
+      motivoChiusura: MISSION_PMA_CLOSE_MOTIVO.ANNULLATA,
+      impostazioni,
+      titolo,
+    });
+    return proceed;
+  };
+
   const onDirottamento = () => {
     const ev = eventiDestinazione.find((e) => e._docId === destDocId);
     if (!ev) {
@@ -93,8 +109,12 @@ export function MissioneEccezioniPanel({
       return;
     }
     if (!window.confirm(`Annullare questa missione e assegnare il mezzo ${missione.mezzo} all’evento ${ev.idEvento}?`)) return;
-    return run(() =>
-      eseguiDirottamentoMissione({
+    return run(async () => {
+      const proceed = await gestisciPazientiPmaPrimaAnnullamento(
+        `Dirottamento — annullamento missione ${missione.idMissione}`,
+      );
+      if (!proceed) return;
+      await eseguiDirottamentoMissione({
         manifestationId,
         missione,
         eventoDestinazione: ev,
@@ -102,8 +122,8 @@ export function MissioneEccezioniPanel({
         mezzoRecord,
         note: noteDirott,
         ...audit,
-      }),
-    );
+      });
+    });
   };
 
   const onFlagDown = () => {
@@ -116,8 +136,12 @@ export function MissioneEccezioniPanel({
       return;
     }
     if (!window.confirm('Creare un nuovo evento (figlio), annullare la missione verso l’evento attuale e aprire missione IN POSTO sul nuovo intervento?')) return;
-    return run(() =>
-      eseguiFlagDownMissione({
+    return run(async () => {
+      const proceed = await gestisciPazientiPmaPrimaAnnullamento(
+        `Flag-down — annullamento missione ${missione.idMissione}`,
+      );
+      if (!proceed) return;
+      await eseguiFlagDownMissione({
         manifestationId,
         missione,
         eventoPadre: eventoCorrente,
@@ -133,19 +157,23 @@ export function MissioneEccezioniPanel({
         allMissioni,
         mezzoRecord,
         noteAnnullamento: noteAnnullaFlag,
-      }),
-    );
+      });
+    });
   };
 
   const onAvaria = () => {
     if (!window.confirm('Annullare la missione, lasciare l’evento aperto e segnare il mezzo come non operativo (avaria/sinistro)?')) return;
-    return run(() =>
-      eseguiAvariaSinistroMissione({
+    return run(async () => {
+      const proceed = await gestisciPazientiPmaPrimaAnnullamento(
+        `Avaria/sinistro — annullamento missione ${missione.idMissione}`,
+      );
+      if (!proceed) return;
+      await eseguiAvariaSinistroMissione({
         manifestationId,
         missione,
         note: noteAvaria,
-      }),
-    );
+      });
+    });
   };
 
   if (missione.stato === 'ANNULLATA' || missione.missioneEccezioneMotivo) {

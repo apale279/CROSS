@@ -16,7 +16,18 @@
     "import:mezzi-flotta": "node --env-file=.env.local scripts/import-mezzi-flotta.mjs",
     "upload:guida-pdf": "node scripts/upload-guida-pdf.mjs",
     "generate:guida-pdf": "node scripts/generate-guida-pdf.mjs",
-    "push": "node scripts/git-push.mjs"
+    "push": "node scripts/git-push.mjs",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:report": "playwright show-report",
+    "test:s1": "playwright test --grep S1",
+    "test:s2": "playwright test --grep S2",
+    "test:s3": "playwright test --grep S3",
+    "test:s4": "playwright test --grep S4",
+    "test:s5": "playwright test --grep S5",
+    "test:s6": "playwright test --grep S6",
+    "test:login": "playwright test 01-login",
+    "test:connettivita": "playwright test 04-connettivita"
   },
   "dependencies": {
     "@react-google-maps/api": "^2.20.8",
@@ -35,6 +46,7 @@
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
+    "@playwright/test": "^1.49.0",
     "@tailwindcss/vite": "^4.1.7",
     "@types/file-saver": "^2.0.7",
     "@vitejs/plugin-react": "^4.4.1",
