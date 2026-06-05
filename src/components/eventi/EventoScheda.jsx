@@ -18,7 +18,10 @@ import {
 } from '../../services/eventiService';
 import { filterMezziSelezionabiliPerNuovaMissione, findMezzoBySigla } from '../../lib/mezzoMissione';
 import { EVENTO_TIPO_CHIUSURA } from '../../lib/missionEccezioni';
-import { missioneRichiedeChiusuraSuEventoForzato } from '../../lib/eventoChiusuraMissioni';
+import {
+  fieldsChiusuraMissioneSuEventoForzato,
+  missioneRichiedeChiusuraSuEventoForzato,
+} from '../../lib/eventoChiusuraMissioni';
 import { MISSION_PMA_CLOSE_MOTIVO } from '../../lib/missionPmaPatientClose';
 import { missioniPerEvento, pazientiPerEvento } from '../../lib/eventoLinks';
 import { resolveMissionPmaPatientsBeforeClose } from '../../services/missionPmaPatientCloseService';
@@ -151,6 +154,15 @@ export function EventoScheda({
   const eventoAccettaNuoviPazienti = eventoAperto;
 
   const autoCloseEventoRef = useRef(false);
+  const prevOperativoTerminatoRef = useRef(evento?.operativoTerminato === true);
+
+  useEffect(() => {
+    const wasTerminato = prevOperativoTerminatoRef.current;
+    if (wasTerminato && evento?.operativoTerminato !== true) {
+      autoCloseEventoRef.current = false;
+    }
+    prevOperativoTerminatoRef.current = evento?.operativoTerminato === true;
+  }, [evento?._docId, evento?.operativoTerminato]);
 
   useEffect(() => {
     if (readOnly || isCreate || !evento?._docId || evento.stato === false) return;
@@ -291,6 +303,54 @@ export function EventoScheda({
       );
     } catch (err) {
       alert('Errore: ' + (err instanceof Error ? err.message : String(err)));
+    }
+  };
+
+  const handleTerminaEventoSempreAperto = async () => {
+    const missioniAperte = missioniEvento.filter(
+      (m) =>
+        m.aperta !== false &&
+        m.stato !== 'FINE MISSIONE' &&
+        m.stato !== 'ANNULLATA',
+    );
+    const msg =
+      missioniAperte.length > 0
+        ? `Archiviare l'evento ${evento.idEvento}? Verranno chiuse ${missioniAperte.length} missione/i aperte e i mezzi torneranno disponibili. L'evento non sarà più visibile in dashboard.`
+        : `Archiviare l'evento ${evento.idEvento}? Non sarà più visibile in dashboard.`;
+    if (!window.confirm(msg)) return;
+
+    const missioniDaChiudere = missioniEvento.filter(missioneRichiedeChiusuraSuEventoForzato);
+    if (missioniDaChiudere.length) {
+      const { proceed } = await resolveMissionPmaPatientsBeforeClose({
+        manifestationId,
+        missioni: missioniDaChiudere,
+        pazienti: pazientiEvento,
+        eventi: existingEventi ?? [],
+        motivoChiusura: MISSION_PMA_CLOSE_MOTIVO.FINE_MISSIONE,
+        impostazioni,
+        titolo: `Termina evento ${evento.idEvento}`,
+      });
+      if (!proceed) return;
+    }
+
+    setTerminating(true);
+    try {
+      await Promise.all(
+        missioniDaChiudere.map((mis) =>
+          patchMissione(
+            manifestazioneId,
+            mis._docId,
+            fieldsChiusuraMissioneSuEventoForzato(mis),
+            mis.mezzo,
+          ),
+        ),
+      );
+      await terminaEventoOperatore(manifestazioneId, evento._docId);
+      onArchived?.();
+    } catch (err) {
+      alert('Errore: ' + (err instanceof Error ? err.message : String(err)));
+    } finally {
+      setTerminating(false);
     }
   };
 
@@ -763,6 +823,18 @@ export function EventoScheda({
             </button>
             </div>
           ) : eventoAperto ? (
+            evento.sempreAperto === true ? (
+              <div className="ml-auto">
+                <button
+                  type="button"
+                  className={btnPrimary}
+                  disabled={terminating}
+                  onClick={() => void handleTerminaEventoSempreAperto()}
+                >
+                  {terminating ? 'Chiusura…' : 'Termina evento'}
+                </button>
+              </div>
+            ) : (
             <>
               {!showCloseForm ? (
                 <button
@@ -828,6 +900,7 @@ export function EventoScheda({
                 </div>
               )}
             </>
+            )
           ) : (
             evento.noteChiusura && (
               <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm">

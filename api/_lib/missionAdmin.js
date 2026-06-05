@@ -347,8 +347,11 @@ async function tryAutoCloseEventoAdmin(tenantId, eventoIdUnivoco, eventoCorrelat
   }
   if (!eventoRef) return;
   const evSnap = await eventoRef.get();
-  if (!evSnap.exists || evSnap.data()?.stato === false) return;
-  if (evSnap.data()?.operativoTerminato === true) return;
+  const evData = evSnap.exists ? evSnap.data() : null;
+  if (!evData || evData.stato === false) return;
+  if (evData.operativoTerminato === true) return;
+  if (evData.operativoAutoCloseSospeso === true) return;
+  if (evData.sempreAperto === true) return;
   await eventoRef.set(
     {
       operativoTerminato: true,

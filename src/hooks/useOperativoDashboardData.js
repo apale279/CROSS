@@ -89,9 +89,17 @@ export function useOperativoDashboardData(options = {}) {
   }, [eventiAperti, missioniAperte, missioni, pazienti]);
 
   const reconciledOperativoRef = useRef(new Set());
+  const prevOperativoTerminatoRef = useRef(new Map());
 
   useEffect(() => {
     if (!autoReconcileOperativo || loadingE || loadingM || loadingP || !manifestationId) return;
+    for (const ev of eventiAperti) {
+      const wasTerminato = prevOperativoTerminatoRef.current.get(ev._docId) === true;
+      if (wasTerminato && ev.operativoTerminato !== true) {
+        reconciledOperativoRef.current.delete(ev._docId);
+      }
+      prevOperativoTerminatoRef.current.set(ev._docId, ev.operativoTerminato === true);
+    }
     for (const ev of eventiAperti) {
       if (ev.operativoTerminato === true) continue;
       if (ev.operativoAutoCloseSospeso === true) continue;
