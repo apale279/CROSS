@@ -4,6 +4,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react';
 import { onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'firebase/auth';
@@ -49,6 +50,8 @@ export function AuthProvider({ children }) {
       unsub();
     };
   }, []);
+
+  const e2eAutoLoginRef = useRef(false);
 
   useEffect(() => {
     if (!user || !tenantId) {
@@ -158,6 +161,20 @@ export function AuthProvider({ children }) {
     },
     [tenantId],
   );
+
+  // Stress test E2E: login automatico in dev (VITE_E2E_AUTO_LOGIN=true nel dev server Playwright)
+  useEffect(() => {
+    if (import.meta.env.VITE_E2E_AUTO_LOGIN !== 'true' || !import.meta.env.DEV) return;
+    if (!tenantId || user || loading || e2eAutoLoginRef.current) return;
+    const email = import.meta.env.VITE_E2E_TEST_EMAIL;
+    const password = import.meta.env.VITE_E2E_TEST_PASSWORD;
+    if (!email || !password) return;
+    e2eAutoLoginRef.current = true;
+    login({ email, password }).catch((e) => {
+      e2eAutoLoginRef.current = false;
+      console.warn('E2E auto-login fallito:', e);
+    });
+  }, [tenantId, user, loading, login]);
 
   const logout = useCallback(async () => {
     if (tenantId && user) {

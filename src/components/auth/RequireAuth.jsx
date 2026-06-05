@@ -3,14 +3,19 @@ import { useAuth } from '../../context/AuthContext';
 import { InactivityLogoutGuard } from './InactivityLogoutGuard';
 import { SessionRevocationGuard } from './SessionRevocationGuard';
 
+const E2E_AUTO_LOGIN =
+  import.meta.env.DEV && import.meta.env.VITE_E2E_AUTO_LOGIN === 'true';
+
 export function RequireAuth() {
   const { user, loading } = useAuth();
   const location = useLocation();
 
-  if (loading) {
+  if (loading || (E2E_AUTO_LOGIN && !user)) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-100">
-        <p className="text-sm text-slate-600">Verifica accesso…</p>
+        <p className="text-sm text-slate-600">
+          {E2E_AUTO_LOGIN && !user ? 'Accesso test automatico…' : 'Verifica accesso…'}
+        </p>
       </div>
     );
   }
@@ -22,7 +27,7 @@ export function RequireAuth() {
   return (
     <>
       <SessionRevocationGuard />
-      <InactivityLogoutGuard />
+      {!E2E_AUTO_LOGIN && <InactivityLogoutGuard />}
       <Outlet />
     </>
   );
