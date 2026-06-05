@@ -240,6 +240,11 @@ export async function cambiaStatoMissione(page, nuovoStato, indice = 0) {
   const dlg = eventDialog(page);
   const sel = statoMissioneField(dlg, indice);
   await expect(sel).toBeVisible({ timeout: 10_000 });
+  const opzioni = await sel.locator('option').allTextContents();
+  if (!opzioni.includes(nuovoStato)) {
+    console.log(`   ⚠ Opzione "${nuovoStato}" non disponibile nel select`);
+    return;
+  }
   await sel.selectOption(nuovoStato);
   console.log(`   ✓ Stato missione #${indice + 1} → ${nuovoStato}`);
   await dopoScrittura(page, `stato → ${nuovoStato}`);

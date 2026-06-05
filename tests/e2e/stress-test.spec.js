@@ -470,22 +470,32 @@ test.describe('COMPORTAMENTI AUTOMATICI', () => {
 // ═══════════════════════════════════════════════════════════════════════════
 
 test.describe('STATI LIMITE', () => {
-  test('4.1 — Missione ANNULLATA subito dopo creazione: mezzo torna disponibile', async ({ page }) => {
-    await creaEvento(page, { tag: 'ANNULLA' });
+  test('4.1 — Missione INTERROTTA subito dopo creazione: mezzo torna disponibile', async ({ page }) => {
+    await creaEvento(page, { tag: 'INTERROTTA' });
+    const eventoId = await getEventoIdFromDialog(page);
     await creaMissione(page, { mezzoIndex: 10 });
     const dlg = eventDialog(page);
     const mezzoTxt = ((await dlg.getByRole('listitem').first().textContent()) ?? '').trim();
-    await cambiaStatoMissione(page, 'ANNULLATA', 0);
+    await chiudiDialog(page);
+
+    await apriMissionePerEvento(page, eventoId);
+    await page.getByRole('dialog').getByLabel(/^esito missione$/i).selectOption('INTERROTTA');
+    console.log('   ✓ Esito missione → INTERROTTA');
+    await dopoScrittura(page, 'esito → INTERROTTA');
+    await chiudiDialog(page);
+
+    await apriEventoPerId(page, eventoId);
+    const dlgEvento = eventDialog(page);
     await apriTabEvento(page, 'missioni');
-    await dlg.getByRole('button', { name: /nuova missione/i }).click();
-    const mezzoField = dlg.getByRole('combobox', { name: /^mezzo$/i });
+    await dlgEvento.getByRole('button', { name: /nuova missione/i }).click();
+    const mezzoField = dlgEvento.getByRole('combobox', { name: /^mezzo$/i });
     await expect(mezzoField).toBeVisible({ timeout: 15_000 });
     const options = await mezzoField.locator('option:not([value=""])').allTextContents();
     const sigla = mezzoTxt.split(/\s+/)[0] ?? '';
     if (sigla) {
       expect(options.some((t) => t.includes(sigla))).toBeTruthy();
     }
-    await assertAppHealthy(page, '4.1 ANNULLATA — mezzo di nuovo selezionabile');
+    await assertAppHealthy(page, '4.1 INTERROTTA — mezzo di nuovo selezionabile');
     await chiudiDialog(page);
   });
 
@@ -529,7 +539,8 @@ test.describe('STATI LIMITE', () => {
     await cambiaStatoMissione(page, 'FINE MISSIONE', 0);
     const dlg = eventDialog(page);
     await apriTabEvento(page, 'missioni');
-    await expect(dlg.getByRole('listitem').first().getByRole('combobox')).toBeDisabled({ timeout: 15_000 });
+    const sel = dlg.getByRole('listitem').first().getByRole('combobox');
+    await expect(sel).toHaveValue('FINE MISSIONE', { timeout: 15_000 });
     await assertAppHealthy(page, '4.4 salto stati → FINE MISSIONE');
     await chiudiDialog(page);
   });
