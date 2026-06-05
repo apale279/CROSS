@@ -38,8 +38,89 @@ describe('buildGranularUpdatesFromSnapshot', () => {
     const updates = buildGranularUpdatesFromSnapshot(snap, {
       direct: {},
       eoMerges: [],
-      arrayMerges: [{ field: 'prestazioni_sel', value: ['B', 'C'] }],
+      arrayMerges: [{ field: 'prestazioni_sel', value: ['B', 'C'], removeIds: [] }],
     });
     expect(updates['pmaScheda.prestazioni_sel']).toEqual(['A', 'B', 'C']);
+  });
+
+  it('farmaci: snapshot stale non cancella righe server', () => {
+    const snap = {
+      pmaScheda: {
+        farmaci: [
+          { id: '1', nome: 'A' },
+          { id: '2', nome: 'B' },
+        ],
+      },
+    };
+    const updates = buildGranularUpdatesFromSnapshot(snap, {
+      direct: {},
+      eoMerges: [],
+      arrayMerges: [{ field: 'farmaci', value: [{ id: '1', nome: 'A*' }], removeIds: [] }],
+    });
+    expect(updates['pmaScheda.farmaci']).toEqual([
+      { id: '1', nome: 'A*' },
+      { id: '2', nome: 'B' },
+    ]);
+  });
+
+  it('farmaci: PC B aggiunge solo nuova riga (delta) senza perdere PC A', () => {
+    const snap = {
+      pmaScheda: {
+        farmaci: [{ id: 'a', nome: 'Paracetamolo', dose: '1g' }],
+      },
+    };
+    const updates = buildGranularUpdatesFromSnapshot(snap, {
+      direct: {},
+      eoMerges: [],
+      arrayMerges: [
+        {
+          field: 'farmaci',
+          value: [{ id: 'b', nome: 'Ibuprofene', dose: '400mg', via: 'OS' }],
+          removeIds: [],
+        },
+      ],
+    });
+    expect(updates['pmaScheda.farmaci']).toEqual([
+      { id: 'a', nome: 'Paracetamolo', dose: '1g' },
+      { id: 'b', nome: 'Ibuprofene', dose: '400mg', via: 'OS' },
+    ]);
+  });
+
+  it('parametri_vitali: append concorrente da secondo operatore', () => {
+    const snap = {
+      pmaScheda: {
+        parametri_vitali: [{ id: 'pv1', fc: 80, operatore_nome: 'Op A' }],
+      },
+    };
+    const updates = buildGranularUpdatesFromSnapshot(snap, {
+      direct: {},
+      eoMerges: [],
+      arrayMerges: [
+        {
+          field: 'parametri_vitali',
+          value: [{ id: 'pv2', fc: 90, operatore_nome: 'Op B' }],
+          removeIds: [],
+        },
+      ],
+    });
+    expect(updates['pmaScheda.parametri_vitali']).toHaveLength(2);
+    expect(updates['pmaScheda.parametri_vitali'].map((r) => r.id).sort()).toEqual(['pv1', 'pv2']);
+  });
+
+  it('rimozione solo con removeIds (nessun array client stale)', () => {
+    const snap = {
+      pmaScheda: {
+        farmaci: [
+          { id: '1', nome: 'A' },
+          { id: '2', nome: 'B' },
+        ],
+      },
+    };
+    const updates = buildGranularUpdatesFromSnapshot(snap, {
+      direct: {},
+      eoMerges: [],
+      arrayMerges: [{ field: 'farmaci', value: [], removeIds: ['2'] }],
+    });
+    expect(updates['pmaScheda.farmaci']).toEqual([{ id: '1', nome: 'A' }]);
   });
 });

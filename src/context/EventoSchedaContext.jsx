@@ -63,6 +63,11 @@ export function EventoSchedaProvider({ children }) {
       }
       const found = findEvento(eventi, eventoOrId);
       if (found) setModal({ evento: found });
+      else {
+        alert(
+          'Evento non trovato nell\'elenco corrente. Attendi il caricamento dei dati o verifica che non sia stato eliminato.',
+        );
+      }
     },
     [eventi],
   );
@@ -88,6 +93,7 @@ export function EventoSchedaProvider({ children }) {
       {modal && (
         <Modal title={title} onClose={closeModal} scheda>
           <EventoScheda
+            key={eventoLive?._docId ?? 'nuovo'}
             evento={eventoLive}
             missioni={missioni}
             pazienti={pazienti}

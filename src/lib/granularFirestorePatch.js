@@ -18,7 +18,7 @@ const MEZZO_FLATTEN_OBJECT_FIELDS = new Set(['equipaggio', 'stazionamento']);
 
 export function assertPazientePatchGranular(fields) {
   for (const key of Object.keys(fields ?? {})) {
-    if (PAZIENTE_NESTED_OBJECT_FIELDS.has(key)) {
+    if (PAZIENTE_NESTED_OBJECT_FIELDS.has(key) || key.startsWith('pmaScheda.')) {
       throw new Error(
         `Salvataggio intero di «${key}» non consentito sul paziente: usare patchPazientePmaGranular o API puntate.`,
       );

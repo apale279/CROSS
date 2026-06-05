@@ -107,6 +107,14 @@ export function notifyTelegramMissioneEliminataFromCentrale(manifestationId, mis
   );
 }
 
+/** Come sopra, ma attendibile prima di cancellare il documento missione. */
+export async function awaitNotifyTelegramMissioneEliminataFromCentrale(
+  manifestationId,
+  missionDocId,
+) {
+  await postTelegramNotifyStato(manifestationId, missionDocId, { eliminata: true });
+}
+
 export async function fetchTelegramLoggedUsers(manifestationId) {
   const headers = await authHeaders();
   const id = (manifestationId ?? '').trim();

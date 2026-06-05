@@ -26,11 +26,11 @@ const LABEL_MOTIVO = {
 export function MissioneEccezioniPanel({
   manifestationId,
   missione,
-  eventi,
-  mezzi,
+  eventi = [],
+  mezzi = [],
   pazienti = [],
   allMissioni,
-  existingEventi,
+  existingEventi = [],
 }) {
   const { impostazioni } = useImpostazioni();
   const { user, profile } = useAuth();

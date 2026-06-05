@@ -13,6 +13,11 @@ import { datetimeLocalToTimestamp, toDatetimeLocal } from '@pma/lib/schedaDateti
 import { registerPmaFarmacoUsato } from '@pma/lib/registerPmaFarmacoUsato'
 import { defaultFarmaciConsumatiCatalog } from '@pma/lib/farmaciCatalogoSeed'
 import { FarmacoNomeDoseFields } from './FarmacoNomeDoseFields'
+import { FarmacoNomeSuggestInput } from '../../../components/pazienti/FarmacoNomeSuggestInput'
+import {
+  findCatalogEntryByNome,
+  type PmaFarmacoCatalogoEntry,
+} from '@pma/types/farmaciCatalogo'
 import { btnPrimary, btnSecondary } from '@pma/cross/uiTokens'
 import { db } from '@pma/cross/firebase'
 import { cloudinaryUnsignedUpload } from '@pma/lib/cloudinaryUnsignedUpload'
@@ -33,7 +38,10 @@ import {
 } from '@pma/lib/eoPazienteFields'
 import { defaultEoLabelForColumn, eoColumnMergePatchPayload } from '@pma/lib/eoQuickSelection'
 import { canInsertFarmaci, type UserRank } from '@pma/lib/rankMatrix'
-import { ensurePmaSchedaEoDefaultsIfEmpty } from '@pma/lib/pazientePmaPatch'
+import {
+  appendPmaSchedaArrayRow,
+  ensurePmaSchedaEoDefaultsIfEmpty,
+} from '@pma/lib/pazientePmaPatch'
 import type {
   FarmacoSomministrato,
   FarmacoVia,
@@ -52,6 +60,7 @@ import {
   PmaMobileSheetHeader,
 } from './PmaMobileSheet'
 import { emptyParametroVitaleDraft } from '@pma/lib/emptyParametroVitale'
+import { newLocalId } from '../../../lib/ids'
 import { parseVitalNumericInput, vitalInputValue } from '../../../lib/vitalNumeric'
 
 function allergieVerificaButtonClass(selected: boolean, k: AllergieVerificaStato): string {
@@ -87,7 +96,7 @@ function sortFarmaciChronoAsc(rows: FarmacoSomministrato[]) {
 
 function emptyFarmacoDraft(operatoreNome: string): FarmacoSomministrato {
   return {
-    id: crypto.randomUUID(),
+    id: newLocalId(),
     nome: '',
     dose: '',
     via: 'EV',
@@ -518,9 +527,77 @@ const FARM_CELL =
 
 /** Stessa scala/stile degli input PV in riga: farmaco → dose → via → orario → utente. */
 const FARM_IN_ROW = `${PV_IN_ROW} text-left text-sm font-semibold normal-case`
+const FARM_DOSE_CUSTOM = '__custom__'
+
+function FarmacoDoseField({
+  catalog,
+  row,
+  nome,
+  dose,
+  canEdit,
+  onPatch,
+  className,
+}: {
+  catalog: PmaFarmacoCatalogoEntry[]
+  row: FarmacoSomministrato
+  nome: string
+  dose: string
+  canEdit: boolean
+  onPatch: (id: string, next: FarmacoSomministrato) => void
+  className: string
+}) {
+  const matched = useMemo(() => findCatalogEntryByNome(catalog, nome), [catalog, nome])
+  const doseOptions = matched?.dosaggi ?? []
+  const doseSelectValue =
+    dose && doseOptions.includes(dose) ? dose : doseOptions.length > 0 ? FARM_DOSE_CUSTOM : FARM_DOSE_CUSTOM
+
+  if (!canEdit) {
+    return (
+      <div className={`${className} flex min-h-[2rem] items-center px-0.5`} title={dose}>
+        {dose || '—'}
+      </div>
+    )
+  }
+
+  return (
+    <div className="min-w-0 space-y-1">
+      {doseOptions.length > 0 ? (
+        <select
+          value={doseSelectValue}
+          onChange={(e) => {
+            const v = e.target.value
+            if (v === FARM_DOSE_CUSTOM) {
+              if (doseOptions.includes(dose)) onPatch(row.id, { ...row, dose: '' })
+              return
+            }
+            onPatch(row.id, { ...row, dose: v })
+          }}
+          className={`${className} px-0`}
+        >
+          <option value={FARM_DOSE_CUSTOM}>— Altro —</option>
+          {doseOptions.map((d) => (
+            <option key={d} value={d}>
+              {d}
+            </option>
+          ))}
+        </select>
+      ) : null}
+      {doseOptions.length === 0 || doseSelectValue === FARM_DOSE_CUSTOM ? (
+        <input
+          type="text"
+          value={dose}
+          onChange={(e) => onPatch(row.id, { ...row, dose: e.target.value })}
+          className={className}
+          placeholder="Dose…"
+        />
+      ) : null}
+    </div>
+  )
+}
 
 function FarmacoRow({
   row,
+  catalog,
   canEditFarmaci,
   onPatch,
   onRemove,
@@ -528,6 +605,7 @@ function FarmacoRow({
   variant = 'block',
 }: {
   row: FarmacoSomministrato
+  catalog: PmaFarmacoCatalogoEntry[]
   canEditFarmaci: boolean
   onPatch: (id: string, next: FarmacoSomministrato) => void
   onRemove: (id: string) => void
@@ -535,6 +613,34 @@ function FarmacoRow({
   layout?: 'row' | 'stack'
   variant?: 'block' | 'tableRow'
 }) {
+  const [nomeDraft, setNomeDraft] = useState(row.nome)
+  const [doseDraft, setDoseDraft] = useState(row.dose)
+
+  useEffect(() => {
+    setNomeDraft(row.nome)
+    setDoseDraft(row.dose)
+  }, [row.id, row.nome, row.dose])
+
+  const commitNomeDraft = useCallback(() => {
+    const n = nomeDraft.trim()
+    if (!n) return
+    if (n !== row.nome || doseDraft !== row.dose) {
+      onPatch(row.id, { ...row, nome: n, dose: doseDraft })
+    }
+  }, [nomeDraft, doseDraft, row, onPatch])
+
+  const onNomeDraftChange = useCallback(
+    (value: string) => {
+      setNomeDraft(value)
+      const entry = findCatalogEntryByNome(catalog, value)
+      if (!entry) return
+      const nextDose = entry.dosaggi.length === 1 ? entry.dosaggi[0] : doseDraft
+      if (entry.dosaggi.length === 1) setDoseDraft(entry.dosaggi[0])
+      onPatch(row.id, { ...row, nome: entry.nome, dose: nextDose })
+    },
+    [catalog, doseDraft, row, onPatch],
+  )
+
   const utente = (row.inserito_da_nome ?? '').trim() || '—'
   const rowWrap =
     layout === 'stack'
@@ -552,15 +658,12 @@ function FarmacoRow({
         <td className="border border-slate-200 p-1 align-middle">
           <div className="min-w-0">
             {canEditFarmaci ? (
-              <input
-                type="text"
-                defaultValue={row.nome}
-                onBlur={(e) => {
-                  const n = e.target.value.trim()
-                  if (!n) return
-                  if (n !== row.nome) onPatch(row.id, { ...row, nome: n })
-                }}
-                className={FARM_IN_ROW}
+              <FarmacoNomeSuggestInput
+                catalog={catalog}
+                value={nomeDraft}
+                onChange={onNomeDraftChange}
+                onBlur={commitNomeDraft}
+                inputClassName={FARM_IN_ROW}
               />
             ) : (
               <div className={`${FARM_IN_ROW} flex min-h-[2rem] items-center px-0.5`} title={row.nome}>
@@ -571,11 +674,16 @@ function FarmacoRow({
         </td>
         <td className="border border-slate-200 p-1 align-middle">
           <div className="min-w-0">
-            <input
-              type="text"
-              disabled={!canEditFarmaci}
-              defaultValue={row.dose}
-              onBlur={(e) => onPatch(row.id, { ...row, dose: e.target.value })}
+            <FarmacoDoseField
+              catalog={catalog}
+              row={row}
+              nome={nomeDraft}
+              dose={doseDraft}
+              canEdit={canEditFarmaci}
+              onPatch={(id, next) => {
+                setDoseDraft(next.dose)
+                onPatch(id, next)
+              }}
               className={FARM_IN_ROW}
             />
           </div>
@@ -648,15 +756,12 @@ function FarmacoRow({
       <div className={rowWrap}>
         <div className={`${FARM_CELL} ${nomeBox}`}>
           {canEditFarmaci ? (
-            <input
-              type="text"
-              defaultValue={row.nome}
-              onBlur={(e) => {
-                const n = e.target.value.trim()
-                if (!n) return
-                if (n !== row.nome) onPatch(row.id, { ...row, nome: n })
-              }}
-              className={FARM_IN_ROW}
+            <FarmacoNomeSuggestInput
+              catalog={catalog}
+              value={nomeDraft}
+              onChange={onNomeDraftChange}
+              onBlur={commitNomeDraft}
+              inputClassName={FARM_IN_ROW}
             />
           ) : (
             <div className={`${FARM_IN_ROW} flex min-h-[2rem] items-center px-0.5`} title={row.nome}>
@@ -665,11 +770,16 @@ function FarmacoRow({
           )}
         </div>
         <div className={`${FARM_CELL} ${doseBox}`}>
-          <input
-            type="text"
-            disabled={!canEditFarmaci}
-            defaultValue={row.dose}
-            onBlur={(e) => onPatch(row.id, { ...row, dose: e.target.value })}
+          <FarmacoDoseField
+            catalog={catalog}
+            row={row}
+            nome={nomeDraft}
+            dose={doseDraft}
+            canEdit={canEditFarmaci}
+            onPatch={(id, next) => {
+              setDoseDraft(next.dose)
+              onPatch(id, next)
+            }}
             className={FARM_IN_ROW}
           />
         </div>
@@ -830,13 +940,18 @@ export function CartellaClinicaSection({
     [write, eoQuickGroups],
   )
 
-  const canEditFarmaci = Boolean(
-    canEdit && user && canInsertFarmaci((user.rank ?? 'Soccorritore') as UserRank),
-  )
+  const userRank = (user?.rank ?? null) as UserRank | null
+  const canEditFarmaciRank = Boolean(userRank && canInsertFarmaci(userRank))
+  const canEditFarmaci = Boolean(canEdit && canEditFarmaciRank)
 
   const bloccoVerificaAllergie = Boolean(canEdit && !p.allergie_verifica)
   const schedaClinicalEdit = Boolean(canEdit && !bloccoVerificaAllergie)
   const farmaciEdit = Boolean(canEditFarmaci && schedaClinicalEdit)
+
+  const farmaciRankBlocked = Boolean(canEdit && schedaClinicalEdit && user && !canEditFarmaciRank)
+  const schedaReadonlyHint = Boolean(
+    canEdit === false && user,
+  )
 
   const canEditRivalutazioniEsistenti = Boolean(canEdit && user?.rank === 'Medico')
 
@@ -849,46 +964,46 @@ export function CartellaClinicaSection({
       const row = p.parametri_vitali.find((r) => r.id === id)
       if (!row) return
       const next: ParametroVitaleRilevazione = { ...row, ...partial }
-      void write({
-        parametri_vitali: p.parametri_vitali.map((r) => (r.id === id ? next : r)),
-      })
+      void write({ parametri_vitali: [next] })
     },
     [p.parametri_vitali, write],
   )
 
   const removePv = useCallback(
     (id: string) => {
-      void write({ parametri_vitali: p.parametri_vitali.filter((r) => r.id !== id) })
+      void write({ _pmaArrayRemove: { parametri_vitali: [id] } })
     },
-    [p.parametri_vitali, write],
+    [write],
   )
 
   const patchFarmaco = useCallback(
     (id: string, next: FarmacoSomministrato) => {
-      void write({
-        farmaci: p.farmaci.map((f) => (f.id === id ? next : f)),
-      })
+      void write({ farmaci: [next] })
       const nome = next.nome.trim()
       if (nome) {
         void registerFarmacoInImpostazioni(nome, next.dose.trim(), next.via)
       }
     },
-    [p.farmaci, write, registerFarmacoInImpostazioni],
+    [write, registerFarmacoInImpostazioni],
   )
 
   const removeFarmaco = useCallback(
     (id: string) => {
-      void write({ farmaci: p.farmaci.filter((f) => f.id !== id) })
+      void write({ _pmaArrayRemove: { farmaci: [id] } })
     },
-    [p.farmaci, write],
+    [write],
   )
 
   const togglePrestazione = useCallback(
     (label: string) => {
       const set = new Set(p.prestazioni_sel)
-      if (set.has(label)) set.delete(label)
+      const removing = set.has(label)
+      if (removing) set.delete(label)
       else set.add(label)
-      void write({ prestazioni_sel: Array.from(set) })
+      void write({
+        prestazioni_sel: Array.from(set),
+        ...(removing ? { _pmaArrayRemove: { prestazioni_sel: [label] } } : {}),
+      })
     },
     [p.prestazioni_sel, write],
   )
@@ -915,7 +1030,7 @@ export function CartellaClinicaSection({
     if (!schedaClinicalEdit) return
     setPvDraft({
       ...emptyParametroVitaleDraft((user?.nome ?? '').trim() || '—'),
-      id: `pv-local-${crypto.randomUUID()}`,
+      id: `pv-local-${newLocalId()}`,
     })
     setPvModalOpen(true)
   }, [schedaClinicalEdit, user?.nome])
@@ -924,11 +1039,11 @@ export function CartellaClinicaSection({
     if (!schedaClinicalEdit || !pvDraft) return
     const nuovo: ParametroVitaleRilevazione = {
       ...pvDraft,
-      id: crypto.randomUUID(),
+      id: newLocalId(),
     }
-    await write({ parametri_vitali: [...(p.parametri_vitali ?? []), nuovo] })
+    await appendPmaSchedaArrayRow(p.id_manifestazione, pazienteId, 'parametri_vitali', nuovo)
     closePvModal()
-  }, [schedaClinicalEdit, pvDraft, write, closePvModal])
+  }, [schedaClinicalEdit, pvDraft, p.id_manifestazione, pazienteId, closePvModal])
 
   async function salvaFarmacoModal() {
     if (!canEditFarmaci) return
@@ -937,14 +1052,14 @@ export function CartellaClinicaSection({
     const ts = datetimeLocalToTimestamp(farmModalTs) ?? Timestamp.now()
     const ins = (user?.nome ?? '').trim() || '—'
     const nuovo: FarmacoSomministrato = {
-      id: crypto.randomUUID(),
+      id: newLocalId(),
       nome,
       dose: farmModalDose.trim(),
       via: farmModalVia,
       registrato_at: ts,
       inserito_da_nome: ins,
     }
-    await write({ farmaci: [...(p.farmaci ?? []), nuovo] })
+    await appendPmaSchedaArrayRow(p.id_manifestazione, pazienteId, 'farmaci', nuovo)
     await registerFarmacoInImpostazioni(nome, farmModalDose.trim(), farmModalVia)
     setFarmModalOpen(false)
     setFarmModalDose('')
@@ -962,15 +1077,27 @@ export function CartellaClinicaSection({
   }, [])
 
   async function aggiungiFarmaco() {
-    if (!farmaciEdit) return
+    if (!farmaciEdit || !p.id_manifestazione || !pazienteId) return
     const nuovo = emptyFarmacoDraft((user?.nome ?? '').trim() || '—')
-    await write({ farmaci: [...(p.farmaci ?? []), nuovo] })
+    try {
+      await appendPmaSchedaArrayRow(p.id_manifestazione, pazienteId, 'farmaci', nuovo)
+    } catch (err) {
+      window.alert(
+        err instanceof Error ? err.message : 'Impossibile aggiungere il farmaco. Riprova.',
+      )
+    }
   }
 
   async function aggiungiPv() {
-    if (!schedaClinicalEdit) return
+    if (!schedaClinicalEdit || !p.id_manifestazione || !pazienteId) return
     const nuovo = emptyParametroVitaleDraft((user?.nome ?? '').trim() || '—')
-    await write({ parametri_vitali: [...(p.parametri_vitali ?? []), nuovo] })
+    try {
+      await appendPmaSchedaArrayRow(p.id_manifestazione, pazienteId, 'parametri_vitali', nuovo)
+    } catch (err) {
+      window.alert(
+        err instanceof Error ? err.message : 'Impossibile aggiungere i parametri vitali. Riprova.',
+      )
+    }
   }
 
   async function importaPresetFarmaciPack(packIdx: number) {
@@ -984,7 +1111,7 @@ export function CartellaClinicaSection({
       const nome = row.nome.trim()
       if (!nome) continue
       nuovi.push({
-        id: crypto.randomUUID(),
+        id: newLocalId(),
         nome,
         dose: row.dose.trim(),
         via: row.via,
@@ -993,7 +1120,9 @@ export function CartellaClinicaSection({
       })
     }
     if (nuovi.length === 0) return
-    await write({ farmaci: [...(p.farmaci ?? []), ...nuovi] })
+    for (const row of nuovi) {
+      await appendPmaSchedaArrayRow(p.id_manifestazione, pazienteId, 'farmaci', row)
+    }
     for (const n of nuovi) {
       await registerFarmacoInImpostazioni(n.nome, n.dose, n.via)
     }
@@ -1003,25 +1132,21 @@ export function CartellaClinicaSection({
     if (!canEdit || !user) return
     const t = rivDraft.trim()
     if (!t) return
-    await write({
-      rivalutazioni: [
-        ...(p.rivalutazioni ?? []),
-        {
-          id: crypto.randomUUID(),
-          testo: t,
-          creato_at: Timestamp.now(),
-          firma_uid: user.uid,
-          firma_nome: user.nome,
-        },
-      ],
+    await appendPmaSchedaArrayRow(p.id_manifestazione, pazienteId, 'rivalutazioni', {
+      id: newLocalId(),
+      testo: t,
+      creato_at: Timestamp.now(),
+      firma_uid: user.uid,
+      firma_nome: user.nome,
     })
     setRivDraft('')
   }
 
   const patchRivalutazioneTesto = useCallback(
     (id: string, testo: string) => {
-      const next = p.rivalutazioni.map((r) => (r.id === id ? { ...r, testo } : r))
-      void write({ rivalutazioni: next })
+      const row = p.rivalutazioni.find((r) => r.id === id)
+      if (!row) return
+      void write({ rivalutazioni: [{ ...row, testo }] })
     },
     [p.rivalutazioni, write],
   )
@@ -1180,7 +1305,22 @@ export function CartellaClinicaSection({
                     <LesioniBodyMap
                       lesioni={p.lesioni}
                       disabled={!schedaClinicalEdit}
-                      onLesioniChange={(next) => void write({ lesioni: next })}
+                      onLesioniChange={(next, meta) => {
+                        if (meta?.removeLesioneN != null) {
+                          void write({ _pmaArrayRemove: { lesioni: [meta.removeLesioneN] } })
+                          return
+                        }
+                        const added = next.find((l) => !p.lesioni.some((prev) => prev.n === l.n))
+                        if (added) {
+                          void write({ lesioni: [added] })
+                          return
+                        }
+                        const changed = next.find((l) => {
+                          const prev = p.lesioni.find((x) => x.n === l.n)
+                          return prev && prev.descrizione !== l.descrizione
+                        })
+                        if (changed) void write({ lesioni: [changed] })
+                      }}
                     />
                   </div>
                 </PmaFieldGuard>
@@ -1195,6 +1335,12 @@ export function CartellaClinicaSection({
               Parametri vitali
             </div>
             <div className="space-y-0">
+          {schedaReadonlyHint && bloccoVerificaAllergie ? null : schedaReadonlyHint ? (
+            <p className="mx-auto mt-2 max-w-md text-center text-xs font-semibold text-amber-800">
+              Scheda in sola lettura per il tuo account. Verifica: paziente <strong>in carico</strong> al
+              PMA, accesso da tenda (/pma) o sblocco scheda in centrale.
+            </p>
+          ) : null}
           {schedaClinicalEdit ? (
             <button
               type="button"
@@ -1406,6 +1552,12 @@ export function CartellaClinicaSection({
               Farmaci
             </div>
             <div className="space-y-0">
+            {farmaciRankBlocked ? (
+              <p className="mx-auto mt-2 max-w-md text-center text-xs font-semibold text-amber-800">
+                Il tuo account ({userRank ?? 'ruolo non configurato'}) non può inserire farmaci.
+                Serve ruolo Medico o Infermiere in Impostazioni → Account utenti (campo pmaRank).
+              </p>
+            ) : null}
             {farmaciEdit ? (
               <button
                 type="button"
@@ -1447,6 +1599,7 @@ export function CartellaClinicaSection({
                         key={row.id}
                         variant="tableRow"
                         row={row}
+                        catalog={farmaciCatalogo}
                         canEditFarmaci={farmaciEdit}
                         onPatch={patchFarmaco}
                         onRemove={removeFarmaco}

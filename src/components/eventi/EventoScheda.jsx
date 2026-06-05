@@ -12,6 +12,7 @@ import {
   closeEventoForzato,
   createEvento,
   deleteEvento,
+  fetchMissioniCollegateEvento,
   patchEvento,
   riapriEventoOperatore,
   terminaEventoOperatore,
@@ -99,10 +100,13 @@ export function EventoScheda({
   const [reopening, setReopening] = useState(false);
   const missioneFormError = useStickyAlertMessage();
   const appliedInitialTabRef = useRef(false);
+  const syncedEventoDocIdRef = useRef(null);
+  const patchEventoChainRef = useRef(Promise.resolve());
 
   useEffect(() => {
     if (isCreate) {
       appliedInitialTabRef.current = false;
+      syncedEventoDocIdRef.current = null;
       setTab('dettaglio');
       setDraft({
         ...emptyValues(),
@@ -110,6 +114,10 @@ export function EventoScheda({
       });
       return;
     }
+    const docId = evento?._docId;
+    if (!docId || syncedEventoDocIdRef.current === docId) return;
+    syncedEventoDocIdRef.current = docId;
+    patchEventoChainRef.current = Promise.resolve();
     setDraft({
       chiamante: evento.chiamante ?? '',
       tipoEvento: evento.tipoEvento ?? '',
@@ -127,6 +135,11 @@ export function EventoScheda({
     setChiusuraStandDown(false);
     setShowCloseForm(false);
   }, [evento, isCreate, impostazioni.tipiEvento]);
+
+  useEffect(() => {
+    if (isCreate) return;
+    appliedInitialTabRef.current = false;
+  }, [evento?._docId, isCreate]);
 
   useEffect(() => {
     if (isCreate || !initialTab || appliedInitialTabRef.current) return;
@@ -150,6 +163,13 @@ export function EventoScheda({
   const eventoTerminato = !isCreate && evento.operativoTerminato === true && evento.stato !== false;
   /** Dettaglio evento e nuove missioni solo in fase operativa attiva. */
   const eventoModificabile = eventoAperto && !eventoTerminato;
+  /** Evento completo su Firestore (evita missioni su stub in attesa di sync). */
+  const eventoProntoPerOperazioni =
+    isCreate ||
+    (String(evento?.idEvento ?? '').trim() !== '' &&
+      String(evento?.idUnivoco ?? '').trim() !== '' &&
+      evento?.apertura != null);
+  const eventoModificabileMissioni = eventoModificabile && eventoProntoPerOperazioni;
   /** Pazienti registrabili finché l'evento non è chiuso/archiviato (anche se operativo terminato). */
   const eventoAccettaNuoviPazienti = eventoAperto;
 
@@ -181,11 +201,17 @@ export function EventoScheda({
   }, [readOnly, isCreate, evento, missioniEvento, pazientiEvento, manifestazioneId]);
 
   const patch = (fields) => {
-    if (isCreate) {
-      setDraft((d) => ({ ...d, ...fields }));
-      return;
-    }
-    patchEvento(manifestazioneId, evento._docId, fields);
+    setDraft((d) => ({ ...d, ...fields }));
+    if (isCreate) return;
+    const docId = evento._docId;
+    patchEventoChainRef.current = patchEventoChainRef.current
+      .then(() => patchEvento(manifestazioneId, docId, fields))
+      .catch((err) => {
+        console.error('[EventoScheda] patch evento:', err);
+        alert(
+          `Salvataggio evento non riuscito: ${err instanceof Error ? err.message : String(err)}`,
+        );
+      });
   };
 
   const onEventoAperturaBlur = async (value) => {
@@ -211,15 +237,25 @@ export function EventoScheda({
         return;
       }
     }
-    await patchEvento(manifestazioneId, evento._docId, { apertura: Timestamp.fromDate(date) });
+    try {
+      await patchEvento(manifestazioneId, evento._docId, { apertura: Timestamp.fromDate(date) });
+    } catch (err) {
+      alert('Errore: ' + (err instanceof Error ? err.message : String(err)));
+    }
   };
 
   const commitLocation = (loc) => {
-    if (isCreate) {
-      setDraft((d) => ({ ...d, ...loc }));
-      return;
-    }
-    patchEvento(manifestazioneId, evento._docId, loc);
+    setDraft((d) => ({ ...d, ...loc }));
+    if (isCreate) return;
+    const docId = evento._docId;
+    patchEventoChainRef.current = patchEventoChainRef.current
+      .then(() => patchEvento(manifestazioneId, docId, loc))
+      .catch((err) => {
+        console.error('[EventoScheda] commit location:', err);
+        alert(
+          `Salvataggio posizione non riuscito: ${err instanceof Error ? err.message : String(err)}`,
+        );
+      });
   };
 
   const handleCreaEvento = async () => {
@@ -233,7 +269,7 @@ export function EventoScheda({
       setTab('missioni');
       onCreated?.(result);
     } catch (err) {
-      alert('Errore: ' + err.message);
+      alert('Errore: ' + (err instanceof Error ? err.message : String(err)));
     } finally {
       setSaving(false);
     }
@@ -241,6 +277,12 @@ export function EventoScheda({
 
   const handleNuovaMissione = async (e) => {
     e.preventDefault();
+    if (!eventoProntoPerOperazioni) {
+      missioneFormError.show(
+        'Evento in sincronizzazione. Attendi qualche secondo oppure chiudi e riapri la scheda dall\'elenco eventi.',
+      );
+      return;
+    }
     if (!missioneForm.mezzo) return;
     const mezzo = findMezzoBySigla(mezzi, missioneForm.mezzo);
     setSaving(true);
@@ -307,7 +349,14 @@ export function EventoScheda({
   };
 
   const handleTerminaEventoSempreAperto = async () => {
-    const missioniAperte = missioniEvento.filter(
+    let missioniFresh;
+    try {
+      missioniFresh = await fetchMissioniCollegateEvento(manifestazioneId, evento._docId);
+    } catch (err) {
+      alert('Errore: ' + (err instanceof Error ? err.message : String(err)));
+      return;
+    }
+    const missioniAperte = missioniFresh.filter(
       (m) =>
         m.aperta !== false &&
         m.stato !== 'FINE MISSIONE' &&
@@ -319,7 +368,7 @@ export function EventoScheda({
         : `Archiviare l'evento ${evento.idEvento}? Non sarà più visibile in dashboard.`;
     if (!window.confirm(msg)) return;
 
-    const missioniDaChiudere = missioniEvento.filter(missioneRichiedeChiusuraSuEventoForzato);
+    const missioniDaChiudere = missioniFresh.filter(missioneRichiedeChiusuraSuEventoForzato);
     if (missioniDaChiudere.length) {
       const { proceed } = await resolveMissionPmaPatientsBeforeClose({
         manifestationId: manifestazioneId,
@@ -397,7 +446,7 @@ export function EventoScheda({
       setNoteChiusura('');
       setChiusuraStandDown(false);
     } catch (err) {
-      alert('Errore: ' + err.message);
+      alert('Errore: ' + (err instanceof Error ? err.message : String(err)));
     } finally {
       setClosing(false);
     }
@@ -532,7 +581,13 @@ export function EventoScheda({
 
       {!isCreate && tab === 'missioni' && (
         <div className="space-y-3">
-          {!readOnly && eventoModificabile && (
+          {!readOnly && eventoModificabile && !eventoProntoPerOperazioni && (
+            <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-950">
+              Sincronizzazione evento in corso… Attendi qualche secondo prima di creare missioni. Se
+              il messaggio resta, chiudi la scheda e riaprila dall&apos;elenco eventi.
+            </p>
+          )}
+          {!readOnly && eventoModificabileMissioni && (
             <button
               type="button"
               className={`${btnPrimary} flex items-center gap-2`}
@@ -542,7 +597,7 @@ export function EventoScheda({
               Nuova missione
             </button>
           )}
-          {!readOnly && showMissioneForm && eventoModificabile && (
+          {!readOnly && showMissioneForm && eventoModificabileMissioni && (
             <form
               onSubmit={handleNuovaMissione}
               className="rounded-lg border border-violet-200 bg-violet-50/50 p-4"
@@ -788,7 +843,7 @@ export function EventoScheda({
                   try {
                     await riapriEventoOperatore(manifestazioneId, evento._docId);
                   } catch (err) {
-                    alert('Errore: ' + err.message);
+                    alert('Errore: ' + (err instanceof Error ? err.message : String(err)));
                   } finally {
                     setReopening(false);
                   }
@@ -813,7 +868,7 @@ export function EventoScheda({
                   await terminaEventoOperatore(manifestazioneId, evento._docId);
                   onArchived?.();
                 } catch (err) {
-                  alert('Errore: ' + err.message);
+                  alert('Errore: ' + (err instanceof Error ? err.message : String(err)));
                 } finally {
                   setTerminating(false);
                 }

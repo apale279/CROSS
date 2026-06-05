@@ -1,7 +1,11 @@
 import { omitUndefinedFields } from '../../lib/firestorePatch';
 import { lockKeyForPmaSchedaField } from './pmaFieldLockKeys';
 import { mergeEoQuickColumnSelection } from './eoQuickSelection';
-import { mergeSchedaArrayById, mergeStringSelectionArray } from './pmaSchedaArrayMerge';
+import {
+  mergeLesioniByN,
+  mergeSchedaArrayById,
+  mergeStringSelectionArray,
+} from './pmaSchedaArrayMerge';
 
 const PMA_SCHEDA_PREFIX = 'pmaScheda.';
 
@@ -14,6 +18,20 @@ export function isFirestoreFieldValue(value) {
   );
 }
 
+function normalizeForCompare(value) {
+  if (value == null) return value;
+  if (typeof value.toMillis === 'function') return value.toMillis();
+  if (Array.isArray(value)) return value.map(normalizeForCompare);
+  if (typeof value === 'object') {
+    const out = {};
+    for (const key of Object.keys(value).sort()) {
+      out[key] = normalizeForCompare(value[key]);
+    }
+    return out;
+  }
+  return value;
+}
+
 /** Confronto valore client/server (evita write inutili). */
 export function valuesEqual(a, b) {
   if (a === b) return true;
@@ -23,7 +41,7 @@ export function valuesEqual(a, b) {
       return a.toMillis() === b.toMillis();
     }
     try {
-      return JSON.stringify(a) === JSON.stringify(b);
+      return JSON.stringify(normalizeForCompare(a)) === JSON.stringify(normalizeForCompare(b));
     } catch {
       return false;
     }
@@ -72,12 +90,15 @@ export function buildGranularUpdatesFromSnapshot(snapData, plan) {
     }
   }
 
-  for (const { field, value } of plan.arrayMerges ?? []) {
+  for (const { field, value, removeIds } of plan.arrayMerges ?? []) {
     const raw = scheda[field];
+    const removes = removeIds ?? [];
     const merged =
       field === 'prestazioni_sel'
-        ? mergeStringSelectionArray(raw, value)
-        : mergeSchedaArrayById(raw, value);
+        ? mergeStringSelectionArray(raw, value, removes)
+        : field === 'lesioni'
+          ? mergeLesioniByN(raw, value, removes)
+          : mergeSchedaArrayById(raw, value, removes);
     if (!valuesEqual(raw, merged)) {
       updates[`${PMA_SCHEDA_PREFIX}${field}`] = merged;
     }

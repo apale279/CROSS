@@ -6,11 +6,13 @@ import {
   canEquipaggioAvanzareStatoDaTelegram,
   isStatoMissioneTerminale,
   nextStatoMissione,
+  statiPercorsiAvanzamento,
 } from './missionStati.js';
 import { resolveMezzoSiglaForTelegram } from './mezzoResolve.js';
 import {
   applyArrivatoHPatchAdminTransaction,
   applyDirettoHPatchAdminTransaction,
+  ensureCodiceMinoreOnDestinazioneAdmin,
   initPmaSchedaIfMissingAdmin,
   pazienteEsclusoDaSyncMissioneAdmin,
 } from './pazienteMissionPmaAdmin.js';
@@ -250,8 +252,45 @@ async function syncPazientiPmaOnDirettoHAdmin(tenantId, missione) {
   for (const p of candidati) {
     if (pazienteEsclusoDaSyncMissioneAdmin(p)) continue;
     if (!String(p.destinazionePmaId ?? '').trim()) continue;
+    if (isPercorsoCodiceMinoreTrasportoAdmin(p)) {
+      await ensureCodiceMinoreOnDestinazioneAdmin(db, tenantId, p._docId, p);
+    }
     const evento = !p.pmaScheda ? await findEventoForPazienteAdmin(tenantId, p) : null;
     await applyDirettoHPatchAdminTransaction(db, tenantId, p._docId, evento, missione);
+  }
+}
+
+function isPercorsoCodiceMinoreTrasportoAdmin(paziente) {
+  if (!paziente) return false;
+  if (paziente.percorsoCodiceMinore === true) return true;
+  const tipo = String(paziente.tipoPz ?? '')
+    .trim()
+    .toUpperCase();
+  if (tipo !== 'CODICE MINORE') return false;
+  return Boolean(
+    String(paziente.eventoCorrelato ?? '').trim() ||
+      String(paziente.eventoIdUnivoco ?? '').trim() ||
+      String(paziente.mezzo ?? '').trim(),
+  );
+}
+
+const STATI_MEZZO_LIBERATO_ADMIN = new Set(['ARRIVATO H', 'RIENTRO', 'FINE MISSIONE', 'ANNULLATA']);
+
+async function applyMissioneStatoSideEffectsAdmin(tenantId, missione, stato, mezzoSigla) {
+  if (stato === 'DIRETTO H') {
+    await syncPazientiPmaOnDirettoHAdmin(tenantId, missione);
+  }
+  if (stato === 'ARRIVATO H') {
+    await syncPazientiArrivatoHAdmin(tenantId, missione);
+  }
+  if (STATI_MEZZO_LIBERATO_ADMIN.has(stato)) {
+    await syncStatoMezzoDopoMissioneAdmin(
+      tenantId,
+      mezzoSigla,
+      missione._docId,
+      stato,
+      missione.missioneEccezioneMotivo,
+    );
   }
 }
 
@@ -367,58 +406,75 @@ async function tryAutoCloseEventoAdmin(tenantId, eventoIdUnivoco, eventoCorrelat
  */
 export async function advanceMissioneStato(tenantId, missionDocId, expectedMezzo, options = {}) {
   const fromTelegram = options.fromTelegram === true;
-  const missione = await getMissioneById(tenantId, missionDocId);
-  if (!missione) return { ok: false, error: 'Missione non trovata' };
-  if (!normalizeMezzoKey(missione.mezzo) || normalizeMezzoKey(missione.mezzo) !== normalizeMezzoKey(expectedMezzo)) {
-    return { ok: false, error: 'Questa missione non è del tuo mezzo' };
-  }
-  if (missione.aperta === false || isStatoMissioneTerminale(missione.stato)) {
-    return { ok: false, error: 'Missione già chiusa', missione, terminal: true };
-  }
-
   const stati = await getStatiMissione(tenantId);
-  const precedente = missione.stato ?? 'ALLERTARE';
-  const nuovo = nextStatoMissione(precedente, stati);
-  if (nuovo === precedente) {
-    return { ok: false, error: 'Nessuno stato successivo disponibile', missione, terminal: true };
-  }
-  if (fromTelegram && !canEquipaggioAvanzareStatoDaTelegram(nuovo)) {
-    return {
-      ok: false,
-      error:
-        nuovo === 'ANNULLATA'
-          ? 'Annullamento missione solo da centrale operativa'
-          : 'Chiusura missione solo con stato FINE MISSIONE',
-      missione,
-    };
-  }
+  const db = getAdminDb();
+  const missionRef = missioniCol(tenantId).doc(missionDocId);
 
-  const fields = buildStatoChangeFields(missione, nuovo);
-  await missioniCol(tenantId).doc(missionDocId).update(fields);
+  const txResult = await db.runTransaction(async (transaction) => {
+    const snap = await transaction.get(missionRef);
+    if (!snap.exists) {
+      return { ok: false, error: 'Missione non trovata' };
+    }
+    const missione = { _docId: snap.id, ...snap.data() };
+    if (
+      !normalizeMezzoKey(missione.mezzo) ||
+      normalizeMezzoKey(missione.mezzo) !== normalizeMezzoKey(expectedMezzo)
+    ) {
+      return { ok: false, error: 'Questa missione non è del tuo mezzo' };
+    }
+    if (missione.aperta === false || isStatoMissioneTerminale(missione.stato)) {
+      return { ok: false, error: 'Missione già chiusa', missione, terminal: true };
+    }
 
+    const precedente = missione.stato ?? 'ALLERTARE';
+    const nuovo = nextStatoMissione(precedente, stati);
+    if (nuovo === precedente) {
+      return {
+        ok: false,
+        error: 'Nessuno stato successivo disponibile',
+        missione,
+        terminal: true,
+      };
+    }
+    if (fromTelegram && !canEquipaggioAvanzareStatoDaTelegram(nuovo)) {
+      return {
+        ok: false,
+        error:
+          nuovo === 'ANNULLATA'
+            ? 'Annullamento missione solo da centrale operativa'
+            : 'Chiusura missione solo con stato FINE MISSIONE',
+        missione,
+      };
+    }
+
+    const fields = buildStatoChangeFields(missione, nuovo);
+    transaction.update(missionRef, fields);
+    return { ok: true, precedente, nuovo, missione, fields };
+  });
+
+  if (!txResult.ok) return txResult;
+
+  const { precedente, nuovo, missione, fields } = txResult;
   const missioneAggiornata = { ...missione, ...fields, stato: nuovo };
+  const statiPercorso = statiPercorsiAvanzamento(precedente, nuovo, stati);
 
-  if (nuovo === 'ARRIVATO H') {
-    await syncPazientiArrivatoHAdmin(tenantId, missioneAggiornata);
+  for (const s of statiPercorso) {
+    try {
+      await applyMissioneStatoSideEffectsAdmin(tenantId, missioneAggiornata, s, expectedMezzo);
+    } catch (err) {
+      console.warn('[advanceMissioneStato side effect]', s, err);
+    }
   }
-  if (nuovo === 'DIRETTO H') {
-    await syncPazientiPmaOnDirettoHAdmin(tenantId, missioneAggiornata);
-  }
-  if (nuovo === 'RIENTRO' || nuovo === 'FINE MISSIONE' || nuovo === 'ANNULLATA') {
-    await syncStatoMezzoDopoMissioneAdmin(
+
+  try {
+    await tryAutoCloseEventoAdmin(
       tenantId,
-      expectedMezzo,
-      missionDocId,
-      nuovo,
-      missione.missioneEccezioneMotivo,
+      missione.eventoIdUnivoco,
+      missione.eventoCorrelato,
     );
+  } catch (err) {
+    console.warn('[advanceMissioneStato auto-close]', err);
   }
-
-  await tryAutoCloseEventoAdmin(
-    tenantId,
-    missione.eventoIdUnivoco,
-    missione.eventoCorrelato,
-  );
 
   return {
     ok: true,

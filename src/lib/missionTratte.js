@@ -49,7 +49,7 @@ export function tratteMissioneToFirestore(tratte) {
 }
 
 /** Merge transazionale tratte per `id` (evita perdita concorrente). */
-export function mergeTratteMissioneWrite(serverRaw, clientFirestoreRaw) {
+export function mergeTratteMissioneWrite(serverRaw, clientFirestoreRaw, removeIds = []) {
   const server = normalizeTratteMissione(serverRaw);
   const client = normalizeTratteMissione(
     (clientFirestoreRaw ?? []).map((t) => ({
@@ -58,7 +58,7 @@ export function mergeTratteMissioneWrite(serverRaw, clientFirestoreRaw) {
       quando: typeof t.quando?.toDate === 'function' ? t.quando.toDate() : t.quando,
     })),
   );
-  const merged = mergeSchedaArrayById(server, client);
+  const merged = mergeSchedaArrayById(server, client, removeIds);
   return tratteMissioneToFirestore(merged);
 }
 

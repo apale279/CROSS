@@ -129,7 +129,8 @@ export function PazienteModuloPma({
     return crossDocToPazienteView(rawDoc, manifestationId, pmaId);
   }, [rawDoc, manifestationId, pmaId]);
 
-  const operativeRank = effectivePmaUserRank(profile, IS_SUPERADMIN);
+  const operativeRank =
+    effectivePmaUserRank(profile, IS_SUPERADMIN) ?? normalizePmaRank(profile?.pmaRank);
 
   const pmaUser = user
     ? {

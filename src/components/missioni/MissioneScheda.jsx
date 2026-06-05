@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { Timestamp, deleteField } from 'firebase/firestore';
 import { Clock } from 'lucide-react';
 import { DEFAULT_IMPOSTAZIONI } from '../../constants';
@@ -52,7 +52,18 @@ function notifyFirestoreError(err) {
   alert('Errore: ' + (err instanceof Error ? err.message : String(err)));
 }
 
-export function MissioneScheda({
+export function MissioneScheda(props) {
+  if (!props.missione?._docId) {
+    return (
+      <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
+        Scheda missione non disponibile. Chiudi il dialog e riapri la missione dall&apos;elenco.
+      </div>
+    );
+  }
+  return <MissioneSchedaLoaded {...props} />;
+}
+
+function MissioneSchedaLoaded({
   missione,
   eventi,
   mezzi,
@@ -145,19 +156,31 @@ export function MissioneScheda({
     }
   };
 
+  const tratteWriteChainRef = useRef(Promise.resolve());
+
+  useEffect(() => {
+    tratteWriteChainRef.current = Promise.resolve();
+  }, [missione._docId]);
+
   const persistTratte = useCallback(
-    async (next) => {
-      try {
-        const sorted = [...next].sort((a, b) => a.quando.getTime() - b.quando.getTime());
-        await patchMissione(
-          manifestationId,
-          missione._docId,
-          { tratteMissione: tratteMissioneToFirestore(sorted) },
-          missione.mezzo,
-        );
-      } catch (err) {
-        notifyFirestoreError(err);
-      }
+    async (next, { removeIds = [] } = {}) => {
+      const sorted = [...next].sort((a, b) => a.quando.getTime() - b.quando.getTime());
+      const write = tratteWriteChainRef.current
+        .then(() =>
+          patchMissione(
+            manifestationId,
+            missione._docId,
+            { tratteMissione: tratteMissioneToFirestore(sorted) },
+            missione.mezzo,
+            removeIds.length ? { tratteRemoveIds: removeIds } : {},
+          ),
+        )
+        .catch((err) => {
+          notifyFirestoreError(err);
+          throw err;
+        });
+      tratteWriteChainRef.current = write.catch(() => {});
+      await write;
     },
     [manifestationId, missione._docId, missione.mezzo],
   );
@@ -184,7 +207,10 @@ export function MissioneScheda({
   const rimuoviTratta = async (id) => {
     if (tratte.length === 0) return;
     if (!window.confirm('Rimuovere questa tratta dalla missione?')) return;
-    await persistTratte(tratte.filter((t) => t.id !== id));
+    await persistTratte(
+      tratte.filter((t) => t.id !== id),
+      { removeIds: [id] },
+    );
   };
 
   const patchColoreMissione = async (colore) => {
@@ -241,6 +267,7 @@ export function MissioneScheda({
   };
 
   const impostaStatoOra = async (nuovo) => {
+    if (nuovo === missione.stato) return;
     if (statoMissioneBloccato && nuovo !== missione.stato) return;
     try {
       if (nuovo === 'FINE MISSIONE' || nuovo === 'ANNULLATA') {

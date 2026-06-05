@@ -92,9 +92,68 @@ function pazienteCollegatoAMissione(p, missione) {
   );
 }
 
+/** Come client `isPercorsoCodiceMinoreTrasporto`. */
+function isPercorsoCodiceMinoreTrasportoAdmin(paziente) {
+  if (!paziente) return false;
+  if (paziente.percorsoCodiceMinore === true) return true;
+  const tipo = String(paziente.tipoPz ?? '')
+    .trim()
+    .toUpperCase();
+  if (tipo !== 'CODICE MINORE') return false;
+  return Boolean(
+    String(paziente.eventoCorrelato ?? '').trim() ||
+      String(paziente.eventoIdUnivoco ?? '').trim() ||
+      String(paziente.mezzo ?? '').trim(),
+  );
+}
+
+/** Come client `ensureCodiceMinoreOnDestinazione` (campi essenziali). */
+export async function ensureCodiceMinoreOnDestinazioneAdmin(db, tenantId, docId, paziente) {
+  if (!db || !tenantId || !docId) return;
+  if (!String(paziente?.destinazionePmaId ?? '').trim()) return;
+  if (!isPercorsoCodiceMinoreTrasportoAdmin(paziente)) return;
+  const ref = db.collection('manifestazioni').doc(tenantId).collection('pazienti').doc(docId);
+  await db.runTransaction(async (transaction) => {
+    const snap = await transaction.get(ref);
+    if (!snap.exists) return;
+    const data = snap.data();
+    const cm = data.codiceMinore && typeof data.codiceMinore === 'object' ? data.codiceMinore : {};
+    const updates = {
+      tipoPz: 'CODICE MINORE',
+      percorsoCodiceMinore: true,
+      aperta: true,
+    };
+    if (cm.daTrasportoCentrale !== true) {
+      updates['codiceMinore.daTrasportoCentrale'] = true;
+    }
+    if (cm.trattamento == null || cm.trattamento === '') {
+      updates['codiceMinore.trattamento'] = '';
+    }
+    transaction.update(ref, updates);
+  });
+}
+
 /** Allinea admin sync al client `patchPazienteArrivatoHConPma`. */
 export function buildArrivatoHPatchAdmin(paziente, evento = null) {
   if (paziente.esito !== ESITO_TRASPORTA || paziente.stato === 'ARRIVATO H') return null;
+
+  const pmaDest = String(paziente.destinazionePmaId ?? '').trim();
+  if (pmaDest && isPercorsoCodiceMinoreTrasportoAdmin(paziente)) {
+    return {
+      patch: {
+        stato: 'ARRIVATO H',
+        arrivatoHAt: FieldValue.serverTimestamp(),
+        aperta: false,
+        pmaId: paziente.pmaId ?? pmaDest,
+        tipoPz: 'CODICE MINORE',
+        percorsoCodiceMinore: true,
+        statoPzPma: STATO_PZ_PMA.IN_CARICO,
+        'codiceMinore.oraArrivo': FieldValue.serverTimestamp(),
+      },
+      initPmaScheda: false,
+      pmaSchedaSeed: null,
+    };
+  }
 
   const patch = {
     stato: 'ARRIVATO H',
@@ -105,7 +164,6 @@ export function buildArrivatoHPatchAdmin(paziente, evento = null) {
   let initPmaScheda = false;
   let pmaSchedaSeed = null;
 
-  const pmaDest = String(paziente.destinazionePmaId ?? '').trim();
   if (pmaDest) {
     const cur = String(paziente.statoPzPma ?? '').trim();
     if (

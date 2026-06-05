@@ -4,10 +4,12 @@ import type { LesioneMarker, LesioneVista } from '@pma/types/lesioni'
 const VB_W = 200
 const VB_H = 480
 
+type LesioniChangeMeta = { removeLesioneN?: number }
+
 type Props = {
   lesioni: LesioneMarker[]
   disabled?: boolean
-  onLesioniChange: (next: LesioneMarker[]) => void
+  onLesioniChange: (next: LesioneMarker[], meta?: LesioniChangeMeta) => void
 }
 
 type FigureSvgProps = {
@@ -120,7 +122,7 @@ export function LesioniBodyMap({ lesioni, disabled, onLesioniChange }: Props) {
   }
 
   function removeMarker(n: number) {
-    onLesioniChange(lesioni.filter((L) => L.n !== n).map((L, i) => ({ ...L, n: i + 1 })))
+    onLesioniChange(lesioni.filter((L) => L.n !== n), { removeLesioneN: n })
   }
 
   return (

@@ -1,23 +1,6 @@
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type ReactNode,
-} from 'react';
-import { useAuth } from '../../context/AuthContext';
-import { PMA_FIELD_LOCK_RELEASE_DELAY_MS } from '../lib/pmaFieldPresencePaths';
-import {
-  claimPmaFieldLock,
-  foreignLockForField,
-  releasePmaFieldLock,
-  subscribePmaFieldLocks,
-} from '../services/pmaFieldPresenceService';
+import { createContext, useCallback, useContext, useMemo, type ReactNode } from 'react';
 
-type LockMap = Record<string, { uid?: string; displayName?: string; nomeUtente?: string }>;
+/** Lock presenza disattivato: cartella clinica multi-operatore usa merge transazionale. */
 
 type Ctx = {
   useFieldLock: (fieldKey: string) => {
@@ -38,94 +21,17 @@ type ProviderProps = {
 };
 
 export function PmaFieldPresenceProvider({
-  manifestationId,
-  pazienteDocId,
   children,
 }: ProviderProps) {
-  const { user, profile } = useAuth();
-  const [locks, setLocks] = useState<LockMap>({});
-  const focusedKeysRef = useRef(new Set<string>());
-  const releaseTimersRef = useRef(new Map<string, ReturnType<typeof setTimeout>>());
-
-  useEffect(() => {
-    return subscribePmaFieldLocks(manifestationId, pazienteDocId, setLocks);
-  }, [manifestationId, pazienteDocId]);
-
-  useEffect(() => {
-    const timers = releaseTimersRef.current;
-    return () => {
-      for (const t of timers.values()) clearTimeout(t);
-      timers.clear();
+  const useFieldLock = useCallback(() => {
+    return {
+      isForeign: false,
+      foreignLabel: '',
+      wrapClass: '',
+      onFocus: () => {},
+      onBlur: () => {},
     };
-  }, [manifestationId, pazienteDocId]);
-
-  const operator = useMemo(
-    () => ({
-      uid: user?.uid ?? '',
-      displayName: profile?.nome ?? user?.displayName ?? '',
-      nomeUtente: profile?.nomeUtente ?? '',
-    }),
-    [user, profile],
-  );
-
-  const heartbeat = useCallback(
-    (fieldKey: string) => {
-      if (!fieldKey || !operator.uid) return;
-      void claimPmaFieldLock(manifestationId, pazienteDocId, fieldKey, operator).catch((err) => {
-        console.warn('[PMA lock]', fieldKey, err);
-      });
-    },
-    [manifestationId, pazienteDocId, operator],
-  );
-
-  useEffect(() => {
-    const id = setInterval(() => {
-      for (const key of focusedKeysRef.current) {
-        heartbeat(key);
-      }
-    }, 12_000);
-    return () => clearInterval(id);
-  }, [heartbeat]);
-
-  const useFieldLock = useCallback(
-    (fieldKey: string) => {
-      const foreign = foreignLockForField(locks, fieldKey, operator.uid);
-      const isForeign = Boolean(foreign);
-      const foreignLabel = foreign
-        ? foreign.nomeUtente
-          ? `@${foreign.nomeUtente}`
-          : foreign.displayName || 'altro operatore'
-        : '';
-
-      const onFocus = () => {
-        focusedKeysRef.current.add(fieldKey);
-        void claimPmaFieldLock(manifestationId, pazienteDocId, fieldKey, operator).catch((err) => {
-        console.warn('[PMA lock]', fieldKey, err);
-      });
-      };
-
-      const onBlur = () => {
-        focusedKeysRef.current.delete(fieldKey);
-        const prev = releaseTimersRef.current.get(fieldKey);
-        if (prev) clearTimeout(prev);
-        const timer = setTimeout(() => {
-          releaseTimersRef.current.delete(fieldKey);
-          if (focusedKeysRef.current.has(fieldKey)) return;
-          void releasePmaFieldLock(manifestationId, pazienteDocId, fieldKey, operator.uid);
-        }, PMA_FIELD_LOCK_RELEASE_DELAY_MS);
-        releaseTimersRef.current.set(fieldKey, timer);
-      };
-
-      return {
-        isForeign,
-        foreignLabel,
-        wrapClass: isForeign ? 'ring-2 ring-red-500 ring-offset-1 rounded-md' : '',
-        onFocus,
-        onBlur,
-      };
-    },
-    [locks, manifestationId, pazienteDocId, operator],
-  );
+  }, []);
 
   const value = useMemo(() => ({ useFieldLock }), [useFieldLock]);
 

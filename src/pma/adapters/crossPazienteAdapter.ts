@@ -109,6 +109,7 @@ export function splitPazientePatch(patch) {
   const top = {};
   const scheda = {};
   for (const [k, v] of Object.entries(normalizePazientePatchInput(patch))) {
+    if (k.startsWith('_')) continue;
     if (k === 'aperto') {
       top.aperta = v;
     } else if (k === 'schedaModificaForzata') {

@@ -60,6 +60,37 @@ import {
   scheduleNotifyTelegramMissioneEliminata,
   scheduleNotifyTelegramStatoFromCentrale,
 } from '../lib/telegramSideEffects';
+import { awaitNotifyTelegramMissioneEliminataFromCentrale } from './telegramService';
+import { statiPercorsiAvanzamento } from '../utils/missionStati';
+
+const STATI_MEZZO_LIBERATO = new Set(['ARRIVATO H', 'RIENTRO', 'FINE MISSIONE', 'ANNULLATA']);
+
+async function resolveStatiMissioneOrdinati(manifestationId) {
+  const impSnap = await getDoc(impostazioniDocRef(manifestationId));
+  const imp = normalizeImpostazioni(impSnap.exists() ? impSnap.data() : {});
+  return resolveStatiMissione(imp);
+}
+
+async function applyMissioneStatoSideEffects(
+  manifestationId,
+  missioneRow,
+  stato,
+  mezzoSigla,
+  fieldsForMezzo,
+) {
+  if (stato === 'DIRETTO H') {
+    await syncPazientiPmaOnDirettoH(manifestationId, missioneRow);
+  }
+  if (stato === 'ARRIVATO H') {
+    await syncPazientiArrivatoH(manifestationId, missioneRow);
+  }
+  if (STATI_MEZZO_LIBERATO.has(stato) && mezzoSigla) {
+    await syncStatoMezzoDopoMissione(manifestationId, mezzoSigla, missioneRow._docId, {
+      ...fieldsForMezzo,
+      stato,
+    });
+  }
+}
 
 function assertMezzoLiberoPerNuovaMissione(
   mezzoSigla,
@@ -179,6 +210,14 @@ export async function createMissione(
         : `Stato missione iniziale «${statoIniziale}» non presente in Impostazioni.`,
     );
   }
+  const eventoIdUnivoco = String(payload.eventoIdUnivoco ?? '').trim();
+  const eventoCorrelato = String(payload.eventoCorrelato ?? '').trim();
+  if (!eventoIdUnivoco || !eventoCorrelato) {
+    throw new Error(
+      'Collegamento evento mancante. Chiudi la scheda evento, riaprila dall\'elenco eventi e riprova a creare la missione.',
+    );
+  }
+
   const coloreMissione = parseCodiceColoreOptional(payload.codiceColoreMissione);
   const ospedaleDest = String(payload.ospedaleDestinazione ?? '').trim();
   const mezzoSigla = mezzoSiglaEarly;
@@ -188,8 +227,8 @@ export async function createMissione(
     manifestationId,
     idUnivoco,
     idMissione,
-    eventoIdUnivoco: payload.eventoIdUnivoco,
-    eventoCorrelato: payload.eventoCorrelato,
+    eventoIdUnivoco,
+    eventoCorrelato,
     mezzo: mezzoSigla,
     stato: statoIniziale,
     statoDa: serverTimestamp(),
@@ -346,13 +385,21 @@ async function syncStatoMezzoDopoMissione(manifestationId, mezzoSiglaRaw, exclud
  * @param {boolean} [options.skipAutoCloseEvento]
  */
 export async function patchMissione(manifestationId, docId, fields, mezzoSigla, options = {}) {
-  if (!docId || !fields || Object.keys(fields).length === 0) return;
-  const docRef = doc(db, ...missioniPath(manifestationId), docId);
+  if (!fields || Object.keys(fields).length === 0) return;
+  const docIdTrim = String(docId ?? '').trim();
+  if (!docIdTrim) {
+    throw new Error('Missione non valida. Chiudi la scheda e riaprila dall\'elenco missioni.');
+  }
+  const docRef = doc(db, ...missioniPath(manifestationId), docIdTrim);
   const payload = omitUndefinedFields(stripOperatoreCreatoFromPatch({ ...fields }));
 
   if (Object.prototype.hasOwnProperty.call(payload, 'apertura')) {
     const snap = await getDoc(docRef);
-    if (!snap.exists()) return;
+    if (!snap.exists()) {
+      throw new Error(
+        'Missione non trovata. Potrebbe essere stata eliminata: chiudi la scheda e verifica nell\'elenco missioni.',
+      );
+    }
     const current = snap.data();
     const nextDate = timestampToDate(payload.apertura);
     const evento = await fetchEventoForMissione(manifestationId, current);
@@ -371,14 +418,36 @@ export async function patchMissione(manifestationId, docId, fields, mezzoSigla, 
   }
   if (Object.keys(payload).length === 0) return;
 
+  let statiPercorso = null;
+  if (fields.stato != null) {
+    const preSnap = await getDoc(docRef);
+    if (!preSnap.exists()) {
+      throw new Error(
+        'Missione non trovata. Potrebbe essere stata eliminata: chiudi la scheda e verifica nell\'elenco missioni.',
+      );
+    }
+    const precedenteStato = preSnap.data().stato ?? 'ALLERTARE';
+    if (fields.stato === precedenteStato) return;
+    const statiOrdinati = await resolveStatiMissioneOrdinati(manifestationId);
+    statiPercorso = statiPercorsiAvanzamento(precedenteStato, fields.stato, statiOrdinati);
+  }
+
   const hasTratteMerge = Object.prototype.hasOwnProperty.call(payload, 'tratteMissione');
   if (hasTratteMerge) {
     const clientTratte = payload.tratteMissione;
     delete payload.tratteMissione;
     await runTransaction(db, async (transaction) => {
       const snap = await transaction.get(docRef);
-      if (!snap.exists()) return;
-      const merged = mergeTratteMissioneWrite(snap.data().tratteMissione, clientTratte);
+      if (!snap.exists()) {
+        throw new Error(
+          'Missione non trovata. Potrebbe essere stata eliminata: chiudi la scheda e verifica nell\'elenco missioni.',
+        );
+      }
+      const merged = mergeTratteMissioneWrite(
+        snap.data().tratteMissione,
+        clientTratte,
+        options.tratteRemoveIds,
+      );
       transaction.update(
         docRef,
         omitUndefinedFields({ ...payload, tratteMissione: merged }),
@@ -387,20 +456,28 @@ export async function patchMissione(manifestationId, docId, fields, mezzoSigla, 
   } else {
     await updateDoc(docRef, payload);
   }
-  if (fields.stato === 'ARRIVATO H') {
-    const snap = await getDoc(docRef);
-    if (snap.exists()) {
-      await syncPazientiArrivatoH(manifestationId, { _docId: snap.id, ...snap.data() });
+
+  if (fields.stato != null && statiPercorso?.length) {
+    const misSnap = await getDoc(docRef);
+    if (misSnap.exists()) {
+      const missioneRow = { _docId: misSnap.id, ...misSnap.data() };
+      const fieldsForMezzo = { missioneEccezioneMotivo: fields.missioneEccezioneMotivo };
+      for (const s of statiPercorso) {
+        try {
+          await applyMissioneStatoSideEffects(
+            manifestationId,
+            missioneRow,
+            s,
+            mezzoSigla,
+            fieldsForMezzo,
+          );
+        } catch (err) {
+          console.warn('[patchMissione stato side effect]', s, err);
+        }
+      }
     }
   }
-  if (
-    (fields.stato === 'RIENTRO' ||
-      fields.stato === 'FINE MISSIONE' ||
-      fields.stato === 'ANNULLATA') &&
-    mezzoSigla
-  ) {
-    await syncStatoMezzoDopoMissione(manifestationId, mezzoSigla, docId, fields);
-  }
+
   if (
     Object.prototype.hasOwnProperty.call(fields, 'esitoMissione') &&
     esitoMissioneTerminaCopertura(fields.esitoMissione) &&
@@ -422,15 +499,6 @@ export async function patchMissione(manifestationId, docId, fields, mezzoSigla, 
   }
   if (fields.stato != null && !options.skipTelegramNotify) {
     scheduleNotifyTelegramStatoFromCentrale(manifestationId, docId);
-    if (fields.stato === 'DIRETTO H') {
-      const misSnap = await getDoc(docRef);
-      if (misSnap.exists()) {
-        await syncPazientiPmaOnDirettoH(manifestationId, {
-          _docId: misSnap.id,
-          ...misSnap.data(),
-        });
-      }
-    }
   }
 }
 
@@ -465,7 +533,11 @@ export async function deleteMissione(manifestationId, docId, options = {}) {
   }
 
   if (!options.skipTelegramNotify) {
-    scheduleNotifyTelegramMissioneEliminata(manifestationId, docId);
+    try {
+      await awaitNotifyTelegramMissioneEliminataFromCentrale(manifestationId, docId);
+    } catch (err) {
+      console.warn('[deleteMissione telegram]', err);
+    }
   }
   await deleteDoc(docRef);
 

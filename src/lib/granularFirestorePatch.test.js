@@ -17,6 +17,10 @@ describe('granularFirestorePatch', () => {
     );
   });
 
+  it('blocca path pmaScheda.* su patchPaziente', () => {
+    expect(() => assertPazientePatchGranular({ 'pmaScheda.farmaci': [] })).toThrow(/pmaScheda/);
+  });
+
   it('espande equipaggio in path puntati', () => {
     const out = flattenMezzoPatchFields({
       equipaggio: {

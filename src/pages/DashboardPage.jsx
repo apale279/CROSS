@@ -38,6 +38,8 @@ import { DiarioNotaModal } from '../components/diario/DiarioNotaModal';
 import { useDiarioNotaActions } from '../hooks/useDiarioNotaActions';
 import { useDiarioTelegramBroadcast } from '../hooks/useDiarioTelegramBroadcast';
 import { nextStatoMissione } from '../utils/missionStati';
+import { MISSION_PMA_CLOSE_MOTIVO } from '../lib/missionPmaPatientClose';
+import { resolveMissionPmaPatientsBeforeClose } from '../services/missionPmaPatientCloseService';
 import {
   DEFAULT_DASHBOARD_LAYOUT,
   loadDashboardLayout,
@@ -152,12 +154,31 @@ export default function DashboardPage() {
     e.stopPropagation();
     const nuovo = nextStatoMissione(mis.stato ?? 'ALLERTARE', stati);
     if (nuovo === mis.stato) return;
-    await patchMissione(
-      manifestationId,
-      mis._docId,
-      buildStatoChangeFields(mis, nuovo),
-      mis.mezzo,
-    );
+    try {
+      if (nuovo === 'FINE MISSIONE' || nuovo === 'ANNULLATA') {
+        const { proceed } = await resolveMissionPmaPatientsBeforeClose({
+          manifestationId,
+          missioni: mis,
+          pazienti,
+          eventi,
+          motivoChiusura:
+            nuovo === 'ANNULLATA'
+              ? MISSION_PMA_CLOSE_MOTIVO.ANNULLATA
+              : MISSION_PMA_CLOSE_MOTIVO.FINE_MISSIONE,
+          impostazioni,
+          titolo: `${nuovo === 'ANNULLATA' ? 'Annullamento' : 'Chiusura'} missione ${mis.idMissione}`,
+        });
+        if (!proceed) return;
+      }
+      await patchMissione(
+        manifestationId,
+        mis._docId,
+        buildStatoChangeFields(mis, nuovo),
+        mis.mezzo,
+      );
+    } catch (err) {
+      alert('Errore: ' + (err instanceof Error ? err.message : String(err)));
+    }
   };
 
   const operativoTable = (

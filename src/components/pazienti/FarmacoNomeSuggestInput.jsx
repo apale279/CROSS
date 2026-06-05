@@ -8,6 +8,7 @@ export function FarmacoNomeSuggestInput({
   catalog,
   value,
   onChange,
+  onBlur,
   inputClassName = '',
   placeholder = 'Farmaco…',
 }) {
@@ -24,7 +25,10 @@ export function FarmacoNomeSuggestInput({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         onFocus={() => setFocused(true)}
-        onBlur={() => window.setTimeout(() => setFocused(false), 150)}
+        onBlur={() => {
+          window.setTimeout(() => setFocused(false), 150);
+          onBlur?.();
+        }}
         autoComplete="off"
         className={inputClassName}
         placeholder={placeholder}
