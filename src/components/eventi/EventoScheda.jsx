@@ -285,7 +285,7 @@ export function EventoScheda({
             ? MISSION_PMA_CLOSE_MOTIVO.ANNULLATA
             : MISSION_PMA_CLOSE_MOTIVO.FINE_MISSIONE;
         const { proceed } = await resolveMissionPmaPatientsBeforeClose({
-          manifestationId,
+          manifestationId: manifestazioneId,
           missioni: missione,
           pazienti: pazientiEvento,
           eventi: existingEventi ?? [],
@@ -322,7 +322,7 @@ export function EventoScheda({
     const missioniDaChiudere = missioniEvento.filter(missioneRichiedeChiusuraSuEventoForzato);
     if (missioniDaChiudere.length) {
       const { proceed } = await resolveMissionPmaPatientsBeforeClose({
-        manifestationId,
+        manifestationId: manifestazioneId,
         missioni: missioniDaChiudere,
         pazienti: pazientiEvento,
         eventi: existingEventi ?? [],
@@ -374,7 +374,7 @@ export function EventoScheda({
 
     const missioniDaChiudere = missioniEvento.filter(missioneRichiedeChiusuraSuEventoForzato);
     const { proceed } = await resolveMissionPmaPatientsBeforeClose({
-      manifestationId,
+      manifestationId: manifestazioneId,
       missioni: missioniDaChiudere,
       pazienti: pazientiEvento,
       eventi: existingEventi ?? [],

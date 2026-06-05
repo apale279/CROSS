@@ -71,8 +71,17 @@ const checks = [
   },
   {
     file: 'src/components/eventi/EventoScheda.jsx',
-    mustInclude: ['riapriEventoOperatore', 'patchEvento(manifestazioneId'],
-    mustNotInclude: ['patchEvento(manifestationId', 'riapriEventoOperatore(manifestationId'],
+    mustInclude: [
+      'riapriEventoOperatore',
+      'patchEvento(manifestazioneId',
+      'manifestationId: manifestazioneId',
+    ],
+    mustNotInclude: [
+      'patchEvento(manifestationId',
+      'riapriEventoOperatore(manifestationId',
+      'resolveMissionPmaPatientsBeforeClose({\n      manifestationId,\n',
+      'resolveMissionPmaPatientsBeforeClose({\n        manifestationId,\n',
+    ],
   },
   {
     file: 'src/components/mezzi/MezzoScheda.jsx',

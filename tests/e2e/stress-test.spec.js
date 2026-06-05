@@ -362,7 +362,7 @@ test.describe('ECCEZIONI OPERATIVE', () => {
 
     await apriEventoPerId(page, eventoB);
     await apriTabEvento(page, 'missioni');
-    await expect(eventDialog(page).getByRole('listitem').first()).toBeVisible({ timeout: 15_000 });
+    await expect(eventDialog(page).getByRole('combobox').first()).toBeVisible({ timeout: 15_000 });
     await chiudiDialog(page);
     void mezzoLabel;
   });
@@ -454,6 +454,9 @@ test.describe('COMPORTAMENTI AUTOMATICI', () => {
     const prima = await contaMissioniAperte(page);
     expect(prima.aperte).toBeGreaterThan(0);
     await eseguiChiusuraForzataEvento(page);
+    // closeEventoForzato chiude tutte le missioni (→ FINE MISSIONE + aperta:false);
+    // attesa sync listener Firestore → UI prima del conteggio combobox abilitati
+    await page.waitForTimeout(10_000);
     await apriTabEvento(page, 'missioni');
     const dopo = await contaMissioniAperte(page);
     expect(dopo.aperte).toBe(0);
