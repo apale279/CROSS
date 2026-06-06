@@ -25,7 +25,7 @@ import { PmaIpadFirmaInfoPanel } from '../components/pma/PmaIpadFirmaInfoPanel';
 import { btnPrimary, btnSecondary } from '../components/ui/FormField';
 import { DiarioImportantTicker } from '../components/diario/DiarioImportantTicker';
 import { usePmaFieldUx } from '../pma/hooks/usePmaFieldUx';
-import { prendiInCaricoPma } from '../services/pmaStatoService';
+import { mettiInAttesaPma, prendiInCaricoPma } from '../services/pmaStatoService';
 import {
   createPazienteCodiceMinore,
   deletePazienteCodiceMinore,
@@ -129,6 +129,17 @@ export default function PmaDeskPage() {
       navigate(openPazientePath(pma.id, docId));
     } catch (err) {
       alert(err?.message ?? 'Errore presa in carico');
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const handleMettiInAttesa = async (docId) => {
+    setBusyId(docId);
+    try {
+      await mettiInAttesaPma(manifestationId, docId);
+    } catch (err) {
+      alert(err?.message ?? 'Errore messa in attesa');
     } finally {
       setBusyId(null);
     }
@@ -393,6 +404,14 @@ export default function PmaDeskPage() {
                                 onClick={() => void handlePrendiInCarico(p._docId)}
                               >
                                 {busyId === p._docId ? '…' : 'Prendi in carico'}
+                              </button>
+                              <button
+                                type="button"
+                                className={`${btnSecondary} w-full text-xs`}
+                                disabled={busyId === p._docId}
+                                onClick={() => void handleMettiInAttesa(p._docId)}
+                              >
+                                {busyId === p._docId ? '…' : 'Metti in attesa'}
                               </button>
                             </div>
                           }

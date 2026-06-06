@@ -1,5 +1,6 @@
 import { isPazienteOriginePma, statoPzPmaLabel } from '../../lib/pmaModule';
 import { formatMissioneMezzoLabel } from '../../lib/missioneDisplay';
+import { displayNomePazientePma } from '../../lib/pmaDisplayName';
 
 /** Card compatta sidebar PMA (in arrivo / in attesa). */
 export function PmaPatientReadonlyCard({ paziente, highlight, onOpen, footer }) {
@@ -28,7 +29,7 @@ export function PmaPatientReadonlyCard({ paziente, highlight, onOpen, footer }) 
         </span>
       </div>
       <p className="font-semibold leading-snug text-slate-900">
-        {[paziente.cognome, paziente.nome].filter(Boolean).join(' ') || 'Senza nome'}
+        {displayNomePazientePma(paziente)}
       </p>
       {!isAutopresentato && (paziente.idMissione || paziente.mezzo) && (
         <p className="mt-1 text-xs text-slate-500">

@@ -27,6 +27,27 @@ export async function prendiInCaricoPma(manifestationId, docId) {
   await initPmaSchedaIfMissing(manifestationId, docId, null);
 }
 
+/** Da «in arrivo» a «in attesa» (paziente arrivato ma fuori tenda). */
+export async function mettiInAttesaPma(manifestationId, docId) {
+  const docRef = doc(db, ...pazientiPath(manifestationId), docId);
+  await runTransaction(db, async (transaction) => {
+    const snap = await transaction.get(docRef);
+    if (!snap.exists()) throw new Error('Paziente non trovato.');
+    const cur = normalizeStatoPzPma(snap.data().statoPzPma);
+    if (cur === STATO_PZ_PMA.DIMESSO) {
+      throw new Error('Paziente già dimesso: non è possibile metterlo in attesa.');
+    }
+    if (cur === STATO_PZ_PMA.IN_CARICO) {
+      throw new Error('Paziente già in carico: non è possibile metterlo in attesa.');
+    }
+    if (cur === STATO_PZ_PMA.IN_ATTESA) return;
+    if (cur !== STATO_PZ_PMA.IN_ARRIVO && cur != null) {
+      throw new Error(`Stato PMA non valido per messa in attesa: ${snap.data().statoPzPma ?? '—'}`);
+    }
+    transaction.update(docRef, { statoPzPma: STATO_PZ_PMA.IN_ATTESA });
+  });
+}
+
 /** Autopresentato: in attesa (fuori tenda) o in carico (in tenda). */
 export async function setStatoPmaAutopresentato(manifestationId, docId, stato) {
   const next = String(stato ?? '').trim();

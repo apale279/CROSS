@@ -1,5 +1,6 @@
 import { CODICE_COLORE_LABEL } from '../../pma/types/paziente';
 import { formatTimestamp } from '../../utils/formatters';
+import { displayNomePazientePma } from '../../lib/pmaDisplayName';
 
 const COLORE_CLASS = {
   bianco: 'bg-slate-100 border-slate-300',
@@ -51,7 +52,7 @@ export function PmaInCaricoCard({ paziente, evento, onOpen }) {
         <span className="font-mono text-xs text-slate-500">{paziente.idPaziente}</span>
       </div>
       <p className="text-lg font-bold text-slate-900">
-        {[paziente.cognome, paziente.nome].filter(Boolean).join(' ') || 'Senza nome'}
+        {displayNomePazientePma(paziente)}
       </p>
       <p className="mt-1 text-sm text-slate-700">
         {tipoEv}
