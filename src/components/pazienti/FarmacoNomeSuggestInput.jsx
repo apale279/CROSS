@@ -1,21 +1,32 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { filterCatalogByNomePrefix } from '@pma/types/farmaciCatalogo';
+
+const SUGGEST_DEBOUNCE_MS = 280;
 
 /**
  * Campo testo libero con suggerimenti nome dal catalogo PMA (solo nome, nessun vincolo).
+ * I suggerimenti sono debounced per non interferire con la digitazione.
  */
 export function FarmacoNomeSuggestInput({
   catalog,
   value,
   onChange,
+  onPickEntry,
   onBlur,
   inputClassName = '',
   placeholder = 'Farmaco…',
 }) {
   const [focused, setFocused] = useState(false);
+  const [debouncedQuery, setDebouncedQuery] = useState(value);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setDebouncedQuery(value), SUGGEST_DEBOUNCE_MS);
+    return () => window.clearTimeout(timer);
+  }, [value]);
+
   const suggestions = useMemo(
-    () => filterCatalogByNomePrefix(catalog, value, 10),
-    [catalog, value],
+    () => (focused ? filterCatalogByNomePrefix(catalog, debouncedQuery, 10) : []),
+    [catalog, debouncedQuery, focused],
   );
 
   return (
@@ -46,6 +57,7 @@ export function FarmacoNomeSuggestInput({
                 onMouseDown={(e) => {
                   e.preventDefault();
                   onChange(entry.nome);
+                  onPickEntry?.(entry);
                   setFocused(false);
                 }}
               >

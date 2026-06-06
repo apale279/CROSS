@@ -543,22 +543,25 @@ const FARM_DOSE_CUSTOM = '__custom__'
 
 function FarmacoDoseField({
   catalog,
-  row,
-  nome,
+  committedNome,
   dose,
   canEdit,
-  onPatch,
+  onDoseChange,
+  onDoseCommit,
   className,
 }: {
   catalog: PmaFarmacoCatalogoEntry[]
-  row: FarmacoSomministrato
-  nome: string
+  committedNome: string
   dose: string
   canEdit: boolean
-  onPatch: (id: string, next: FarmacoSomministrato) => void
+  onDoseChange: (value: string) => void
+  onDoseCommit: () => void
   className: string
 }) {
-  const matched = useMemo(() => findCatalogEntryByNome(catalog, nome), [catalog, nome])
+  const matched = useMemo(
+    () => findCatalogEntryByNome(catalog, committedNome),
+    [catalog, committedNome],
+  )
   const doseOptions = matched?.dosaggi ?? []
   const doseSelectValue =
     dose && doseOptions.includes(dose) ? dose : doseOptions.length > 0 ? FARM_DOSE_CUSTOM : FARM_DOSE_CUSTOM
@@ -579,10 +582,11 @@ function FarmacoDoseField({
           onChange={(e) => {
             const v = e.target.value
             if (v === FARM_DOSE_CUSTOM) {
-              if (doseOptions.includes(dose)) onPatch(row.id, { ...row, dose: '' })
+              if (doseOptions.includes(dose)) onDoseChange('')
               return
             }
-            onPatch(row.id, { ...row, dose: v })
+            onDoseChange(v)
+            onDoseCommit()
           }}
           className={`${className} px-0`}
         >
@@ -598,7 +602,8 @@ function FarmacoDoseField({
         <input
           type="text"
           value={dose}
-          onChange={(e) => onPatch(row.id, { ...row, dose: e.target.value })}
+          onChange={(e) => onDoseChange(e.target.value)}
+          onBlur={onDoseCommit}
           className={className}
           placeholder="Dose…"
         />
@@ -641,16 +646,24 @@ function FarmacoRow({
     }
   }, [nomeDraft, doseDraft, row, onPatch])
 
-  const onNomeDraftChange = useCallback(
-    (value: string) => {
-      setNomeDraft(value)
-      const entry = findCatalogEntryByNome(catalog, value)
-      if (!entry) return
-      const nextDose = entry.dosaggi.length === 1 ? entry.dosaggi[0] : doseDraft
-      if (entry.dosaggi.length === 1) setDoseDraft(entry.dosaggi[0])
-      onPatch(row.id, { ...row, nome: entry.nome, dose: nextDose })
+  const commitDoseDraft = useCallback(() => {
+    if (doseDraft !== row.dose) {
+      onPatch(row.id, { ...row, dose: doseDraft })
+    }
+  }, [doseDraft, row, onPatch])
+
+  const onNomeDraftChange = useCallback((value: string) => {
+    setNomeDraft(value)
+  }, [])
+
+  const onCatalogPick = useCallback(
+    (entry: PmaFarmacoCatalogoEntry) => {
+      setNomeDraft(entry.nome)
+      if (entry.dosaggi.length === 1) {
+        setDoseDraft(entry.dosaggi[0])
+      }
     },
-    [catalog, doseDraft, row, onPatch],
+    [],
   )
 
   const utente = (row.inserito_da_nome ?? '').trim() || '—'
@@ -674,6 +687,7 @@ function FarmacoRow({
                 catalog={catalog}
                 value={nomeDraft}
                 onChange={onNomeDraftChange}
+                onPickEntry={onCatalogPick}
                 onBlur={commitNomeDraft}
                 inputClassName={FARM_IN_ROW}
               />
@@ -688,14 +702,11 @@ function FarmacoRow({
           <div className="min-w-0">
             <FarmacoDoseField
               catalog={catalog}
-              row={row}
-              nome={nomeDraft}
+              committedNome={row.nome}
               dose={doseDraft}
               canEdit={canEditFarmaci}
-              onPatch={(id, next) => {
-                setDoseDraft(next.dose)
-                onPatch(id, next)
-              }}
+              onDoseChange={setDoseDraft}
+              onDoseCommit={commitDoseDraft}
               className={FARM_IN_ROW}
             />
           </div>
@@ -772,6 +783,7 @@ function FarmacoRow({
               catalog={catalog}
               value={nomeDraft}
               onChange={onNomeDraftChange}
+              onPickEntry={onCatalogPick}
               onBlur={commitNomeDraft}
               inputClassName={FARM_IN_ROW}
             />
@@ -784,14 +796,11 @@ function FarmacoRow({
         <div className={`${FARM_CELL} ${doseBox}`}>
           <FarmacoDoseField
             catalog={catalog}
-            row={row}
-            nome={nomeDraft}
+            committedNome={row.nome}
             dose={doseDraft}
             canEdit={canEditFarmaci}
-            onPatch={(id, next) => {
-              setDoseDraft(next.dose)
-              onPatch(id, next)
-            }}
+            onDoseChange={setDoseDraft}
+            onDoseCommit={commitDoseDraft}
             className={FARM_IN_ROW}
           />
         </div>
