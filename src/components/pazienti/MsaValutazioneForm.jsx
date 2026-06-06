@@ -8,6 +8,7 @@ import { fromDatetimeLocalValue, toDatetimeLocalValue } from '../../lib/datetime
 import { normalizeMsaDetails } from '../../lib/msaValutazione';
 import { AccValutazioneBlock } from './AccValutazioneBlock';
 import { ColoreIndicator } from '../ui/ColoreIndicator';
+import { BlurCommitTextarea } from '../ui/BlurCommitTextarea';
 import { FormField, btnPrimary, inputClass, selectClass } from '../ui/FormField';
 import { ValutazioneMezzoButtons } from './ValutazioneMezzoButtons';
 import { MsaParametriVitaliFields } from './MsaParametriVitaliFields';
@@ -147,11 +148,11 @@ export function MsaValutazioneForm({
       />
 
       <FormField label="Note MSA">
-        <textarea
+        <BlurCommitTextarea
           className={inputClass}
           rows={5}
           value={d.noteMsa ?? ''}
-          onChange={(e) => onPatchDetails({ noteMsa: e.target.value })}
+          onCommit={(noteMsa) => onPatchDetails({ noteMsa })}
         />
       </FormField>
 
