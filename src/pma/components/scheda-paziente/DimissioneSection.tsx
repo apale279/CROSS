@@ -24,7 +24,6 @@ import {
   parsePmaIpadQueueRequest,
   pushPmaIpadFirmaRequest,
   subscribePmaIpadFirmaQueue,
-  uploadPmaFirmaPdfPreview,
 } from '../../../services/pmaIpadFirmaService'
 
 export type PmaIpadFirmaSender = {
@@ -169,16 +168,10 @@ export function DimissioneSection({
     setIpadErr(null)
     setIpadOk(false)
     try {
-      const blob = await buildCurrentPdfBlob()
-      const pdfPreviewUrl = await uploadPmaFirmaPdfPreview(
-        pmaIpadFirma.manifestationId,
-        blob,
-        pmaIpadFirma.pazienteDocId,
-      )
       await pushPmaIpadFirmaRequest(pmaIpadFirma.manifestationId, pmaIpadFirma.pmaId, {
         pazienteDocId: pmaIpadFirma.pazienteDocId,
-        idPaziente: p.id,
-        pdfPreviewUrl,
+        idPaziente: p.id_paziente_visibile || p.id,
+        pdfPreviewUrl: '',
         requestedByUid: pmaIpadFirma.operatorUid,
         requestedByNome: pmaIpadFirma.operatorNome,
       })
@@ -533,8 +526,9 @@ export function DimissioneSection({
             {dimissioneEdit && pmaIpadFirma ? (
               <div className="mb-3 space-y-2 rounded-lg border border-violet-200 bg-violet-50/80 px-3 py-2.5">
                 <p className="text-xs text-violet-950">
-                  <strong>iPad PMA:</strong> invia il PDF di dimissione all&apos;iPad accoppiato. Se un
-                  altro medico invia un documento, sull&apos;iPad resta solo l&apos;ultimo.
+                  <strong>iPad PMA:</strong> apre sul tablet lo spazio firma paziente (come in
+                  dimissione). Il paziente firma e la firma torna qui in scheda. Resta valida solo
+                  l&apos;ultima richiesta inviata.
                 </p>
                 <button
                   type="button"
@@ -542,11 +536,11 @@ export function DimissioneSection({
                   onClick={() => void handleInviaIpadFirma()}
                   className={`${btnPrimary} uppercase tracking-wide disabled:opacity-50`}
                 >
-                  {ipadBusy ? 'Invio…' : 'Invia documento a iPad per firma'}
+                  {ipadBusy ? 'Invio…' : 'Apri firma su iPad'}
                 </button>
                 {ipadOk ? (
                   <p className="text-xs font-medium text-emerald-800" role="status">
-                    Documento inviato all&apos;iPad. In attesa della firma del paziente…
+                    Firma aperta sull&apos;iPad — in attesa del paziente…
                   </p>
                 ) : null}
                 {ipadErr ? (

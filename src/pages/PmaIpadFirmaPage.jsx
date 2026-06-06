@@ -74,13 +74,15 @@ export default function PmaIpadFirmaPage() {
     return subscribePmaIpadFirmaQueue(tenantId, pmaId, setQueueDoc);
   }, [phase, tenantId, pmaId]);
 
+  const hasPdfPreview = Boolean(activeRequest?.pdfPreviewUrl?.trim());
+
   useEffect(() => {
     if (activeRequest?.status === 'pending') {
       setDoneMsg('');
       setSaveErr(null);
       setFirmaFullScreen(false);
     }
-  }, [activeRequest?.id]);
+  }, [activeRequest?.id, activeRequest?.status]);
 
   async function handleSaveFirma(dataUrl) {
     if (!tenantId || !pmaId || !activeRequest || activeRequest.status !== 'pending') return;
@@ -168,9 +170,9 @@ export default function PmaIpadFirmaPage() {
 
       {!activeRequest || activeRequest.status !== 'pending' ? (
         <div className="flex flex-1 flex-col items-center justify-center gap-3 p-8 text-center">
-          <p className="text-lg font-semibold text-slate-800">In attesa di documento</p>
+          <p className="text-lg font-semibold text-slate-800">In attesa firma paziente</p>
           <p className="max-w-md text-sm text-slate-600">
-            Dal PC, in dimissione, invia il PDF con «Invia documento a iPad per firma».
+            Dal PC, in dimissione, tocca «Apri firma su iPad» nella sezione firma paziente.
           </p>
           {doneMsg ? (
             <p
@@ -181,7 +183,7 @@ export default function PmaIpadFirmaPage() {
             </p>
           ) : null}
         </div>
-      ) : firmaFullScreen ? (
+      ) : hasPdfPreview && firmaFullScreen ? (
         <div className="flex min-h-0 flex-1 flex-col bg-white">
           <div className="flex shrink-0 items-center justify-between gap-2 border-b border-slate-200 px-3 py-2">
             <button
@@ -197,7 +199,9 @@ export default function PmaIpadFirmaPage() {
             <span className="w-[7.5rem]" aria-hidden />
           </div>
           <div className="flex min-h-0 flex-1 flex-col gap-2 p-3 landscape:px-6">
-            <p className="shrink-0 text-center text-sm text-slate-600">Firma del paziente</p>
+            <p className="shrink-0 text-center text-sm font-medium text-slate-800">
+              Firma paziente — dimissione
+            </p>
             <SignatureCanvas
               key={`${activeRequest.id}-fs`}
               className="min-h-0 flex-1"
@@ -211,7 +215,7 @@ export default function PmaIpadFirmaPage() {
             ) : null}
           </div>
         </div>
-      ) : (
+      ) : hasPdfPreview ? (
         <div className="relative flex min-h-0 flex-1 flex-col">
           <div className="flex shrink-0 items-center justify-between gap-3 border-b border-slate-200 bg-white px-3 py-2 landscape:px-4">
             <p className="font-mono text-base font-bold text-teal-900 landscape:text-lg">
@@ -247,6 +251,28 @@ export default function PmaIpadFirmaPage() {
             >
               Firma a schermo intero
             </button>
+          </div>
+        </div>
+      ) : (
+        <div className="flex min-h-0 flex-1 flex-col bg-white">
+          <div className="shrink-0 border-b border-slate-200 px-3 py-2 text-center landscape:px-4">
+            <p className="font-mono text-base font-bold text-teal-900 landscape:text-lg">
+              {activeRequest.idPaziente || 'Paziente'}
+            </p>
+            <p className="text-xs text-slate-600">Firma paziente — dimissione</p>
+          </div>
+          <div className="flex min-h-0 flex-1 flex-col gap-2 p-3 landscape:px-6">
+            <SignatureCanvas
+              key={`${activeRequest.id}-direct`}
+              className="min-h-0 flex-1"
+              onSaveDataUrl={handleSaveFirma}
+            />
+            {saveBusy ? <p className="text-center text-xs text-slate-500">Salvataggio…</p> : null}
+            {saveErr ? (
+              <p className="text-center text-sm text-red-800" role="alert">
+                {saveErr}
+              </p>
+            ) : null}
           </div>
         </div>
       )}
