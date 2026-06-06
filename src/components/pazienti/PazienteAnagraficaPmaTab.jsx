@@ -57,31 +57,32 @@ export function PazienteAnagraficaPmaTab({
   );
 
   const onBlurField = useCallback(
-    (key) => {
+    (key, value) => {
       if (readOnly || !canEdit) return;
+      const fieldValue = value !== undefined ? value : draft[key];
       if (key === 'pettorale') {
         void patchAnagrafica({
           pettorale:
-            draft.pettorale !== '' && draft.pettorale != null ? Number(draft.pettorale) : null,
+            fieldValue !== '' && fieldValue != null ? Number(fieldValue) : null,
         });
         return;
       }
       if (key === 'dataNascita') {
         void patchAnagrafica({
-          dataNascita: draft.dataNascita,
-          eta: etaDaDataNascita(draft.dataNascita),
+          dataNascita: fieldValue,
+          eta: etaDaDataNascita(fieldValue),
         });
         return;
       }
       if (key === 'eta') {
-        void patchAnagrafica({ eta: parseEtaDraft(draft.eta) });
+        void patchAnagrafica({ eta: parseEtaDraft(fieldValue) });
         return;
       }
       if (key === 'sesso') {
-        void patchAnagrafica({ sesso: draft.sesso });
+        void patchAnagrafica({ sesso: fieldValue });
         return;
       }
-      void patchAnagrafica({ [key]: draft[key] ?? '' });
+      void patchAnagrafica({ [key]: fieldValue ?? '' });
     },
     [readOnly, canEdit, draft, patchAnagrafica],
   );

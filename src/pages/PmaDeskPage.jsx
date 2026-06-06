@@ -25,7 +25,7 @@ import { PmaIpadFirmaInfoPanel } from '../components/pma/PmaIpadFirmaInfoPanel';
 import { btnPrimary, btnSecondary } from '../components/ui/FormField';
 import { DiarioImportantTicker } from '../components/diario/DiarioImportantTicker';
 import { usePmaFieldUx } from '../pma/hooks/usePmaFieldUx';
-import { prendiInCaricoPma } from '../services/pmaStatoService';
+import { mettiInAttesaPma, prendiInCaricoPma } from '../services/pmaStatoService';
 import {
   createPazienteCodiceMinore,
   deletePazienteCodiceMinore,
@@ -129,6 +129,17 @@ export default function PmaDeskPage() {
       navigate(openPazientePath(pma.id, docId));
     } catch (err) {
       alert(err?.message ?? 'Errore presa in carico');
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const handleMettiInAttesa = async (docId) => {
+    setBusyId(docId);
+    try {
+      await mettiInAttesaPma(manifestationId, docId);
+    } catch (err) {
+      alert(err?.message ?? 'Errore aggiornamento stato');
     } finally {
       setBusyId(null);
     }
@@ -386,14 +397,26 @@ export default function PmaDeskPage() {
                                   Visualizza dati centrale
                                 </button>
                               ) : null}
-                              <button
-                                type="button"
-                                className={`${btnPrimary} w-full text-xs`}
-                                disabled={busyId === p._docId}
-                                onClick={() => void handlePrendiInCarico(p._docId)}
-                              >
-                                {busyId === p._docId ? '…' : 'Prendi in carico'}
-                              </button>
+                              <div className="flex gap-1.5">
+                                {daCentrale ? (
+                                  <button
+                                    type="button"
+                                    className={`${btnSecondary} flex-1 text-xs`}
+                                    disabled={busyId === p._docId}
+                                    onClick={() => void handleMettiInAttesa(p._docId)}
+                                  >
+                                    {busyId === p._docId ? '…' : 'In attesa'}
+                                  </button>
+                                ) : null}
+                                <button
+                                  type="button"
+                                  className={`${btnPrimary} ${daCentrale ? 'flex-1' : 'w-full'} text-xs`}
+                                  disabled={busyId === p._docId}
+                                  onClick={() => void handlePrendiInCarico(p._docId)}
+                                >
+                                  {busyId === p._docId ? '…' : 'Prendi in carico'}
+                                </button>
+                              </div>
                             </div>
                           }
                         />

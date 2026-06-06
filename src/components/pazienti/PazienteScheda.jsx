@@ -946,14 +946,13 @@ export function PazienteScheda({
             touchDirty(key);
             setDraft((d) => ({ ...d, [key]: value }));
           }}
-          onBlurField={(key) => {
+          onBlurField={(key, value) => {
+            const fieldValue = value !== undefined ? value : draft[key];
             if (key === 'pettorale') {
               void patchPatientFields(
                 {
                   pettorale:
-                    draft.pettorale !== '' && draft.pettorale != null
-                      ? Number(draft.pettorale)
-                      : null,
+                    fieldValue !== '' && fieldValue != null ? Number(fieldValue) : null,
                 },
                 ['pettorale'],
               );
@@ -962,22 +961,22 @@ export function PazienteScheda({
             if (key === 'dataNascita') {
               void patchPatientFields(
                 {
-                  dataNascita: draft.dataNascita,
-                  eta: etaDaDataNascita(draft.dataNascita),
+                  dataNascita: fieldValue,
+                  eta: etaDaDataNascita(fieldValue),
                 },
                 ['dataNascita', 'eta'],
               );
               return;
             }
             if (key === 'eta') {
-              void patchPatientFields({ eta: parseEtaDraft(draft.eta) }, ['eta']);
+              void patchPatientFields({ eta: parseEtaDraft(fieldValue) }, ['eta']);
               return;
             }
             if (key === 'sesso') {
-              void patchPatientFields({ sesso: draft.sesso }, ['sesso']);
+              void patchPatientFields({ sesso: fieldValue }, ['sesso']);
               return;
             }
-            void patchPatientFields({ [key]: draft[key] ?? '' }, [key]);
+            void patchPatientFields({ [key]: fieldValue ?? '' }, [key]);
           }}
         />
       </div>

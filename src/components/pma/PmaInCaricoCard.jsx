@@ -1,4 +1,5 @@
 import { CODICE_COLORE_LABEL } from '../../pma/types/paziente';
+import { pazienteNomeDisplay, pazientePettoraleDisplay } from '../../lib/pazienteDisplay';
 import { formatTimestamp } from '../../utils/formatters';
 
 const COLORE_CLASS = {
@@ -9,6 +10,7 @@ const COLORE_CLASS = {
 };
 
 export function PmaInCaricoCard({ paziente, evento, onOpen }) {
+  const pettorale = pazientePettoraleDisplay(paziente);
   const colore = paziente.pmaScheda?.codice_colore ?? 'verde';
   const coloreClass = COLORE_CLASS[colore] ?? COLORE_CLASS.verde;
   const ingresso =
@@ -50,8 +52,11 @@ export function PmaInCaricoCard({ paziente, evento, onOpen }) {
         </span>
         <span className="font-mono text-xs text-slate-500">{paziente.idPaziente}</span>
       </div>
-      <p className="text-lg font-bold text-slate-900">
-        {[paziente.cognome, paziente.nome].filter(Boolean).join(' ') || 'Senza nome'}
+      <p className="flex flex-wrap items-baseline gap-x-2 text-lg font-bold text-slate-900">
+        <span>{pazienteNomeDisplay(paziente)}</span>
+        {pettorale != null ? (
+          <span className="font-mono text-sm font-bold text-teal-800">#{pettorale}</span>
+        ) : null}
       </p>
       <p className="mt-1 text-sm text-slate-700">
         {tipoEv}
