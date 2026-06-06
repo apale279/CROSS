@@ -11,7 +11,6 @@ import { Timestamp } from 'firebase/firestore'
 import { orderedPrestazioniLabels } from '@pma/lib/prestazioniDisplay'
 import { datetimeLocalToTimestamp, toDatetimeLocal } from '@pma/lib/schedaDatetimeLocal'
 import { registerPmaFarmacoUsato } from '@pma/lib/registerPmaFarmacoUsato'
-import { defaultFarmaciConsumatiCatalog } from '@pma/lib/farmaciCatalogoSeed'
 import { FarmacoNomeDoseFields } from './FarmacoNomeDoseFields'
 import { FarmacoNomeSuggestInput } from '../../../components/pazienti/FarmacoNomeSuggestInput'
 import {
@@ -115,9 +114,9 @@ const PV_INPUT =
 /** Input modali full-screen smartphone (16px = niente zoom iOS che «allarga» il layout). */
 const PMA_MODAL_INPUT = 'pma-mobile-input rounded-md border border-slate-300 px-3 py-2 font-medium disabled:bg-slate-100'
 
-/** Input compatto: riga unica parametri vitali (celle strette). */
+/** Input compatto PV/farmaci: 16px minimo (evita zoom automatico iOS su focus). */
 const PV_IN_ROW =
-  'box-border w-full min-w-0 rounded border border-slate-300 px-0.5 py-1 text-center text-sm font-semibold tabular-nums leading-none disabled:bg-slate-100 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none'
+  'pma-mobile-input box-border w-full min-w-0 rounded border border-slate-300 px-0.5 py-1 text-center text-base font-semibold tabular-nums leading-none disabled:bg-slate-100 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none'
 
 type PvTone = 'critical' | 'warn' | null
 
@@ -317,13 +316,13 @@ function ParametriVitaliBlock({
         <MonitorCell as={cellAs} hideLabel={cellAs === 'td'} emphasizeLabel={emphasizeLabels} labelInline={labelInline} label="GCS" tone={t.gcs ?? null} boxClassName={layout === 'stack' || labelInline ? 'w-full min-w-0' : 'w-[2.85rem] shrink-0'}>
           <input
             type="number"
-            min={1}
+            min={3}
             max={15}
             disabled={!canEdit}
             defaultValue={vitalInputValue(row.gcs)}
             onBlur={(e) =>
               patchPvNumericBlur(e.target.value, onPatch, row.id, 'gcs', {
-                min: 1,
+                min: 3,
                 max: 15,
                 integer: true,
               })
@@ -858,10 +857,8 @@ export function CartellaClinicaSection({
     loading: manifestListeLoading,
   } = useManifestazioneListeCliniche(p.id_manifestazione)
 
-  const farmaciCatalogo = useMemo(() => {
-    if (farmaciCatalogoRaw.length > 0) return farmaciCatalogoRaw
-    return defaultFarmaciConsumatiCatalog()
-  }, [farmaciCatalogoRaw])
+  /** Catalogo suggerimenti: solo `pmaClinica.farmaci` da Impostazioni (non farmaci_consumati). */
+  const farmaciCatalogo = farmaciCatalogoRaw
 
   const registerFarmacoInImpostazioni = useCallback(
     async (nome: string, dose: string, via: FarmacoVia) => {

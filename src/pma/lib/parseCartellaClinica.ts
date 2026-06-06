@@ -45,7 +45,7 @@ export function parseParametriVitali(raw: unknown): ParametroVitaleRilevazione[]
       id,
       registrato_at,
       operatore_nome: str(o.operatore_nome, '—'),
-      gcs: pvInt(o.gcs, 1, 15),
+      gcs: pvInt(o.gcs, 3, 15),
       fr: pvInt(o.fr, 0),
       spo2_aa: pvInt(o.spo2_aa, 0, 100),
       spo2_o2: pvInt(o.spo2_o2, 0, 100),

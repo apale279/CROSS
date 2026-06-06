@@ -30,7 +30,7 @@ export function FarmacoNomeSuggestInput({
           onBlur?.();
         }}
         autoComplete="off"
-        className={inputClassName}
+        className={inputClassName ? `${inputClassName} pma-mobile-input` : 'pma-mobile-input'}
         placeholder={placeholder}
       />
       {focused && suggestions.length > 0 ? (

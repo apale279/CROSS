@@ -4,7 +4,6 @@ import { defaultEoLabelForColumn } from '@pma/lib/eoQuickSelection';
 import { structuredEoQuickGroupRows } from '@pma/lib/eoStructuredDefaults';
 import { parsePresetFarmaciFromFirestore } from '@pma/types/manifestazioneImpostazioni';
 import { parseFarmaciCatalogoFromFirestore } from '@pma/types/farmaciCatalogo';
-import { legacyCatalogFromConsumatiField } from '@pma/types/farmaciConsumatiStats';
 import { sortStringsIt } from '@pma/lib/sortLocaleIt';
 
 function asStringArray(v: unknown): string[] | null {
@@ -24,13 +23,8 @@ export function usePmaClinicaListe() {
 
   return useMemo(() => {
     const prestazioni = sortStringsIt(asStringArray(pmaClinica.prestazioni) ?? []);
-    const catalogRaw =
-      (Array.isArray(pmaClinica.farmaci) && pmaClinica.farmaci.length > 0
-        ? pmaClinica.farmaci
-        : null) ??
-      legacyCatalogFromConsumatiField(pmaClinica.farmaci_consumati) ??
-      pmaClinica.farmaci;
-    const farmaciCatalogo = parseFarmaciCatalogoFromFirestore(catalogRaw);
+    /** Solo elenco farmaci selezionabili (Impostazioni → PMA clinica → Farmaci), mai consumati. */
+    const farmaciCatalogo = parseFarmaciCatalogoFromFirestore(pmaClinica.farmaci);
     const farmaci = sortStringsIt(farmaciCatalogo.map((f) => f.nome));
     const eoQuickGroups = buildEoQuickGroups();
     const eoQuickLabels = eoQuickGroups.flatMap((g) => g.labels);

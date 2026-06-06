@@ -52,7 +52,7 @@ export function FarmacoNomeDoseFields({
           onFocus={() => setNomeFocused(true)}
           onBlur={() => window.setTimeout(() => setNomeFocused(false), 150)}
           autoComplete="off"
-          className={`${inputClassName} mt-1 min-h-[2.75rem]`}
+          className={`${inputClassName} pma-mobile-input mt-1 min-h-[2.75rem]`}
           placeholder={nomePlaceholder}
         />
         {nomeFocused && suggestions.length > 0 ? (
