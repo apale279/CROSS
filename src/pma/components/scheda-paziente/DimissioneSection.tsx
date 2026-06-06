@@ -152,8 +152,7 @@ export function DimissioneSection({
     rifiutoInvioPsText: rifiutoInvioPs.trim() || undefined,
   }
 
-  const firmaMedicoProfilo =
-    isMedico && user ? resolveMedicoFirmaSrc(user) : null
+  const firmaMedicoProfilo = isMedico && user ? resolveMedicoFirmaSrc(user) : null
   const firmaMedicoPreview = p.dimissione_firma_medico_base64 ?? firmaMedicoProfilo
 
   async function handleSaveFirmaPaziente(dataUrl: string) {
@@ -640,7 +639,7 @@ export function DimissioneSection({
               >
                 {isMedico
                   ? 'Firma non configurata — apri Account in alto a sinistra per caricarla.'
-                  : 'Firma medico non disponibile (nessuna copia su scheda e profilo non applicabile a questa vista).'}
+                  : 'Firma medico non ancora su scheda. Il medico che dimette la vede da Account fino alla chiusura.'}
               </div>
             )}
           </div>

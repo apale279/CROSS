@@ -5,25 +5,41 @@ import { stripEnvValue } from './env.js';
 
 let app;
 
+function parseJsonServiceAccount(text) {
+  const raw = String(text ?? '').trim();
+  if (!raw || raw.length < 20) return null;
+
+  try {
+    const parsed = JSON.parse(raw);
+    if (parsed?.project_id && parsed?.private_key) return parsed;
+  } catch {
+    /* try base64 */
+  }
+
+  try {
+    const parsed = JSON.parse(Buffer.from(raw, 'base64').toString('utf8'));
+    if (parsed?.project_id && parsed?.private_key) return parsed;
+  } catch {
+    /* invalid */
+  }
+
+  return null;
+}
+
 function parseServiceAccountJson() {
-  const raw = stripEnvValue(process.env.FIREBASE_SERVICE_ACCOUNT_JSON);
-  if (!raw || raw.length < 20) {
-    throw new Error(
-      'FIREBASE_SERVICE_ACCOUNT_JSON mancante o troncato su Vercel (serve il JSON completo del service account)',
-    );
-  }
+  const fromB64Env = parseJsonServiceAccount(
+    stripEnvValue(process.env.FIREBASE_SERVICE_ACCOUNT_JSON_BASE64),
+  );
+  if (fromB64Env) return fromB64Env;
 
-  try {
-    return JSON.parse(raw);
-  } catch {
-    /* base64 opzionale */
-  }
+  const fromJsonEnv = parseJsonServiceAccount(
+    stripEnvValue(process.env.FIREBASE_SERVICE_ACCOUNT_JSON),
+  );
+  if (fromJsonEnv) return fromJsonEnv;
 
-  try {
-    return JSON.parse(Buffer.from(raw, 'base64').toString('utf8'));
-  } catch {
-    throw new Error('FIREBASE_SERVICE_ACCOUNT_JSON non è JSON valido');
-  }
+  throw new Error(
+    'FIREBASE_SERVICE_ACCOUNT_JSON mancante o troncato su Vercel. Incolla il JSON su una riga oppure usa FIREBASE_SERVICE_ACCOUNT_JSON_BASE64 (file service account codificato in base64).',
+  );
 }
 
 function initAdmin() {

@@ -57,7 +57,7 @@ import { schedaTabDimissioneAllows } from '../../../pma/lib/rankMatrix';
 import { PmaFieldPresenceProvider } from '../../../pma/context/PmaFieldPresenceContext';
 import { PazienteModuloCentrale } from './PazienteModuloCentrale';
 import { PmaPazientePanel } from '../PmaPazientePanel';
-import { effectivePmaUserRank, normalizePmaRank } from '../../../lib/userAccess';
+import { effectivePmaUserRank, isPmaMedicoAccount, normalizePmaRank } from '../../../lib/userAccess';
 import { IS_SUPERADMIN } from '../../../constants';
 import { findEvento } from '../../../lib/eventoLinks';
 import { COLLECTIONS } from '../../../lib/firestorePaths';
@@ -345,7 +345,7 @@ export function PazienteModuloPma({
         <DimissioneSection
           p={p}
           user={pmaUser}
-          isMedico={pmaUser?.rank === 'Medico'}
+          isMedico={isPmaMedicoAccount(profile) || pmaUser?.rank === 'Medico'}
           canEditDimissioneTab={canEditDimissioneTab}
           canEditScheda={canEditPma}
           write={write}

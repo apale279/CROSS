@@ -1,4 +1,4 @@
-import { getAdminAuth } from './_lib/firebaseAdmin.js';
+import { verifyFirebaseUser } from './_lib/verifyFirebaseUser.js';
 import { getTelegramTenantId } from './_lib/env.js';
 
 function getCloudinaryConfig() {
@@ -7,14 +7,6 @@ function getCloudinaryConfig() {
   const apiSecret = process.env.CLOUDINARY_API_SECRET?.trim();
   if (!cloudName || !apiKey || !apiSecret) return null;
   return { cloudName, apiKey, apiSecret };
-}
-
-async function verifyFirebaseUser(req) {
-  const authHeader = req.headers.authorization;
-  if (!authHeader?.startsWith('Bearer ')) {
-    throw Object.assign(new Error('Token di autenticazione mancante'), { status: 401 });
-  }
-  return getAdminAuth().verifyIdToken(authHeader.slice(7));
 }
 
 async function uploadBufferToCloudinary(buffer, mime, tenantId, pazienteDocId) {
