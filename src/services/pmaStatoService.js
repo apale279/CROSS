@@ -1,7 +1,11 @@
 import { doc, runTransaction, Timestamp } from 'firebase/firestore';
 import { db } from '../firebaseConfig';
 import { pazientiPath } from '../lib/firestorePaths';
-import { normalizeStatoPzPma, STATO_PZ_PMA } from '../lib/pmaModule';
+import {
+  mettiInAttesaPmaStatoConsentito,
+  normalizeStatoPzPma,
+  STATO_PZ_PMA,
+} from '../lib/pmaModule';
 import { patchPaziente } from './pazientiService';
 import { initPmaSchedaIfMissing, patchPazientePmaGranular } from '../pma/lib/pazientePmaPatch';
 
@@ -25,6 +29,28 @@ export async function prendiInCaricoPma(manifestationId, docId) {
     });
   });
   await initPmaSchedaIfMissing(manifestationId, docId, null);
+}
+
+/** Da «in arrivo» (centrale) a «in attesa» al PMA senza presa in carico. */
+export async function mettiInAttesaPma(manifestationId, docId) {
+  const docRef = doc(db, ...pazientiPath(manifestationId), docId);
+  await runTransaction(db, async (transaction) => {
+    const snap = await transaction.get(docRef);
+    if (!snap.exists()) throw new Error('Paziente non trovato.');
+    const cur = normalizeStatoPzPma(snap.data().statoPzPma);
+    const verdict = mettiInAttesaPmaStatoConsentito(cur);
+    if (verdict === 'noop') return;
+    if (verdict === 'deny_dimesso') {
+      throw new Error('Paziente già dimesso: non è possibile metterlo in attesa.');
+    }
+    if (verdict === 'deny_in_carico') {
+      throw new Error('Paziente già in carico: usa la scheda PMA per gestirlo.');
+    }
+    if (verdict === 'deny_stato') {
+      throw new Error(`Stato PMA non valido per attesa: ${snap.data().statoPzPma ?? '—'}`);
+    }
+    transaction.update(docRef, { statoPzPma: STATO_PZ_PMA.IN_ATTESA });
+  });
 }
 
 /** Autopresentato: in attesa (fuori tenda) o in carico (in tenda). */

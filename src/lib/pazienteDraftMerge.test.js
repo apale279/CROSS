@@ -5,6 +5,13 @@ import { ESITO_TRASPORTA } from '../constants';
 import { STATO_PZ_PMA, TIPO_PZ } from './pmaModule';
 
 describe('mergePatientDraftFromServer', () => {
+  it('non sovrascrive notePaziente se dirty (digitazione locale)', () => {
+    const prev = { notePaziente: 'Testo locale', nome: 'A' };
+    const server = { notePaziente: 'Da server', nome: 'A' };
+    const out = mergePatientDraftFromServer(prev, server, new Set(['notePaziente']));
+    expect(out.notePaziente).toBe('Testo locale');
+  });
+
   it('non sovrascrive campi segnati dirty', () => {
     const prev = { nome: 'Locale', cognome: 'X', esito: 'Trasporta', stato: 'TRASPORTO' };
     const server = {

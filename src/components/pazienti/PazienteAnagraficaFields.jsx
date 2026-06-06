@@ -1,5 +1,6 @@
 import { Search } from 'lucide-react';
 import { etaDaDataNascita } from '../../lib/excelPartecipanti';
+import { BlurCommitTextarea } from '../ui/BlurCommitTextarea';
 import { FormField, inputClass, selectClass } from '../ui/FormField';
 
 /**
@@ -138,13 +139,15 @@ export function PazienteAnagraficaFields({
         />
       </FormField>
       <FormField label="Note" className="sm:col-span-2">
-        <textarea
+        <BlurCommitTextarea
           className={inputClass}
           rows={2}
-          value={draft.notePaziente ?? ''}
           disabled={readOnly}
-          onChange={(e) => touch('notePaziente', e.target.value)}
-          onBlur={() => onBlurField?.('notePaziente')}
+          value={draft.notePaziente ?? ''}
+          onCommit={(next) => {
+            touch('notePaziente', next);
+            onBlurField?.('notePaziente', next);
+          }}
         />
       </FormField>
     </div>

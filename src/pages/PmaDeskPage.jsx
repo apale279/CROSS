@@ -7,11 +7,12 @@ import { findEvento } from '../lib/eventoLinks';
 import {
   findPmaById,
   isPazienteOriginePma,
-  normalizeStatoPzPma,
+  pazienteColonnaPmaInArrivo,
+  pazienteColonnaPmaInAttesa,
+  pazienteColonnaPmaInCarico,
   pazienteDimessoInPmaDesk,
   pazienteVisibileInPmaDesk,
   pazientiCodiceMinorePerPma,
-  STATO_PZ_PMA,
 } from '../lib/pmaModule';
 import { useImpostazioni } from '../hooks/useImpostazioni';
 import { useManifestazioneId } from '../context/ManifestazioneContext';
@@ -25,7 +26,7 @@ import { PmaIpadFirmaInfoPanel } from '../components/pma/PmaIpadFirmaInfoPanel';
 import { btnPrimary, btnSecondary } from '../components/ui/FormField';
 import { DiarioImportantTicker } from '../components/diario/DiarioImportantTicker';
 import { usePmaFieldUx } from '../pma/hooks/usePmaFieldUx';
-import { prendiInCaricoPma } from '../services/pmaStatoService';
+import { mettiInAttesaPma, prendiInCaricoPma } from '../services/pmaStatoService';
 import {
   createPazienteCodiceMinore,
   deletePazienteCodiceMinore,
@@ -113,12 +114,9 @@ export default function PmaDeskPage() {
 
   const list = pazienti.filter((p) => pazienteVisibileInPmaDesk(p, pma.id));
 
-  const inArrivo = list.filter((p) => {
-    const s = normalizeStatoPzPma(p.statoPzPma);
-    return s === STATO_PZ_PMA.IN_ARRIVO || (s == null && !isPazienteOriginePma(p));
-  });
-  const inAttesa = list.filter((p) => normalizeStatoPzPma(p.statoPzPma) === STATO_PZ_PMA.IN_ATTESA);
-  const inCarico = list.filter((p) => normalizeStatoPzPma(p.statoPzPma) === STATO_PZ_PMA.IN_CARICO);
+  const inArrivo = list.filter(pazienteColonnaPmaInArrivo);
+  const inAttesa = list.filter(pazienteColonnaPmaInAttesa);
+  const inCarico = list.filter(pazienteColonnaPmaInCarico);
 
   const eventoFor = (p) => findEvento(eventi, p.eventoIdUnivoco ?? p.eventoCorrelato);
 
@@ -129,6 +127,17 @@ export default function PmaDeskPage() {
       navigate(openPazientePath(pma.id, docId));
     } catch (err) {
       alert(err?.message ?? 'Errore presa in carico');
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const handleMettiInAttesa = async (docId) => {
+    setBusyId(docId);
+    try {
+      await mettiInAttesaPma(manifestationId, docId);
+    } catch (err) {
+      alert(err?.message ?? 'Errore aggiornamento stato');
     } finally {
       setBusyId(null);
     }
@@ -386,14 +395,26 @@ export default function PmaDeskPage() {
                                   Visualizza dati centrale
                                 </button>
                               ) : null}
-                              <button
-                                type="button"
-                                className={`${btnPrimary} w-full text-xs`}
-                                disabled={busyId === p._docId}
-                                onClick={() => void handlePrendiInCarico(p._docId)}
-                              >
-                                {busyId === p._docId ? '…' : 'Prendi in carico'}
-                              </button>
+                              <div className="flex gap-1.5">
+                                {daCentrale ? (
+                                  <button
+                                    type="button"
+                                    className={`${btnSecondary} flex-1 text-xs`}
+                                    disabled={busyId === p._docId}
+                                    onClick={() => void handleMettiInAttesa(p._docId)}
+                                  >
+                                    {busyId === p._docId ? '…' : 'In attesa'}
+                                  </button>
+                                ) : null}
+                                <button
+                                  type="button"
+                                  className={`${btnPrimary} ${daCentrale ? 'flex-1' : 'w-full'} text-xs`}
+                                  disabled={busyId === p._docId}
+                                  onClick={() => void handlePrendiInCarico(p._docId)}
+                                >
+                                  {busyId === p._docId ? '…' : 'Prendi in carico'}
+                                </button>
+                              </div>
                             </div>
                           }
                         />
