@@ -217,6 +217,32 @@ export function pazienteVisibileInPmaDesk(paziente, pmaId) {
   return STATI_PZ_PMA_APERTI.includes(stato);
 }
 
+/** Colonna desk PMA «In arrivo» (include centrale legacy senza statoPzPma). */
+export function pazienteColonnaPmaInArrivo(paziente) {
+  const s = normalizeStatoPzPma(paziente?.statoPzPma);
+  return s === STATO_PZ_PMA.IN_ARRIVO || (s == null && !isPazienteOriginePma(paziente));
+}
+
+export function pazienteColonnaPmaInAttesa(paziente) {
+  return normalizeStatoPzPma(paziente?.statoPzPma) === STATO_PZ_PMA.IN_ATTESA;
+}
+
+export function pazienteColonnaPmaInCarico(paziente) {
+  return normalizeStatoPzPma(paziente?.statoPzPma) === STATO_PZ_PMA.IN_CARICO;
+}
+
+/**
+ * Transizione «metti in attesa» (stato già normalizzato).
+ * @returns {'ok'|'noop'|'deny_dimesso'|'deny_in_carico'|'deny_stato'}
+ */
+export function mettiInAttesaPmaStatoConsentito(cur) {
+  if (cur === STATO_PZ_PMA.IN_ATTESA) return 'noop';
+  if (cur === STATO_PZ_PMA.DIMESSO) return 'deny_dimesso';
+  if (cur === STATO_PZ_PMA.IN_CARICO) return 'deny_in_carico';
+  if (cur === STATO_PZ_PMA.IN_ARRIVO || cur == null) return 'ok';
+  return 'deny_stato';
+}
+
 export function pmaIdPerPaziente(paziente) {
   return String(paziente?.pmaId ?? paziente?.destinazionePmaId ?? '').trim();
 }
