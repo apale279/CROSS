@@ -8,6 +8,7 @@ import {
 } from '../../lib/msbValutazione';
 import { parseVitalNumericInput, vitalInputValue } from '../../lib/vitalNumeric';
 import { ColoreIndicator } from '../ui/ColoreIndicator';
+import { BlurCommitTextarea } from '../ui/BlurCommitTextarea';
 import { FormField, inputClass, selectClass } from '../ui/FormField';
 import { AccValutazioneBlock } from './AccValutazioneBlock';
 import { ValutazioneMezzoButtons } from './ValutazioneMezzoButtons';
@@ -238,20 +239,20 @@ export function MsbValutazioneForm({ msbDetails, onPatch, mezziEventoSigle }) {
       />
 
       <FormField label="APP">
-        <textarea
+        <BlurCommitTextarea
           className={inputClass}
           rows={2}
           value={d.app ?? ''}
-          onChange={(e) => onPatch({ app: e.target.value })}
+          onCommit={(app) => onPatch({ app })}
         />
       </FormField>
 
       <FormField label="Descrizione">
-        <textarea
+        <BlurCommitTextarea
           className={inputClass}
           rows={3}
           value={d.descrizione ?? ''}
-          onChange={(e) => onPatch({ descrizione: e.target.value })}
+          onCommit={(descrizione) => onPatch({ descrizione })}
         />
       </FormField>
 
