@@ -120,7 +120,8 @@ export default function AccountPage() {
     <div className="mx-auto max-w-2xl p-4 sm:p-6">
       <h1 className="text-xl font-bold text-slate-900">Account</h1>
       <p className="mt-1 text-sm text-slate-600">
-        {profile?.nome || user?.displayName || 'Medico PMA'} — firma usata in dimissione e PDF.
+        {profile?.nome || user?.displayName || 'Medico'} — firma in dimissione/PDF e promemoria
+        privati in scheda dimissione.
       </p>
 
       {msg ? (
@@ -135,8 +136,8 @@ export default function AccountPage() {
       <section className="mt-6 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
         <h2 className="text-sm font-bold uppercase tracking-wide text-slate-700">Note personali</h2>
         <p className="mt-1 text-xs text-slate-500">
-          Promemoria privati visibili all&apos;inizio della scheda dimissione (solo per il tuo
-          account). Non vengono stampati nel PDF.
+          Promemoria privati: li vedi in sola lettura all&apos;inizio della tab Dimissione (solo il
+          tuo account). Non sono firme e non vengono stampati nel PDF.
         </p>
         <textarea
           rows={6}

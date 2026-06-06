@@ -11,6 +11,7 @@ import {
 import { DIMISSIONE_ESITO_LABEL } from '@pma/types/dimissione'
 import { FARMACO_VIA_LABEL } from '@pma/types/cartellaClinica'
 import { buildLesioniPngDataUrl } from './lesioniFigurePng'
+import { rasterizeFirmaDataUrlToPng, svgMarkupToDataUrl } from '../signatureSvg'
 import { resolveEoColumnsForDisplay, formatEoColumnsForPdf } from '../eoPazienteFields'
 import { defaultEoQuickGroupRows } from '../eoQuickDefaults'
 import { orderedPrestazioniLabels, prestazioniRowsOfFour } from '../prestazioniDisplay'
@@ -61,7 +62,6 @@ async function normalizeImageSrcForPdf(src: string): Promise<string | null> {
   if (!s) return null
   if (s.startsWith('data:image/svg+xml') || s.startsWith('<svg')) {
     try {
-      const { rasterizeFirmaDataUrlToPng, svgMarkupToDataUrl } = await import('../signatureSvg')
       const dataUrl = s.startsWith('<svg') ? svgMarkupToDataUrl(s) : s
       return await rasterizeFirmaDataUrlToPng(dataUrl)
     } catch {

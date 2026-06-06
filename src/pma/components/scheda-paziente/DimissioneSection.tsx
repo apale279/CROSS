@@ -10,6 +10,7 @@ import {
 import { SignatureCanvas } from './SignatureCanvas'
 import { PmaFieldGuard } from '../PmaFieldGuard'
 import { defaultPdfFilename } from '@pma/lib/pdf/pazientePdfHelpers'
+import { buildPazientePdfBlob } from '@pma/lib/pdf/pazientePdfReport'
 import { createPdfObjectUrl, printPdfBlob, revokePdfObjectUrl, tryOpenPdfInNewTab } from '@pma/lib/pdf/pdfBlobActions'
 import { resolveMedicoFirmaPngSrc, resolveMedicoFirmaSrc } from '@pma/lib/medicoFirma'
 import { rasterizeFirmaDataUrlToPng } from '@pma/lib/signatureSvg'
@@ -240,7 +241,6 @@ export function DimissioneSection({
   }
 
   async function buildCurrentPdfBlob() {
-    const { buildPazientePdfBlob } = await import('../../lib/pdf/pazientePdfReport')
     return buildPazientePdfBlob(p, {
       manifestazioneNome: reportManifestazioneNome,
       pmaNome: reportPmaNome,
@@ -340,17 +340,29 @@ export function DimissioneSection({
       </div>
 
       <div className="space-y-0">
-        {notePersonaliMedico ? (
+        {isMedico ? (
           <div className="border-b border-sky-100 bg-sky-50/90 px-3 py-3">
             <p className="text-xs font-bold uppercase tracking-wide text-sky-900">
               Note personali (promemoria)
             </p>
             <p className="mt-1 text-xs text-sky-800/90">
-              Solo per te — non compaiono nel PDF di dimissione. Modifica da Account.
+              Solo lettura qui — promemoria privati, non sono firme e non compaiono nel PDF. Imposta
+              o modifica da{' '}
+              <a href="/account" className="font-semibold underline hover:text-sky-950">
+                Account
+              </a>
+              .
             </p>
-            <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-slate-800">
-              {notePersonaliMedico}
-            </p>
+            {notePersonaliMedico ? (
+              <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-slate-800">
+                {notePersonaliMedico}
+              </p>
+            ) : (
+              <p className="mt-2 text-sm italic text-slate-600">
+                Nessuna nota salvata. Apri Account per aggiungere promemoria da consultare in
+                dimissione.
+              </p>
+            )}
           </div>
         ) : null}
         <PmaFieldGuard fieldKey="dimissione_esito" className="pma-row block">
