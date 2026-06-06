@@ -302,6 +302,7 @@ export function DimissioneSection({
   }
 
   const firmaPaz = p.firma_paziente_base64
+  const notePersonaliMedico = String(user?.note_personali ?? '').trim()
 
   const showPresetDimissione = Boolean(dimissioneEdit && presetDimissione.length > 0)
   const [presetSel, setPresetSel] = useState<number[]>([])
@@ -339,6 +340,19 @@ export function DimissioneSection({
       </div>
 
       <div className="space-y-0">
+        {notePersonaliMedico ? (
+          <div className="border-b border-sky-100 bg-sky-50/90 px-3 py-3">
+            <p className="text-xs font-bold uppercase tracking-wide text-sky-900">
+              Note personali (promemoria)
+            </p>
+            <p className="mt-1 text-xs text-sky-800/90">
+              Solo per te — non compaiono nel PDF di dimissione. Modifica da Account.
+            </p>
+            <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-slate-800">
+              {notePersonaliMedico}
+            </p>
+          </div>
+        ) : null}
         <PmaFieldGuard fieldKey="dimissione_esito" className="pma-row block">
           <label className="pma-field max-w-xl">
             <span className="pma-field__label">Esito</span>

@@ -261,6 +261,7 @@ function ParametriVitaliBlock({
   layout = 'row',
   variant = 'block',
   emphasizeLabels = false,
+  mobileSheet = false,
 }: {
   row: ParametroVitaleRilevazione
   canEdit: boolean
@@ -271,14 +272,26 @@ function ParametriVitaliBlock({
   /** Riga tabellare (thead separato nel genitore). */
   variant?: 'block' | 'tableRow'
   emphasizeLabels?: boolean
+  /** Modale PV smartphone: input grandi, type text + inputMode (evita zoom iOS). */
+  mobileSheet?: boolean
 }) {
   const cellAs = variant === 'tableRow' ? 'td' : 'div'
   const labelInline = layout === 'inline'
   const t = pvTones(row)
   const opNome = (row.operatore_nome ?? '').trim() || '—'
-  const pvFieldInput = emphasizeLabels
-    ? `${PV_IN_ROW} min-h-[2.75rem] text-base font-semibold`
-    : PV_IN_ROW
+  const pvFieldInput = mobileSheet
+    ? `${PMA_MODAL_INPUT} min-h-[2.75rem] text-left tabular-nums`
+    : emphasizeLabels
+      ? `${PV_IN_ROW} min-h-[2.75rem] text-base font-semibold`
+      : PV_IN_ROW
+  const pvNumType = (decimal = false) =>
+    mobileSheet
+      ? ({
+          type: 'text' as const,
+          inputMode: decimal ? ('decimal' as const) : ('numeric' as const),
+          autoComplete: 'off' as const,
+        })
+      : ({ type: 'number' as const })
   const removeButton =
     canEdit && onRemove ? (
       <button
@@ -315,9 +328,9 @@ function ParametriVitaliBlock({
         </MonitorCell>
         <MonitorCell as={cellAs} hideLabel={cellAs === 'td'} emphasizeLabel={emphasizeLabels} labelInline={labelInline} label="GCS" tone={t.gcs ?? null} boxClassName={layout === 'stack' || labelInline ? 'w-full min-w-0' : 'w-[2.85rem] shrink-0'}>
           <input
-            type="number"
-            min={3}
-            max={15}
+            {...pvNumType()}
+            min={mobileSheet ? undefined : 3}
+            max={mobileSheet ? undefined : 15}
             disabled={!canEdit}
             defaultValue={vitalInputValue(row.gcs)}
             onBlur={(e) =>
@@ -332,8 +345,8 @@ function ParametriVitaliBlock({
         </MonitorCell>
         <MonitorCell as={cellAs} hideLabel={cellAs === 'td'} emphasizeLabel={emphasizeLabels} labelInline={labelInline} label="FR" tone={t.fr ?? null} boxClassName={layout === 'stack' || labelInline ? 'w-full min-w-0' : 'w-[3rem] shrink-0'}>
           <input
-            type="number"
-            min={0}
+            {...pvNumType()}
+            min={mobileSheet ? undefined : 0}
             disabled={!canEdit}
             defaultValue={vitalInputValue(row.fr)}
             onBlur={(e) =>
@@ -344,9 +357,9 @@ function ParametriVitaliBlock({
         </MonitorCell>
         <MonitorCell as={cellAs} hideLabel={cellAs === 'td'} emphasizeLabel={emphasizeLabels} labelInline={labelInline} label="SpO₂ aa" tone={t.spo2 ?? null} boxClassName={layout === 'stack' || labelInline ? 'w-full min-w-0' : 'w-[3rem] shrink-0'}>
           <input
-            type="number"
-            min={0}
-            max={100}
+            {...pvNumType()}
+            min={mobileSheet ? undefined : 0}
+            max={mobileSheet ? undefined : 100}
             disabled={!canEdit}
             defaultValue={vitalInputValue(row.spo2_aa)}
             onBlur={(e) => {
@@ -363,9 +376,9 @@ function ParametriVitaliBlock({
         </MonitorCell>
         <MonitorCell as={cellAs} hideLabel={cellAs === 'td'} emphasizeLabel={emphasizeLabels} labelInline={labelInline} label="SpO₂ O₂" tone={t.spo2 ?? null} boxClassName={layout === 'stack' || labelInline ? 'w-full min-w-0' : 'w-[3rem] shrink-0'}>
           <input
-            type="number"
-            min={0}
-            max={100}
+            {...pvNumType()}
+            min={mobileSheet ? undefined : 0}
+            max={mobileSheet ? undefined : 100}
             disabled={!canEdit}
             defaultValue={vitalInputValue(row.spo2_o2)}
             onBlur={(e) => {
@@ -382,8 +395,8 @@ function ParametriVitaliBlock({
         </MonitorCell>
         <MonitorCell as={cellAs} hideLabel={cellAs === 'td'} emphasizeLabel={emphasizeLabels} labelInline={labelInline} label="FC" tone={t.fc ?? null} boxClassName={layout === 'stack' || labelInline ? 'w-full min-w-0' : 'w-[3rem] shrink-0'}>
           <input
-            type="number"
-            min={0}
+            {...pvNumType()}
+            min={mobileSheet ? undefined : 0}
             disabled={!canEdit}
             defaultValue={vitalInputValue(row.fc)}
             onBlur={(e) =>
@@ -394,9 +407,9 @@ function ParametriVitaliBlock({
         </MonitorCell>
         <MonitorCell as={cellAs} hideLabel={cellAs === 'td'} emphasizeLabel={emphasizeLabels} labelInline={labelInline} label="PA sys" tone={t.pa_sys ?? null} boxClassName={layout === 'stack' || labelInline ? 'w-full min-w-0' : 'w-[3.1rem] shrink-0'}>
           <input
-            type="number"
-            min={0}
-            max={999}
+            {...pvNumType()}
+            min={mobileSheet ? undefined : 0}
+            max={mobileSheet ? undefined : 999}
             disabled={!canEdit}
             defaultValue={vitalInputValue(row.pa_sistolica)}
             onBlur={(e) =>
@@ -411,9 +424,9 @@ function ParametriVitaliBlock({
         </MonitorCell>
         <MonitorCell as={cellAs} hideLabel={cellAs === 'td'} emphasizeLabel={emphasizeLabels} labelInline={labelInline} label="PA dia" tone={t.pa_dia ?? null} boxClassName={layout === 'stack' || labelInline ? 'w-full min-w-0' : 'w-[3.1rem] shrink-0'}>
           <input
-            type="number"
-            min={0}
-            max={999}
+            {...pvNumType()}
+            min={mobileSheet ? undefined : 0}
+            max={mobileSheet ? undefined : 999}
             disabled={!canEdit}
             defaultValue={vitalInputValue(row.pa_diastolica)}
             onBlur={(e) =>
@@ -428,8 +441,8 @@ function ParametriVitaliBlock({
         </MonitorCell>
         <MonitorCell as={cellAs} hideLabel={cellAs === 'td'} emphasizeLabel={emphasizeLabels} labelInline={labelInline} label="T °C" tone={t.temp ?? null} boxClassName={layout === 'stack' || labelInline ? 'w-full min-w-0' : 'w-[3.25rem] shrink-0'}>
           <input
-            type="number"
-            step="0.1"
+            {...pvNumType(true)}
+            step={mobileSheet ? undefined : 0.1}
             disabled={!canEdit}
             defaultValue={vitalInputValue(row.temperatura)}
             onBlur={(e) => {
@@ -442,9 +455,9 @@ function ParametriVitaliBlock({
         </MonitorCell>
         <MonitorCell as={cellAs} hideLabel={cellAs === 'td'} emphasizeLabel={emphasizeLabels} labelInline={labelInline} label="NRS" tone={t.nrs ?? null} boxClassName={layout === 'stack' || labelInline ? 'w-full min-w-0' : 'w-[2.85rem] shrink-0'}>
           <input
-            type="number"
-            min={0}
-            max={10}
+            {...pvNumType()}
+            min={mobileSheet ? undefined : 0}
+            max={mobileSheet ? undefined : 10}
             disabled={!canEdit}
             defaultValue={vitalInputValue(row.nrs)}
             onBlur={(e) => {
@@ -1643,6 +1656,7 @@ export function CartellaClinicaSection({
 
         {!hideClinicalBlocks && pmaMobile && pvModalOpen && pvDraft ? (
           <PmaMobileSheet
+            fullScreen
             ariaLabel="Nuova rilevazione parametri vitali"
             onBackdropClick={closePvModal}
             header={
@@ -1658,7 +1672,7 @@ export function CartellaClinicaSection({
               />
             }
           >
-            <div className="[&_input]:pma-mobile-input [&_input]:min-h-[2.75rem]">
+            <div className="pma-pv-mobile-sheet">
               <ParametriVitaliBlock
                 key={pvDraft.id}
                 row={pvDraft}
@@ -1668,6 +1682,7 @@ export function CartellaClinicaSection({
                 }}
                 layout="inline"
                 emphasizeLabels
+                mobileSheet
               />
             </div>
           </PmaMobileSheet>

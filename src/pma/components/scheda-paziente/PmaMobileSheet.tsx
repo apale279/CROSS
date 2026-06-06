@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { useEffect, useRef, type ReactNode } from 'react'
 
 type HeaderProps = {
   title: string
@@ -30,18 +30,63 @@ type SheetProps = {
   header: ReactNode
   children: ReactNode
   footer?: ReactNode
+  /** Smartphone PMA: sheet a tutto schermo, ancorato al visual viewport (tastiera senza zoom layout). */
+  fullScreen?: boolean
 }
 
 /** Bottom sheet PMA: larghezza viewport, niente overflow orizzontale. */
-export function PmaMobileSheet({ ariaLabel, onBackdropClick, header, children, footer }: SheetProps) {
+export function PmaMobileSheet({
+  ariaLabel,
+  onBackdropClick,
+  header,
+  children,
+  footer,
+  fullScreen = false,
+}: SheetProps) {
+  const sheetRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!fullScreen) return undefined
+    const el = sheetRef.current
+    if (!el) return undefined
+    const vv = window.visualViewport
+    const apply = () => {
+      if (!vv) {
+        el.style.height = '100dvh'
+        el.style.top = '0px'
+        return
+      }
+      el.style.height = `${vv.height}px`
+      el.style.top = `${vv.offsetTop}px`
+    }
+    apply()
+    vv?.addEventListener('resize', apply)
+    vv?.addEventListener('scroll', apply)
+    return () => {
+      vv?.removeEventListener('resize', apply)
+      vv?.removeEventListener('scroll', apply)
+      el.style.height = ''
+      el.style.top = ''
+    }
+  }, [fullScreen])
+
+  const overlayClass = fullScreen
+    ? 'fixed inset-0 z-[80] flex bg-slate-900/50 p-0'
+    : 'fixed inset-0 z-[80] flex items-end justify-center bg-slate-900/50 p-0 sm:items-center sm:p-4'
+
+  const sheetClass = fullScreen
+    ? 'pma-mobile-sheet pma-mobile-sheet--fullscreen fixed left-0 right-0 z-[81] flex w-full flex-col'
+    : 'pma-mobile-sheet flex max-h-[92vh] w-full flex-col sm:max-w-lg sm:rounded-2xl'
+
   return (
     <div
-      className="fixed inset-0 z-[80] flex items-end justify-center bg-slate-900/50 p-0 sm:items-center sm:p-4"
+      className={overlayClass}
       role="presentation"
       onClick={onBackdropClick}
     >
       <div
-        className="pma-mobile-sheet flex max-h-[92vh] w-full flex-col sm:max-w-lg sm:rounded-2xl"
+        ref={sheetRef}
+        className={sheetClass}
         role="dialog"
         aria-modal
         aria-label={ariaLabel}

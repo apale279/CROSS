@@ -699,6 +699,23 @@
   box-shadow: 0 -8px 30px rgb(15 23 42 / 0.18);
 }
 
+/* Modale PV smartphone: tutto schermo, input ≥16px (no zoom iOS al focus). */
+.pma-mobile-sheet--fullscreen {
+  max-height: 100dvh;
+  height: 100dvh;
+  border-radius: 0;
+  border: none;
+  box-shadow: none;
+}
+
+.pma-mobile-sheet input,
+.pma-mobile-sheet select,
+.pma-mobile-sheet textarea {
+  font-size: 16px !important;
+  line-height: 1.35;
+  touch-action: manipulation;
+}
+
 .pma-mobile-sheet__body {
   overflow-x: hidden;
   overflow-y: auto;

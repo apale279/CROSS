@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useManifestazioneId } from '../context/ManifestazioneContext';
@@ -9,8 +9,12 @@ import {
   buildMedicoFirmaPayloadFromFile,
   buildMedicoFirmaPayloadFromPng,
 } from '../pma/lib/signatureSvg';
-import { clearMedicoFirma, saveMedicoFirma } from '../services/userProfileService';
-import { btnSecondary } from '../components/ui/FormField';
+import {
+  clearMedicoFirma,
+  saveMedicoFirma,
+  saveMedicoNotePersonali,
+} from '../services/userProfileService';
+import { btnPrimary, btnSecondary } from '../components/ui/FormField';
 
 export default function AccountPage() {
   const manifestationId = useManifestazioneId();
@@ -20,6 +24,14 @@ export default function AccountPage() {
   const [msg, setMsg] = useState(null);
   const [err, setErr] = useState(null);
   const [canvasKey, setCanvasKey] = useState(0);
+  const [notePersonaliDraft, setNotePersonaliDraft] = useState(
+    () => String(profile?.note_personali ?? ''),
+  );
+  const [noteBusy, setNoteBusy] = useState(false);
+
+  useEffect(() => {
+    setNotePersonaliDraft(String(profile?.note_personali ?? ''));
+  }, [profile?.note_personali]);
 
   if (profileLoading) {
     return <p className="p-8 text-sm text-slate-500">Caricamento profilo…</p>;
@@ -30,6 +42,22 @@ export default function AccountPage() {
   }
 
   const firmaPreview = resolveMedicoFirmaSrc(profile);
+
+  async function onSaveNotePersonali() {
+    if (!manifestationId || !user?.uid) return;
+    setNoteBusy(true);
+    setErr(null);
+    setMsg(null);
+    try {
+      await saveMedicoNotePersonali(manifestationId, user.uid, notePersonaliDraft);
+      await refreshProfile();
+      setMsg('Note personali salvate.');
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'Salvataggio note non riuscito.');
+    } finally {
+      setNoteBusy(false);
+    }
+  }
 
   async function persistFirma(pngDataUrl, svgDataUrl) {
     if (!manifestationId || !user?.uid) return;
@@ -103,6 +131,30 @@ export default function AccountPage() {
           {err}
         </p>
       ) : null}
+
+      <section className="mt-6 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+        <h2 className="text-sm font-bold uppercase tracking-wide text-slate-700">Note personali</h2>
+        <p className="mt-1 text-xs text-slate-500">
+          Promemoria privati visibili all&apos;inizio della scheda dimissione (solo per il tuo
+          account). Non vengono stampati nel PDF.
+        </p>
+        <textarea
+          rows={6}
+          disabled={noteBusy || busy}
+          value={notePersonaliDraft}
+          onChange={(e) => setNotePersonaliDraft(e.target.value)}
+          placeholder="Es. Ricorda antitetanica se ferito; verifica consenso se minore…"
+          className="mt-3 block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:border-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900"
+        />
+        <button
+          type="button"
+          className={`${btnPrimary} mt-3`}
+          disabled={noteBusy || busy}
+          onClick={() => void onSaveNotePersonali()}
+        >
+          Salva note personali
+        </button>
+      </section>
 
       <section className="mt-6 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
         <h2 className="text-sm font-bold uppercase tracking-wide text-slate-700">Firma</h2>

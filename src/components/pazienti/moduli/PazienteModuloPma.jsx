@@ -141,6 +141,7 @@ export function PazienteModuloPma({
         firma_medico_base64: profile?.firma_medico_base64 ?? null,
         firma_medico_svg: profile?.firma_medico_svg ?? null,
         firmaUrl: profile?.firmaUrl ?? null,
+        note_personali: profile?.note_personali ?? null,
       }
     : null;
   const schedaReadonly = rawDoc ? isPmaSchedaReadonly(rawDoc) : false;
