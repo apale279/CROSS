@@ -836,6 +836,8 @@ export function PazienteScheda({
           pettorale:
             draft.pettorale !== '' && draft.pettorale != null ? Number(draft.pettorale) : null,
           telefono: draft.telefono ?? '',
+          comune: draft.comune ?? '',
+          indirizzo: draft.indirizzo ?? '',
           dataNascita: draft.dataNascita ?? '',
           valutazioniSoccorso: (draft.valutazioniSoccorso ?? []).map((v) => {
             const base = {
@@ -946,14 +948,12 @@ export function PazienteScheda({
             touchDirty(key);
             setDraft((d) => ({ ...d, [key]: value }));
           }}
-          onBlurField={(key) => {
+          onBlurField={(key, value) => {
+            const v = value !== undefined ? value : draft[key];
             if (key === 'pettorale') {
               void patchPatientFields(
                 {
-                  pettorale:
-                    draft.pettorale !== '' && draft.pettorale != null
-                      ? Number(draft.pettorale)
-                      : null,
+                  pettorale: v !== '' && v != null ? Number(v) : null,
                 },
                 ['pettorale'],
               );
@@ -962,22 +962,22 @@ export function PazienteScheda({
             if (key === 'dataNascita') {
               void patchPatientFields(
                 {
-                  dataNascita: draft.dataNascita,
-                  eta: etaDaDataNascita(draft.dataNascita),
+                  dataNascita: v,
+                  eta: etaDaDataNascita(v),
                 },
                 ['dataNascita', 'eta'],
               );
               return;
             }
             if (key === 'eta') {
-              void patchPatientFields({ eta: parseEtaDraft(draft.eta) }, ['eta']);
+              void patchPatientFields({ eta: parseEtaDraft(v) }, ['eta']);
               return;
             }
             if (key === 'sesso') {
-              void patchPatientFields({ sesso: draft.sesso }, ['sesso']);
+              void patchPatientFields({ sesso: v ?? '' }, ['sesso']);
               return;
             }
-            void patchPatientFields({ [key]: draft[key] ?? '' }, [key]);
+            void patchPatientFields({ [key]: v ?? '' }, [key]);
           }}
         />
       </div>
