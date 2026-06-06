@@ -11,6 +11,8 @@ const CENTRALE_PATCH_KEYS = new Set([
   'cognome',
   'pettorale',
   'telefono',
+  'comune',
+  'indirizzo',
   'dataNascita',
   'eta',
   'sesso',

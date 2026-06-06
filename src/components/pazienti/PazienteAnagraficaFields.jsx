@@ -28,7 +28,7 @@ export function PazienteAnagraficaFields({
             placeholder="Nr."
             disabled={readOnly}
             onChange={(e) => touch('pettorale', e.target.value)}
-            onBlur={() => onBlurField?.('pettorale')}
+            onBlur={(e) => onBlurField?.('pettorale', e.target.value)}
           />
           {onSearchPettorale && (
             <button
@@ -55,7 +55,7 @@ export function PazienteAnagraficaFields({
           value={draft.nome ?? ''}
           disabled={readOnly}
           onChange={(e) => touch('nome', e.target.value)}
-          onBlur={() => onBlurField?.('nome')}
+          onBlur={(e) => onBlurField?.('nome', e.target.value)}
         />
       </FormField>
       <FormField label="Cognome">
@@ -64,7 +64,7 @@ export function PazienteAnagraficaFields({
           value={draft.cognome ?? ''}
           disabled={readOnly}
           onChange={(e) => touch('cognome', e.target.value)}
-          onBlur={() => onBlurField?.('cognome')}
+          onBlur={(e) => onBlurField?.('cognome', e.target.value)}
         />
       </FormField>
       <FormField label="Data di nascita">
@@ -80,7 +80,7 @@ export function PazienteAnagraficaFields({
             onChange?.('dataNascita', dataNascita);
             if (nuovaEta != null) onChange?.('eta', String(nuovaEta));
           }}
-          onBlur={() => onBlurField?.('dataNascita')}
+          onBlur={(e) => onBlurField?.('dataNascita', e.target.value)}
         />
       </FormField>
       <FormField label="Telefono">
@@ -90,7 +90,7 @@ export function PazienteAnagraficaFields({
           value={draft.telefono ?? ''}
           disabled={readOnly}
           onChange={(e) => touch('telefono', e.target.value)}
-          onBlur={() => onBlurField?.('telefono')}
+          onBlur={(e) => onBlurField?.('telefono', e.target.value)}
         />
       </FormField>
       <FormField label="Età">
@@ -100,7 +100,7 @@ export function PazienteAnagraficaFields({
           value={draft.eta ?? ''}
           disabled={readOnly}
           onChange={(e) => touch('eta', e.target.value)}
-          onBlur={() => onBlurField?.('eta')}
+          onBlur={(e) => onBlurField?.('eta', e.target.value)}
         />
       </FormField>
       <FormField label="Sesso">
@@ -109,8 +109,9 @@ export function PazienteAnagraficaFields({
           value={draft.sesso ?? ''}
           disabled={readOnly}
           onChange={(e) => {
-            touch('sesso', e.target.value);
-            onBlurField?.('sesso');
+            const v = e.target.value;
+            touch('sesso', v);
+            onBlurField?.('sesso', v);
           }}
         >
           <option value="">—</option>
@@ -125,7 +126,7 @@ export function PazienteAnagraficaFields({
           value={draft.comune ?? ''}
           disabled={readOnly}
           onChange={(e) => touch('comune', e.target.value)}
-          onBlur={() => onBlurField?.('comune')}
+          onBlur={(e) => onBlurField?.('comune', e.target.value)}
         />
       </FormField>
       <FormField label="Indirizzo">
@@ -134,7 +135,7 @@ export function PazienteAnagraficaFields({
           value={draft.indirizzo ?? ''}
           disabled={readOnly}
           onChange={(e) => touch('indirizzo', e.target.value)}
-          onBlur={() => onBlurField?.('indirizzo')}
+          onBlur={(e) => onBlurField?.('indirizzo', e.target.value)}
         />
       </FormField>
       <FormField label="Note" className="sm:col-span-2">
@@ -144,7 +145,7 @@ export function PazienteAnagraficaFields({
           value={draft.notePaziente ?? ''}
           disabled={readOnly}
           onChange={(e) => touch('notePaziente', e.target.value)}
-          onBlur={() => onBlurField?.('notePaziente')}
+          onBlur={(e) => onBlurField?.('notePaziente', e.target.value)}
         />
       </FormField>
     </div>
