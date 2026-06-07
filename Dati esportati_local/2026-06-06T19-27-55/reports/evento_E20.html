@@ -1,0 +1,165 @@
+<!DOCTYPE html><html lang="it"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Evento E20 — CROSS</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter',Arial,sans-serif;font-size:11pt;color:#1a1a1a;background:#fff;line-height:1.45}
+.page{max-width:210mm;margin:0 auto;padding:12mm 14mm}
+h1{font-size:15pt;font-weight:700;color:#1a237e;border-bottom:3px solid #1a237e;padding-bottom:3mm;margin-bottom:5mm}
+h2{font-size:11.5pt;font-weight:600;color:#283593;margin:5mm 0 2mm;border-left:4px solid #3949ab;padding-left:3mm}
+h3{font-size:10pt;font-weight:600;color:#37474f;margin:3mm 0 1mm}
+.hrow{display:flex;justify-content:space-between;align-items:flex-start;gap:4mm;margin-bottom:5mm}
+.hright{text-align:right;font-size:9pt;color:#555;line-height:1.6}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:3mm}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:3mm}
+.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:2mm}
+.field{margin-bottom:2mm}
+.field .lbl{font-size:7.5pt;font-weight:600;color:#546e7a;text-transform:uppercase;letter-spacing:.3px}
+.field .val{font-size:10pt;color:#1a1a1a;border-bottom:1px solid #e8e8e8;padding-bottom:1mm;min-height:5.5mm}
+table{width:100%;border-collapse:collapse;margin:2mm 0 4mm;font-size:9pt}
+th{background:#3949ab;color:#fff;padding:2.5mm 3mm;text-align:left;font-weight:600}
+td{padding:2mm 3mm;border-bottom:1px solid #eeeeee;vertical-align:top}
+tr:nth-child(even) td{background:#f8f9ff}
+tr:last-child td{border-bottom:none}
+.box{background:#f5f7ff;border:1px solid #c5cae9;border-radius:4px;padding:3mm 4mm;margin:2mm 0 4mm}
+.tag{display:inline-block;background:#e8eaf6;color:#3949ab;border-radius:3px;padding:1px 7px;font-size:9pt;margin:1px 2px 1px 0}
+.nd{color:#bbb;font-style:italic;font-size:9pt}
+.footer{margin-top:8mm;padding-top:3mm;border-top:1px solid #ddd;font-size:8pt;color:#999;display:flex;justify-content:space-between}
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(75px,1fr));gap:3mm;margin:3mm 0 5mm}
+.stat-card{background:#f5f7ff;border:1px solid #c5cae9;border-radius:4px;padding:3mm;text-align:center}
+.stat-card .num{font-size:21pt;font-weight:800;color:#1a237e;line-height:1.1}
+.stat-card .lbl{font-size:7.5pt;color:#555;margin-top:1mm}
+.r .num{color:#c62828}.g .num{color:#2e7d32}.y .num{color:#e65100}
+.pbtn{position:fixed;bottom:18px;right:18px;background:#1a237e;color:#fff;border:none;
+  padding:9px 18px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600;
+  box-shadow:0 3px 10px rgba(0,0,0,.3);z-index:999}
+.pbtn:hover{background:#283593}
+@media print{
+  .pbtn{display:none!important}
+  .page{padding:8mm 10mm;max-width:none}
+  h2{break-after:avoid}
+  table{break-inside:auto}
+  tr{break-inside:avoid}
+}</style></head><body>
+<button class="pbtn" onclick="window.print()">🖨️ Stampa / PDF</button>
+<div class="page">
+  <div class="hrow">
+    <div>
+      <h1>📋 Report Evento — E20</h1>
+      <div style="font-size:12pt;margin-top:2mm">
+        <span style="display:inline-block;padding:2px 9px;border-radius:10px;background:#4caf50;color:#fff;font-weight:700;font-size:11px;border:1px solid rgba(0,0,0,.15)">Verde</span> <b>MEDICO ACUTO</b>
+         — DIGERENTE
+        &nbsp;|&nbsp; 📍 <b>STRADA</b>
+         (AFFARI)
+      </div>
+    </div>
+    <div class="hright">
+      Stato: <b>CHIUSO</b><br>
+      Apertura: <b>06/06/2026, 18:53:11</b><br>
+      Chiusura: <b>06/06/2026, 21:07:46</b><br>
+      <span style="font-size:8pt;color:#aaa">Export: 06/06/2026, 21:27:55</span>
+    </div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card"><div class="num">3</div><div class="lbl">Missioni</div></div>
+    <div class="stat-card"><div class="num">7</div><div class="lbl">Pazienti</div></div>
+    <div class="stat-card r"><div class="num">0</div><div class="lbl">🔴 Rossi</div></div>
+    <div class="stat-card y"><div class="num">0</div><div class="lbl">🟡 Gialli</div></div>
+    <div class="stat-card g"><div class="num">2</div><div class="lbl">🟢 Verdi</div></div>
+    <div class="stat-card"><div class="num">5</div><div class="lbl">⚪ Bianchi</div></div>
+    <div class="stat-card"><div class="num">0</div><div class="lbl">Trasportati</div></div>
+    <div class="stat-card"><div class="num">0</div><div class="lbl">Arrivati H</div></div>
+  </div>
+
+  
+
+  <h2>Missioni (3)</h2>
+  <table><thead><tr><th>ID</th><th>Mezzo</th><th>Stato</th><th>Colore</th><th>Ospedale</th><th>Esito</th><th>Equipaggio</th><th>Apertura</th></tr></thead>
+  <tbody><tr>
+        <td><b>M40</b></td><td>CRI_LC_3184</td>
+        <td><b>FINE MISSIONE</b></td><td><span style="display:inline-block;padding:2px 9px;border-radius:10px;background:#f9a825;color:#333;font-weight:700;font-size:11px;border:1px solid rgba(0,0,0,.15)">Giallo</span></td>
+        <td>—</td><td>REGOLARE</td>
+        <td style="font-size:8.5pt">—</td><td>06/06/2026, 20:34:17</td></tr><tr>
+        <td><b>M28</b></td><td>CRI_LC_3174</td>
+        <td><b>FINE MISSIONE</b></td><td><span style="display:inline-block;padding:2px 9px;border-radius:10px;background:#f9a825;color:#333;font-weight:700;font-size:11px;border:1px solid rgba(0,0,0,.15)">Giallo</span></td>
+        <td>—</td><td>REGOLARE</td>
+        <td style="font-size:8.5pt">—</td><td>06/06/2026, 19:08:00</td></tr><tr>
+        <td><b>M25</b></td><td>CRI_LC_ARRIVO2</td>
+        <td><b>FINE MISSIONE</b></td><td><span style="display:inline-block;padding:2px 9px;border-radius:10px;background:#4caf50;color:#fff;font-weight:700;font-size:11px;border:1px solid rgba(0,0,0,.15)">Verde</span></td>
+        <td>—</td><td>REGOLARE</td>
+        <td style="font-size:8.5pt">—</td><td>06/06/2026, 18:53:42</td></tr></tbody></table>
+
+  <h2>Pazienti (7)</h2>
+  <table><thead><tr><th>Pet.</th><th>Nome</th><th>Colore</th><th>Stato</th><th>PMA</th><th>Esito</th><th>Mezzo</th><th>Ospedale</th><th>Ultimi param.</th><th>Valut.</th><th>Dimissione</th></tr></thead>
+  <tbody><tr>
+          <td><b>209</b></td>
+          <td><b>SPREAFICO GIACOMO</b></td>
+          <td><span style="display:inline-block;padding:2px 9px;border-radius:10px;background:#e8e8e8;color:#333;font-weight:700;font-size:11px;border:1px solid rgba(0,0,0,.15)">Bianco</span></td>
+          <td>ATTESA</td><td>—</td>
+          <td>Non trasporta</td><td>—</td>
+          <td>—</td>
+          <td style="font-size:8.5pt">—</td>
+          <td style="text-align:center">—</td>
+          <td><b>—</b></td></tr><tr>
+          <td><b>148</b></td>
+          <td><b>GUERCI DANIELE</b></td>
+          <td><span style="display:inline-block;padding:2px 9px;border-radius:10px;background:#e8e8e8;color:#333;font-weight:700;font-size:11px;border:1px solid rgba(0,0,0,.15)">Bianco</span></td>
+          <td>ATTESA</td><td>—</td>
+          <td>Risolto in posto</td><td>—</td>
+          <td>—</td>
+          <td style="font-size:8.5pt">—</td>
+          <td style="text-align:center">—</td>
+          <td><b>—</b></td></tr><tr>
+          <td><b>589</b></td>
+          <td><b>TORRI GIANBATTISTA</b></td>
+          <td><span style="display:inline-block;padding:2px 9px;border-radius:10px;background:#4caf50;color:#fff;font-weight:700;font-size:11px;border:1px solid rgba(0,0,0,.15)">Verde</span></td>
+          <td>ATTESA</td><td>—</td>
+          <td>Non trasporta</td><td>—</td>
+          <td>—</td>
+          <td style="font-size:8.5pt">—</td>
+          <td style="text-align:center">—</td>
+          <td><b>—</b></td></tr><tr>
+          <td><b>766</b></td>
+          <td><b>TORRES GARCIA LUIS RICARDO</b></td>
+          <td><span style="display:inline-block;padding:2px 9px;border-radius:10px;background:#e8e8e8;color:#333;font-weight:700;font-size:11px;border:1px solid rgba(0,0,0,.15)">Bianco</span></td>
+          <td>ATTESA</td><td>—</td>
+          <td>Risolto in posto</td><td>—</td>
+          <td>—</td>
+          <td style="font-size:8.5pt">—</td>
+          <td style="text-align:center">—</td>
+          <td><b>—</b></td></tr><tr>
+          <td><b>1170</b></td>
+          <td><b>ZAMARIAN ANDREA</b></td>
+          <td><span style="display:inline-block;padding:2px 9px;border-radius:10px;background:#e8e8e8;color:#333;font-weight:700;font-size:11px;border:1px solid rgba(0,0,0,.15)">Bianco</span></td>
+          <td>ATTESA</td><td>—</td>
+          <td>Risolto in posto</td><td>—</td>
+          <td>—</td>
+          <td style="font-size:8.5pt">—</td>
+          <td style="text-align:center">—</td>
+          <td><b>—</b></td></tr><tr>
+          <td><b>1189</b></td>
+          <td><b>CROTTA MATTEO</b></td>
+          <td><span style="display:inline-block;padding:2px 9px;border-radius:10px;background:#4caf50;color:#fff;font-weight:700;font-size:11px;border:1px solid rgba(0,0,0,.15)">Verde</span></td>
+          <td>ATTESA</td><td>—</td>
+          <td>Non trasporta</td><td>—</td>
+          <td>—</td>
+          <td style="font-size:8.5pt">—</td>
+          <td style="text-align:center">—</td>
+          <td><b>—</b></td></tr><tr>
+          <td><b>368</b></td>
+          <td><b>POZZI SERGIO</b></td>
+          <td><span style="display:inline-block;padding:2px 9px;border-radius:10px;background:#e8e8e8;color:#333;font-weight:700;font-size:11px;border:1px solid rgba(0,0,0,.15)">Bianco</span></td>
+          <td>ATTESA</td><td>—</td>
+          <td>Si allontana</td><td>—</td>
+          <td>—</td>
+          <td style="font-size:8.5pt">—</td>
+          <td style="text-align:center">—</td>
+          <td><b>—</b></td></tr></tbody></table>
+
+  <div class="footer">
+    <span>CROSS — Evento E20 — MEDICO ACUTO @ STRADA</span>
+    <span>Generato il 06/06/2026, 21:27:55</span>
+  </div>
+</div></body></html>
