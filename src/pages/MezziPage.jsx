@@ -16,9 +16,6 @@ import {
   patchMezzo,
 } from '../services/mezziService';
 import { patchMezzoStatoMezzo } from '../services/mezzoDisponibileService';
-import { resolveMissionPmaPatientsBeforeClose } from '../services/missionPmaPatientCloseService';
-import { missioniAperteSuMezzo } from '../lib/mezzoMissione';
-import { MISSION_PMA_CLOSE_MOTIVO } from '../lib/missionPmaPatientClose';
 import { confirmMezzoDisponibileLiberaMissioni } from '../lib/mezzoDisponibileConfirm';
 import { confirmDelete } from '../utils/confirmDelete';
 import { MezzoStatoSelect } from '../components/mezzi/MezzoStatoSelect';
@@ -63,8 +60,6 @@ export default function MezziPage() {
   const stazionamentiPreset = impostazioni.stazionamenti ?? [];
   const { data: mezzi, loading } = useManifestazioneCollection(COLLECTIONS.mezzi);
   const { data: missioni } = useManifestazioneCollection(COLLECTIONS.missioni);
-  const { data: pazienti } = useManifestazioneCollection(COLLECTIONS.pazienti);
-  const { data: eventi } = useManifestazioneCollection(COLLECTIONS.eventi);
   const [form, setForm] = useState(() => emptyForm(tipiMezzo));
   const [showForm, setShowForm] = useState(false);
 
@@ -112,19 +107,6 @@ export default function MezziPage() {
 
   const patchStatoMezzo = async (sigla, statoMezzo) => {
     if (!confirmMezzoDisponibileLiberaMissioni(missioni, sigla, statoMezzo)) return;
-    if (statoMezzo === MEZZO_STATO_DISPONIBILE) {
-      const aperte = missioniAperteSuMezzo(missioni, sigla);
-      const { proceed } = await resolveMissionPmaPatientsBeforeClose({
-        manifestationId: manifestazioneId,
-        missioni: aperte,
-        pazienti,
-        eventi,
-        motivoChiusura: MISSION_PMA_CLOSE_MOTIVO.MEZZO_DISPONIBILE,
-        impostazioni,
-        titolo: `Mezzo ${sigla} → DISPONIBILE`,
-      });
-      if (!proceed) return;
-    }
     await patchMezzoStatoMezzo(manifestazioneId, sigla, statoMezzo);
   };
 

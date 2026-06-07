@@ -7,6 +7,7 @@ export const EMPTY_PMA_SCHEDA = {
   apr: '',
   allergie: '',
   allergie_verifica: null,
+  avanzamento_manuale: null,
   app: '',
   EO_GENERALE: [],
   EO_NEUROLOGICO: [],

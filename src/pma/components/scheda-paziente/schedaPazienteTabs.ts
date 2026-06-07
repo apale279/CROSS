@@ -24,11 +24,8 @@ export const PMA_CLINICAL_SHELL_TABS: { id: SchedaPazienteTabId; label: string }
   { id: 'dimissione', label: 'Dimissioni' },
 ]
 
-/** Autopresentati: nessun dato da centrale → tab nascosto. */
-export function pmaShellTabsFor(isAutopresentato: boolean) {
-  if (isAutopresentato) {
-    return PMA_SHELL_TABS.filter((t) => t.id !== 'dati_centrale')
-  }
+/** Tab shell PMA (autopresentati includono «Dati centrale» con messaggio informativo). */
+export function pmaShellTabsFor(_isAutopresentato: boolean) {
   return PMA_SHELL_TABS
 }
 

@@ -1,6 +1,14 @@
-import { Timestamp } from 'firebase/firestore';
+import { deleteField, Timestamp } from 'firebase/firestore';
 import { STATO_PAZIENTE_PMA } from '../constants';
-import { STATO_PZ_PMA, TIPO_PZ } from '../lib/pmaModule';
+import {
+  STATO_PZ_PMA,
+  TIPO_PZ,
+  isPazienteCodiceMinore,
+  normalizeStatoPzPma,
+  pazientePmaChiuso,
+  pmaIdPerPaziente,
+  STATI_PZ_PMA_APERTI,
+} from '../lib/pmaModule';
 import { isPercorsoCodiceMinoreTrasporto } from '../lib/pmaDestinazioneTrasporto';
 import { buildCodiceMinoreTrasportoNome } from '../lib/codiceMinoreTrasportoNome';
 import { etaDaDataNascita } from '../lib/excelPartecipanti';
@@ -123,6 +131,86 @@ export async function deletePazienteCodiceMinore(manifestationId, docId, existin
     await deleteAllCodiceMinoreFoto(manifestationId, docId, existingRow);
   }
   await deletePazienteCascade(manifestationId, docId);
+}
+
+function seedMotivoFromPaziente(paziente) {
+  const scheda = paziente?.pmaScheda ?? {};
+  const parts = [
+    scheda.tipo_evento,
+    scheda.dettaglio_evento,
+    scheda.breve_descrizione,
+    paziente?.notePaziente,
+  ]
+    .map((s) => String(s ?? '').trim())
+    .filter(Boolean);
+  return parts.join(' — ');
+}
+
+/** Converte un paziente PMA/centrale in codice minore (fast track astanteria). */
+export async function convertPazienteToCodiceMinore(
+  manifestationId,
+  docId,
+  pmaId,
+  existingRow,
+) {
+  if (!existingRow) throw new Error('Paziente non trovato');
+  if (isPazienteCodiceMinore(existingRow)) throw new Error('Paziente già codice minore');
+  if (pazientePmaChiuso(existingRow)) throw new Error('Paziente già chiuso');
+  const stato = normalizeStatoPzPma(existingRow.statoPzPma);
+  if (!stato || !STATI_PZ_PMA_APERTI.includes(stato)) {
+    throw new Error('Il paziente non è attivo al PMA');
+  }
+  const pazientePma = pmaIdPerPaziente(existingRow);
+  if (pazientePma && pazientePma !== pmaId) {
+    throw new Error('Paziente di un altro PMA');
+  }
+
+  const existingCm = existingRow.codiceMinore ?? {};
+  const codiceMinorePatch = {
+    motivoArrivo:
+      String(existingCm.motivoArrivo ?? '').trim() || seedMotivoFromPaziente(existingRow),
+    trattamento: String(existingCm.trattamento ?? '').trim(),
+    oraArrivo: existingCm.oraArrivo ?? Timestamp.now(),
+    oraFine: existingCm.oraFine ?? null,
+  };
+
+  await patchPazienteCodiceMinoreScalars(
+    manifestationId,
+    docId,
+    {
+      tipoPz: TIPO_PZ.CODICE_MINORE,
+      statoPzPma: STATO_PZ_PMA.IN_CARICO,
+      stato: STATO_PAZIENTE_PMA,
+      aperta: true,
+      pmaId: pmaId || existingRow.pmaId || existingRow.destinazionePmaId || '',
+      destinazionePmaId:
+        existingRow.destinazionePmaId || pmaId || existingRow.pmaId || '',
+    },
+    codiceMinorePatch,
+  );
+}
+
+/** Aggiorna motivo e prestazione (fast track). */
+export async function patchCodiceMinoreFastTrack(manifestationId, docId, { motivoArrivo, trattamento }) {
+  const patch = {};
+  if (motivoArrivo !== undefined) patch.motivoArrivo = String(motivoArrivo ?? '').trim();
+  if (trattamento !== undefined) patch.trattamento = String(trattamento ?? '').trim();
+  if (Object.keys(patch).length === 0) return;
+  await patchPazienteCodiceMinoreScalars(manifestationId, docId, {}, patch);
+}
+
+/** Chiude paziente codice minore (equivalente dimissione PMA). */
+export async function chiudiPazienteCodiceMinore(manifestationId, docId) {
+  await patchPazienteCodiceMinoreScalars(
+    manifestationId,
+    docId,
+    {
+      statoPzPma: STATO_PZ_PMA.DIMESSO,
+      aperta: false,
+      pmaPostoLettoId: deleteField(),
+    },
+    { oraFine: Timestamp.now() },
+  );
 }
 
 export function codiceMinoreFromPaziente(paziente) {

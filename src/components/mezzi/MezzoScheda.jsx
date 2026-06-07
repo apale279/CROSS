@@ -22,10 +22,7 @@ import {
 import { deleteField } from 'firebase/firestore';
 import { deleteMezzo, patchMezzo } from '../../services/mezziService';
 import { patchMezzoStatoMezzo } from '../../services/mezzoDisponibileService';
-import { missioniAperteSuMezzo } from '../../lib/mezzoMissione';
-import { MISSION_PMA_CLOSE_MOTIVO } from '../../lib/missionPmaPatientClose';
 import { confirmMezzoDisponibileLiberaMissioni } from '../../lib/mezzoDisponibileConfirm';
-import { resolveMissionPmaPatientsBeforeClose } from '../../services/missionPmaPatientCloseService';
 import { confirmDelete } from '../../utils/confirmDelete';
 import { btnDanger, btnSecondary, inputClass } from '../ui/FormField';
 
@@ -33,8 +30,6 @@ import { btnDanger, btnSecondary, inputClass } from '../ui/FormField';
 export function MezzoScheda({ mezzo, onDeleted, readOnly = false }) {
   const manifestationId = useManifestazioneId();
   const { data: missioni } = useManifestazioneCollection(COLLECTIONS.missioni);
-  const { data: pazienti } = useManifestazioneCollection(COLLECTIONS.pazienti);
-  const { data: eventi } = useManifestazioneCollection(COLLECTIONS.eventi);
   const { impostazioni } = useImpostazioni();
   const gpsTrackingEnabled = impostazioni?.telegramGpsTrackingEnabled !== false;
   const [savingStato, setSavingStato] = useState(false);
@@ -64,19 +59,6 @@ export function MezzoScheda({ mezzo, onDeleted, readOnly = false }) {
   const setStatoMezzo = async (statoMezzo) => {
     if (statoMezzo === (mezzo.statoMezzo ?? MEZZO_STATO_DISPONIBILE)) return;
     if (!confirmMezzoDisponibileLiberaMissioni(missioni, sigla, statoMezzo)) return;
-    if (statoMezzo === MEZZO_STATO_DISPONIBILE) {
-      const aperte = missioniAperteSuMezzo(missioni, sigla);
-      const { proceed } = await resolveMissionPmaPatientsBeforeClose({
-        manifestationId,
-        missioni: aperte,
-        pazienti,
-        eventi,
-        motivoChiusura: MISSION_PMA_CLOSE_MOTIVO.MEZZO_DISPONIBILE,
-        impostazioni,
-        titolo: `Mezzo ${sigla} → DISPONIBILE`,
-      });
-      if (!proceed) return;
-    }
     setSavingStato(true);
     try {
       await patchMezzoStatoMezzo(manifestationId, sigla, statoMezzo);

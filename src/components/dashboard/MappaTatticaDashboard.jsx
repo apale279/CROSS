@@ -5,8 +5,6 @@ import { useManifestazioneId } from '../../context/ManifestazioneContext';
 import { mezziConMissioneAttiva, isMissioneAttiva } from '../../lib/mezzoMissione';
 import { filterMezziMappaTattica } from '../../lib/mezzoFilters';
 import { buildStatoChangeFields } from '../../lib/missionStoricoStati';
-import { MISSION_PMA_CLOSE_MOTIVO } from '../../lib/missionPmaPatientClose';
-import { resolveMissionPmaPatientsBeforeClose } from '../../services/missionPmaPatientCloseService';
 import { patchMissione } from '../../services/missioniService';
 import { TabelloneTattico } from '../tactical/TabelloneTattico';
 import { MezziPilaSidebar } from '../tactical/MezziPilaSidebar';
@@ -45,22 +43,6 @@ export function MappaTatticaDashboard({ eventi, missioni, mezzi, pazienti = [] }
       if (!missione?._docId || !isMissioneAttiva(missione)) return;
       setStatoSaving(true);
       try {
-        if (nuovoStato === 'FINE MISSIONE' || nuovoStato === 'ANNULLATA') {
-          const motivo =
-            nuovoStato === 'ANNULLATA'
-              ? MISSION_PMA_CLOSE_MOTIVO.ANNULLATA
-              : MISSION_PMA_CLOSE_MOTIVO.FINE_MISSIONE;
-          const { proceed } = await resolveMissionPmaPatientsBeforeClose({
-            manifestationId,
-            missioni: missione,
-            pazienti,
-            eventi,
-            motivoChiusura: motivo,
-            impostazioni,
-            titolo: `${nuovoStato === 'ANNULLATA' ? 'Annullamento' : 'Chiusura'} missione ${missione.idMissione}`,
-          });
-          if (!proceed) return;
-        }
         await patchMissione(
           manifestationId,
           missione._docId,
@@ -73,7 +55,7 @@ export function MappaTatticaDashboard({ eventi, missioni, mezzi, pazienti = [] }
         setStatoSaving(false);
       }
     },
-    [manifestationId, pazienti, eventi, impostazioni],
+    [manifestationId],
   );
 
   if (!loadingImpostazioni && !piantinaUrl) {

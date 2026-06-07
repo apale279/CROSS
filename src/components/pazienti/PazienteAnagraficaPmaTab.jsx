@@ -4,6 +4,9 @@ import { patientDocToDraftFields } from '../../lib/pazienteDraftMerge';
 import { STATO_PZ_PMA, statoPzPmaLabel } from '../../lib/pmaModule';
 import { patchPaziente } from '../../services/pazientiService';
 import { setStatoPmaAutopresentato } from '../../services/pmaStatoService';
+import { patchPazientePmaGranular } from '../../pma/lib/pazientePmaPatch';
+import { PmaCodiceColoreField } from '../../pma/components/scheda-paziente/PmaCodiceColoreField';
+import { PmaRendiCodiceMinoreBlock } from '../pma/PmaRendiCodiceMinoreBlock';
 import { FormField, selectClass } from '../ui/FormField';
 import { PazienteAnagraficaFields } from './PazienteAnagraficaFields';
 import { PazienteTipoEventoFields } from './PazienteTipoEventoFields';
@@ -39,6 +42,11 @@ export function PazienteAnagraficaPmaTab({
   onFlushEvento,
   showEventoDettaglio = false,
   eventoEditable = false,
+  canEditColore = false,
+  showRendiCodiceMinore = false,
+  rendiCodiceMinoreAtTop = false,
+  onRendiCodiceMinore,
+  rendiCodiceMinoreBusy = false,
 }) {
   const [draft, setDraft] = useState(() => patientDocToDraftFields(rawDoc ?? {}));
   const [savingStato, setSavingStato] = useState(false);
@@ -98,8 +106,27 @@ export function PazienteAnagraficaPmaTab({
     }
   };
 
+  const codiceColore = rawDoc?.pmaScheda?.codice_colore ?? '';
+
+  const patchColore = useCallback(
+    async (c) => {
+      if (!canEditColore || !manifestationId || !patientDocId) return;
+      await patchPazientePmaGranular(manifestationId, patientDocId, { codice_colore: c });
+    },
+    [canEditColore, manifestationId, patientDocId],
+  );
+
+  const rendiCodiceMinoreBlock = showRendiCodiceMinore ? (
+    <PmaRendiCodiceMinoreBlock
+      busy={rendiCodiceMinoreBusy}
+      onClick={() => void onRendiCodiceMinore?.()}
+    />
+  ) : null;
+
   return (
     <div className="space-y-4 text-sm">
+      {rendiCodiceMinoreAtTop ? rendiCodiceMinoreBlock : null}
+
       {readOnly && (
         <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900">
           Paziente inviato dalla centrale: anagrafica in sola lettura. La cartella clinica è
@@ -184,6 +211,17 @@ export function PazienteAnagraficaPmaTab({
           )}
         </div>
       )}
+
+      <div className="border-t border-slate-200 pt-3">
+        <PmaCodiceColoreField
+          value={codiceColore}
+          canEdit={canEditColore}
+          compact
+          onChange={(c) => void patchColore(c)}
+        />
+      </div>
+
+      {showRendiCodiceMinore && !rendiCodiceMinoreAtTop ? rendiCodiceMinoreBlock : null}
     </div>
   );
 }

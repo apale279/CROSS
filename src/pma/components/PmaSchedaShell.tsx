@@ -4,9 +4,10 @@ import { useSearchParams } from 'react-router-dom';
 import { COLLECTIONS } from '../../lib/firestorePaths';
 import { useManifestazioneCollection } from '../../hooks/useManifestazioneCollection';
 import { findEvento, missioniPerEvento } from '../../lib/eventoLinks';
-import { canViewPmaScheda, pmaIdPerPaziente } from '../../lib/pmaModule';
+import { canViewPmaScheda, isPazienteCodiceMinore, pmaIdPerPaziente } from '../../lib/pmaModule';
 import { usePazienteDocument } from '../../hooks/usePazienteDocument';
 import { PazienteModuloPma } from '../../components/pazienti/moduli/PazienteModuloPma';
+import { PmaCodiceMinoreScheda } from '../../components/pma/PmaCodiceMinoreScheda';
 import { VISTA_SCHEDA } from '../../lib/pazienteSchedaModuli';
 import { usePmaFieldUx } from '../hooks/usePmaFieldUx';
 import type { SchedaPazienteTabId } from './scheda-paziente/schedaPazienteTabs';
@@ -63,6 +64,28 @@ export function PmaSchedaShell({ pazienteDocId, pmaId, pmaNome, onClose }: Props
           Torna al PMA
         </button>
       </div>
+    );
+  }
+
+  if (isPazienteCodiceMinore(rawDoc)) {
+    const pazientePmaId = pmaIdPerPaziente(rawDoc);
+    if (pazientePmaId && pazientePmaId !== pmaId) {
+      return (
+        <div className="p-8 text-center text-sm text-amber-900">
+          Questo paziente appartiene a un altro PMA.
+          <button type="button" className="ml-2 text-sky-700 underline" onClick={onClose}>
+            Torna al PMA
+          </button>
+        </div>
+      );
+    }
+    return (
+      <PmaCodiceMinoreScheda
+        pazienteDocId={pazienteDocId}
+        pmaId={pmaId}
+        pmaNome={pmaNome}
+        onClose={onClose}
+      />
     );
   }
 

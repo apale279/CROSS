@@ -1,0 +1,2050 @@
+[
+  {
+    "_docId": "AAT_LC_COORD",
+    "tipo": "COORDINAMENTO",
+    "sigla": "AAT_LC_COORD",
+    "stazionamento": {
+      "luogo_fisico": "",
+      "note": "",
+      "coordinate": null,
+      "indirizzo": "Piazza degli Affari, 23900 Lecco LC"
+    },
+    "creatoIl": "2026-05-31T15:06:54.000Z",
+    "manifestationId": "Lr4XjZMr4UWWJWD2m0iW",
+    "radio": "",
+    "targa": "",
+    "noteOperativo": "",
+    "stazionamentoPredefinito": false,
+    "idUnivoco": "1780240013851_ujzbz",
+    "dettaglio_stazionamento": "",
+    "operativo": true,
+    "stazionamentoId": "49d5d2d7-899f-41e7-913f-160507e03925",
+    "equipaggio": {
+      "autista": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "medico": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "soccorritore2": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "soccorritore1": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      }
+    },
+    "coordinate_stazionamento": null,
+    "statoMezzo": "Disponibile"
+  },
+  {
+    "_docId": "AREU_MSA1",
+    "sigla": "AREU_MSA1",
+    "stazionamento": {
+      "luogo_fisico": "",
+      "note": "",
+      "coordinate": null,
+      "indirizzo": "Via Filanda, 10, 23900 Lecco LC"
+    },
+    "creatoIl": "2026-05-31T15:06:58.000Z",
+    "manifestationId": "Lr4XjZMr4UWWJWD2m0iW",
+    "radio": "",
+    "targa": "",
+    "noteOperativo": "",
+    "stazionamentoPredefinito": false,
+    "idUnivoco": "1780240018230_g0vk4",
+    "dettaglio_stazionamento": "",
+    "operativo": true,
+    "stazionamentoId": "f36b63c6-9f70-471d-b2ee-f35850fd66d9",
+    "equipaggio": {
+      "autista": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "medico": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "soccorritore2": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "soccorritore1": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      }
+    },
+    "coordinate_stazionamento": null,
+    "tipo": "AREU_MSA",
+    "statoMezzo": "Non disponibile"
+  },
+  {
+    "_docId": "AREU_MSA2",
+    "sigla": "AREU_MSA2",
+    "stazionamento": {
+      "luogo_fisico": "",
+      "note": "",
+      "coordinate": null,
+      "indirizzo": "Via Filanda, 10, 23900 Lecco LC"
+    },
+    "creatoIl": "2026-05-31T15:06:58.000Z",
+    "manifestationId": "Lr4XjZMr4UWWJWD2m0iW",
+    "radio": "",
+    "targa": "",
+    "noteOperativo": "",
+    "stazionamentoPredefinito": false,
+    "idUnivoco": "1780240017960_fm88d",
+    "dettaglio_stazionamento": "",
+    "operativo": true,
+    "stazionamentoId": "f36b63c6-9f70-471d-b2ee-f35850fd66d9",
+    "equipaggio": {
+      "autista": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "medico": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "soccorritore2": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "soccorritore1": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      }
+    },
+    "coordinate_stazionamento": null,
+    "tipo": "AREU_MSA",
+    "statoMezzo": "Non disponibile"
+  },
+  {
+    "_docId": "AREU_MSB_1",
+    "tipo": "MSB",
+    "sigla": "AREU_MSB_1",
+    "stazionamento": {
+      "luogo_fisico": "",
+      "note": "",
+      "coordinate": null,
+      "indirizzo": "Via Filanda, 10, 23900 Lecco LC"
+    },
+    "creatoIl": "2026-05-31T15:06:58.000Z",
+    "manifestationId": "Lr4XjZMr4UWWJWD2m0iW",
+    "radio": "",
+    "targa": "",
+    "noteOperativo": "",
+    "stazionamentoPredefinito": false,
+    "idUnivoco": "1780240018350_dxw14",
+    "dettaglio_stazionamento": "",
+    "operativo": true,
+    "stazionamentoId": "f36b63c6-9f70-471d-b2ee-f35850fd66d9",
+    "equipaggio": {
+      "autista": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "medico": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "soccorritore2": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "soccorritore1": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      }
+    },
+    "coordinate_stazionamento": null,
+    "statoMezzo": "Non disponibile"
+  },
+  {
+    "_docId": "AREU_MSB_2",
+    "tipo": "MSB",
+    "sigla": "AREU_MSB_2",
+    "stazionamento": {
+      "luogo_fisico": "",
+      "note": "",
+      "coordinate": null,
+      "indirizzo": "Via Filanda, 10, 23900 Lecco LC"
+    },
+    "creatoIl": "2026-05-31T15:06:58.000Z",
+    "manifestationId": "Lr4XjZMr4UWWJWD2m0iW",
+    "radio": "",
+    "targa": "",
+    "noteOperativo": "",
+    "stazionamentoPredefinito": false,
+    "idUnivoco": "1780240018459_j6287",
+    "dettaglio_stazionamento": "",
+    "operativo": true,
+    "stazionamentoId": "f36b63c6-9f70-471d-b2ee-f35850fd66d9",
+    "equipaggio": {
+      "autista": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "medico": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "soccorritore2": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "soccorritore1": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      }
+    },
+    "coordinate_stazionamento": {
+      "x": 53.3,
+      "y": 76.8
+    },
+    "statoMezzo": "Non disponibile"
+  },
+  {
+    "_docId": "CNSAS_BEDOLETTA",
+    "tipo": "CNSAS",
+    "sigla": "CNSAS_BEDOLETTA",
+    "creatoIl": "2026-05-31T15:06:59.000Z",
+    "manifestationId": "Lr4XjZMr4UWWJWD2m0iW",
+    "radio": "",
+    "targa": "",
+    "noteOperativo": "",
+    "idUnivoco": "1780240018926_2nkfv",
+    "dettaglio_stazionamento": "",
+    "operativo": true,
+    "equipaggio": {
+      "autista": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "medico": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "soccorritore2": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "soccorritore1": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      }
+    },
+    "coordinate_stazionamento": {
+      "x": 52.9,
+      "y": 38.6
+    },
+    "stazionamentoPredefinito": true,
+    "stazionamento": {
+      "luogo_fisico": "",
+      "note": "",
+      "indirizzo": "",
+      "coordinate": null
+    },
+    "stazionamentoId": "db2d2ffe-5579-47cd-bc46-a1291c82c087",
+    "statoMezzo": "Disponibile"
+  },
+  {
+    "_docId": "CNSAS_COORD",
+    "tipo": "COORDINAMENTO",
+    "sigla": "CNSAS_COORD",
+    "stazionamento": {
+      "luogo_fisico": "",
+      "note": "",
+      "coordinate": null,
+      "indirizzo": "Via Buozzi Bruno, 36, 23900 Lecco LC"
+    },
+    "creatoIl": "2026-05-31T15:06:58.000Z",
+    "manifestationId": "Lr4XjZMr4UWWJWD2m0iW",
+    "radio": "",
+    "targa": "",
+    "noteOperativo": "",
+    "stazionamentoPredefinito": false,
+    "idUnivoco": "1780240018601_es964",
+    "dettaglio_stazionamento": "",
+    "operativo": true,
+    "stazionamentoId": "c7cb257a-21ba-4d66-afd6-f59d6deaa8ce",
+    "equipaggio": {
+      "autista": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "medico": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "soccorritore2": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "soccorritore1": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      }
+    },
+    "coordinate_stazionamento": null,
+    "statoMezzo": "Disponibile"
+  },
+  {
+    "_docId": "CNSAS_ERNA",
+    "tipo": "CNSAS",
+    "sigla": "CNSAS_ERNA",
+    "stazionamento": {
+      "luogo_fisico": "",
+      "note": "",
+      "coordinate": null,
+      "indirizzo": ""
+    },
+    "creatoIl": "2026-05-31T15:06:59.000Z",
+    "manifestationId": "Lr4XjZMr4UWWJWD2m0iW",
+    "radio": "",
+    "targa": "",
+    "noteOperativo": "",
+    "stazionamentoPredefinito": false,
+    "idUnivoco": "1780240019632_4mnna",
+    "dettaglio_stazionamento": "",
+    "stazionamentoId": "1876e1b5-397f-4927-b994-e44bc5dfa5f8",
+    "equipaggio": {
+      "autista": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "medico": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "soccorritore2": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "soccorritore1": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      }
+    },
+    "coordinate_stazionamento": null,
+    "operativo": true,
+    "statoMezzo": "Disponibile"
+  },
+  {
+    "_docId": "CNSAS_FORBESETTE",
+    "tipo": "CNSAS",
+    "sigla": "CNSAS_FORBESETTE",
+    "stazionamento": {
+      "luogo_fisico": "",
+      "note": "",
+      "coordinate": null,
+      "indirizzo": ""
+    },
+    "creatoIl": "2026-05-31T15:06:59.000Z",
+    "manifestationId": "Lr4XjZMr4UWWJWD2m0iW",
+    "radio": "",
+    "targa": "",
+    "noteOperativo": "",
+    "stazionamentoPredefinito": false,
+    "idUnivoco": "1780240019370_5djeq",
+    "dettaglio_stazionamento": "",
+    "operativo": true,
+    "stazionamentoId": "18d7adf7-1ad7-410b-b506-59c587aaf38c",
+    "equipaggio": {
+      "autista": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "medico": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "soccorritore2": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "soccorritore1": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      }
+    },
+    "coordinate_stazionamento": null,
+    "statoMezzo": "Disponibile"
+  },
+  {
+    "_docId": "CNSAS_GIUFF",
+    "tipo": "CNSAS",
+    "sigla": "CNSAS_GIUFF",
+    "stazionamento": {
+      "luogo_fisico": "",
+      "note": "",
+      "coordinate": null,
+      "indirizzo": ""
+    },
+    "creatoIl": "2026-05-31T15:06:59.000Z",
+    "manifestationId": "Lr4XjZMr4UWWJWD2m0iW",
+    "radio": "",
+    "targa": "",
+    "noteOperativo": "",
+    "stazionamentoPredefinito": false,
+    "idUnivoco": "1780240019519_eboox",
+    "dettaglio_stazionamento": "",
+    "operativo": true,
+    "stazionamentoId": "dc6795c7-3323-4791-bc55-aa42c7e9c8ed",
+    "equipaggio": {
+      "autista": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "medico": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "soccorritore2": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "soccorritore1": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      }
+    },
+    "coordinate_stazionamento": null,
+    "statoMezzo": "Disponibile"
+  },
+  {
+    "_docId": "CNSAS_PIANSERRADA",
+    "tipo": "CNSAS",
+    "sigla": "CNSAS_PIANSERRADA",
+    "stazionamento": {
+      "luogo_fisico": "",
+      "note": "",
+      "coordinate": null,
+      "indirizzo": ""
+    },
+    "creatoIl": "2026-05-31T15:06:59.000Z",
+    "manifestationId": "Lr4XjZMr4UWWJWD2m0iW",
+    "radio": "",
+    "targa": "",
+    "noteOperativo": "",
+    "stazionamentoPredefinito": false,
+    "idUnivoco": "1780240019067_yefsc",
+    "dettaglio_stazionamento": "",
+    "operativo": true,
+    "stazionamentoId": "fbee9ede-55a9-484d-a4bf-87a659e5814e",
+    "equipaggio": {
+      "autista": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "medico": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "soccorritore2": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "soccorritore1": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      }
+    },
+    "coordinate_stazionamento": null,
+    "statoMezzo": "Disponibile"
+  },
+  {
+    "_docId": "CNSAS_SCOPA",
+    "tipo": "CNSAS",
+    "sigla": "CNSAS_SCOPA",
+    "stazionamento": {
+      "luogo_fisico": "",
+      "note": "",
+      "coordinate": null,
+      "indirizzo": "Piazza Giuseppe Garibaldi, 23900 Lecco LC"
+    },
+    "creatoIl": "2026-05-31T15:06:59.000Z",
+    "manifestationId": "Lr4XjZMr4UWWJWD2m0iW",
+    "radio": "",
+    "targa": "",
+    "noteOperativo": "",
+    "stazionamentoPredefinito": false,
+    "idUnivoco": "1780240019743_91l8b",
+    "dettaglio_stazionamento": "",
+    "operativo": true,
+    "stazionamentoId": "2666ee86-60c8-4992-b82c-3c0e45b7483d",
+    "equipaggio": {
+      "autista": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "medico": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "soccorritore2": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "soccorritore1": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      }
+    },
+    "coordinate_stazionamento": null,
+    "statoMezzo": "Disponibile"
+  },
+  {
+    "_docId": "CNSAS_STOPPANI",
+    "tipo": "CNSAS",
+    "sigla": "CNSAS_STOPPANI",
+    "stazionamento": {
+      "luogo_fisico": "",
+      "note": "",
+      "coordinate": null,
+      "indirizzo": ""
+    },
+    "creatoIl": "2026-05-31T15:06:59.000Z",
+    "manifestationId": "Lr4XjZMr4UWWJWD2m0iW",
+    "radio": "",
+    "targa": "",
+    "noteOperativo": "",
+    "stazionamentoPredefinito": false,
+    "idUnivoco": "1780240018746_kvmly",
+    "dettaglio_stazionamento": "",
+    "operativo": true,
+    "stazionamentoId": "77b142c4-ced0-4a7e-8cd0-25ca66fc2fed",
+    "equipaggio": {
+      "autista": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "medico": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "soccorritore2": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "soccorritore1": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      }
+    },
+    "coordinate_stazionamento": null,
+    "statoMezzo": "Disponibile"
+  },
+  {
+    "_docId": "CNSAS_VETTA",
+    "tipo": "CNSAS",
+    "sigla": "CNSAS_VETTA",
+    "stazionamento": {
+      "luogo_fisico": "",
+      "note": "",
+      "coordinate": null,
+      "indirizzo": ""
+    },
+    "creatoIl": "2026-05-31T15:06:59.000Z",
+    "manifestationId": "Lr4XjZMr4UWWJWD2m0iW",
+    "radio": "",
+    "targa": "",
+    "noteOperativo": "",
+    "stazionamentoPredefinito": false,
+    "idUnivoco": "1780240019232_xuuug",
+    "dettaglio_stazionamento": "",
+    "stazionamentoId": "4f737bb6-897f-4736-8475-8ec97b2567e0",
+    "equipaggio": {
+      "autista": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "medico": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "soccorritore2": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "soccorritore1": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      }
+    },
+    "coordinate_stazionamento": null,
+    "statoMezzo": "Disponibile",
+    "operativo": true
+  },
+  {
+    "_docId": "CRI_LC_3173",
+    "tipo": "MSB",
+    "sigla": "CRI_LC_3173",
+    "stazionamento": {
+      "luogo_fisico": "",
+      "note": "",
+      "coordinate": null,
+      "indirizzo": "Piazza Giuseppe Mazzini, 23900 Lecco LC"
+    },
+    "creatoIl": "2026-05-31T15:06:54.000Z",
+    "manifestationId": "Lr4XjZMr4UWWJWD2m0iW",
+    "radio": "",
+    "targa": "",
+    "noteOperativo": "",
+    "stazionamentoPredefinito": false,
+    "idUnivoco": "1780240014460_5s0u1",
+    "dettaglio_stazionamento": "",
+    "operativo": true,
+    "stazionamentoId": "4aecf47d-ed8e-48f8-84cc-80cf1b102bc3",
+    "equipaggio": {
+      "autista": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "medico": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "soccorritore2": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "soccorritore1": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      }
+    },
+    "coordinate_stazionamento": null,
+    "statoMezzo": "Disponibile"
+  },
+  {
+    "_docId": "CRI_LC_3174",
+    "tipo": "MSB",
+    "sigla": "CRI_LC_3174",
+    "creatoIl": "2026-05-31T15:06:54.000Z",
+    "manifestationId": "Lr4XjZMr4UWWJWD2m0iW",
+    "radio": "",
+    "targa": "",
+    "noteOperativo": "",
+    "idUnivoco": "1780240014299_pbadt",
+    "dettaglio_stazionamento": "",
+    "equipaggio": {
+      "autista": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "medico": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "soccorritore2": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "soccorritore1": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      }
+    },
+    "coordinate_stazionamento": null,
+    "operativo": true,
+    "stazionamentoPredefinito": true,
+    "stazionamento": {
+      "luogo_fisico": "",
+      "note": "",
+      "coordinate": {
+        "lat": 45.85311452486123,
+        "lng": 9.389820522461209
+      },
+      "indirizzo": "Piazza Giuseppe Garibaldi, 23900 Lecco LC"
+    },
+    "stazionamentoId": "2666ee86-60c8-4992-b82c-3c0e45b7483d",
+    "statoMezzo": "Disponibile"
+  },
+  {
+    "_docId": "CRI_LC_3175",
+    "tipo": "MSB",
+    "sigla": "CRI_LC_3175",
+    "stazionamento": {
+      "luogo_fisico": "",
+      "note": "",
+      "coordinate": null,
+      "indirizzo": "Via ai Poggi, 107, 23900 Lecco LC"
+    },
+    "creatoIl": "2026-05-31T15:06:54.000Z",
+    "manifestationId": "Lr4XjZMr4UWWJWD2m0iW",
+    "radio": "",
+    "targa": "",
+    "noteOperativo": "",
+    "stazionamentoPredefinito": false,
+    "idUnivoco": "1780240014630_ah9zg",
+    "dettaglio_stazionamento": "",
+    "operativo": true,
+    "stazionamentoId": "15bdf8b3-dab2-4c64-b827-1e7ced65f0b5",
+    "equipaggio": {
+      "autista": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "medico": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "soccorritore2": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "soccorritore1": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      }
+    },
+    "coordinate_stazionamento": null,
+    "statoMezzo": "Disponibile"
+  },
+  {
+    "_docId": "CRI_LC_3177",
+    "tipo": "MSB",
+    "sigla": "CRI_LC_3177",
+    "stazionamento": {
+      "luogo_fisico": "",
+      "note": "",
+      "coordinate": null,
+      "indirizzo": "Piazza Mario Cermenati, 23900 Lecco LC"
+    },
+    "creatoIl": "2026-05-31T15:06:55.000Z",
+    "manifestationId": "Lr4XjZMr4UWWJWD2m0iW",
+    "radio": "",
+    "targa": "",
+    "noteOperativo": "",
+    "stazionamentoPredefinito": false,
+    "idUnivoco": "1780240014766_m7c27",
+    "dettaglio_stazionamento": "",
+    "operativo": true,
+    "stazionamentoId": "282c9137-4c8b-4577-ac59-3f7df72b5478",
+    "equipaggio": {
+      "autista": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "medico": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "soccorritore2": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "soccorritore1": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      }
+    },
+    "coordinate_stazionamento": null,
+    "posizioneReale": {
+      "aggiornatoIl": "2026-06-05T13:11:37.000Z",
+      "coordinate": {
+        "lng": 9.393455,
+        "lat": 45.864852
+      },
+      "fonte": "telegram"
+    },
+    "statoMezzo": "Disponibile"
+  },
+  {
+    "_docId": "CRI_LC_3182",
+    "tipo": "AUTOMEDICA",
+    "sigla": "CRI_LC_3182",
+    "stazionamento": {
+      "luogo_fisico": "",
+      "note": "",
+      "coordinate": null,
+      "indirizzo": "Piazza degli Affari, 23900 Lecco LC"
+    },
+    "creatoIl": "2026-05-31T15:06:54.000Z",
+    "manifestationId": "Lr4XjZMr4UWWJWD2m0iW",
+    "radio": "",
+    "targa": "",
+    "noteOperativo": "",
+    "stazionamentoPredefinito": false,
+    "idUnivoco": "1780240014016_3euc9",
+    "dettaglio_stazionamento": "",
+    "stazionamentoId": "49d5d2d7-899f-41e7-913f-160507e03925",
+    "equipaggio": {
+      "autista": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "medico": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "soccorritore2": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "soccorritore1": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      }
+    },
+    "coordinate_stazionamento": null,
+    "operativo": true,
+    "statoMezzo": "Disponibile"
+  },
+  {
+    "_docId": "CRI_LC_3184",
+    "tipo": "MSB",
+    "sigla": "CRI_LC_3184",
+    "stazionamento": {
+      "luogo_fisico": "",
+      "note": "",
+      "coordinate": {
+        "lng": 9.388600825486087,
+        "lat": 45.85591408724498
+      },
+      "indirizzo": "Piazza Mario Cermenati, 23900 Lecco LC"
+    },
+    "creatoIl": "2026-06-06T17:39:44.000Z",
+    "manifestationId": "Lr4XjZMr4UWWJWD2m0iW",
+    "radio": "",
+    "targa": "",
+    "noteOperativo": "",
+    "stazionamentoPredefinito": true,
+    "idUnivoco": "b2ef0e46-326e-4648-bcd5-638d9b4237d3",
+    "dettaglio_stazionamento": "",
+    "operativo": true,
+    "stazionamentoId": "282c9137-4c8b-4577-ac59-3f7df72b5478",
+    "equipaggio": {
+      "autista": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "medico": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "soccorritore2": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "soccorritore1": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      }
+    },
+    "coordinate_stazionamento": null,
+    "statoMezzo": "Disponibile"
+  },
+  {
+    "_docId": "CRI_LC_ARRIVO1",
+    "tipo": "SAP",
+    "sigla": "CRI_LC_ARRIVO1",
+    "stazionamento": {
+      "luogo_fisico": "",
+      "note": "",
+      "coordinate": null,
+      "indirizzo": "Piazza Giuseppe Garibaldi, 23900 Lecco LC"
+    },
+    "creatoIl": "2026-05-31T15:06:55.000Z",
+    "manifestationId": "Lr4XjZMr4UWWJWD2m0iW",
+    "radio": "",
+    "targa": "",
+    "noteOperativo": "",
+    "stazionamentoPredefinito": false,
+    "idUnivoco": "1780240014943_351k6",
+    "dettaglio_stazionamento": "",
+    "operativo": true,
+    "stazionamentoId": "2666ee86-60c8-4992-b82c-3c0e45b7483d",
+    "equipaggio": {
+      "autista": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "medico": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "soccorritore2": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "soccorritore1": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      }
+    },
+    "coordinate_stazionamento": null,
+    "statoMezzo": "Disponibile"
+  },
+  {
+    "_docId": "CRI_LC_ARRIVO2",
+    "tipo": "SAP",
+    "sigla": "CRI_LC_ARRIVO2",
+    "stazionamento": {
+      "luogo_fisico": "",
+      "note": "",
+      "coordinate": null,
+      "indirizzo": "Piazza Giuseppe Garibaldi, 23900 Lecco LC"
+    },
+    "creatoIl": "2026-05-31T15:06:55.000Z",
+    "manifestationId": "Lr4XjZMr4UWWJWD2m0iW",
+    "radio": "",
+    "targa": "",
+    "noteOperativo": "",
+    "stazionamentoPredefinito": false,
+    "idUnivoco": "1780240015107_wu1fp",
+    "dettaglio_stazionamento": "",
+    "operativo": true,
+    "stazionamentoId": "2666ee86-60c8-4992-b82c-3c0e45b7483d",
+    "equipaggio": {
+      "autista": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "medico": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "soccorritore2": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "soccorritore1": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      }
+    },
+    "coordinate_stazionamento": null,
+    "statoMezzo": "Disponibile"
+  },
+  {
+    "_docId": "CRI_LC_CICLO",
+    "tipo": "CICLOSOCCORSO",
+    "sigla": "CRI_LC_CICLO",
+    "stazionamento": {
+      "luogo_fisico": "",
+      "note": "",
+      "coordinate": null,
+      "indirizzo": "Piazza degli Affari, 23900 Lecco LC"
+    },
+    "creatoIl": "2026-05-31T15:06:55.000Z",
+    "manifestationId": "Lr4XjZMr4UWWJWD2m0iW",
+    "radio": "",
+    "targa": "",
+    "noteOperativo": "",
+    "stazionamentoPredefinito": false,
+    "idUnivoco": "1780240015757_dot8r",
+    "dettaglio_stazionamento": "",
+    "operativo": true,
+    "stazionamentoId": "49d5d2d7-899f-41e7-913f-160507e03925",
+    "equipaggio": {
+      "autista": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "medico": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "soccorritore2": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "soccorritore1": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      }
+    },
+    "coordinate_stazionamento": null,
+    "statoMezzo": "Non disponibile"
+  },
+  {
+    "_docId": "CRI_LC_COORD",
+    "tipo": "COORDINAMENTO",
+    "sigla": "CRI_LC_COORD",
+    "creatoIl": "2026-05-31T15:06:53.000Z",
+    "manifestationId": "Lr4XjZMr4UWWJWD2m0iW",
+    "radio": "",
+    "targa": "",
+    "noteOperativo": "",
+    "idUnivoco": "1780240013668_9nuki",
+    "dettaglio_stazionamento": "",
+    "operativo": true,
+    "coordinate_stazionamento": null,
+    "stazionamentoPredefinito": true,
+    "stazionamento": {
+      "luogo_fisico": "",
+      "note": "",
+      "coordinate": {
+        "lng": 9.389820522461209,
+        "lat": 45.85311452486123
+      },
+      "indirizzo": "Piazza Giuseppe Garibaldi, 23900 Lecco LC"
+    },
+    "stazionamentoId": "2666ee86-60c8-4992-b82c-3c0e45b7483d",
+    "equipaggio": {
+      "autista": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "soccorritore2": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "soccorritore1": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "medico": {
+        "nome": "JACOPO",
+        "cognome": "TAIETTI",
+        "telefono": "03411812600"
+      }
+    },
+    "statoMezzo": "Disponibile"
+  },
+  {
+    "_docId": "CRI_LC_ERNA",
+    "tipo": "SAP",
+    "sigla": "CRI_LC_ERNA",
+    "stazionamento": {
+      "luogo_fisico": "",
+      "note": "",
+      "coordinate": null,
+      "indirizzo": ""
+    },
+    "creatoIl": "2026-05-31T15:06:55.000Z",
+    "manifestationId": "Lr4XjZMr4UWWJWD2m0iW",
+    "radio": "",
+    "targa": "",
+    "noteOperativo": "",
+    "stazionamentoPredefinito": false,
+    "idUnivoco": "1780240015303_bua78",
+    "dettaglio_stazionamento": "",
+    "operativo": true,
+    "stazionamentoId": "1876e1b5-397f-4927-b994-e44bc5dfa5f8",
+    "equipaggio": {
+      "autista": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "medico": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "soccorritore2": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "soccorritore1": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      }
+    },
+    "coordinate_stazionamento": null,
+    "statoMezzo": "Disponibile"
+  },
+  {
+    "_docId": "CRI_LC_LOG",
+    "tipo": "LOGISTICA",
+    "sigla": "CRI_LC_LOG",
+    "stazionamento": {
+      "luogo_fisico": "",
+      "note": "",
+      "coordinate": null,
+      "indirizzo": "Piazza degli Affari, 23900 Lecco LC"
+    },
+    "creatoIl": "2026-05-31T15:06:56.000Z",
+    "manifestationId": "Lr4XjZMr4UWWJWD2m0iW",
+    "radio": "",
+    "targa": "",
+    "noteOperativo": "",
+    "stazionamentoPredefinito": false,
+    "idUnivoco": "1780240015973_5wr6j",
+    "dettaglio_stazionamento": "",
+    "operativo": true,
+    "stazionamentoId": "49d5d2d7-899f-41e7-913f-160507e03925",
+    "equipaggio": {
+      "autista": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "medico": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "soccorritore2": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "soccorritore1": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      }
+    },
+    "coordinate_stazionamento": null,
+    "statoMezzo": "Disponibile"
+  },
+  {
+    "_docId": "CRI_LC_OPEM",
+    "tipo": "LOGISTICA",
+    "sigla": "CRI_LC_OPEM",
+    "stazionamento": {
+      "luogo_fisico": "",
+      "note": "",
+      "coordinate": null,
+      "indirizzo": "Piazza degli Affari, 23900 Lecco LC"
+    },
+    "creatoIl": "2026-05-31T15:06:56.000Z",
+    "manifestationId": "Lr4XjZMr4UWWJWD2m0iW",
+    "radio": "",
+    "targa": "",
+    "noteOperativo": "",
+    "stazionamentoPredefinito": false,
+    "idUnivoco": "1780240016126_iu7bp",
+    "dettaglio_stazionamento": "",
+    "operativo": true,
+    "stazionamentoId": "49d5d2d7-899f-41e7-913f-160507e03925",
+    "equipaggio": {
+      "autista": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "medico": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "soccorritore2": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "soccorritore1": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      }
+    },
+    "coordinate_stazionamento": null,
+    "statoMezzo": "Disponibile"
+  },
+  {
+    "_docId": "CRI_LC_PPI",
+    "tipo": "PPI",
+    "sigla": "CRI_LC_PPI",
+    "stazionamento": {
+      "luogo_fisico": "",
+      "note": "",
+      "coordinate": null,
+      "indirizzo": "Piazza degli Affari, 23900 Lecco LC"
+    },
+    "creatoIl": "2026-05-31T15:06:54.000Z",
+    "manifestationId": "Lr4XjZMr4UWWJWD2m0iW",
+    "radio": "",
+    "targa": "",
+    "noteOperativo": "",
+    "stazionamentoPredefinito": false,
+    "idUnivoco": "1780240014169_h38ku",
+    "dettaglio_stazionamento": "",
+    "operativo": true,
+    "stazionamentoId": "49d5d2d7-899f-41e7-913f-160507e03925",
+    "equipaggio": {
+      "autista": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "medico": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "soccorritore2": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "soccorritore1": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      }
+    },
+    "coordinate_stazionamento": null,
+    "statoMezzo": "Disponibile"
+  },
+  {
+    "_docId": "CRI_LC_STOPPANI",
+    "tipo": "SAP",
+    "sigla": "CRI_LC_STOPPANI",
+    "stazionamento": {
+      "luogo_fisico": "",
+      "note": "",
+      "coordinate": null,
+      "indirizzo": ""
+    },
+    "creatoIl": "2026-05-31T15:06:55.000Z",
+    "manifestationId": "Lr4XjZMr4UWWJWD2m0iW",
+    "radio": "",
+    "targa": "",
+    "noteOperativo": "",
+    "stazionamentoPredefinito": false,
+    "idUnivoco": "1780240015578_k0mo4",
+    "dettaglio_stazionamento": "",
+    "operativo": true,
+    "stazionamentoId": "a40dff8c-2fed-4942-9ec1-ca286e73c2f4",
+    "equipaggio": {
+      "autista": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "medico": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "soccorritore2": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "soccorritore1": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      }
+    },
+    "coordinate_stazionamento": null,
+    "statoMezzo": "Disponibile"
+  },
+  {
+    "_docId": "CRI_LC_VETTA",
+    "tipo": "SAP",
+    "sigla": "CRI_LC_VETTA",
+    "stazionamento": {
+      "luogo_fisico": "",
+      "note": "",
+      "coordinate": null,
+      "indirizzo": ""
+    },
+    "creatoIl": "2026-05-31T15:06:55.000Z",
+    "manifestationId": "Lr4XjZMr4UWWJWD2m0iW",
+    "radio": "",
+    "targa": "",
+    "noteOperativo": "",
+    "stazionamentoPredefinito": false,
+    "idUnivoco": "1780240015415_32k6q",
+    "dettaglio_stazionamento": "",
+    "operativo": true,
+    "stazionamentoId": "4f737bb6-897f-4736-8475-8ec97b2567e0",
+    "equipaggio": {
+      "autista": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "medico": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "soccorritore2": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "soccorritore1": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      }
+    },
+    "coordinate_stazionamento": null,
+    "statoMezzo": "Disponibile"
+  },
+  {
+    "_docId": "ELI_BG",
+    "tipo": "ELISOCCORSO",
+    "sigla": "ELI_BG",
+    "stazionamento": {
+      "luogo_fisico": "",
+      "note": "",
+      "coordinate": null,
+      "indirizzo": "Piazza OMS, 1, 24127 Bergamo BG"
+    },
+    "creatoIl": "2026-05-31T15:06:57.000Z",
+    "manifestationId": "Lr4XjZMr4UWWJWD2m0iW",
+    "radio": "",
+    "targa": "",
+    "noteOperativo": "",
+    "stazionamentoPredefinito": false,
+    "idUnivoco": "1780240017074_bi8ud",
+    "dettaglio_stazionamento": "",
+    "operativo": true,
+    "stazionamentoId": "c8c355e2-ab72-41c6-ac69-6dc04eb39060",
+    "equipaggio": {
+      "autista": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "medico": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "soccorritore2": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "soccorritore1": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      }
+    },
+    "coordinate_stazionamento": null,
+    "statoMezzo": "Disponibile"
+  },
+  {
+    "_docId": "ELI_BS",
+    "tipo": "ELISOCCORSO",
+    "sigla": "ELI_BS",
+    "stazionamento": {
+      "luogo_fisico": "",
+      "note": "",
+      "coordinate": null,
+      "indirizzo": "Strada Provinciale 37, 36, 25018 Montichiari BS"
+    },
+    "creatoIl": "2026-05-31T15:06:58.000Z",
+    "manifestationId": "Lr4XjZMr4UWWJWD2m0iW",
+    "radio": "",
+    "targa": "",
+    "noteOperativo": "",
+    "stazionamentoPredefinito": false,
+    "idUnivoco": "1780240017817_dmcjx",
+    "dettaglio_stazionamento": "",
+    "stazionamentoId": "bc37a492-9b83-4a6f-b107-00ec8efa197e",
+    "equipaggio": {
+      "autista": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "medico": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "soccorritore2": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "soccorritore1": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      }
+    },
+    "coordinate_stazionamento": null,
+    "statoMezzo": "Disponibile",
+    "operativo": true
+  },
+  {
+    "_docId": "ELI_CO",
+    "tipo": "ELISOCCORSO",
+    "sigla": "ELI_CO",
+    "stazionamento": {
+      "luogo_fisico": "",
+      "note": "",
+      "coordinate": null,
+      "indirizzo": "Via Firenze, 118, 22079 Villa Guardia CO"
+    },
+    "creatoIl": "2026-05-31T15:06:57.000Z",
+    "manifestationId": "Lr4XjZMr4UWWJWD2m0iW",
+    "radio": "",
+    "targa": "",
+    "noteOperativo": "",
+    "stazionamentoPredefinito": false,
+    "idUnivoco": "1780240016929_4ivp7",
+    "dettaglio_stazionamento": "",
+    "operativo": true,
+    "stazionamentoId": "aac12528-e3aa-4f26-8f30-bebb52c19f2a",
+    "equipaggio": {
+      "autista": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "medico": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "soccorritore2": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "soccorritore1": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      }
+    },
+    "coordinate_stazionamento": null,
+    "statoMezzo": "Disponibile"
+  },
+  {
+    "_docId": "ELI_MI",
+    "tipo": "ELISOCCORSO",
+    "sigla": "ELI_MI",
+    "stazionamento": {
+      "luogo_fisico": "",
+      "note": "",
+      "coordinate": null,
+      "indirizzo": "Via Gian Carlo Clerici, 20091 Bresso MI"
+    },
+    "creatoIl": "2026-05-31T15:06:57.000Z",
+    "manifestationId": "Lr4XjZMr4UWWJWD2m0iW",
+    "radio": "",
+    "targa": "",
+    "noteOperativo": "",
+    "stazionamentoPredefinito": false,
+    "idUnivoco": "1780240017461_reray",
+    "dettaglio_stazionamento": "",
+    "operativo": true,
+    "stazionamentoId": "780f6e0f-f1ae-4cc9-874d-d1eb96d735f5",
+    "equipaggio": {
+      "autista": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "medico": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "soccorritore2": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "soccorritore1": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      }
+    },
+    "coordinate_stazionamento": null,
+    "statoMezzo": "Disponibile"
+  },
+  {
+    "_docId": "ELI_SO",
+    "tipo": "ELISOCCORSO",
+    "sigla": "ELI_SO",
+    "stazionamento": {
+      "luogo_fisico": "",
+      "note": "",
+      "coordinate": null,
+      "indirizzo": "SP16, 23010 Caiolo SO"
+    },
+    "creatoIl": "2026-05-31T15:06:57.000Z",
+    "manifestationId": "Lr4XjZMr4UWWJWD2m0iW",
+    "radio": "",
+    "targa": "",
+    "noteOperativo": "",
+    "stazionamentoPredefinito": false,
+    "idUnivoco": "1780240017222_frnhc",
+    "dettaglio_stazionamento": "",
+    "operativo": true,
+    "stazionamentoId": "bb7ed733-66d8-46f5-9085-00ebf78be33c",
+    "equipaggio": {
+      "autista": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "medico": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "soccorritore2": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "soccorritore1": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      }
+    },
+    "coordinate_stazionamento": null,
+    "statoMezzo": "Disponibile"
+  },
+  {
+    "_docId": "MEDICO_ERNA",
+    "tipo": "MEDICO",
+    "sigla": "MEDICO_ERNA",
+    "stazionamento": {
+      "luogo_fisico": "",
+      "note": "",
+      "coordinate": null,
+      "indirizzo": ""
+    },
+    "creatoIl": "2026-05-31T15:06:56.000Z",
+    "manifestationId": "Lr4XjZMr4UWWJWD2m0iW",
+    "radio": "",
+    "targa": "",
+    "noteOperativo": "",
+    "stazionamentoPredefinito": false,
+    "idUnivoco": "1780240016763_5fmcp",
+    "dettaglio_stazionamento": "",
+    "operativo": true,
+    "stazionamentoId": "1876e1b5-397f-4927-b994-e44bc5dfa5f8",
+    "equipaggio": {
+      "autista": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "medico": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "soccorritore2": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "soccorritore1": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      }
+    },
+    "coordinate_stazionamento": null,
+    "statoMezzo": "Disponibile"
+  },
+  {
+    "_docId": "MEDICO_TRIATHLON",
+    "tipo": "MEDICO",
+    "sigla": "MEDICO_TRIATHLON",
+    "stazionamento": {
+      "luogo_fisico": "",
+      "note": "",
+      "coordinate": null,
+      "indirizzo": "Via Zoli, 1, 22030 Pusiano CO, Italia"
+    },
+    "creatoIl": "2026-05-31T15:07:00.000Z",
+    "manifestationId": "Lr4XjZMr4UWWJWD2m0iW",
+    "radio": "",
+    "targa": "",
+    "noteOperativo": "",
+    "stazionamentoPredefinito": false,
+    "idUnivoco": "1780240020560_x7r13",
+    "dettaglio_stazionamento": "",
+    "operativo": true,
+    "stazionamentoId": "145d45bb-8948-40fe-9fe0-e48ca0d73a92",
+    "equipaggio": {
+      "autista": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "medico": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "soccorritore2": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "soccorritore1": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      }
+    },
+    "coordinate_stazionamento": null,
+    "statoMezzo": "Disponibile"
+  },
+  {
+    "_docId": "MEDICO_VETTA",
+    "tipo": "MEDICO",
+    "sigla": "MEDICO_VETTA",
+    "stazionamento": {
+      "luogo_fisico": "",
+      "note": "",
+      "coordinate": null,
+      "indirizzo": ""
+    },
+    "creatoIl": "2026-05-31T15:06:56.000Z",
+    "manifestationId": "Lr4XjZMr4UWWJWD2m0iW",
+    "radio": "",
+    "targa": "",
+    "noteOperativo": "",
+    "stazionamentoPredefinito": false,
+    "idUnivoco": "1780240016632_o9i3a",
+    "dettaglio_stazionamento": "",
+    "operativo": true,
+    "stazionamentoId": "4f737bb6-897f-4736-8475-8ec97b2567e0",
+    "equipaggio": {
+      "autista": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "medico": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "soccorritore2": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "soccorritore1": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      }
+    },
+    "coordinate_stazionamento": null,
+    "statoMezzo": "Disponibile"
+  },
+  {
+    "_docId": "NAVETTA_01",
+    "tipo": "PULIMINO",
+    "sigla": "NAVETTA_01",
+    "stazionamento": {
+      "luogo_fisico": "",
+      "note": "",
+      "coordinate": null,
+      "indirizzo": "Corso Giacomo Matteotti, 12, 23900 Lecco LC, Italia"
+    },
+    "creatoIl": "2026-05-31T15:06:56.000Z",
+    "manifestationId": "Lr4XjZMr4UWWJWD2m0iW",
+    "radio": "",
+    "targa": "",
+    "noteOperativo": "",
+    "stazionamentoPredefinito": false,
+    "idUnivoco": "1780240016250_p9bdl",
+    "dettaglio_stazionamento": "",
+    "operativo": true,
+    "stazionamentoId": "f937d967-8bee-4fba-b7b1-e49944b59f8e",
+    "equipaggio": {
+      "autista": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "medico": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "soccorritore2": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "soccorritore1": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      }
+    },
+    "coordinate_stazionamento": null,
+    "statoMezzo": "Disponibile"
+  },
+  {
+    "_docId": "NAVETTA_02",
+    "tipo": "PULIMINO",
+    "sigla": "NAVETTA_02",
+    "stazionamento": {
+      "luogo_fisico": "",
+      "note": "",
+      "coordinate": null,
+      "indirizzo": "Corso Giacomo Matteotti, 12, 23900 Lecco LC, Italia"
+    },
+    "creatoIl": "2026-05-31T15:06:56.000Z",
+    "manifestationId": "Lr4XjZMr4UWWJWD2m0iW",
+    "radio": "",
+    "targa": "",
+    "noteOperativo": "",
+    "stazionamentoPredefinito": false,
+    "idUnivoco": "1780240016429_aae9i",
+    "dettaglio_stazionamento": "",
+    "operativo": true,
+    "stazionamentoId": "f937d967-8bee-4fba-b7b1-e49944b59f8e",
+    "equipaggio": {
+      "autista": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "medico": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "soccorritore2": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "soccorritore1": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      }
+    },
+    "coordinate_stazionamento": null,
+    "statoMezzo": "Disponibile"
+  },
+  {
+    "_docId": "OPSA_LC_0140",
+    "tipo": "IDROAMBULANZA",
+    "sigla": "OPSA_LC_0140",
+    "stazionamento": {
+      "luogo_fisico": "",
+      "note": "",
+      "coordinate": null,
+      "indirizzo": "Via Zoli, 1, 22030 Pusiano CO, Italia"
+    },
+    "creatoIl": "2026-05-31T15:07:00.000Z",
+    "manifestationId": "Lr4XjZMr4UWWJWD2m0iW",
+    "radio": "",
+    "targa": "",
+    "noteOperativo": "",
+    "stazionamentoPredefinito": false,
+    "idUnivoco": "1780240019854_tinrg",
+    "dettaglio_stazionamento": "",
+    "operativo": true,
+    "stazionamentoId": "145d45bb-8948-40fe-9fe0-e48ca0d73a92",
+    "equipaggio": {
+      "autista": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "medico": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "soccorritore2": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "soccorritore1": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      }
+    },
+    "coordinate_stazionamento": null,
+    "statoMezzo": "Disponibile"
+  },
+  {
+    "_docId": "OPSA_LC_0166",
+    "tipo": "IDROAMBULANZA",
+    "sigla": "OPSA_LC_0166",
+    "stazionamento": {
+      "luogo_fisico": "",
+      "note": "",
+      "coordinate": null,
+      "indirizzo": "Via Zoli, 1, 22030 Pusiano CO, Italia"
+    },
+    "creatoIl": "2026-05-31T15:07:00.000Z",
+    "manifestationId": "Lr4XjZMr4UWWJWD2m0iW",
+    "radio": "",
+    "targa": "",
+    "noteOperativo": "",
+    "stazionamentoPredefinito": false,
+    "idUnivoco": "1780240020026_xfcu2",
+    "dettaglio_stazionamento": "",
+    "operativo": true,
+    "stazionamentoId": "145d45bb-8948-40fe-9fe0-e48ca0d73a92",
+    "equipaggio": {
+      "autista": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "medico": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "soccorritore2": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "soccorritore1": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      }
+    },
+    "coordinate_stazionamento": null,
+    "statoMezzo": "Disponibile"
+  },
+  {
+    "_docId": "OPSA_LC_0195",
+    "tipo": "MOTO D'ACQUA",
+    "sigla": "OPSA_LC_0195",
+    "stazionamento": {
+      "luogo_fisico": "",
+      "note": "",
+      "coordinate": null,
+      "indirizzo": "Via Zoli, 1, 22030 Pusiano CO, Italia"
+    },
+    "creatoIl": "2026-05-31T15:07:00.000Z",
+    "manifestationId": "Lr4XjZMr4UWWJWD2m0iW",
+    "radio": "",
+    "targa": "",
+    "noteOperativo": "",
+    "stazionamentoPredefinito": false,
+    "idUnivoco": "1780240020163_c77vw",
+    "dettaglio_stazionamento": "",
+    "operativo": true,
+    "stazionamentoId": "145d45bb-8948-40fe-9fe0-e48ca0d73a92",
+    "equipaggio": {
+      "autista": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "medico": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "soccorritore2": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "soccorritore1": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      }
+    },
+    "coordinate_stazionamento": null,
+    "statoMezzo": "Disponibile"
+  },
+  {
+    "_docId": "OPSA_LC_COORD",
+    "tipo": "COORDINAMENTO",
+    "sigla": "OPSA_LC_COORD",
+    "stazionamento": {
+      "luogo_fisico": "",
+      "note": "",
+      "coordinate": null,
+      "indirizzo": "Via Zoli, 1, 22030 Pusiano CO, Italia"
+    },
+    "creatoIl": "2026-05-31T15:07:00.000Z",
+    "manifestationId": "Lr4XjZMr4UWWJWD2m0iW",
+    "radio": "",
+    "targa": "",
+    "noteOperativo": "",
+    "stazionamentoPredefinito": false,
+    "idUnivoco": "1780240020431_j6lp6",
+    "dettaglio_stazionamento": "",
+    "operativo": true,
+    "stazionamentoId": "145d45bb-8948-40fe-9fe0-e48ca0d73a92",
+    "equipaggio": {
+      "autista": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "medico": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "soccorritore2": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "soccorritore1": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      }
+    },
+    "coordinate_stazionamento": null,
+    "statoMezzo": "Disponibile"
+  },
+  {
+    "_docId": "OPSA_LC_SQ",
+    "tipo": "SAP",
+    "sigla": "OPSA_LC_SQ",
+    "stazionamento": {
+      "luogo_fisico": "",
+      "note": "",
+      "coordinate": null,
+      "indirizzo": "Via Zoli, 1, 22030 Pusiano CO, Italia"
+    },
+    "creatoIl": "2026-05-31T15:07:00.000Z",
+    "manifestationId": "Lr4XjZMr4UWWJWD2m0iW",
+    "radio": "",
+    "targa": "",
+    "noteOperativo": "",
+    "stazionamentoPredefinito": false,
+    "idUnivoco": "1780240020278_9ms9w",
+    "dettaglio_stazionamento": "",
+    "operativo": true,
+    "stazionamentoId": "145d45bb-8948-40fe-9fe0-e48ca0d73a92",
+    "equipaggio": {
+      "autista": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "medico": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "soccorritore2": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      },
+      "soccorritore1": {
+        "cognome": "",
+        "nome": "",
+        "telefono": ""
+      }
+    },
+    "coordinate_stazionamento": null,
+    "statoMezzo": "Disponibile"
+  }
+]

@@ -89,6 +89,20 @@ export function canViewPmaScheda(paziente) {
   return pazienteHaSchedaPma(paziente);
 }
 
+export function canViewPmaCodiceMinoreScheda(paziente) {
+  return isPazienteCodiceMinore(paziente);
+}
+
+/** Paziente convertibile in codice minore dal desk PMA. */
+export function canConvertToCodiceMinore(paziente) {
+  if (!paziente || isPazienteCodiceMinore(paziente)) return false;
+  if (pazientePmaChiuso(paziente)) return false;
+  const stato = normalizeStatoPzPma(paziente.statoPzPma);
+  if (!stato || !STATI_PZ_PMA_APERTI.includes(stato)) return false;
+  if (normalizeTipoPz(paziente.tipoPz) === TIPO_PZ.PMA) return true;
+  return pazienteHaDestinazionePma(paziente) || pazienteHaSchedaPma(paziente);
+}
+
 /** Modifica cartella/dimissione PMA. */
 export function canEditPmaSchedaDoc(paziente) {
   return normalizeStatoPzPma(paziente?.statoPzPma) === STATO_PZ_PMA.IN_CARICO;
@@ -137,13 +151,33 @@ export function listaOspedaliDestinazione(impostazioni) {
 export function findPmaById(impostazioni, pmaId) {
   const id = String(pmaId ?? '').trim();
   if (!id) return null;
-  const list = listaPmaImpostazioni(impostazioni);
-  const exact = list.find((p) => p.id === id);
+  const raw = findPmaRawEntry(impostazioni, id);
+  if (!raw) return null;
+  return {
+    id: String(raw.id ?? '').trim(),
+    nome: String(raw.nome ?? '').trim(),
+    indirizzo: raw.indirizzo ?? '',
+    luogo_fisico: raw.luogo_fisico ?? '',
+    coordinate: raw.coordinate ?? null,
+    ipadUser: raw.ipadUser ?? '',
+    ipadPassword: raw.ipadPassword ?? '',
+    ipadEmail: raw.ipadEmail ?? '',
+    grigliaPostiLetto: raw.grigliaPostiLetto ?? null,
+    postiLettoLabels: raw.postiLettoLabels ?? {},
+  };
+}
+
+/** Voce PMA completa da impostazioni (include griglia posti letto). */
+export function findPmaRawEntry(impostazioni, pmaId) {
+  const id = String(pmaId ?? '').trim();
+  if (!id) return null;
+  const list = impostazioni?.pma ?? [];
+  const exact = list.find((p) => String(p?.id ?? '').trim() === id);
   if (exact) return exact;
   const lower = id.toLowerCase();
   return (
-    list.find((p) => String(p.id ?? '').toLowerCase() === lower) ??
-    list.find((p) => String(p.nome ?? '').trim().toLowerCase() === lower) ??
+    list.find((p) => String(p?.id ?? '').toLowerCase() === lower) ??
+    list.find((p) => String(p?.nome ?? '').trim().toLowerCase() === lower) ??
     null
   );
 }

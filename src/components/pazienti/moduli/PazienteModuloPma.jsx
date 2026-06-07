@@ -10,6 +10,7 @@ import {
   normalizeStatoPzPma,
   pazienteHaDestinazionePma,
   pazientePmaChiuso,
+  canConvertToCodiceMinore,
   STATO_PZ_PMA,
   statoPzPmaLabel,
 } from '../../../lib/pmaModule';
@@ -37,6 +38,7 @@ import {
   isSchedaModificabile,
 } from '../../../lib/schedaSolaVisione';
 import { patchPaziente } from '../../../services/pazientiService';
+import { convertPazienteToCodiceMinore } from '../../../services/pmaCodiceMinoreService';
 import { InvioPsSoreuTrasportoBlock } from '../InvioPsSoreuTrasportoBlock';
 import { SchedaUnlockBar } from '../SchedaUnlockBar';
 import { isVistaCentrale, isVistaPma, moduliSchedaPaziente, VISTA_SCHEDA } from '../../../lib/pazienteSchedaModuli';
@@ -107,6 +109,7 @@ export function PazienteModuloPma({
   const [saveError, setSaveError] = useState(null);
   const [tipoEv, setTipoEv] = useState('');
   const [dettaglioEv, setDettaglioEv] = useState('');
+  const [rendiCodiceMinoreBusy, setRendiCodiceMinoreBusy] = useState(false);
 
   useEffect(() => {
     if (initialTab) setActiveTab(initialTab);
@@ -162,6 +165,30 @@ export function PazienteModuloPma({
   }, [clinicalOnly, isAutopresentato, operativeRank]);
   const canEditStatoPma = vistaPma && isAutopresentato && !schedaReadonly;
   const canEditAnagraficaAutopresentato = vistaPma && isAutopresentato && !schedaReadonly;
+  const canEditColore = vistaPma && rawDoc && !pazientePmaChiuso(rawDoc);
+  const canConvertCm = Boolean(rawDoc && canConvertToCodiceMinore(rawDoc));
+  const statoPmaNorm = normalizeStatoPzPma(rawDoc?.statoPzPma);
+  const showRendiCodiceMinoreInAnagrafica =
+    vistaPma && canConvertCm && statoPmaNorm === STATO_PZ_PMA.IN_CARICO;
+
+  const handleRendiCodiceMinore = useCallback(async () => {
+    if (!rawDoc || !manifestationId || !patientDocId || !pmaId) return;
+    if (
+      !window.confirm(
+        'Trasformare questo paziente in codice minore (fast track astanteria)? I dati centrale e la scheda clinica restano archiviati.',
+      )
+    ) {
+      return;
+    }
+    setRendiCodiceMinoreBusy(true);
+    try {
+      await convertPazienteToCodiceMinore(manifestationId, patientDocId, pmaId, rawDoc);
+    } catch (err) {
+      alert(err?.message ?? 'Errore conversione');
+    } finally {
+      setRendiCodiceMinoreBusy(false);
+    }
+  }, [rawDoc, manifestationId, patientDocId, pmaId]);
 
   const write = useCallback(
     async (patch) => {
@@ -184,12 +211,6 @@ export function PazienteModuloPma({
     setTipoEv(p.tipo_evento || eventoResolved?.tipoEvento || '');
     setDettaglioEv(p.dettaglio_evento || eventoResolved?.dettaglioEvento || '');
   }, [p, eventoResolved?.tipoEvento, eventoResolved?.dettaglioEvento]);
-
-  useEffect(() => {
-    if (isAutopresentato && activeTab === 'dati_centrale') {
-      setActiveTab('anagrafica');
-    }
-  }, [isAutopresentato, activeTab]);
 
   useEffect(() => {
     if (clinicalOnly && activeTab !== 'cartella' && activeTab !== 'dimissione') {
@@ -293,10 +314,24 @@ export function PazienteModuloPma({
       onFlushEvento={flushEvento}
       showEventoDettaglio={haDettaglioEvento}
       eventoEditable={isAutopresentato && canEditAnagraficaAutopresentato}
+      canEditColore={canEditColore}
+      showRendiCodiceMinore={showRendiCodiceMinoreInAnagrafica}
+      rendiCodiceMinoreAtTop
+      onRendiCodiceMinore={handleRendiCodiceMinore}
+      rendiCodiceMinoreBusy={rendiCodiceMinoreBusy}
     />
   );
 
-  const defaultDatiCentrale = moduli?.eventoCentrale ? (
+  const messaggioAutopresentatoDatiCentrale = (
+    <p className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
+      Paziente autopresentato al PMA: nessun dato operativo da centrale (evento, missione, esito
+      trasporto, valutazioni MSB/MSA).
+    </p>
+  );
+
+  const defaultDatiCentrale = isAutopresentato ? (
+    messaggioAutopresentatoDatiCentrale
+  ) : moduli?.eventoCentrale ? (
     <PazienteModuloCentrale
       manifestationId={manifestationId}
       patientDocId={patientDocId}
@@ -305,10 +340,7 @@ export function PazienteModuloPma({
       missioniEvento={missioniEvento}
     />
   ) : (
-    <p className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
-      Paziente autopresentato al PMA: nessun dato operativo da centrale (evento, missione, esito
-      trasporto, valutazioni MSB/MSA).
-    </p>
+    messaggioAutopresentatoDatiCentrale
   );
 
   const canEditDimissioneTab = Boolean(

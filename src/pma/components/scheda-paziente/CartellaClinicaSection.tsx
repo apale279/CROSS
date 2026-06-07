@@ -25,10 +25,13 @@ import { useInfermiereSmartphone } from '@pma/hooks/useInfermiereSmartphoneStub'
 import { opToolbarBtnSm } from '@pma/cross/operativeTokens'
 import {
   ALLERGIE_VERIFICA_LABEL,
+  AVANZAMENTO_PMA_LABEL,
   allergieVerificaDisplay,
   type AllergieVerificaStato,
+  type AvanzamentoPma,
   type Paziente,
 } from '@pma/types/paziente'
+import { resolveAvanzamentoPma } from '../../../lib/pmaAvanzamento'
 import { EO_CLINICAL_TABS, type EoTabKey } from '@pma/lib/multilineList'
 import {
   EO_PAZIENTE_FIRESTORE_FIELDS,
@@ -61,6 +64,10 @@ import {
 import { emptyParametroVitaleDraft } from '@pma/lib/emptyParametroVitale'
 import { newLocalId } from '../../../lib/ids'
 import { parseVitalNumericInput, vitalInputValue } from '../../../lib/vitalNumeric'
+import { cartellaSubTabCompiledMap } from '@pma/lib/cartellaSubTabCompletion'
+import { normalizeAprContent } from '@pma/lib/aprQuickTerms'
+import { AprQuickTermButtons } from './AprQuickTermButtons'
+import { PmaAllergieSiAlert } from './PmaAllergieSiAlert'
 
 function allergieVerificaButtonClass(selected: boolean, k: AllergieVerificaStato): string {
   const base =
@@ -862,6 +869,15 @@ function FarmacoRow({
   )
 }
 
+const CARTELLA_SUBTABS = [
+  { id: 'anamnesi', label: 'Anamnesi' },
+  { id: 'eo', label: 'Esame obiettivo' },
+  { id: 'pv_farmaci', label: 'Parametri e farmaci' },
+  { id: 'lesioni', label: 'Lesioni e altro' },
+] as const
+
+type CartellaSubTabId = (typeof CARTELLA_SUBTABS)[number]['id']
+
 export function CartellaClinicaSection({
   pazienteId,
   p,
@@ -977,6 +993,18 @@ export function CartellaClinicaSection({
   const pvSorted = useMemo(() => sortPvChronoAsc(p.parametri_vitali), [p.parametri_vitali])
   const farmaciSorted = useMemo(() => sortFarmaciChronoAsc(p.farmaci), [p.farmaci])
   const rivSorted = useMemo(() => sortRivDesc(p.rivalutazioni), [p.rivalutazioni])
+  const avanzamentoEffettivo = useMemo(
+    () =>
+      resolveAvanzamentoPma({
+        pmaScheda: {
+          allergie_verifica: p.allergie_verifica,
+          avanzamento_manuale: p.avanzamento_manuale,
+        },
+        allergie_verifica: p.allergie_verifica,
+        avanzamento_manuale: p.avanzamento_manuale,
+      }),
+    [p.allergie_verifica, p.avanzamento_manuale],
+  )
 
   const patchPv = useCallback(
     (id: string, partial: Partial<ParametroVitaleRilevazione>) => {
@@ -997,13 +1025,15 @@ export function CartellaClinicaSection({
 
   const patchFarmaco = useCallback(
     (id: string, next: FarmacoSomministrato) => {
+      const prev = p.farmaci.find((r) => r.id === id)
       void write({ farmaci: [next] })
       const nome = next.nome.trim()
-      if (nome) {
-        void registerFarmacoInImpostazioni(nome, next.dose.trim(), next.via)
-      }
+      if (!nome) return
+      const prevNome = (prev?.nome ?? '').trim()
+      if (prevNome && prevNome === nome) return
+      void registerFarmacoInImpostazioni(nome, next.dose.trim(), next.via)
     },
-    [write, registerFarmacoInImpostazioni],
+    [p.farmaci, write, registerFarmacoInImpostazioni],
   )
 
   const removeFarmaco = useCallback(
@@ -1039,6 +1069,29 @@ export function CartellaClinicaSection({
   const [farmModalDose, setFarmModalDose] = useState('')
   const [farmModalVia, setFarmModalVia] = useState<FarmacoVia>('EV')
   const [farmModalTs, setFarmModalTs] = useState(() => toDatetimeLocal(Timestamp.now()))
+  const [cartellaSubTab, setCartellaSubTab] = useState<CartellaSubTabId>('anamnesi')
+
+  useEffect(() => {
+    if (
+      hideClinicalBlocks &&
+      (cartellaSubTab === 'eo' || cartellaSubTab === 'pv_farmaci')
+    ) {
+      setCartellaSubTab('anamnesi')
+    }
+  }, [hideClinicalBlocks, cartellaSubTab])
+
+  const cartellaSubTabsVisibili = useMemo(
+    () =>
+      hideClinicalBlocks
+        ? CARTELLA_SUBTABS.filter((t) => t.id === 'anamnesi' || t.id === 'lesioni')
+        : [...CARTELLA_SUBTABS],
+    [hideClinicalBlocks],
+  )
+
+  const cartellaSubTabCompiled = useMemo(
+    () => cartellaSubTabCompiledMap(p, eoSelectedByTab, hideClinicalBlocks),
+    [p, eoSelectedByTab, hideClinicalBlocks],
+  )
 
   const closePvModal = useCallback(() => {
     setPvModalOpen(false)
@@ -1207,22 +1260,51 @@ export function CartellaClinicaSection({
       {!embedded ? <div className="pma-section-hdr">Sezione 3 — Cartella clinica</div> : null}
 
       <div className={embedded ? 'mt-3 space-y-0' : 'mt-3 space-y-0 border-t border-slate-100 pt-3'}>
-        {embedded ? (
-          <div className="mb-4 space-y-3 border-b border-slate-200 pb-4">
-            <PmaFieldGuard fieldKey="codice_colore">
-              <PmaCodiceColoreField
-                compact
-                value={p.codice_colore}
-                canEdit={schedaClinicalEdit}
-                onChange={(c) => void write({ codice_colore: c })}
-              />
-            </PmaFieldGuard>
-          </div>
-        ) : null}
-        <div className="border-b border-slate-200 bg-slate-50/80 px-3 py-2 text-sm font-bold text-slate-900 sm:px-3">
-          Valutazione e anamnesi
-        </div>
-        <div className="space-y-0">
+        <nav
+          className="pma-tabs shrink-0 border-b border-slate-200 bg-white"
+          role="tablist"
+          aria-label="Sotto-sezioni cartella clinica"
+        >
+          {cartellaSubTabsVisibili.map((tab) => {
+            const selected = cartellaSubTab === tab.id
+            const compiled = cartellaSubTabCompiled[tab.id]
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                role="tab"
+                id={`cartella-subtab-${tab.id}`}
+                aria-selected={selected}
+                aria-controls={`cartella-panel-${tab.id}`}
+                aria-label={`${tab.label}, ${compiled ? 'compilata' : 'non compilata'}`}
+                tabIndex={selected ? 0 : -1}
+                onClick={() => setCartellaSubTab(tab.id)}
+                className={`pma-theme-skip pma-tab ${selected ? 'pma-tab--active' : ''}`}
+              >
+                <span aria-hidden>{compiled ? '✅' : '❌'}</span> {tab.label}
+              </button>
+            )
+          })}
+        </nav>
+
+        {cartellaSubTab === 'anamnesi' ? (
+          <div
+            id="cartella-panel-anamnesi"
+            role="tabpanel"
+            aria-labelledby="cartella-subtab-anamnesi"
+            className="space-y-0"
+          >
+            <div className={embedded ? 'mb-4 space-y-3 border-b border-slate-200 pb-4' : 'border-b border-slate-100 px-1 py-3'}>
+              <PmaFieldGuard fieldKey="codice_colore">
+                <PmaCodiceColoreField
+                  compact={embedded}
+                  value={p.codice_colore}
+                  canEdit={schedaClinicalEdit}
+                  onChange={(c) => void write({ codice_colore: c })}
+                />
+              </PmaFieldGuard>
+            </div>
+            <div className="space-y-0">
             <PmaFieldGuard
               fieldKey="allergie_verifica"
               className={`pma-allergie-verifica block ${bloccoVerificaAllergie ? 'pma-allergie-verifica--pending' : ''}`}
@@ -1281,12 +1363,17 @@ export function CartellaClinicaSection({
             <PmaFieldGuard fieldKey="apr" className="block">
             <label className="pma-field">
               <span className="pma-field__label">APR (anamnesi patologica remota)</span>
+              <AprQuickTermButtons
+                apr={p.apr}
+                disabled={!schedaClinicalEdit}
+                onAprChange={(next) => void write({ apr: next })}
+              />
               <textarea
                 key={`apr-${pazienteId}-${p.apr}`}
                 disabled={!schedaClinicalEdit}
                 rows={3}
                 defaultValue={p.apr}
-                onBlur={(e) => void write({ apr: e.target.value })}
+                onBlur={(e) => void write({ apr: normalizeAprContent(e.target.value) })}
               />
             </label>
             </PmaFieldGuard>
@@ -1302,53 +1389,41 @@ export function CartellaClinicaSection({
               />
             </label>
             </PmaFieldGuard>
-            {!hideClinicalBlocks ? (
-              <>
-                <PmaFieldGuard fieldKey="eo_note" className="pma-card mt-3 overflow-hidden">
-                  <div className="pma-card__hdr">Esame obiettivo (EO)</div>
-                  <div className="border-t border-slate-100 bg-slate-50/80 p-2">
-                    <QuickExamField
-                      key={`qe-${pazienteId}`}
-                      note={p.eo_note}
-                      disabled={!schedaClinicalEdit}
-                      gruppiRapidi={gruppiEoUi}
-                      selectedByTab={eoSelectedByTab}
-                      onColumnSelectionChange={patchEoColumn}
-                      onNoteBlur={(text) => void write({ eo_note: text })}
-                    />
-                  </div>
-                </PmaFieldGuard>
-                <PmaFieldGuard fieldKey="lesioni" className="pma-card mt-3 overflow-hidden">
-                  <div className="pma-card__hdr">Lesioni</div>
-                  <div className="border-t border-slate-100 bg-slate-50/80 p-2">
-                    <LesioniBodyMap
-                      lesioni={p.lesioni}
-                      disabled={!schedaClinicalEdit}
-                      onLesioniChange={(next, meta) => {
-                        if (meta?.removeLesioneN != null) {
-                          void write({ _pmaArrayRemove: { lesioni: [meta.removeLesioneN] } })
-                          return
-                        }
-                        const added = next.find((l) => !p.lesioni.some((prev) => prev.n === l.n))
-                        if (added) {
-                          void write({ lesioni: [added] })
-                          return
-                        }
-                        const changed = next.find((l) => {
-                          const prev = p.lesioni.find((x) => x.n === l.n)
-                          return prev && prev.descrizione !== l.descrizione
-                        })
-                        if (changed) void write({ lesioni: [changed] })
-                      }}
-                    />
-                  </div>
-                </PmaFieldGuard>
-              </>
-            ) : null}
-        </div>
+            </div>
+          </div>
+        ) : null}
 
-        {!hideClinicalBlocks ? (
-          <>
+        {cartellaSubTab === 'eo' && !hideClinicalBlocks ? (
+          <div
+            id="cartella-panel-eo"
+            role="tabpanel"
+            aria-labelledby="cartella-subtab-eo"
+            className="space-y-0"
+          >
+            <PmaFieldGuard fieldKey="eo_note" className="pma-card mt-3 overflow-hidden">
+              <div className="pma-card__hdr">Esame obiettivo (EO)</div>
+              <div className="border-t border-slate-100 bg-slate-50/80 p-2">
+                <QuickExamField
+                  key={`qe-${pazienteId}`}
+                  note={p.eo_note}
+                  disabled={!schedaClinicalEdit}
+                  gruppiRapidi={gruppiEoUi}
+                  selectedByTab={eoSelectedByTab}
+                  onColumnSelectionChange={patchEoColumn}
+                  onNoteBlur={(text) => void write({ eo_note: text })}
+                />
+              </div>
+            </PmaFieldGuard>
+          </div>
+        ) : null}
+
+        {cartellaSubTab === 'pv_farmaci' && !hideClinicalBlocks ? (
+          <div
+            id="cartella-panel-pv_farmaci"
+            role="tabpanel"
+            aria-labelledby="cartella-subtab-pv_farmaci"
+            className="space-y-0"
+          >
             <PmaFieldGuard fieldKey="parametri_vitali">
             <div className="border-b border-slate-200 bg-slate-50/80 px-3 py-2 text-sm font-bold text-slate-900 sm:px-3">
               Parametri vitali
@@ -1429,142 +1504,11 @@ export function CartellaClinicaSection({
         </div>
             </PmaFieldGuard>
 
-            <PmaFieldGuard fieldKey="prestazioni_sel">
-            <div className="border-b border-slate-200 bg-slate-50/80 px-3 py-2 text-sm font-bold text-slate-900 sm:px-3">
-              Terapie e prestazioni
-            </div>
-            <div className="space-y-0">
-          <div className="mt-4">
-            <div className="flex flex-wrap items-end justify-between gap-3">
-              <div className="min-w-0 flex-1 max-w-xl">
-                <span className="pma-field__label">Prestazioni</span>
-              </div>
-              <div className="ml-auto flex shrink-0 flex-wrap items-center justify-end gap-2">
-                <input
-                  ref={ecgFileInputRef}
-                  type="file"
-                  accept="image/*"
-                  capture="environment"
-                  className="sr-only"
-                  aria-hidden
-                  tabIndex={-1}
-                  onChange={(e) => void onEcgFileChange(e)}
-                />
-                <button
-                  type="button"
-                  disabled={!schedaClinicalEdit || ecgUploadBusy}
-                  title="Carica foto ECG su Cloudinary e collega alla scheda"
-                  onClick={() => ecgFileInputRef.current?.click()}
-                  className={`${btnSecondary} inline-flex h-10 min-w-0 items-center justify-center gap-1.5 px-3 sm:h-9 disabled:cursor-not-allowed disabled:opacity-50`}
-                >
-                  <svg width="18" height="14" viewBox="0 0 24 18" fill="none" aria-hidden className="shrink-0 text-red-600">
-                    <path
-                      d="M1 9h2l2-6 3 12 3-8 2 5h2l2-3h3"
-                      stroke="currentColor"
-                      strokeWidth="1.5"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
-                  {ecgUploadBusy ? '…' : 'ALLEGA ECG'}
-                </button>
-                {p.ecg_cloudinary_url ? (
-                  <a
-                    href={p.ecg_cloudinary_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-xs font-semibold text-sky-700 underline decoration-sky-300 underline-offset-2 hover:text-sky-900"
-                  >
-                    Apri ECG
-                  </a>
-                ) : null}
-              </div>
-            </div>
-            {ecgUploadErr ? (
-              <p className="mt-1 text-right text-xs text-red-600" role="alert">
-                {ecgUploadErr}
-              </p>
-            ) : null}
-            {pmaMobile ? (
-              <button
-                type="button"
-                disabled={!schedaClinicalEdit}
-                onClick={() => setPrestModalOpen(true)}
-                className="mt-2 flex w-full max-w-xl items-center justify-between gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-left text-sm font-medium text-slate-800 shadow-sm hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                <span>
-                  {selPrest.size === 0
-                    ? 'Scegli prestazioni…'
-                    : selPrest.size === 1
-                      ? '1 prestazione selezionata — tocca per modificare'
-                      : `${selPrest.size} prestazioni selezionate — tocca per modificare`}
-                </span>
-                <span className="shrink-0 text-slate-400" aria-hidden>
-                  ▼
-                </span>
-              </button>
-            ) : (
-              <details className="mt-2 max-w-xl rounded-lg border border-slate-300 bg-white shadow-sm [&_summary::-webkit-details-marker]:hidden">
-                <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-3 py-2.5 text-sm font-medium text-slate-800 hover:bg-slate-50">
-                  <span>
-                    {selPrest.size === 0
-                      ? 'Nessuna selezione — clicca per aprire e scegliere'
-                      : selPrest.size === 1
-                        ? '1 prestazione selezionata'
-                        : `${selPrest.size} prestazioni selezionate`}
-                  </span>
-                  <span className="shrink-0 text-slate-400" aria-hidden>
-                    ▼
-                  </span>
-                </summary>
-                <div className="max-h-60 overflow-y-auto border-t border-slate-200 p-2">
-                  {prestazioniLista.length === 0 ? (
-                    <p className="px-2 py-3 text-sm text-slate-500">
-                      Nessuna prestazione configurata sulla manifestazione.
-                    </p>
-                  ) : (
-                    prestazioniLista.map((label) => (
-                      <label
-                        key={label}
-                        className="flex cursor-pointer items-start gap-2 rounded-md px-2 py-2 text-sm hover:bg-slate-50"
-                      >
-                        <input
-                          type="checkbox"
-                          className="mt-0.5 h-4 w-4 shrink-0 rounded border-slate-300 text-emerald-700 focus:ring-emerald-600"
-                          checked={selPrest.has(label)}
-                          disabled={!schedaClinicalEdit}
-                          onChange={() => togglePrestazione(label)}
-                        />
-                        <span className="min-w-0 leading-snug text-slate-800">{label}</span>
-                      </label>
-                    ))
-                  )}
-                </div>
-              </details>
-            )}
-            <div className="mt-3">
-              <span className="pma-field__label">Prestazioni selezionate</span>
-              {prestazioniOrdinate.length === 0 ? (
-                <p className="mt-1 text-xs text-slate-500">Nessuna prestazione selezionata.</p>
-              ) : (
-                <ul
-                  className="pma-prest-grid mt-2 grid list-none grid-cols-4 gap-2 p-0"
-                  aria-label="Elenco prestazioni selezionate"
-                >
-                  {prestazioniOrdinate.map((label) => (
-                    <li
-                      key={label}
-                      className="rounded-md border border-slate-200 bg-slate-50 px-2 py-1.5 text-xs font-medium leading-snug text-slate-800"
-                    >
-                      {label}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          </div>
-            </div>
-            </PmaFieldGuard>
+          <PmaAllergieSiAlert
+            allergieVerifica={p.allergie_verifica}
+            allergie={p.allergie}
+            className="mx-3 mt-3"
+          />
 
           <PmaFieldGuard fieldKey="farmaci">
             <div className="border-b border-slate-200 bg-slate-50/80 px-3 py-2 text-sm font-bold text-slate-900 sm:px-3">
@@ -1660,7 +1604,241 @@ export function CartellaClinicaSection({
             ) : null}
             </div>
           </PmaFieldGuard>
-          </>
+          </div>
+        ) : null}
+
+        {cartellaSubTab === 'lesioni' ? (
+          <div
+            id="cartella-panel-lesioni"
+            role="tabpanel"
+            aria-labelledby="cartella-subtab-lesioni"
+            className="space-y-0"
+          >
+            {!hideClinicalBlocks ? (
+              <>
+                <PmaFieldGuard fieldKey="lesioni" className="pma-card mt-3 overflow-hidden">
+                  <div className="pma-card__hdr">Lesioni</div>
+                  <div className="border-t border-slate-100 bg-slate-50/80 p-2">
+                    <LesioniBodyMap
+                      lesioni={p.lesioni}
+                      disabled={!schedaClinicalEdit}
+                      onLesioniChange={(next, meta) => {
+                        if (meta?.removeLesioneN != null) {
+                          void write({ _pmaArrayRemove: { lesioni: [meta.removeLesioneN] } })
+                          return
+                        }
+                        const added = next.find((l) => !p.lesioni.some((prev) => prev.n === l.n))
+                        if (added) {
+                          void write({ lesioni: [added] })
+                          return
+                        }
+                        const changed = next.find((l) => {
+                          const prev = p.lesioni.find((x) => x.n === l.n)
+                          return prev && prev.descrizione !== l.descrizione
+                        })
+                        if (changed) void write({ lesioni: [changed] })
+                      }}
+                    />
+                  </div>
+                </PmaFieldGuard>
+
+                <PmaFieldGuard fieldKey="prestazioni_sel">
+                <div className="border-b border-slate-200 bg-slate-50/80 px-3 py-2 text-sm font-bold text-slate-900 sm:px-3">
+                  Terapie e prestazioni
+                </div>
+                <div className="space-y-0">
+              <div className="mt-4">
+                <div className="flex flex-wrap items-end justify-between gap-3">
+                  <div className="min-w-0 flex-1 max-w-xl">
+                    <span className="pma-field__label">Prestazioni</span>
+                  </div>
+                  <div className="ml-auto flex shrink-0 flex-wrap items-center justify-end gap-2">
+                    <input
+                      ref={ecgFileInputRef}
+                      type="file"
+                      accept="image/*"
+                      capture="environment"
+                      className="sr-only"
+                      aria-hidden
+                      tabIndex={-1}
+                      onChange={(e) => void onEcgFileChange(e)}
+                    />
+                    <button
+                      type="button"
+                      disabled={!schedaClinicalEdit || ecgUploadBusy}
+                      title="Carica foto ECG su Cloudinary e collega alla scheda"
+                      onClick={() => ecgFileInputRef.current?.click()}
+                      className={`${btnSecondary} inline-flex h-10 min-w-0 items-center justify-center gap-1.5 px-3 sm:h-9 disabled:cursor-not-allowed disabled:opacity-50`}
+                    >
+                      <svg width="18" height="14" viewBox="0 0 24 18" fill="none" aria-hidden className="shrink-0 text-red-600">
+                        <path
+                          d="M1 9h2l2-6 3 12 3-8 2 5h2l2-3h3"
+                          stroke="currentColor"
+                          strokeWidth="1.5"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                      {ecgUploadBusy ? '…' : 'ALLEGA ECG'}
+                    </button>
+                    {p.ecg_cloudinary_url ? (
+                      <a
+                        href={p.ecg_cloudinary_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs font-semibold text-sky-700 underline decoration-sky-300 underline-offset-2 hover:text-sky-900"
+                      >
+                        Apri ECG
+                      </a>
+                    ) : null}
+                  </div>
+                </div>
+                {ecgUploadErr ? (
+                  <p className="mt-1 text-right text-xs text-red-600" role="alert">
+                    {ecgUploadErr}
+                  </p>
+                ) : null}
+                {pmaMobile ? (
+                  <button
+                    type="button"
+                    disabled={!schedaClinicalEdit}
+                    onClick={() => setPrestModalOpen(true)}
+                    className="mt-2 flex w-full max-w-xl items-center justify-between gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-left text-sm font-medium text-slate-800 shadow-sm hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <span>
+                      {selPrest.size === 0
+                        ? 'Scegli prestazioni…'
+                        : selPrest.size === 1
+                          ? '1 prestazione selezionata — tocca per modificare'
+                          : `${selPrest.size} prestazioni selezionate — tocca per modificare`}
+                    </span>
+                    <span className="shrink-0 text-slate-400" aria-hidden>
+                      ▼
+                    </span>
+                  </button>
+                ) : (
+                  <details className="mt-2 max-w-xl rounded-lg border border-slate-300 bg-white shadow-sm [&_summary::-webkit-details-marker]:hidden">
+                    <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-3 py-2.5 text-sm font-medium text-slate-800 hover:bg-slate-50">
+                      <span>
+                        {selPrest.size === 0
+                          ? 'Nessuna selezione — clicca per aprire e scegliere'
+                          : selPrest.size === 1
+                            ? '1 prestazione selezionata'
+                            : `${selPrest.size} prestazioni selezionate`}
+                      </span>
+                      <span className="shrink-0 text-slate-400" aria-hidden>
+                        ▼
+                      </span>
+                    </summary>
+                    <div className="max-h-60 overflow-y-auto border-t border-slate-200 p-2">
+                      {prestazioniLista.length === 0 ? (
+                        <p className="px-2 py-3 text-sm text-slate-500">
+                          Nessuna prestazione configurata sulla manifestazione.
+                        </p>
+                      ) : (
+                        prestazioniLista.map((label) => (
+                          <label
+                            key={label}
+                            className="flex cursor-pointer items-start gap-2 rounded-md px-2 py-2 text-sm hover:bg-slate-50"
+                          >
+                            <input
+                              type="checkbox"
+                              className="mt-0.5 h-4 w-4 shrink-0 rounded border-slate-300 text-emerald-700 focus:ring-emerald-600"
+                              checked={selPrest.has(label)}
+                              disabled={!schedaClinicalEdit}
+                              onChange={() => togglePrestazione(label)}
+                            />
+                            <span className="min-w-0 leading-snug text-slate-800">{label}</span>
+                          </label>
+                        ))
+                      )}
+                    </div>
+                  </details>
+                )}
+                <div className="mt-3">
+                  <span className="pma-field__label">Prestazioni selezionate</span>
+                  {prestazioniOrdinate.length === 0 ? (
+                    <p className="mt-1 text-xs text-slate-500">Nessuna prestazione selezionata.</p>
+                  ) : (
+                    <ul
+                      className="pma-prest-grid mt-2 grid list-none grid-cols-4 gap-2 p-0"
+                      aria-label="Elenco prestazioni selezionate"
+                    >
+                      {prestazioniOrdinate.map((label) => (
+                        <li
+                          key={label}
+                          className="rounded-md border border-slate-200 bg-slate-50 px-2 py-1.5 text-xs font-medium leading-snug text-slate-800"
+                        >
+                          {label}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              </div>
+                </div>
+                </PmaFieldGuard>
+              </>
+            ) : null}
+
+        <PmaFieldGuard fieldKey="rivalutazioni">
+        <div className="border-b border-slate-200 bg-slate-50/80 px-3 py-2 text-sm font-bold text-slate-900 sm:px-3">
+          Rivalutazione
+        </div>
+        <div className="space-y-0">
+          <div className="mt-4 space-y-3">
+            {rivSorted.map((r) => (
+              <div key={r.id} className="pma-card text-sm">
+                <div className="text-xs pma-field__value--muted">
+                  {r.creato_at.toDate().toLocaleString('it-IT')} · {r.firma_nome}
+                </div>
+                {canEditRivalutazioniEsistenti && schedaClinicalEdit ? (
+                  <label className="mt-2 block">
+                    <span className="sr-only">Testo rivalutazione</span>
+                    <textarea
+                      key={`riv-edit-${r.id}-${r.testo.slice(0, 40)}`}
+                      defaultValue={r.testo}
+                      rows={4}
+                      onBlur={(e) => {
+                        const v = e.target.value
+                        if (v !== r.testo) patchRivalutazioneTesto(r.id, v)
+                      }}
+                      className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900"
+                    />
+                  </label>
+                ) : (
+                  <p className="mt-1 whitespace-pre-wrap pma-field__value">{r.testo}</p>
+                )}
+              </div>
+            ))}
+            {rivSorted.length === 0 ? (
+              <p className="text-sm pma-field__value--muted">Nessuna rivalutazione.</p>
+            ) : null}
+          </div>
+          {schedaClinicalEdit ? (
+            <div className="pma-card mt-4">
+              <label className="block">
+                <span className="pma-field__label">Nuova nota</span>
+                <textarea
+                  value={rivDraft}
+                  onChange={(e) => setRivDraft(e.target.value)}
+                  rows={3}
+                  className="mt-1 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900"
+                />
+              </label>
+              <button
+                type="button"
+                disabled={!rivDraft.trim()}
+                onClick={() => void aggiungiRivalutazione()}
+                className={`${btnPrimary} mt-3 disabled:opacity-40`}
+              >
+                Aggiungi rivalutazione
+              </button>
+            </div>
+          ) : null}
+        </div>
+        </PmaFieldGuard>
+          </div>
         ) : null}
 
         {!hideClinicalBlocks && pmaMobile && pvModalOpen && pvDraft ? (
@@ -1791,62 +1969,36 @@ export function CartellaClinicaSection({
           </PmaMobileSheet>
         ) : null}
 
-        <PmaFieldGuard fieldKey="rivalutazioni">
-        <div className="border-b border-slate-200 bg-slate-50/80 px-3 py-2 text-sm font-bold text-slate-900 sm:px-3">
-          Rivalutazione
-        </div>
-        <div className="space-y-0">
-          <div className="mt-4 space-y-3">
-            {rivSorted.map((r) => (
-              <div key={r.id} className="pma-card text-sm">
-                <div className="text-xs pma-field__value--muted">
-                  {r.creato_at.toDate().toLocaleString('it-IT')} · {r.firma_nome}
-                </div>
-                {canEditRivalutazioniEsistenti && schedaClinicalEdit ? (
-                  <label className="mt-2 block">
-                    <span className="sr-only">Testo rivalutazione</span>
-                    <textarea
-                      key={`riv-edit-${r.id}-${r.testo.slice(0, 40)}`}
-                      defaultValue={r.testo}
-                      rows={4}
-                      onBlur={(e) => {
-                        const v = e.target.value
-                        if (v !== r.testo) patchRivalutazioneTesto(r.id, v)
-                      }}
-                      className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900"
-                    />
-                  </label>
-                ) : (
-                  <p className="mt-1 whitespace-pre-wrap pma-field__value">{r.testo}</p>
-                )}
-              </div>
-            ))}
-            {rivSorted.length === 0 ? (
-              <p className="text-sm pma-field__value--muted">Nessuna rivalutazione.</p>
-            ) : null}
+        <PmaFieldGuard fieldKey="avanzamento_manuale">
+          <div className="border-b border-slate-200 bg-slate-50/80 px-3 py-2 text-sm font-bold text-slate-900 sm:px-3">
+            Avanzamento
           </div>
-          {schedaClinicalEdit ? (
-            <div className="pma-card mt-4">
-              <label className="block">
-                <span className="pma-field__label">Nuova nota</span>
-                <textarea
-                  value={rivDraft}
-                  onChange={(e) => setRivDraft(e.target.value)}
-                  rows={3}
-                  className="mt-1 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900"
-                />
-              </label>
-              <button
-                type="button"
-                disabled={!rivDraft.trim()}
-                onClick={() => void aggiungiRivalutazione()}
-                className={`${btnPrimary} mt-3 disabled:opacity-40`}
+          <div className="p-3">
+            <label className="block max-w-md text-sm">
+              <span className="pma-field__label">Avanzamento</span>
+              <select
+                className="mt-1 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900"
+                value={avanzamentoEffettivo}
+                disabled={!canEdit}
+                onChange={(e) => {
+                  void write({ avanzamento_manuale: e.target.value as AvanzamentoPma }).catch(
+                    () => undefined,
+                  )
+                }}
               >
-                Aggiungi rivalutazione
-              </button>
-            </div>
-          ) : null}
-        </div>
+                {(Object.keys(AVANZAMENTO_PMA_LABEL) as AvanzamentoPma[]).map((k) => (
+                  <option key={k} value={k}>
+                    {AVANZAMENTO_PMA_LABEL[k]}
+                  </option>
+                ))}
+              </select>
+              <p className="mt-1 text-xs text-slate-500">
+                Predefinito: <strong>DA VEDERE</strong> finché non rispondi alla domanda sulle
+                allergie, poi <strong>IN VISITA</strong>. <strong>ATTESA DIMISSIONE</strong> va
+                impostato manualmente. Una scelta dal menu sovrascrive i valori automatici.
+              </p>
+            </label>
+          </div>
         </PmaFieldGuard>
       </div>
     </section>

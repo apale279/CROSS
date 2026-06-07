@@ -23,9 +23,7 @@ import {
   fieldsChiusuraMissioneSuEventoForzato,
   missioneRichiedeChiusuraSuEventoForzato,
 } from '../../lib/eventoChiusuraMissioni';
-import { MISSION_PMA_CLOSE_MOTIVO } from '../../lib/missionPmaPatientClose';
 import { missioniPerEvento, pazientiPerEvento } from '../../lib/eventoLinks';
-import { resolveMissionPmaPatientsBeforeClose } from '../../services/missionPmaPatientCloseService';
 import { shouldAutoCloseEvento } from '../../utils/eventoAutoClose';
 import { confirmDelete } from '../../utils/confirmDelete';
 import { buildStatoChangeFields } from '../../lib/missionStoricoStati';
@@ -321,22 +319,6 @@ export function EventoScheda({
 
   const changeStatoMissione = async (missione, nuovoStato) => {
     try {
-      if (nuovoStato === 'FINE MISSIONE' || nuovoStato === 'ANNULLATA') {
-        const motivo =
-          nuovoStato === 'ANNULLATA'
-            ? MISSION_PMA_CLOSE_MOTIVO.ANNULLATA
-            : MISSION_PMA_CLOSE_MOTIVO.FINE_MISSIONE;
-        const { proceed } = await resolveMissionPmaPatientsBeforeClose({
-          manifestationId: manifestazioneId,
-          missioni: missione,
-          pazienti: pazientiEvento,
-          eventi: existingEventi ?? [],
-          motivoChiusura: motivo,
-          impostazioni,
-          titolo: `${nuovoStato === 'ANNULLATA' ? 'Annullamento' : 'Chiusura'} missione ${missione.idMissione}`,
-        });
-        if (!proceed) return;
-      }
       await patchMissione(
         manifestazioneId,
         missione._docId,
@@ -369,18 +351,6 @@ export function EventoScheda({
     if (!window.confirm(msg)) return;
 
     const missioniDaChiudere = missioniFresh.filter(missioneRichiedeChiusuraSuEventoForzato);
-    if (missioniDaChiudere.length) {
-      const { proceed } = await resolveMissionPmaPatientsBeforeClose({
-        manifestationId: manifestazioneId,
-        missioni: missioniDaChiudere,
-        pazienti: pazientiEvento,
-        eventi: existingEventi ?? [],
-        motivoChiusura: MISSION_PMA_CLOSE_MOTIVO.FINE_MISSIONE,
-        impostazioni,
-        titolo: `Termina evento ${evento.idEvento}`,
-      });
-      if (!proceed) return;
-    }
 
     setTerminating(true);
     try {
@@ -422,16 +392,6 @@ export function EventoScheda({
     if (!window.confirm(msg)) return;
 
     const missioniDaChiudere = missioniEvento.filter(missioneRichiedeChiusuraSuEventoForzato);
-    const { proceed } = await resolveMissionPmaPatientsBeforeClose({
-      manifestationId: manifestazioneId,
-      missioni: missioniDaChiudere,
-      pazienti: pazientiEvento,
-      eventi: existingEventi ?? [],
-      motivoChiusura: MISSION_PMA_CLOSE_MOTIVO.CHIUSURA_EVENTO,
-      impostazioni,
-      titolo: `Chiusura forzata evento ${evento.idEvento}`,
-    });
-    if (!proceed) return;
 
     setClosing(true);
     try {

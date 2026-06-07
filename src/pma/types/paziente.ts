@@ -26,6 +26,19 @@ export function allergieVerificaDisplay(v: AllergieVerificaStato | null | undefi
   return ALLERGIE_VERIFICA_LABEL[v]
 }
 
+/** Avanzamento visita PMA (cartella clinica + badge dashboard). */
+export type AvanzamentoPma = 'da_vedere' | 'in_visita' | 'attesa_dimissione'
+
+export function isAvanzamentoPma(v: unknown): v is AvanzamentoPma {
+  return v === 'da_vedere' || v === 'in_visita' || v === 'attesa_dimissione'
+}
+
+export const AVANZAMENTO_PMA_LABEL: Record<AvanzamentoPma, string> = {
+  da_vedere: 'DA VEDERE',
+  in_visita: 'IN VISITA',
+  attesa_dimissione: 'ATTESA DIMISSIONE',
+}
+
 /** Sezione 1 — Tipo paziente (scelta rapida). */
 export type TipoPaziente = 'trasportato' | 'autopresentato'
 
@@ -90,6 +103,8 @@ export interface Paziente {
   allergie: string
   /** Conferma operatore: il paziente ha allergie note? Obbligatorio prima di modificare la cartella. */
   allergie_verifica?: AllergieVerificaStato | null
+  /** Override manuale avanzamento visita (sovrascrive la logica automatica da allergie). */
+  avanzamento_manuale?: AvanzamentoPma | null
   app: string
   /** Esame obiettivo — opzioni rapide per area (Firestore root, `EO_*`). */
   EO_GENERALE: string[]

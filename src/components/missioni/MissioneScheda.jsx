@@ -253,13 +253,6 @@ function MissioneSchedaLoaded({
       } else {
         fields.esitoMissioneAltro = '';
       }
-      if (esitoMissioneTerminaCopertura(fields.esitoMissione)) {
-        const proceed = await gestisciPazientiPmaPrimaChiusura(
-          MISSION_PMA_CLOSE_MOTIVO.ESITO_COPERTURA,
-          `Esito missione ${fields.esitoMissione} (missione ${missione.idMissione})`,
-        );
-        if (!proceed) return;
-      }
       await patchMissione(manifestationId, missione._docId, fields, missione.mezzo);
     } catch (err) {
       notifyFirestoreError(err);
@@ -270,17 +263,6 @@ function MissioneSchedaLoaded({
     if (nuovo === missione.stato) return;
     if (statoMissioneBloccato && nuovo !== missione.stato) return;
     try {
-      if (nuovo === 'FINE MISSIONE' || nuovo === 'ANNULLATA') {
-        const motivo =
-          nuovo === 'ANNULLATA'
-            ? MISSION_PMA_CLOSE_MOTIVO.ANNULLATA
-            : MISSION_PMA_CLOSE_MOTIVO.FINE_MISSIONE;
-        const proceed = await gestisciPazientiPmaPrimaChiusura(
-          motivo,
-          `${nuovo === 'ANNULLATA' ? 'Annullamento' : 'Chiusura'} missione ${missione.idMissione}`,
-        );
-        if (!proceed) return;
-      }
       await patchMissione(
         manifestationId,
         missione._docId,

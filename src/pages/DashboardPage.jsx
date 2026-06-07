@@ -28,18 +28,11 @@ import { Modal } from '../components/ui/Modal';
 import { PmaMapModal } from '../components/impostazioni/PmaMapModal';
 import { PmaCodiciMinoriPanel } from '../components/pma/PmaCodiciMinoriPanel';
 import { pazientiCodiceMinorePerPma } from '../lib/pmaModule';
-import {
-  createPazienteCodiceMinore,
-  deletePazienteCodiceMinore,
-  updatePazienteCodiceMinore,
-} from '../services/pmaCodiceMinoreService';
 import { DiarioImportantTicker } from '../components/diario/DiarioImportantTicker';
 import { DiarioNotaModal } from '../components/diario/DiarioNotaModal';
 import { useDiarioNotaActions } from '../hooks/useDiarioNotaActions';
 import { useDiarioTelegramBroadcast } from '../hooks/useDiarioTelegramBroadcast';
 import { nextStatoMissione } from '../utils/missionStati';
-import { MISSION_PMA_CLOSE_MOTIVO } from '../lib/missionPmaPatientClose';
-import { resolveMissionPmaPatientsBeforeClose } from '../services/missionPmaPatientCloseService';
 import {
   DEFAULT_DASHBOARD_LAYOUT,
   loadDashboardLayout,
@@ -155,21 +148,6 @@ export default function DashboardPage() {
     const nuovo = nextStatoMissione(mis.stato ?? 'ALLERTARE', stati);
     if (nuovo === mis.stato) return;
     try {
-      if (nuovo === 'FINE MISSIONE' || nuovo === 'ANNULLATA') {
-        const { proceed } = await resolveMissionPmaPatientsBeforeClose({
-          manifestationId,
-          missioni: mis,
-          pazienti,
-          eventi,
-          motivoChiusura:
-            nuovo === 'ANNULLATA'
-              ? MISSION_PMA_CLOSE_MOTIVO.ANNULLATA
-              : MISSION_PMA_CLOSE_MOTIVO.FINE_MISSIONE,
-          impostazioni,
-          titolo: `${nuovo === 'ANNULLATA' ? 'Annullamento' : 'Chiusura'} missione ${mis.idMissione}`,
-        });
-        if (!proceed) return;
-      }
       await patchMissione(
         manifestationId,
         mis._docId,
@@ -395,52 +373,11 @@ export default function DashboardPage() {
             manifestationId={manifestationId}
             pmaId={codiciMinoriPma.id}
             impostazioni={impostazioni}
-            missioni={missioni}
-            eventi={eventi}
-            onOpenMissioneCorrelata={(mis) => setModal({ type: 'missione', data: mis })}
-            onCreate={async (payload) => {
-              setCodiciMinoriBusy(true);
-              try {
-                return await createPazienteCodiceMinore(
-                  manifestationId,
-                  codiciMinoriPma.id,
-                  codiciMinoriPma.nome,
-                  payload,
-                  pazienti,
-                );
-              } catch (err) {
-                alert(err?.message ?? 'Errore creazione');
-                throw err;
-              } finally {
-                setCodiciMinoriBusy(false);
-              }
-            }}
-            onUpdate={async (docId, payload, existingRow) => {
-              setCodiciMinoriBusy(true);
-              try {
-                await updatePazienteCodiceMinore(
-                  manifestationId,
-                  docId,
-                  payload,
-                  existingRow,
-                );
-              } catch (err) {
-                alert(err?.message ?? 'Errore aggiornamento');
-                throw err;
-              } finally {
-                setCodiciMinoriBusy(false);
-              }
-            }}
-            onDelete={async (docId, existingRow) => {
-              setCodiciMinoriBusy(true);
-              try {
-                await deletePazienteCodiceMinore(manifestationId, docId, existingRow);
-              } catch (err) {
-                alert(err?.message ?? 'Errore eliminazione');
-                throw err;
-              } finally {
-                setCodiciMinoriBusy(false);
-              }
+            onOpenRow={(row) => {
+              setCodiciMinoriPma(null);
+              navigate(
+                `/pma/${encodeURIComponent(codiciMinoriPma.id)}/paziente/${encodeURIComponent(row._docId)}?tab=anagrafica`,
+              );
             }}
           />
         </Modal>

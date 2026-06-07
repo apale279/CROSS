@@ -6,14 +6,14 @@ describe('displayNomePazientePma', () => {
     expect(displayNomePazientePma({ cognome: 'Rossi', nome: 'Mario' })).toBe('Rossi Mario');
   });
 
-  it('aggiunge pettorale se presente', () => {
+  it('ignora pettorale nel testo (mostrato in badge)', () => {
     expect(
       displayNomePazientePma({ cognome: 'Rossi', nome: 'Mario', pettorale: 42 }),
-    ).toBe('Rossi Mario (Pett. 42)');
+    ).toBe('Rossi Mario');
   });
 
-  it('mostra solo pettorale se manca anagrafica', () => {
-    expect(displayNomePazientePma({ pettorale: 11 })).toBe('Pettorale 11');
+  it('senza anagrafica restituisce fallback', () => {
+    expect(displayNomePazientePma({ pettorale: 11 })).toBe('Senza nome');
   });
 
   it('fallback senza nome', () => {

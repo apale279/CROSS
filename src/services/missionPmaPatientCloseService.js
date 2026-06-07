@@ -33,7 +33,7 @@ async function applyDecisionForPatient(
 }
 
 /**
- * Gestisce pazienti PMA prima di chiudere/annullare/eliminare missioni.
+ * Popup scollegamento PMA: solo da «Elimina missione» (MissioneScheda).
  * @returns {Promise<{ proceed: boolean }>} proceed false se l'operatore ha annullato
  */
 export async function resolveMissionPmaPatientsBeforeClose({

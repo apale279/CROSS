@@ -74,22 +74,30 @@ const checks = [
     mustInclude: [
       'riapriEventoOperatore',
       'patchEvento(manifestazioneId',
-      'manifestationId: manifestazioneId',
     ],
     mustNotInclude: [
       'patchEvento(manifestationId',
       'riapriEventoOperatore(manifestationId',
-      'resolveMissionPmaPatientsBeforeClose({\n      manifestationId,\n',
-      'resolveMissionPmaPatientsBeforeClose({\n        manifestationId,\n',
+      'resolveMissionPmaPatientsBeforeClose',
     ],
+  },
+  {
+    file: 'src/components/missioni/MissioneScheda.jsx',
+    mustInclude: ['resolveMissionPmaPatientsBeforeClose', 'handleEliminaMissione'],
+  },
+  {
+    file: 'src/pages/DashboardPage.jsx',
+    mustNotInclude: ['resolveMissionPmaPatientsBeforeClose'],
   },
   {
     file: 'src/components/mezzi/MezzoScheda.jsx',
     mustInclude: ['mezzoDisponibileService', 'confirmMezzoDisponibileLiberaMissioni'],
+    mustNotInclude: ['resolveMissionPmaPatientsBeforeClose'],
   },
   {
     file: 'src/pages/MezziPage.jsx',
     mustInclude: ['mezzoDisponibileService', 'patchStatoMezzo'],
+    mustNotInclude: ['resolveMissionPmaPatientsBeforeClose'],
   },
   {
     file: 'src/lib/pmaDashboardCentrale.js',

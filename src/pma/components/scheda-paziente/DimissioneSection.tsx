@@ -18,6 +18,7 @@ import { PdfPreviewModal } from './PdfPreviewModal'
 import type { PresetDimissioneVoce } from '@pma/types/manifestazioneImpostazioni'
 import { canChiudiDimissionePaziente, schedaTabDimissioneAllows } from '@pma/lib/rankMatrix'
 import { validateDimissioneBeforeClose } from '@pma/lib/dimissioneValidate'
+import { PmaAllergieSiAlert } from './PmaAllergieSiAlert'
 import { staffSoftRefFromUser } from '@pma/lib/staffSoftRef'
 import { btnDanger, btnPrimary, btnSecondary } from '@pma/cross/uiTokens'
 import {
@@ -332,6 +333,11 @@ export function DimissioneSection({
       </div>
 
       <div className="space-y-0">
+        <PmaAllergieSiAlert
+          allergieVerifica={p.allergie_verifica}
+          allergie={p.allergie}
+          className="mx-3 mt-3"
+        />
         {isMedico ? (
           <div className="border-b border-sky-100 bg-sky-50/90 px-3 py-3">
             <p className="text-xs font-bold uppercase tracking-wide text-sky-900">

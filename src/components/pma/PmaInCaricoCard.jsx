@@ -1,17 +1,14 @@
 import { CODICE_COLORE_LABEL } from '../../pma/types/paziente';
 import { formatTimestamp } from '../../utils/formatters';
 import { displayNomePazientePma } from '../../lib/pmaDisplayName';
-
-const COLORE_CLASS = {
-  bianco: 'bg-slate-100 border-slate-300',
-  verde: 'bg-emerald-50 border-emerald-400',
-  giallo: 'bg-amber-50 border-amber-400',
-  rosso: 'bg-red-50 border-red-500',
-};
+import { isPazienteAutopresentatoPma, mostraPettoralePazientePma } from '../../lib/pmaDeskPatientInfo';
+import { pmaCodiceColoreCardClass } from '../../lib/pmaCodiceColoreUi';
+import { PmaAvanzamentoBadge } from './PmaAvanzamentoBadge';
+import { PmaPettoraleBadge } from './PmaPettoraleBadge';
 
 export function PmaInCaricoCard({ paziente, evento, onOpen }) {
   const colore = paziente.pmaScheda?.codice_colore ?? 'verde';
-  const coloreClass = COLORE_CLASS[colore] ?? COLORE_CLASS.verde;
+  const coloreClass = pmaCodiceColoreCardClass(paziente);
   const ingresso =
     paziente.pmaScheda?.ingresso_carico_at ??
     paziente.arrivatoHAt ??
@@ -24,6 +21,7 @@ export function PmaInCaricoCard({ paziente, evento, onOpen }) {
     paziente.pmaScheda?.dettaglio_evento ||
     evento?.dettaglioEvento ||
     '';
+  const isAuto = isPazienteAutopresentatoPma(paziente);
 
   return (
     <button
@@ -32,27 +30,29 @@ export function PmaInCaricoCard({ paziente, evento, onOpen }) {
       className={`w-full rounded-lg border-2 p-4 text-left shadow-sm transition hover:shadow-md ${coloreClass}`}
     >
       <div className="mb-2 flex flex-wrap items-center gap-2">
-        <span
-          className="inline-block h-3 w-3 rounded-full border border-black/20"
-          style={{
-            background:
-              colore === 'rosso'
-                ? '#dc2626'
-                : colore === 'giallo'
-                  ? '#eab308'
-                  : colore === 'verde'
-                    ? '#16a34a'
-                    : '#f8fafc',
-          }}
-          aria-hidden
-        />
         <span className="text-xs font-bold uppercase text-slate-700">
           {CODICE_COLORE_LABEL[colore] ?? colore}
         </span>
         <span className="font-mono text-xs text-slate-500">{paziente.idPaziente}</span>
+        {isAuto ? (
+          <span className="rounded bg-emerald-100 px-1 py-px text-[9px] font-bold uppercase text-emerald-900">
+            Auto
+          </span>
+        ) : (
+          <span className="rounded bg-amber-100 px-1 py-px text-[9px] font-bold uppercase text-amber-900">
+            Centrale
+          </span>
+        )}
+        <PmaAvanzamentoBadge paziente={paziente} />
       </div>
-      <p className="text-lg font-bold text-slate-900">
-        {displayNomePazientePma(paziente)}
+      <p className="flex min-w-0 items-center gap-2 text-lg font-bold text-slate-900">
+        {mostraPettoralePazientePma(paziente) ? (
+          <PmaPettoraleBadge
+            pettorale={paziente.pettorale}
+            className="shrink-0 px-1.5 py-0.5 text-lg font-bold normal-case tracking-normal"
+          />
+        ) : null}
+        <span className="min-w-0 truncate">{displayNomePazientePma(paziente)}</span>
       </p>
       <p className="mt-1 text-sm text-slate-700">
         {tipoEv}
