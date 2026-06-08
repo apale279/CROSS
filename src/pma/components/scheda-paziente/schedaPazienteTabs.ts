@@ -1,4 +1,4 @@
-﻿import type { Paziente } from '@pma/types/paziente'
+import type { Paziente } from '@pma/types/paziente'
 import type { UserRank } from '@pma/types/userProfile'
 import { schedaTabCartellaAllows, schedaTabDimissioneAllows, schedaTabInvioPsAllows } from '@pma/lib/rankMatrix'
 
@@ -6,6 +6,7 @@ export type SchedaPazienteTabId =
   | 'generale'
   | 'anagrafica'
   | 'dati_centrale'
+  | 'triage'
   | 'cartella'
   | 'dimissione'
   | 'invio_ps'
@@ -14,6 +15,7 @@ export type SchedaPazienteTabId =
 export const PMA_SHELL_TABS: { id: SchedaPazienteTabId; label: string }[] = [
   { id: 'anagrafica', label: 'Anagrafica' },
   { id: 'dati_centrale', label: 'Dati centrale' },
+  { id: 'triage', label: 'Triage' },
   { id: 'cartella', label: 'Cartella clinica' },
   { id: 'dimissione', label: 'Dimissioni' },
 ]
@@ -25,7 +27,13 @@ export const PMA_CLINICAL_SHELL_TABS: { id: SchedaPazienteTabId; label: string }
 ]
 
 /** Tab shell PMA (autopresentati includono «Dati centrale» con messaggio informativo). */
-export function pmaShellTabsFor(_isAutopresentato: boolean) {
+export function pmaShellTabsFor(
+  _isAutopresentato: boolean,
+  opts?: { hasPmaScheda?: boolean },
+) {
+  if (opts?.hasPmaScheda === false) {
+    return PMA_SHELL_TABS.filter((t) => t.id !== 'triage')
+  }
   return PMA_SHELL_TABS
 }
 
@@ -35,7 +43,7 @@ export function filterPmaShellTabsByRank(
   rank: UserRank,
 ) {
   return tabs.filter((t) => {
-    if (t.id === 'cartella') return schedaTabCartellaAllows(rank, 'READ')
+    if (t.id === 'triage' || t.id === 'cartella') return schedaTabCartellaAllows(rank, 'READ')
     if (t.id === 'dimissione') return schedaTabDimissioneAllows(rank, 'READ')
     return true
   })
@@ -51,7 +59,7 @@ const BASE_TABS: { id: SchedaPazienteTabId; label: string }[] = [
 /**
  * Tab visibili sulla scheda: la sezione Invio PS compare solo con esito `invio_ps`.
  * Esclude tab in base al rank (matrice `rankMatrix`).
- * Dimissione: Infermiere/Soccorritore in sola lettura. Invio PS: Centrale/Medico.
+ * Dimissione: Infermiere/Soccorritore/Triage in sola lettura. Invio PS: Centrale/Medico.
  */
 export function schedaPazienteTabsFor(
   p: Pick<Paziente, 'dimissione_esito'>,

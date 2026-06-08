@@ -62,7 +62,7 @@ type Props = {
 
 /**
  * Sezione 4 — Dimissione.
- * Modifica: Superadmin, Centrale, Medico. Infermiere e Soccorritore: sola lettura.
+ * Modifica: Superadmin, Centrale, Medico. Infermiere, Soccorritore e Triage: sola lettura.
  * Chiusura definitiva (**Dimetti**): solo Medico (e Superadmin) con scheda aperta.
  */
 export function DimissioneSection({
@@ -416,7 +416,7 @@ export function DimissioneSection({
               <label className="pma-field">
                 <span className="pma-field__label">Legame</span>
                 <input
-                  key={`afl-${p.id}-${p.affidatario_legame}`}
+                  key={`afl-${p.id}`}
                   type="text"
                   disabled={!dimissioneEdit}
                   defaultValue={p.affidatario_legame}

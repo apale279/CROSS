@@ -154,7 +154,12 @@ export function PmaSchedaRiepilogo({
           <PazienteAnagraficaFields
             draft={anagDraft}
             onChange={(key, value) => setAnagDraft((d) => ({ ...d, [key]: value }))}
-            onBlurField={(key) => void flushAnagraficaField(key, anagDraft)}
+            onBlurField={(key, value) =>
+              void flushAnagraficaField(
+                key,
+                value !== undefined ? { ...anagDraft, [key]: value } : anagDraft,
+              )
+            }
           />
         ) : (
           <dl className="grid gap-2 text-sm sm:grid-cols-2">

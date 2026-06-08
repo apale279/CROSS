@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   PMA_PAZIENTE_DRAG_MIME,
   buildPostiLetto,
@@ -67,19 +67,23 @@ function PostoLettoSlot({
   paziente,
   evento,
   labelBusy,
+  draggingDocId,
+  assignBusy,
   onOpenPatient,
   onAssign,
   onSaveLabel,
   onDragPatientStart,
 }) {
-  const dragPatientDocId = getPmaPatientDragDocId();
+  const dragId = draggingDocId || getPmaPatientDragDocId();
   const occupiedByOther =
-    Boolean(paziente) &&
-    Boolean(dragPatientDocId) &&
-    paziente._docId !== dragPatientDocId;
+    Boolean(paziente) && Boolean(dragId) && paziente._docId !== dragId;
 
   const onDragOver = (e) => {
-    if (occupiedByOther) {
+    const liveDragId = draggingDocId || getPmaPatientDragDocId();
+    const blocked =
+      assignBusy ||
+      (Boolean(paziente) && Boolean(liveDragId) && paziente._docId !== liveDragId);
+    if (blocked) {
       e.dataTransfer.dropEffect = 'none';
       return;
     }
@@ -89,6 +93,7 @@ function PostoLettoSlot({
 
   const onDrop = (e) => {
     e.preventDefault();
+    if (assignBusy) return;
     const docId = readDragPatientId(e);
     if (!docId) return;
     if (paziente && paziente._docId !== docId) return;
@@ -97,7 +102,7 @@ function PostoLettoSlot({
 
   return (
     <div
-      className={`flex min-h-[168px] flex-col rounded-lg border-2 border-dashed p-1.5 ${
+      className={`flex min-h-0 flex-col rounded-lg border-2 border-dashed p-1.5 ${
         paziente
           ? occupiedByOther
             ? 'border-slate-300 bg-slate-100/80'
@@ -153,12 +158,29 @@ export function PmaPostiLettoDashboard({
   );
   const [labelBusy, setLabelBusy] = useState(false);
   const [assignBusy, setAssignBusy] = useState(false);
+  const [draggingDocId, setDraggingDocId] = useState(null);
+  const assignBusyRef = useRef(false);
+
+  useEffect(() => {
+    const syncDraggingDocId = () => setDraggingDocId(getPmaPatientDragDocId());
+    const clearDraggingDocId = () => setDraggingDocId(null);
+    document.addEventListener('dragstart', syncDraggingDocId);
+    document.addEventListener('dragend', clearDraggingDocId, true);
+    document.addEventListener('drop', clearDraggingDocId, true);
+    return () => {
+      document.removeEventListener('dragstart', syncDraggingDocId);
+      document.removeEventListener('dragend', clearDraggingDocId, true);
+      document.removeEventListener('drop', clearDraggingDocId, true);
+    };
+  }, []);
 
   const onDragPatientStart = startPmaPatientDrag;
 
   const handleAssign = async (patientDocId, postoLettoId) => {
+    if (assignBusyRef.current) return;
     const paziente = getPaziente?.(patientDocId);
     if (!paziente) return;
+    assignBusyRef.current = true;
     setAssignBusy(true);
     try {
       const result = await assegnaPostoLettoConPresaInCarico(
@@ -177,12 +199,14 @@ export function PmaPostiLettoDashboard({
     } catch (err) {
       notifyPmaDeskError(err?.message ?? 'Errore presa in carico');
     } finally {
+      assignBusyRef.current = false;
       setAssignBusy(false);
     }
   };
 
   const senzaLettoDrop = (e) => {
     e.preventDefault();
+    if (assignBusy) return;
     const docId = readDragPatientId(e);
     if (!docId) return;
     void handleAssign(docId, null);
@@ -228,6 +252,8 @@ export function PmaPostiLettoDashboard({
             paziente={byBed.get(posto.id)}
             evento={byBed.get(posto.id) ? eventoFor(byBed.get(posto.id)) : null}
             labelBusy={labelBusy}
+            draggingDocId={draggingDocId}
+            assignBusy={assignBusy}
             onOpenPatient={onOpenPatient}
             onAssign={handleAssign}
             onSaveLabel={handleSaveLabel}
@@ -237,27 +263,28 @@ export function PmaPostiLettoDashboard({
       </div>
 
       <section
-        className="shrink-0 rounded-lg border-2 border-amber-300 bg-amber-50/50 p-3"
+        className="shrink-0 rounded-lg border-2 border-amber-300 bg-amber-50/40 p-2"
         onDragOver={(e) => {
+          if (assignBusy) {
+            e.dataTransfer.dropEffect = 'none';
+            return;
+          }
           e.preventDefault();
           e.dataTransfer.dropEffect = 'move';
         }}
         onDrop={senzaLettoDrop}
       >
-        <h3 className="mb-2 text-xs font-bold uppercase text-amber-950">
+        <h3 className="mb-2 px-0.5 text-xs font-bold uppercase text-amber-950">
           Senza letto ({senzaLetto.length})
         </h3>
-        <p className="mb-2 text-[11px] text-amber-900/80">
-          In carico senza posto assegnato — trascina qui per prendere in carico senza letto, oppure
-          apri la cartella clinica in ogni momento.
-        </p>
         {senzaLetto.length === 0 ? (
-          <p className="text-xs text-slate-500">Nessun paziente senza letto.</p>
+          <p className="px-0.5 text-xs text-slate-500">Nessun paziente senza letto.</p>
         ) : (
-          <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          <ul className="pma-senza-letto-grid">
             {senzaLetto.map((p) => (
-              <li key={p._docId}>
+              <li key={p._docId} className="min-w-0">
                 <PmaInCaricoBedCard
+                  compact
                   paziente={p}
                   evento={eventoFor(p)}
                   onOpen={() => onOpenPatient(p._docId)}

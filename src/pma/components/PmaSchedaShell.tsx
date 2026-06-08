@@ -15,6 +15,7 @@ import type { SchedaPazienteTabId } from './scheda-paziente/schedaPazienteTabs';
 const SHELL_TAB_IDS: SchedaPazienteTabId[] = [
   'anagrafica',
   'dati_centrale',
+  'triage',
   'cartella',
   'dimissione',
 ];

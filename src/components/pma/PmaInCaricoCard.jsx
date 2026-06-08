@@ -1,9 +1,10 @@
 import { CODICE_COLORE_LABEL } from '../../pma/types/paziente';
 import { formatTimestamp } from '../../utils/formatters';
 import { displayNomePazientePma } from '../../lib/pmaDisplayName';
-import { isPazienteAutopresentatoPma, mostraPettoralePazientePma } from '../../lib/pmaDeskPatientInfo';
+import { mostraPettoralePazientePma } from '../../lib/pmaDeskPatientInfo';
 import { pmaCodiceColoreCardClass } from '../../lib/pmaCodiceColoreUi';
 import { PmaAvanzamentoBadge } from './PmaAvanzamentoBadge';
+import { PmaOrigineEmoji } from './PmaOrigineEmoji';
 import { PmaPettoraleBadge } from './PmaPettoraleBadge';
 
 export function PmaInCaricoCard({ paziente, evento, onOpen }) {
@@ -21,44 +22,36 @@ export function PmaInCaricoCard({ paziente, evento, onOpen }) {
     paziente.pmaScheda?.dettaglio_evento ||
     evento?.dettaglioEvento ||
     '';
-  const isAuto = isPazienteAutopresentatoPma(paziente);
-
   return (
     <button
       type="button"
       onClick={onOpen}
-      className={`w-full rounded-lg border-2 p-4 text-left shadow-sm transition hover:shadow-md ${coloreClass}`}
+      className={`pma-patient-card w-full rounded-lg border-2 p-4 text-left shadow-sm transition hover:shadow-md ${coloreClass}`}
     >
       <div className="mb-2 flex flex-wrap items-center gap-2">
-        <span className="text-xs font-bold uppercase text-slate-700">
+        <span className="pma-patient-card__label font-bold uppercase text-slate-700">
           {CODICE_COLORE_LABEL[colore] ?? colore}
         </span>
-        <span className="font-mono text-xs text-slate-500">{paziente.idPaziente}</span>
-        {isAuto ? (
-          <span className="rounded bg-emerald-100 px-1 py-px text-[9px] font-bold uppercase text-emerald-900">
-            Auto
-          </span>
-        ) : (
-          <span className="rounded bg-amber-100 px-1 py-px text-[9px] font-bold uppercase text-amber-900">
-            Centrale
-          </span>
-        )}
+        <span className="pma-patient-card__label font-mono text-slate-500">{paziente.idPaziente}</span>
+        <PmaOrigineEmoji paziente={paziente} />
         <PmaAvanzamentoBadge paziente={paziente} />
       </div>
-      <p className="flex min-w-0 items-center gap-2 text-lg font-bold text-slate-900">
+      <p className="flex min-w-0 items-center gap-2 font-bold text-slate-900">
         {mostraPettoralePazientePma(paziente) ? (
           <PmaPettoraleBadge
             pettorale={paziente.pettorale}
-            className="shrink-0 px-1.5 py-0.5 text-lg font-bold normal-case tracking-normal"
+            className="pma-patient-card__name-lg shrink-0 px-1.5 py-0.5 font-bold normal-case tracking-normal"
           />
         ) : null}
-        <span className="min-w-0 truncate">{displayNomePazientePma(paziente)}</span>
+        <span className="pma-patient-card__name-lg min-w-0 truncate">
+          {displayNomePazientePma(paziente)}
+        </span>
       </p>
-      <p className="mt-1 text-sm text-slate-700">
+      <p className="pma-patient-card__name mt-1 text-slate-700">
         {tipoEv}
         {dettaglioEv ? ` — ${dettaglioEv}` : ''}
       </p>
-      <dl className="mt-3 grid gap-1 text-xs text-slate-600 sm:grid-cols-2">
+      <dl className="pma-patient-card__label mt-3 grid gap-1 text-slate-600 sm:grid-cols-2">
         <div>
           <span className="font-medium">Ingresso: </span>
           {formatTimestamp(ingresso)}
@@ -76,7 +69,7 @@ export function PmaInCaricoCard({ paziente, evento, onOpen }) {
           {paziente.pmaScheda?.infermiere_rif || '—'}
         </div>
       </dl>
-      <p className="mt-2 text-xs font-bold text-violet-800">Apri scheda PMA →</p>
+      <p className="pma-patient-card__label mt-2 font-bold text-violet-800">Apri scheda PMA →</p>
     </button>
   );
 }

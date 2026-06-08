@@ -17,6 +17,8 @@ export const EMPTY_PMA_SCHEDA = {
   EO_CAPO_COLLO: [],
   eo_note: '',
   parametri_vitali: [],
+  triage_parametri_vitali: [],
+  triage_note: '',
   prestazioni_sel: [],
   ecg_cloudinary_url: null,
   farmaci: [],

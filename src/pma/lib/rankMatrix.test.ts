@@ -19,8 +19,8 @@ describe('effectivePmaUserRank', () => {
 })
 
 describe('rankMatrix dimissione', () => {
-  it('Infermiere e Soccorritore: lettura sì, modifica no', () => {
-    for (const rank of ['Infermiere', 'Soccorritore'] as const) {
+  it('Infermiere, Soccorritore e Triage: lettura sì, modifica no', () => {
+    for (const rank of ['Infermiere', 'Soccorritore', 'Triage'] as const) {
       expect(schedaTabDimissioneAllows(rank, 'READ')).toBe(true)
       expect(schedaTabDimissioneAllows(rank, 'UPDATE')).toBe(false)
     }
@@ -46,16 +46,10 @@ describe('rankMatrix invio PS', () => {
   })
 })
 
-describe('rankMatrix triage cartella', () => {
-  it('Triage può leggere e aggiornare cartella (blocchi clinici limitati in UI)', () => {
-    expect(schedaTabCartellaAllows('Triage', 'READ')).toBe(true)
-    expect(schedaTabCartellaAllows('Triage', 'UPDATE')).toBe(true)
-  })
-})
-
 describe('rankMatrix farmaci', () => {
-  it('Soccorritore non può inserire farmaci', () => {
+  it('Soccorritore e Triage non possono inserire farmaci', () => {
     expect(canInsertFarmaci('Soccorritore')).toBe(false)
+    expect(canInsertFarmaci('Triage')).toBe(false)
   })
 
   it('Medico e Infermiere possono inserire farmaci', () => {

@@ -109,8 +109,9 @@ export function PazienteAnagraficaFields({
           value={draft.sesso ?? ''}
           disabled={readOnly}
           onChange={(e) => {
-            touch('sesso', e.target.value);
-            onBlurField?.('sesso');
+            const value = e.target.value;
+            touch('sesso', value);
+            onBlurField?.('sesso', value);
           }}
         >
           <option value="">—</option>

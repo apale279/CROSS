@@ -1,5 +1,5 @@
 /** @typedef {'CENTRALE' | 'PMA'} AccessType */
-/** @typedef {'MEDICO' | 'INFERMIERE' | 'SOCCORRITORE'} PmaRankCode */
+/** @typedef {'MEDICO' | 'INFERMIERE' | 'SOCCORRITORE' | 'TRIAGE'} PmaRankCode */
 
 import { isPmaOperatorProfile, userHasFullCentraleAccess } from './pmaModule';
 

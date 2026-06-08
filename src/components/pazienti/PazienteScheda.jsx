@@ -283,7 +283,7 @@ export function PazienteScheda({
     return moduliSchedaPaziente(displayPatient);
   }, [isCreate, displayPatient, evento?.idEvento, evento?.idUnivoco]);
   const showEsitoTrasporto = Boolean(moduli?.esitoTrasporto);
-  const mostraValutazioniMezzo = isCreate || (!isOriginePma && showEsitoTrasporto);
+  const mostraValutazioniMezzo = !isCreate && !isOriginePma && showEsitoTrasporto;
   const pmaIdScheda = displayPatient ? pmaIdDaPaziente(displayPatient) : '';
   const mostraTabPma = !isCreate && mostraModuloPmaInSchedaCentrale(displayPatient);
   const schedaSolaVisione =
@@ -831,11 +831,13 @@ export function PazienteScheda({
           nome: draft.nome,
           cognome: draft.cognome,
           eta: parseEtaDraft(draft.eta),
-          sesso: draft.sesso,
+          sesso: draft.sesso ?? '',
           notePaziente: draft.notePaziente,
           pettorale:
             draft.pettorale !== '' && draft.pettorale != null ? Number(draft.pettorale) : null,
           telefono: draft.telefono ?? '',
+          comune: draft.comune ?? '',
+          indirizzo: draft.indirizzo ?? '',
           dataNascita: draft.dataNascita ?? '',
           valutazioniSoccorso: (draft.valutazioniSoccorso ?? []).map((v) => {
             const base = {
@@ -861,7 +863,7 @@ export function PazienteScheda({
         createFormError.show(
           `Paziente ${created.idPaziente} creato. Completamento PMA: ${created.pmaFollowUpError}`,
         );
-        onSaved?.();
+        onSaved?.(created);
         return;
       }
       if (trasporta && parseCodiceColoreOptional(draft.codiceColoreSanitario)) {
@@ -878,13 +880,15 @@ export function PazienteScheda({
           createFormError.show(
             `Paziente ${created.idPaziente} creato, ma aggiornamento colore T missione non riuscito: ${syncMsg}`,
           );
-          onSaved?.();
+          onSaved?.(created);
           return;
         }
       }
       createFormError.dismiss();
-      onSaved?.();
-      onClose?.();
+      onSaved?.(created);
+      if (!onSaved) {
+        onClose?.();
+      }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       createFormError.show(`Creazione paziente: ${msg}`);
@@ -946,14 +950,13 @@ export function PazienteScheda({
             touchDirty(key);
             setDraft((d) => ({ ...d, [key]: value }));
           }}
-          onBlurField={(key) => {
+          onBlurField={(key, value) => {
+            const fieldValue = value !== undefined ? value : draft[key];
             if (key === 'pettorale') {
               void patchPatientFields(
                 {
                   pettorale:
-                    draft.pettorale !== '' && draft.pettorale != null
-                      ? Number(draft.pettorale)
-                      : null,
+                    fieldValue !== '' && fieldValue != null ? Number(fieldValue) : null,
                 },
                 ['pettorale'],
               );
@@ -962,22 +965,22 @@ export function PazienteScheda({
             if (key === 'dataNascita') {
               void patchPatientFields(
                 {
-                  dataNascita: draft.dataNascita,
-                  eta: etaDaDataNascita(draft.dataNascita),
+                  dataNascita: fieldValue,
+                  eta: etaDaDataNascita(fieldValue),
                 },
                 ['dataNascita', 'eta'],
               );
               return;
             }
             if (key === 'eta') {
-              void patchPatientFields({ eta: parseEtaDraft(draft.eta) }, ['eta']);
+              void patchPatientFields({ eta: parseEtaDraft(fieldValue) }, ['eta']);
               return;
             }
             if (key === 'sesso') {
-              void patchPatientFields({ sesso: draft.sesso }, ['sesso']);
+              void patchPatientFields({ sesso: fieldValue }, ['sesso']);
               return;
             }
-            void patchPatientFields({ [key]: draft[key] ?? '' }, [key]);
+            void patchPatientFields({ [key]: fieldValue ?? '' }, [key]);
           }}
         />
       </div>
@@ -985,7 +988,7 @@ export function PazienteScheda({
   );
 
   const datiCentraleCentralePanel =
-    !isOriginePma && showEsitoTrasporto ? (
+    !isCreate && !isOriginePma && showEsitoTrasporto ? (
       <div className="space-y-4 p-1">
         <dl className="grid gap-3 md:grid-cols-2">
           <FormField label="Evento correlato">
@@ -1298,10 +1301,11 @@ export function PazienteScheda({
       )}
 
       {!isCreate && displayPatient ? (
-        <SchedaUnlockBar
-          paziente={displayPatient}
-          busy={unlockBusy}
-          onToggleModifica={async (forced) => {
+        <div className="flex justify-end">
+          <SchedaUnlockBar
+            paziente={displayPatient}
+            busy={unlockBusy}
+            onToggleModifica={async (forced) => {
             if (!manifestationId || !patientDocId) return;
             setUnlockBusy(true);
             try {
@@ -1311,8 +1315,9 @@ export function PazienteScheda({
             } finally {
               setUnlockBusy(false);
             }
-          }}
-        />
+            }}
+          />
+        </div>
       ) : null}
 
       <div className="flex flex-wrap gap-1 border-b border-slate-300" role="tablist">

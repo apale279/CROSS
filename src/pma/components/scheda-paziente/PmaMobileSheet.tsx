@@ -76,7 +76,7 @@ export function PmaMobileSheet({
 
   const sheetClass = fullScreen
     ? 'pma-mobile-sheet pma-mobile-sheet--fullscreen fixed left-0 right-0 z-[81] flex w-full flex-col'
-    : 'pma-mobile-sheet flex max-h-[92vh] w-full flex-col sm:max-w-lg sm:rounded-2xl'
+    : 'pma-mobile-sheet flex max-h-[92vh] w-full flex-col sm:w-auto sm:max-w-2xl sm:rounded-2xl'
 
   return (
     <div

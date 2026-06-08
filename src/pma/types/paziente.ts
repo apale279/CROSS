@@ -1,4 +1,4 @@
-﻿import type { Timestamp } from 'firebase/firestore'
+import type { Timestamp } from 'firebase/firestore'
 import type { DimissioneEsito } from './dimissione'
 import type { LesioneMarker } from './lesioni'
 import type {
@@ -120,6 +120,9 @@ export interface Paziente {
   eo_quick_legacy?: string[]
   eo_note: string
   parametri_vitali: ParametroVitaleRilevazione[]
+  /** Parametri vitali registrati in fase triage (tab dedicato). */
+  triage_parametri_vitali: ParametroVitaleRilevazione[]
+  triage_note: string
   prestazioni_sel: string[]
   /** Foto ECG allegata (upload Cloudinary, URL sicuro). */
   ecg_cloudinary_url?: string | null

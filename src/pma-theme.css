@@ -651,6 +651,257 @@
 }
 
 
+/* Card paziente dashboard PMA — testi +25% (pulsanti esclusi) */
+.pma-patient-card {
+  font-size: 17.5px;
+  line-height: 1.25;
+}
+
+.pma-patient-card__badge {
+  font-size: 11px;
+  line-height: 1.2;
+}
+
+.pma-patient-card__meta {
+  font-size: 13px;
+  line-height: 1.25;
+}
+
+.pma-patient-card__detail {
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+.pma-patient-card__label {
+  font-size: 15px;
+  line-height: 1.25;
+}
+
+.pma-patient-card__name {
+  font-size: 17.5px;
+  line-height: 1.2;
+}
+
+.pma-patient-card__name-lg {
+  font-size: 22.5px;
+  line-height: 1.15;
+}
+
+.pma-patient-card__icon {
+  font-size: 20px;
+  line-height: 1;
+}
+
+.pma-patient-card__hint {
+  font-size: 11px;
+  line-height: 1.3;
+}
+
+.pma-patient-card__origin {
+  font-size: 18px;
+  line-height: 1;
+  cursor: default;
+}
+
+/* Azioni compatte card paziente — emoji 20px in riga */
+.pma-patient-card__emoji-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.375rem;
+  margin-top: 0.375rem;
+}
+
+.pma-patient-card__emoji-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 2rem;
+  height: 2rem;
+  flex-shrink: 0;
+  border-radius: 0.5rem;
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  color: #334155;
+  cursor: pointer;
+  padding: 0;
+  transition: background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.pma-patient-card__emoji-btn:hover:not(:disabled) {
+  background: #f8fafc;
+  border-color: #94a3b8;
+}
+
+.pma-patient-card__emoji-btn:focus-visible {
+  outline: 2px solid #0ea5e9;
+  outline-offset: 2px;
+}
+
+.pma-patient-card__emoji-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.pma-patient-card__emoji-btn--primary {
+  border-color: #0284c7;
+  background: #0ea5e9;
+  color: #fff;
+}
+
+.pma-patient-card__emoji-btn--primary:hover:not(:disabled) {
+  background: #0284c7;
+  border-color: #0369a1;
+}
+
+.pma-patient-card__emoji-btn-icon {
+  font-size: 20px;
+  line-height: 1;
+  pointer-events: none;
+}
+
+/* Card compatta (senza letto, sidebar): niente container query / pettorale hero */
+.pma-patient-card--compact {
+  min-width: 0;
+  height: auto;
+}
+
+.pma-senza-letto-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(12.5rem, 1fr));
+  gap: 0.5rem;
+}
+
+/* Card letto: altezza al contenuto, senza stretch verticale */
+.pma-patient-card--bed {
+  flex: 0 0 auto;
+  height: auto;
+  min-height: 0;
+}
+
+.pma-patient-card__split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 42%);
+  gap: 0.125rem;
+  align-items: stretch;
+  min-height: 0;
+  flex: 1 1 auto;
+  height: 100%;
+}
+
+.pma-patient-card__split--3col {
+  grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr) minmax(0, 38%);
+}
+
+/* Card letto: anagrafica | motivo | pettorale | azione sulla stessa riga del nome */
+.pma-patient-card__split--bed {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1fr) minmax(0, 26%) auto;
+  grid-template-rows: auto auto;
+  gap: 0.125rem 0.25rem;
+  align-items: start;
+  height: auto;
+  min-height: 0;
+}
+
+.pma-patient-card__split-meta {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.pma-patient-card__split--bed .pma-patient-card__split-main {
+  grid-column: 1;
+  grid-row: 2;
+}
+
+.pma-patient-card__split--bed .pma-patient-card__split-motivo {
+  grid-column: 2;
+  grid-row: 2;
+  align-self: center;
+}
+
+.pma-patient-card__split--bed .pma-patient-card__pettorale-hero,
+.pma-patient-card__split--bed .pma-patient-card__pettorale-hero-slot {
+  grid-column: 3;
+  grid-row: 2;
+  align-self: center;
+}
+
+.pma-patient-card__split-action {
+  grid-column: 4;
+  grid-row: 2;
+  align-self: center;
+}
+
+.pma-patient-card__split-main {
+  min-width: 0;
+}
+
+.pma-patient-card__split-motivo {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.125rem;
+  align-self: stretch;
+  overflow: hidden;
+}
+
+.pma-patient-card__split-motivo--bed {
+  text-align: center;
+  align-items: center;
+}
+
+.pma-patient-card__pettorale-hero,
+.pma-patient-card__pettorale-hero-slot {
+  min-width: 0;
+  align-self: center;
+}
+
+.pma-patient-card__pettorale-hero {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 75cqh;
+  max-height: 100%;
+  overflow: hidden;
+  font-size: clamp(1.75rem, 22cqh, 3.75rem);
+  font-weight: 800;
+  line-height: 0.9;
+  font-variant-numeric: tabular-nums;
+  color: #312e81;
+  opacity: 0.9;
+  pointer-events: none;
+  user-select: none;
+}
+
+.pma-patient-card__pettorale-hero--bed {
+  height: auto;
+  max-height: none;
+  font-size: clamp(1.125rem, 3.5vw, 1.75rem);
+  line-height: 1;
+}
+
+/* Colonna destra vuota: mantiene il motivo accesso centrato come con pettorale */
+.pma-patient-card__pettorale-hero-slot {
+  pointer-events: none;
+}
+
+/* In arrivo / in attesa: pettorale sulla riga del cognome, viola come in carico */
+.pma-patient-card__pettorale-inline {
+  color: #312e81;
+  opacity: 0.9;
+}
+
+@supports not (height: 1cqh) {
+  .pma-patient-card__pettorale-hero {
+    height: 75%;
+    font-size: clamp(1.75rem, 5.5vw, 3.5rem);
+  }
+}
+
 /* ════════════════════════════════════════════════
    VISTA PMA MOBILE — solo scroll verticale
    ════════════════════════════════════════════════ */

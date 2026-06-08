@@ -24,7 +24,7 @@ export function InvioOspedaleSection({ p, readOnly = false, writeInvio }: Props)
           <label className="pma-field pma-field--br">
             <span className="pma-field__label">N° missione AREU</span>
             <input
-              key={`areu-${p.id}-${p.invio_ps_missione_areu ?? 'x'}`}
+              key={`areu-${p.id}`}
               type="number"
               min={0}
               step={1}
@@ -46,7 +46,7 @@ export function InvioOspedaleSection({ p, readOnly = false, writeInvio }: Props)
           <label className="pma-field">
             <span className="pma-field__label">Data e ora</span>
             <input
-              key={`dto-${p.id}-${p.invio_ps_data_ora?.toMillis?.() ?? 'empty'}`}
+              key={`dto-${p.id}`}
               type="datetime-local"
               defaultValue={p.invio_ps_data_ora ? toDatetimeLocal(p.invio_ps_data_ora) : ''}
               disabled={readOnly}
@@ -74,7 +74,7 @@ export function InvioOspedaleSection({ p, readOnly = false, writeInvio }: Props)
           <label className="pma-field">
             <span className="pma-field__label">Mezzo</span>
             <input
-              key={`mezzo-${p.id}-${p.invio_ps_mezzo}`}
+              key={`mezzo-${p.id}`}
               type="text"
               defaultValue={p.invio_ps_mezzo}
               disabled={readOnly}
@@ -90,7 +90,7 @@ export function InvioOspedaleSection({ p, readOnly = false, writeInvio }: Props)
           <label className="pma-field">
             <span className="pma-field__label">Ospedale di destinazione</span>
             <input
-              key={`osp-${p.id}-${p.invio_ps_ospedale}`}
+              key={`osp-${p.id}`}
               type="text"
               defaultValue={p.invio_ps_ospedale}
               disabled={readOnly}
@@ -131,7 +131,7 @@ export function InvioOspedaleSection({ p, readOnly = false, writeInvio }: Props)
           <label className="pma-field">
             <span className="pma-field__label">Note trasporto</span>
             <textarea
-              key={`note-${p.id}-${p.invio_ps_note}`}
+              key={`note-${p.id}`}
               rows={4}
               defaultValue={p.invio_ps_note}
               disabled={readOnly}

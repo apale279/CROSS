@@ -769,11 +769,24 @@ export function EventoScheda({
           scheda
         >
           <PazienteScheda
+            key={pazienteModal.create ? '__create__' : pazienteModal.paziente?._docId}
             evento={evento}
             paziente={pazienteModal.create ? null : pazienteModal.paziente}
             missioniEvento={missioniEvento}
             allPazienti={allPazienti}
             onClose={() => setPazienteModal(null)}
+            onSaved={(created) => {
+              if (!created?.docId) return;
+              const paz =
+                allPazienti.find((p) => p._docId === created.docId) ?? {
+                  _docId: created.docId,
+                  idPaziente: created.idPaziente,
+                  idUnivoco: created.idUnivoco,
+                  eventoIdUnivoco: evento.idUnivoco ?? '',
+                  eventoCorrelato: evento.idEvento ?? '',
+                };
+              setPazienteModal({ paziente: paz });
+            }}
           />
         </Modal>
       )}

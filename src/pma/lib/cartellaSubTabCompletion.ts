@@ -58,7 +58,7 @@ export function isCartellaPvFarmaciCompiled(
 
 export function isCartellaLesioniCompiled(
   lesioni: LesioneMarker[],
-  prestazioni_sel: string[],
+  prestazioni_sel: string[] | null | undefined,
   ecg_cloudinary_url: string | null | undefined,
   rivalutazioni: RivalutazioneVoce[],
   opts?: { triageOnly?: boolean },
@@ -66,9 +66,10 @@ export function isCartellaLesioniCompiled(
   if (opts?.triageOnly) {
     return rivalutazioni.some((r) => hasText(r.testo))
   }
+  const prest = prestazioni_sel ?? []
   return (
     lesioni.length > 0 ||
-    prestazioni_sel.length > 0 ||
+    prest.length > 0 ||
     hasText(ecg_cloudinary_url) ||
     rivalutazioni.some((r) => hasText(r.testo))
   )
@@ -97,12 +98,12 @@ export function cartellaSubTabCompiledMap(
   return {
     anamnesi: isCartellaAnamnesiCompiled(p),
     eo: isCartellaEoCompiled(p.eo_note, eoSelectedByTab),
-    pv_farmaci: isCartellaPvFarmaciCompiled(p.parametri_vitali, p.farmaci),
+    pv_farmaci: isCartellaPvFarmaciCompiled(p.parametri_vitali ?? [], p.farmaci ?? []),
     lesioni: isCartellaLesioniCompiled(
-      p.lesioni,
-      p.prestazioni_sel,
+      p.lesioni ?? [],
+      p.prestazioni_sel ?? [],
       p.ecg_cloudinary_url,
-      p.rivalutazioni,
+      p.rivalutazioni ?? [],
       { triageOnly: hideClinicalBlocks },
     ),
   }

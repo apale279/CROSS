@@ -7,13 +7,15 @@ import { PmaDeskPatientSummary, startPmaPatientDrag } from './PmaDeskPatientSumm
 export function PmaPatientReadonlyCard({
   paziente,
   evento = null,
+  missione = null,
   showDirettoHArrow = false,
   highlight,
   footer,
   draggable = false,
   onDragStart,
-  dragHint = false,
   dropTarget = false,
+  showStatoBadge = true,
+  showAvanzamento = true,
 }) {
   const isAutopresentato = isPazienteOriginePma(paziente);
   const statoPma = statoPzPmaLabel(paziente.statoPzPma) ?? '—';
@@ -22,27 +24,28 @@ export function PmaPatientReadonlyCard({
 
   return (
     <article
-      className={`rounded-lg border-2 bg-white p-2 text-sm shadow-sm ${
+      className={`pma-patient-card rounded-lg border-2 bg-white p-2 shadow-sm ${
         highlight ? 'border-sky-400 ring-2 ring-sky-200' : coloreClass
       } ${dropTarget ? 'border-dashed' : ''}`}
     >
-      <div className="mb-1 flex flex-wrap items-center gap-1">
-        <span className="rounded bg-sky-100 px-1.5 py-0.5 text-[9px] font-bold uppercase text-sky-900">
-          {statoPma}
-        </span>
-        {dragHint ? (
-          <span className="text-[9px] font-medium text-violet-700">Trascina su un letto → in carico</span>
-        ) : null}
-      </div>
+      {showStatoBadge ? (
+        <div className="mb-1">
+          <span className="pma-patient-card__badge rounded bg-sky-100 px-1.5 py-0.5 font-bold uppercase text-sky-900">
+            {statoPma}
+          </span>
+        </div>
+      ) : null}
       <PmaDeskPatientSummary
         paziente={paziente}
         evento={evento}
+        missione={missione}
         showDirettoHArrow={showDirettoHArrow}
+        showAvanzamento={showAvanzamento}
         draggable={draggable}
         onDragStart={drag}
       />
       {!isAutopresentato && (paziente.idMissione || paziente.mezzo) ? (
-        <p className="mt-1 truncate text-[10px] text-slate-500">
+        <p className="pma-patient-card__meta mt-1 truncate text-slate-500">
           {formatMissioneMezzoLabel(paziente.idMissione, paziente.mezzo)}
         </p>
       ) : null}

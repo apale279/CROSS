@@ -19,6 +19,7 @@ const PMA_SCHEDA_PREFIX = 'pmaScheda.';
 /** Campi array in `pmaScheda`: merge transazionale per non sovrascrivere altri operatori. */
 const PMA_SCHEDA_ARRAY_FIELDS = new Set([
   'parametri_vitali',
+  'triage_parametri_vitali',
   'farmaci',
   'rivalutazioni',
   'lesioni',
@@ -160,15 +161,7 @@ async function commitPatchPlanWithSnapshot(manifestationId, docId, plan) {
 
     const updates = buildGranularUpdatesFromSnapshot(pazSnap.data(), plan);
     if (Object.keys(updates).length === 0) {
-      const attemptedAppend = (plan.arrayMerges ?? []).some(
-        (m) => Array.isArray(m.value) && m.value.length > 0 && !(m.removeIds?.length > 0),
-      );
-      if (attemptedAppend) {
-        throw new Error(
-          'Salvataggio non applicato (dati già presenti sul server). Aggiorna la pagina e riprova.',
-        );
-      }
-      return;
+      return; // nessuna modifica da applicare — dati già allineati sul server, no-op silenzioso
     }
 
     transaction.update(docRef, updates);
@@ -195,9 +188,7 @@ export async function appendPmaSchedaArrayRow(manifestationId, docId, field, row
     const merged = mergeSchedaArrayById(server, [row]);
     const prev = Array.isArray(server) ? server : [];
     if (valuesEqual(prev, merged)) {
-      throw new Error(
-        'Impossibile aggiungere la riga: dati già allineati sul server. Aggiorna la pagina.',
-      );
+      return; // riga già presente sul server — no-op silenzioso
     }
     transaction.update(docRef, { [`${PMA_SCHEDA_PREFIX}${field}`]: merged });
   });

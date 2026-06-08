@@ -27,7 +27,7 @@ export function PmaCodiceMinoreScheda({ pazienteDocId, pmaId, pmaNome, onClose }
     if (!cm) return;
     setMotivo(cm.motivoArrivo ?? '');
     setPrestazione(cm.trattamento ?? '');
-  }, [cm?.motivoArrivo, cm?.trattamento, rawDoc?._docId]);
+  }, [rawDoc?._docId]);
 
   const saveField = useCallback(
     async (field, value) => {

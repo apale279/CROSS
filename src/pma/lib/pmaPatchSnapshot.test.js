@@ -86,6 +86,30 @@ describe('buildGranularUpdatesFromSnapshot', () => {
     ]);
   });
 
+  it('triage_parametri_vitali: append concorrente come parametri_vitali', () => {
+    const snap = {
+      pmaScheda: {
+        triage_parametri_vitali: [{ id: 'tpv1', fc: 72, operatore_nome: 'Triage A' }],
+      },
+    };
+    const updates = buildGranularUpdatesFromSnapshot(snap, {
+      direct: {},
+      eoMerges: [],
+      arrayMerges: [
+        {
+          field: 'triage_parametri_vitali',
+          value: [{ id: 'tpv2', fc: 88, operatore_nome: 'Triage B' }],
+          removeIds: [],
+        },
+      ],
+    });
+    expect(updates['pmaScheda.triage_parametri_vitali']).toHaveLength(2);
+    expect(updates['pmaScheda.triage_parametri_vitali'].map((r) => r.id).sort()).toEqual([
+      'tpv1',
+      'tpv2',
+    ]);
+  });
+
   it('parametri_vitali: append concorrente da secondo operatore', () => {
     const snap = {
       pmaScheda: {

@@ -14,7 +14,7 @@ export function PmaAvanzamentoBadge({ paziente, className = '' }) {
 
     return (
       <span
-        className={`rounded px-1 py-px text-[9px] font-bold uppercase ${tone} ${className}`.trim()}
+        className={`pma-patient-card__badge rounded px-1 py-px font-bold uppercase ${tone} ${className}`.trim()}
         title={`Avanzamento: ${label}`}
       >
         {label}
