@@ -61,6 +61,8 @@ describe('buildValutazioneGranularUpdates', () => {
       { msbDetails: { lesioni: [] } },
       { msbDetails: { lesioni: [['', '', '', null]] } },
     );
-    expect(updates['msbDetails.lesioni']).toEqual([['', '', '', null]]);
+    expect(updates['msbDetails.lesioni']).toEqual([
+      { localizzazione: '', lato: '', tipologia: '', vas: null },
+    ]);
   });
 });

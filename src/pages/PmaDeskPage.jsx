@@ -1,36 +1,47 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useAuth } from '../context/AuthContext';
 import { Link, Navigate, useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { COLLECTIONS } from '../lib/firestorePaths';
 import { useManifestazioneCollection } from '../hooks/useManifestazioneCollection';
 import { usePmaAccess } from '../hooks/usePmaAccess';
 import { findEvento } from '../lib/eventoLinks';
+import { findMissioneForPazientePma } from '../lib/pmaDeskPatientInfo';
 import {
   findPmaById,
+  findPmaRawEntry,
   isPazienteOriginePma,
   normalizeStatoPzPma,
   pazienteDimessoInPmaDesk,
   pazienteVisibileInPmaDesk,
   pazientiCodiceMinorePerPma,
+  canConvertToCodiceMinore,
   STATO_PZ_PMA,
 } from '../lib/pmaModule';
+import { convertPazienteToCodiceMinore } from '../services/pmaCodiceMinoreService';
+import {
+  PmaPatientCardEmojiAction,
+  PmaPatientCardEmojiActions,
+} from '../components/pma/PmaPatientCardEmojiAction';
+import { PMA_PATIENT_CARD_ACTION } from '../lib/pmaPatientCardActions';
 import { useImpostazioni } from '../hooks/useImpostazioni';
 import { useManifestazioneId } from '../context/ManifestazioneContext';
 import { Modal } from '../components/ui/Modal';
 import { PmaPatientQuickForm } from '../components/pma/PmaPatientQuickForm';
 import { PmaPatientReadonlyCard } from '../components/pma/PmaPatientReadonlyCard';
 import { PmaInCaricoCard } from '../components/pma/PmaInCaricoCard';
+import { PmaPostiLettoDashboard } from '../components/pma/PmaPostiLettoDashboard';
+import { pmaHaGrigliaPostiLetto } from '../lib/pmaPostiLetto';
 import { PmaCodiciMinoriPanel } from '../components/pma/PmaCodiciMinoriPanel';
-import { MissioneScheda } from '../components/missioni/MissioneScheda';
 import { PmaIpadFirmaInfoPanel } from '../components/pma/PmaIpadFirmaInfoPanel';
 import { btnPrimary, btnSecondary } from '../components/ui/FormField';
 import { DiarioImportantTicker } from '../components/diario/DiarioImportantTicker';
 import { usePmaFieldUx } from '../pma/hooks/usePmaFieldUx';
-import { prendiInCaricoPma } from '../services/pmaStatoService';
-import {
-  createPazienteCodiceMinore,
-  deletePazienteCodiceMinore,
-  updatePazienteCodiceMinore,
-} from '../services/pmaCodiceMinoreService';
+import { usePmaDragAutoScroll } from '../hooks/usePmaDragAutoScroll';
+import { mettiInAttesaPma, prendiInCaricoPma, rimettiInAttesaDaInCarico } from '../services/pmaStatoService';
+import { assegnaPostoLettoConPresaInCarico } from '../services/pmaPostoLettoService';
+import { notifyPmaDeskError, notifyPmaDeskSoftIssue } from '../lib/pmaDeskFeedback';
+import { inviaPmaChiamaTriage } from '../services/pmaChiamaTriageAlertService';
+import { PMA_PAZIENTE_DRAG_MIME } from '../lib/pmaPostiLetto';
 
 function openPazientePath(pmaId, docId, tab = 'cartella') {
   const q = new URLSearchParams({ tab });
@@ -43,13 +54,13 @@ export default function PmaDeskPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const decodedId = decodeURIComponent(pmaId ?? '');
   const manifestationId = useManifestazioneId();
+  const { user, profile } = useAuth();
   const { impostazioni } = useImpostazioni();
   const { accessiblePma, scopeId, fullCentrale } = usePmaAccess();
   const fieldUx = usePmaFieldUx();
   const { data: pazienti, loading } = useManifestazioneCollection(COLLECTIONS.pazienti);
   const { data: eventi } = useManifestazioneCollection(COLLECTIONS.eventi);
   const { data: missioni } = useManifestazioneCollection(COLLECTIONS.missioni);
-  const { data: mezzi } = useManifestazioneCollection(COLLECTIONS.mezzi);
   const { data: noteDiario, loading: loadingDiario } = useManifestazioneCollection(
     COLLECTIONS.note_diario,
   );
@@ -57,8 +68,9 @@ export default function PmaDeskPage() {
   const [showCodiciMinori, setShowCodiciMinori] = useState(false);
   const [showIpadFirma, setShowIpadFirma] = useState(false);
   const [busyId, setBusyId] = useState(null);
+  const [chiamaBusyId, setChiamaBusyId] = useState(null);
+  const [rendiCmBusyId, setRendiCmBusyId] = useState(null);
   const [codiciBusy, setCodiciBusy] = useState(false);
-  const [missioneCodiceMinore, setMissioneCodiceMinore] = useState(null);
 
   useEffect(() => {
     if (searchParams.get('codiciMinori') !== '1') return;
@@ -72,6 +84,12 @@ export default function PmaDeskPage() {
     () => findPmaById(impostazioni, decodedId),
     [impostazioni, decodedId],
   );
+  const pmaRaw = useMemo(
+    () => findPmaRawEntry(impostazioni, decodedId),
+    [impostazioni, decodedId],
+  );
+  const usaGrigliaLetti = pmaHaGrigliaPostiLetto(pmaRaw ?? pma);
+  usePmaDragAutoScroll(usaGrigliaLetti);
 
   const codiciMinori = useMemo(
     () => (pma ? pazientiCodiceMinorePerPma(pazienti, pma.id) : []),
@@ -117,21 +135,157 @@ export default function PmaDeskPage() {
     const s = normalizeStatoPzPma(p.statoPzPma);
     return s === STATO_PZ_PMA.IN_ARRIVO || (s == null && !isPazienteOriginePma(p));
   });
-  const inAttesa = list.filter((p) => normalizeStatoPzPma(p.statoPzPma) === STATO_PZ_PMA.IN_ATTESA);
+  const inAttesa = list.filter((p) => {
+    const s = normalizeStatoPzPma(p.statoPzPma);
+    if (s === STATO_PZ_PMA.IN_ATTESA) return true;
+    return s == null && isPazienteOriginePma(p);
+  });
   const inCarico = list.filter((p) => normalizeStatoPzPma(p.statoPzPma) === STATO_PZ_PMA.IN_CARICO);
 
   const eventoFor = (p) => findEvento(eventi, p.eventoIdUnivoco ?? p.eventoCorrelato);
+  const missioneFor = (p) => findMissioneForPazientePma(missioni, p);
+  const getPazienteById = (docId) => pazienti.find((p) => p._docId === docId) ?? null;
 
   const handlePrendiInCarico = async (docId) => {
     setBusyId(docId);
     try {
       await prendiInCaricoPma(manifestationId, docId);
-      navigate(openPazientePath(pma.id, docId));
+      if (!usaGrigliaLetti) {
+        navigate(openPazientePath(pma.id, docId));
+      }
     } catch (err) {
-      alert(err?.message ?? 'Errore presa in carico');
+      notifyPmaDeskError(err?.message ?? 'Errore presa in carico');
     } finally {
       setBusyId(null);
     }
+  };
+
+  const handlePrendiInCaricoSenzaLetto = async (docId) => {
+    const paziente = getPazienteById(docId);
+    if (!paziente) return;
+    setBusyId(docId);
+    try {
+      const result = await assegnaPostoLettoConPresaInCarico(
+        manifestationId,
+        docId,
+        null,
+        paziente,
+        inCarico,
+      );
+      if (result.warning) {
+        notifyPmaDeskSoftIssue(
+          result.warning,
+          'Il paziente è in carico: apri la cartella clinica quando vuoi.',
+        );
+      }
+    } catch (err) {
+      notifyPmaDeskError(err?.message ?? 'Errore presa in carico');
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const apriCartella = (docId) => navigate(openPazientePath(pma.id, docId));
+
+  const inCaricoMain = usaGrigliaLetti ? (
+    <PmaPostiLettoDashboard
+      pma={pma}
+      pmaRaw={pmaRaw}
+      impostazioni={impostazioni}
+      manifestationId={manifestationId}
+      inCarico={inCarico}
+      eventoFor={eventoFor}
+      getPaziente={getPazienteById}
+      onOpenPatient={apriCartella}
+    />
+  ) : inCarico.length === 0 ? (
+    <p className="text-sm text-slate-500">
+      Nessun paziente in carico. Prendi in carico un paziente dalla colonna di sinistra
+      oppure attendi l&apos;aggiornamento ARRIVATO H dalla centrale.
+    </p>
+  ) : (
+    <ul className={`grid gap-3 overflow-y-auto ${fieldUx ? 'sm:grid-cols-2' : 'sm:grid-cols-2 xl:grid-cols-3'}`}>
+      {inCarico.map((p) => (
+        <li key={p._docId}>
+          <PmaInCaricoCard
+            paziente={p}
+            evento={eventoFor(p)}
+            onOpen={() => apriCartella(p._docId)}
+          />
+        </li>
+      ))}
+    </ul>
+  );
+
+  const handleMettiInAttesa = async (docId) => {
+    setBusyId(docId);
+    try {
+      await mettiInAttesaPma(manifestationId, docId);
+    } catch (err) {
+      notifyPmaDeskError(err?.message ?? 'Errore messa in attesa');
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const handleChiamaTriage = async (docId) => {
+    setChiamaBusyId(docId);
+    try {
+      await inviaPmaChiamaTriage(manifestationId, docId, pma.id, {
+        uid: user?.uid,
+        nome: profile?.nome ?? user?.displayName ?? profile?.nomeUtente ?? '',
+      });
+    } catch (err) {
+      notifyPmaDeskError(err?.message ?? 'Errore invio chiamata triage');
+    } finally {
+      setChiamaBusyId(null);
+    }
+  };
+
+  const readDragPatientId = (e) =>
+    e.dataTransfer.getData(PMA_PAZIENTE_DRAG_MIME) || e.dataTransfer.getData('text/plain');
+
+  const handleDropInAttesa = async (e) => {
+    e.preventDefault();
+    const docId = readDragPatientId(e);
+    if (!docId) return;
+    const paziente = getPazienteById(docId);
+    if (normalizeStatoPzPma(paziente?.statoPzPma) !== STATO_PZ_PMA.IN_CARICO) return;
+    setBusyId(docId);
+    try {
+      await rimettiInAttesaDaInCarico(manifestationId, docId);
+    } catch (err) {
+      notifyPmaDeskSoftIssue(
+        err?.message ?? 'Stato non aggiornato',
+        'Il paziente resta in carico: puoi continuare la visita e la cartella clinica.',
+      );
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const handleRendiCodiceMinore = async (paziente) => {
+    if (
+      !window.confirm(
+        'Trasformare questo paziente in codice minore (fast track astanteria)? I dati centrale e la scheda clinica restano archiviati.',
+      )
+    ) {
+      return;
+    }
+    setRendiCmBusyId(paziente._docId);
+    try {
+      await convertPazienteToCodiceMinore(manifestationId, paziente._docId, pma.id, paziente);
+      navigate(openPazientePath(pma.id, paziente._docId, 'anagrafica'));
+    } catch (err) {
+      alert(err?.message ?? 'Errore conversione');
+    } finally {
+      setRendiCmBusyId(null);
+    }
+  };
+
+  const openCodiceMinoreRow = (row) => {
+    setShowCodiciMinori(false);
+    navigate(openPazientePath(pma.id, row._docId, 'anagrafica'));
   };
 
   return (
@@ -225,10 +379,8 @@ export default function PmaDeskPage() {
             pma={pma}
             impostazioni={impostazioni}
             allPazienti={pazienti}
-            onCreated={(result) => {
+            onCreated={() => {
               setShowCreate(false);
-              const id = result?.docId ?? result?._docId;
-              if (id) navigate(openPazientePath(pma.id, id));
             }}
             onCancel={() => setShowCreate(false)}
           />
@@ -243,76 +395,7 @@ export default function PmaDeskPage() {
             manifestationId={manifestationId}
             pmaId={pma.id}
             impostazioni={impostazioni}
-            missioni={missioni}
-            eventi={eventi}
-            onOpenMissioneCorrelata={setMissioneCodiceMinore}
-            onCreate={async (payload) => {
-              setCodiciBusy(true);
-              try {
-                return await createPazienteCodiceMinore(
-                  manifestationId,
-                  pma.id,
-                  pma.nome,
-                  payload,
-                  pazienti,
-                );
-              } catch (err) {
-                alert(err?.message ?? 'Errore creazione');
-                throw err;
-              } finally {
-                setCodiciBusy(false);
-              }
-            }}
-            onUpdate={async (docId, payload, existingRow) => {
-              setCodiciBusy(true);
-              try {
-                await updatePazienteCodiceMinore(
-                  manifestationId,
-                  docId,
-                  payload,
-                  existingRow,
-                );
-              } catch (err) {
-                alert(err?.message ?? 'Errore aggiornamento');
-                throw err;
-              } finally {
-                setCodiciBusy(false);
-              }
-            }}
-            onDelete={async (docId, existingRow) => {
-              setCodiciBusy(true);
-              try {
-                await deletePazienteCodiceMinore(manifestationId, docId, existingRow);
-              } catch (err) {
-                alert(err?.message ?? 'Errore eliminazione');
-                throw err;
-              } finally {
-                setCodiciBusy(false);
-              }
-            }}
-          />
-        </Modal>
-      )}
-
-      {missioneCodiceMinore && (
-        <Modal
-          title={`Missione ${missioneCodiceMinore.idMissione ?? ''}`}
-          wide
-          fitViewport
-          scheda
-          onClose={() => setMissioneCodiceMinore(null)}
-        >
-          <MissioneScheda
-            missione={
-              missioni.find((m) => m._docId === missioneCodiceMinore._docId) ??
-              missioneCodiceMinore
-            }
-            eventi={eventi}
-            mezzi={mezzi}
-            allMissioni={missioni}
-            existingEventi={eventi}
-            pazienti={pazienti}
-            onDeleted={() => setMissioneCodiceMinore(null)}
+            onOpenRow={openCodiceMinoreRow}
           />
         </Modal>
       )}
@@ -334,27 +417,12 @@ export default function PmaDeskPage() {
         >
           {fieldUx ? (
             <main className="flex min-h-0 flex-col overflow-hidden rounded-lg border border-slate-300 bg-slate-50 p-3">
-              <h2 className="mb-3 text-sm font-bold uppercase text-slate-800">
-                In carico ({inCarico.length})
-              </h2>
-              {inCarico.length === 0 ? (
-                <p className="text-sm text-slate-500">
-                  Nessun paziente in carico. Usa la sezione sotto per prendere in carico un paziente in
-                  arrivo o in attesa.
-                </p>
-              ) : (
-                <ul className="grid gap-3 overflow-y-auto sm:grid-cols-2">
-                  {inCarico.map((p) => (
-                    <li key={p._docId}>
-                      <PmaInCaricoCard
-                        paziente={p}
-                        evento={eventoFor(p)}
-                        onOpen={() => navigate(openPazientePath(pma.id, p._docId))}
-                      />
-                    </li>
-                  ))}
-                </ul>
-              )}
+              {!usaGrigliaLetti ? (
+                <h2 className="mb-3 text-sm font-bold uppercase text-slate-800">
+                  In carico ({inCarico.length})
+                </h2>
+              ) : null}
+              {inCaricoMain}
             </main>
           ) : null}
 
@@ -367,47 +435,70 @@ export default function PmaDeskPage() {
                 <p className="text-xs text-slate-500">Nessuno in arrivo.</p>
               ) : (
                 <ul className="space-y-2">
-                  {inArrivo.map((p) => {
-                    const daCentrale = !isPazienteOriginePma(p);
-                    return (
+                  {inArrivo.map((p) => (
                       <li key={p._docId}>
                         <PmaPatientReadonlyCard
                           paziente={p}
+                          evento={eventoFor(p)}
+                          missione={missioneFor(p)}
+                          showStatoBadge={false}
+                          showAvanzamento={false}
+                          draggable={usaGrigliaLetti}
                           footer={
-                            <div className="mt-2 flex flex-col gap-1.5">
-                              {daCentrale ? (
-                                <button
-                                  type="button"
-                                  className={`${btnSecondary} w-full text-xs`}
-                                  onClick={() =>
-                                    navigate(openPazientePath(pma.id, p._docId, 'dati_centrale'))
-                                  }
-                                >
-                                  Visualizza dati centrale
-                                </button>
+                            <PmaPatientCardEmojiActions>
+                              {!usaGrigliaLetti ? (
+                                <PmaPatientCardEmojiAction
+                                  {...PMA_PATIENT_CARD_ACTION.PRENDI_IN_CARICO}
+                                  primary
+                                  busy={busyId === p._docId}
+                                  disabled={busyId === p._docId}
+                                  onClick={() => void handlePrendiInCarico(p._docId)}
+                                />
                               ) : null}
-                              <button
-                                type="button"
-                                className={`${btnPrimary} w-full text-xs`}
+                              <PmaPatientCardEmojiAction
+                                {...PMA_PATIENT_CARD_ACTION.METTI_IN_ATTESA}
+                                busy={busyId === p._docId}
                                 disabled={busyId === p._docId}
-                                onClick={() => void handlePrendiInCarico(p._docId)}
-                              >
-                                {busyId === p._docId ? '…' : 'Prendi in carico'}
-                              </button>
-                            </div>
+                                onClick={() => void handleMettiInAttesa(p._docId)}
+                              />
+                              <PmaPatientCardEmojiAction
+                                {...PMA_PATIENT_CARD_ACTION.CARTELLA_CLINICA}
+                                onClick={() => apriCartella(p._docId)}
+                              />
+                            </PmaPatientCardEmojiActions>
                           }
                         />
                       </li>
-                    );
-                  })}
+                  ))}
                 </ul>
               )}
             </section>
 
-            <section>
+            <section
+              className={
+                usaGrigliaLetti
+                  ? 'rounded-lg border-2 border-dashed border-orange-300 bg-orange-50/30 p-2'
+                  : undefined
+              }
+              onDragOver={
+                usaGrigliaLetti
+                  ? (e) => {
+                      e.preventDefault();
+                      e.dataTransfer.dropEffect = 'move';
+                    }
+                  : undefined
+              }
+              onDrop={usaGrigliaLetti ? (e) => void handleDropInAttesa(e) : undefined}
+            >
               <h2 className="mb-2 text-xs font-bold uppercase text-orange-900">
                 In attesa ({inAttesa.length})
               </h2>
+              {usaGrigliaLetti ? (
+                <p className="mb-2 text-[10px] leading-snug text-orange-900/90">
+                  Trascina qui un paziente in carico per rimetterlo in attesa — la cartella clinica
+                  resta invariata.
+                </p>
+              ) : null}
               {inAttesa.length === 0 ? (
                 <p className="text-xs text-slate-500">Nessuno in attesa.</p>
               ) : (
@@ -416,15 +507,48 @@ export default function PmaDeskPage() {
                     <li key={p._docId}>
                       <PmaPatientReadonlyCard
                         paziente={p}
+                        evento={eventoFor(p)}
+                        missione={missioneFor(p)}
+                        showStatoBadge={false}
+                        showAvanzamento={false}
+                        draggable={usaGrigliaLetti}
                         footer={
-                          <button
-                            type="button"
-                            className={`${btnPrimary} mt-2 w-full text-xs`}
-                            disabled={busyId === p._docId}
-                            onClick={() => void handlePrendiInCarico(p._docId)}
-                          >
-                            {busyId === p._docId ? '…' : 'Prendi in carico'}
-                          </button>
+                          <PmaPatientCardEmojiActions>
+                            {canConvertToCodiceMinore(p) ? (
+                              <PmaPatientCardEmojiAction
+                                {...PMA_PATIENT_CARD_ACTION.RENDI_CODICE_MINORE}
+                                busy={rendiCmBusyId === p._docId}
+                                disabled={rendiCmBusyId === p._docId}
+                                onClick={() => void handleRendiCodiceMinore(p)}
+                              />
+                            ) : null}
+                            <PmaPatientCardEmojiAction
+                              {...PMA_PATIENT_CARD_ACTION.CHIAMA}
+                              busy={chiamaBusyId === p._docId}
+                              disabled={chiamaBusyId === p._docId}
+                              onClick={() => void handleChiamaTriage(p._docId)}
+                            />
+                            {!usaGrigliaLetti ? (
+                              <PmaPatientCardEmojiAction
+                                {...PMA_PATIENT_CARD_ACTION.PRENDI_IN_CARICO}
+                                primary
+                                busy={busyId === p._docId}
+                                disabled={busyId === p._docId}
+                                onClick={() => void handlePrendiInCarico(p._docId)}
+                              />
+                            ) : (
+                              <PmaPatientCardEmojiAction
+                                {...PMA_PATIENT_CARD_ACTION.PRENDI_SENZA_LETTO}
+                                busy={busyId === p._docId}
+                                disabled={busyId === p._docId}
+                                onClick={() => void handlePrendiInCaricoSenzaLetto(p._docId)}
+                              />
+                            )}
+                            <PmaPatientCardEmojiAction
+                              {...PMA_PATIENT_CARD_ACTION.CARTELLA_CLINICA}
+                              onClick={() => apriCartella(p._docId)}
+                            />
+                          </PmaPatientCardEmojiActions>
                         }
                       />
                     </li>
@@ -436,27 +560,12 @@ export default function PmaDeskPage() {
 
           {!fieldUx ? (
             <main className="flex min-h-0 flex-col overflow-hidden rounded-lg border border-slate-300 bg-slate-50 p-3">
-              <h2 className="mb-3 text-sm font-bold uppercase text-slate-800">
-                In carico ({inCarico.length})
-              </h2>
-              {inCarico.length === 0 ? (
-                <p className="text-sm text-slate-500">
-                  Nessun paziente in carico. Prendi in carico un paziente dalla colonna di sinistra
-                  oppure attendi l&apos;aggiornamento ARRIVATO H dalla centrale.
-                </p>
-              ) : (
-                <ul className="grid gap-3 overflow-y-auto sm:grid-cols-2 xl:grid-cols-3">
-                  {inCarico.map((p) => (
-                    <li key={p._docId}>
-                      <PmaInCaricoCard
-                        paziente={p}
-                        evento={eventoFor(p)}
-                        onOpen={() => navigate(openPazientePath(pma.id, p._docId))}
-                      />
-                    </li>
-                  ))}
-                </ul>
-              )}
+              {!usaGrigliaLetti ? (
+                <h2 className="mb-3 text-sm font-bold uppercase text-slate-800">
+                  In carico ({inCarico.length})
+                </h2>
+              ) : null}
+              {inCaricoMain}
             </main>
           ) : null}
         </div>

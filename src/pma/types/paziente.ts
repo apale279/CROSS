@@ -1,4 +1,4 @@
-﻿import type { Timestamp } from 'firebase/firestore'
+import type { Timestamp } from 'firebase/firestore'
 import type { DimissioneEsito } from './dimissione'
 import type { LesioneMarker } from './lesioni'
 import type {
@@ -24,6 +24,19 @@ export const ALLERGIE_VERIFICA_LABEL: Record<AllergieVerificaStato, string> = {
 export function allergieVerificaDisplay(v: AllergieVerificaStato | null | undefined): string {
   if (!v || !isAllergieVerificaStato(v)) return '—'
   return ALLERGIE_VERIFICA_LABEL[v]
+}
+
+/** Avanzamento visita PMA (cartella clinica + badge dashboard). */
+export type AvanzamentoPma = 'da_vedere' | 'in_visita' | 'attesa_dimissione'
+
+export function isAvanzamentoPma(v: unknown): v is AvanzamentoPma {
+  return v === 'da_vedere' || v === 'in_visita' || v === 'attesa_dimissione'
+}
+
+export const AVANZAMENTO_PMA_LABEL: Record<AvanzamentoPma, string> = {
+  da_vedere: 'DA VEDERE',
+  in_visita: 'IN VISITA',
+  attesa_dimissione: 'ATTESA DIMISSIONE',
 }
 
 /** Sezione 1 — Tipo paziente (scelta rapida). */
@@ -90,6 +103,8 @@ export interface Paziente {
   allergie: string
   /** Conferma operatore: il paziente ha allergie note? Obbligatorio prima di modificare la cartella. */
   allergie_verifica?: AllergieVerificaStato | null
+  /** Override manuale avanzamento visita (sovrascrive la logica automatica da allergie). */
+  avanzamento_manuale?: AvanzamentoPma | null
   app: string
   /** Esame obiettivo — opzioni rapide per area (Firestore root, `EO_*`). */
   EO_GENERALE: string[]
@@ -105,6 +120,9 @@ export interface Paziente {
   eo_quick_legacy?: string[]
   eo_note: string
   parametri_vitali: ParametroVitaleRilevazione[]
+  /** Parametri vitali registrati in fase triage (tab dedicato). */
+  triage_parametri_vitali: ParametroVitaleRilevazione[]
+  triage_note: string
   prestazioni_sel: string[]
   /** Foto ECG allegata (upload Cloudinary, URL sicuro). */
   ecg_cloudinary_url?: string | null

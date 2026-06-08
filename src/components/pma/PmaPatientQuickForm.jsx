@@ -3,7 +3,7 @@ import { Timestamp } from 'firebase/firestore';
 import { useRegistryPartecipanti } from '../../hooks/useRegistryPartecipanti';
 import { cercaPerPettorale, etaDaDataNascita } from '../../lib/excelPartecipanti';
 import { STATO_PZ_PMA } from '../../lib/pmaModule';
-import { btnPrimary, btnSecondary, FormField, selectClass } from '../ui/FormField';
+import { btnPrimary, btnSecondary, FormField } from '../ui/FormField';
 import { PazienteAnagraficaFields } from '../pazienti/PazienteAnagraficaFields';
 import { PazienteTipoEventoFields } from '../pazienti/PazienteTipoEventoFields';
 import { createPazientePmaAutopresentato } from '../../services/pmaPazientiService';
@@ -15,10 +15,7 @@ function parseEtaDraft(s) {
   return Number.isFinite(n) ? n : null;
 }
 
-const STATI_AUTO_PMA = [
-  { value: STATO_PZ_PMA.IN_ATTESA, label: 'In attesa (fuori tenda)' },
-  { value: STATO_PZ_PMA.IN_CARICO, label: 'In carico (in tenda)' },
-];
+const STATO_AUTO_PMA = STATO_PZ_PMA.IN_ATTESA;
 
 export function PmaPatientQuickForm({
   manifestationId,
@@ -46,7 +43,6 @@ export function PmaPatientQuickForm({
     tipoEvento: '',
     dettaglioEvento: '',
     codiceColore: '',
-    statoPzPma: STATO_PZ_PMA.IN_ATTESA,
   });
 
   const patchDraft = (key, value) => setDraft((d) => ({ ...d, [key]: value }));
@@ -71,8 +67,6 @@ export function PmaPatientQuickForm({
     }));
   };
 
-  const inCarico = draft.statoPzPma === STATO_PZ_PMA.IN_CARICO;
-
   const submit = async (e) => {
     e.preventDefault();
     if (!draft.tipoEvento.trim()) {
@@ -95,9 +89,6 @@ export function PmaPatientQuickForm({
         dettaglio_evento: draft.dettaglioEvento.trim(),
         codice_colore: draft.codiceColore,
       };
-      if (inCarico) {
-        pmaSchedaSeed.ingresso_carico_at = Timestamp.now();
-      }
 
       const result = await createPazientePmaAutopresentato(
         manifestationId,
@@ -118,7 +109,7 @@ export function PmaPatientQuickForm({
           sesso: draft.sesso.trim(),
           notePaziente: draft.notePaziente.trim(),
           apertura: Timestamp.now(),
-          statoPzPma: draft.statoPzPma,
+          statoPzPma: STATO_AUTO_PMA,
           pmaSchedaSeed,
         },
         allPazienti,
@@ -133,20 +124,6 @@ export function PmaPatientQuickForm({
 
   return (
     <form onSubmit={(e) => void submit(e)} className="space-y-4">
-      <FormField label="Stato PMA">
-        <select
-          className={selectClass}
-          value={draft.statoPzPma}
-          onChange={(e) => patchDraft('statoPzPma', e.target.value)}
-        >
-          {STATI_AUTO_PMA.map((s) => (
-            <option key={s.value} value={s.value}>
-              {s.label}
-            </option>
-          ))}
-        </select>
-      </FormField>
-
       <PmaCodiceColoreField
         compact
         value={draft.codiceColore}
@@ -182,7 +159,7 @@ export function PmaPatientQuickForm({
 
       <div className="flex flex-wrap gap-2 border-t border-slate-200 pt-3">
         <button type="submit" className={btnPrimary} disabled={saving}>
-          {saving ? 'Salvataggio…' : inCarico ? 'Crea e apri scheda' : 'Crea paziente'}
+          {saving ? 'Salvataggio…' : 'Crea paziente'}
         </button>
         {onCancel && (
           <button type="button" className={btnSecondary} onClick={onCancel}>

@@ -27,13 +27,14 @@ const CARTELLA_UPDATE: UserRank[] = [
   'Triage',
 ];
 
-/** Dimissione: Infermiere e Soccorritore solo lettura. */
+/** Dimissione: Infermiere, Soccorritore e Triage solo lettura. */
 const DIMISSIONE_READ: UserRank[] = [
   'Superadmin',
   'Centrale',
   'Medico',
   'Infermiere',
   'Soccorritore',
+  'Triage',
 ];
 const DIMISSIONE_UPDATE: UserRank[] = ['Superadmin', 'Centrale', 'Medico'];
 
@@ -64,7 +65,7 @@ export function schedaTabInvioPsAllows(rank: UserRank, action: MatrixAction): bo
   return allows(rank, action === 'READ' ? INVIO_PS_READ : INVIO_PS_UPDATE, action);
 }
 
-/** Inserimento / modifica farmaci in cartella: non consentito al Soccorritore. */
+/** Inserimento / modifica farmaci in cartella: non consentito a Soccorritore e Triage. */
 export function canInsertFarmaci(rank: UserRank): boolean {
   return FARMACI_INSERT.includes(rank);
 }

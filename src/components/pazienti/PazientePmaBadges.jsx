@@ -7,13 +7,17 @@ import {
   pazienteHaSchedaPma,
   statoPzPmaLabel,
 } from '../../lib/pmaModule';
+import { PmaPettoraleBadge } from '../pma/PmaPettoraleBadge';
 
 export function PazientePmaBadges({ paziente }) {
   if (isPazienteCodiceMinore(paziente)) {
     return (
-      <span className="rounded border border-teal-300 bg-teal-100 px-2 py-1 text-[11px] font-bold uppercase text-teal-950 shadow-sm">
-        PMA · Codice minore
-      </span>
+      <div className="flex flex-wrap items-center gap-1.5">
+        <span className="rounded border border-teal-300 bg-teal-100 px-2 py-1 text-[11px] font-bold uppercase text-teal-950 shadow-sm">
+          PMA · Codice minore
+        </span>
+        <PmaPettoraleBadge pettorale={paziente.pettorale} className="border border-indigo-300 px-2 py-1 text-[11px] shadow-sm" />
+      </div>
     );
   }
 
@@ -52,6 +56,7 @@ export function PazientePmaBadges({ paziente }) {
           In attesa trasporto
         </span>
       )}
+      <PmaPettoraleBadge pettorale={paziente.pettorale} className="border border-indigo-300 px-2 py-1 text-[11px] shadow-sm" />
     </div>
   );
 }

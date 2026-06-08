@@ -99,7 +99,7 @@ export function normalizeMsaParametri(raw) {
   d.glicemia = vitalMeasuredOrNull(raw.glicemia, { min: 0, max: 800, integer: true });
   d.meccanicaRespiratoria = normalizeMeccanica(raw.meccanicaRespiratoria);
   d.cute = normalizeCute(raw.cute);
-  d.gcs = vitalMeasuredOrNull(raw.gcs, { min: 1, max: 15, integer: true });
+  d.gcs = vitalMeasuredOrNull(raw.gcs, { min: 3, max: 15, integer: true });
   return d;
 }
 
@@ -137,7 +137,7 @@ export function normalizeMsaDetails(raw) {
   d.acc = normalizeMsaAcc(raw.acc);
   const parametri = normalizeMsaParametri(raw.parametri);
   if (raw.gcs != null && raw.parametri?.gcs == null) {
-    parametri.gcs = vitalMeasuredOrNull(raw.gcs, { min: 1, max: 15, integer: true });
+    parametri.gcs = vitalMeasuredOrNull(raw.gcs, { min: 3, max: 15, integer: true });
   }
   d.parametri = parametri;
   d.farmaci = Array.isArray(raw.farmaci) ? raw.farmaci.map((f) => String(f ?? '')) : [];

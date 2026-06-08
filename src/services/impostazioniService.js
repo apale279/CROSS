@@ -118,6 +118,34 @@ export async function saveImpostazioniArrayEntryById(manifestationId, arrayField
   });
 }
 
+/**
+ * Aggiorna solo le etichette posti letto di un PMA (operazione desk, senza gate impostazioni).
+ */
+export async function patchPmaPostiLettoLabels(manifestationId, pmaId, postiLettoLabels) {
+  const id = String(pmaId ?? '').trim();
+  if (!id) throw new Error('PMA senza id.');
+
+  const docRef = impostazioniDocRef(manifestationId);
+  await runTransaction(db, async (transaction) => {
+    const snap = await transaction.get(docRef);
+    const current = readArrayFieldRaw(snap.exists() ? snap.data() : null, 'pma');
+    const idx = current.findIndex((x) => String(x?.id ?? '') === id);
+    if (idx < 0) throw new Error('PMA non trovato.');
+
+    const merged = { ...current[idx], id, postiLettoLabels: postiLettoLabels ?? {} };
+    if (impostazioniValuesMatch(current[idx], merged)) return;
+
+    const next = [...current];
+    next[idx] = merged;
+
+    if (!snap.exists()) {
+      transaction.set(docRef, { manifestationId, pma: next }, { merge: true });
+      return;
+    }
+    transaction.update(docRef, { pma: next });
+  });
+}
+
 export async function deleteImpostazioniArrayEntryById(manifestationId, arrayField, entryId) {
   assertCanEditImpostazioniConfig();
   if (!isImpostazioniTransactionalArrayField(arrayField)) {

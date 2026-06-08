@@ -12,7 +12,7 @@ import { EventiTatticaSidebar } from '../tactical/EventiTatticaSidebar';
 import { MezzoScheda } from '../mezzi/MezzoScheda';
 import { Modal } from '../ui/Modal';
 
-export function MappaTatticaDashboard({ eventi, missioni, mezzi }) {
+export function MappaTatticaDashboard({ eventi, missioni, mezzi, pazienti = [] }) {
   const manifestationId = useManifestazioneId();
   const { impostazioni, loading: loadingImpostazioni } = useImpostazioni();
   const { openEventoScheda } = useEventoScheda();

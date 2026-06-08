@@ -65,6 +65,18 @@ export async function saveMedicoFirma(manifestationId, uid, { pngDataUrl, svgDat
   );
 }
 
+/** Note personali medico (promemoria dimissione, solo profilo utente). */
+export async function saveMedicoNotePersonali(manifestationId, uid, note) {
+  await setDoc(
+    userProfileDocRef(manifestationId, uid),
+    {
+      note_personali: String(note ?? '').trim(),
+      aggiornatoIl: serverTimestamp(),
+    },
+    { merge: true },
+  );
+}
+
 export async function clearMedicoFirma(manifestationId, uid) {
   await setDoc(
     userProfileDocRef(manifestationId, uid),

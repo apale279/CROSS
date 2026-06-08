@@ -1,7 +1,6 @@
 import { createEvento } from './eventiService';
 import { createMissione } from './missioniService';
 import { invioPsSoreuFieldsFromScheda } from '../lib/invioPsSoreu';
-import { normalizeStatoPzPma, STATO_PZ_PMA } from '../lib/pmaModule';
 import { createMissioneConConfermaRientro } from '../lib/missioneRientroCreate';
 import { parseCodiceColoreOptional } from '../lib/codiciColore';
 import { mergeOperatoreCreatoPayload } from '../lib/operatoreAudit';
@@ -42,7 +41,8 @@ export function resolveColorePazienteInvioPs(paziente) {
 }
 
 /**
- * Evento + missione IN POSTO al PMA, con snapshot paziente dimesso (nessun nuovo paziente).
+ * Evento + missione IN POSTO al PMA, con snapshot paziente con esito invio_ps
+ * (anche se non ancora formalmente dimesso; nessun nuovo paziente).
  */
 export async function createTrasportoInvioPsDaPma(
   manifestationId,
@@ -66,10 +66,6 @@ export async function createTrasportoInvioPsDaPma(
   ).trim();
   if (!ospedale) {
     throw new Error('Seleziona l\'ospedale di destinazione.');
-  }
-
-  if (normalizeStatoPzPma(paziente.statoPzPma) !== STATO_PZ_PMA.DIMESSO) {
-    throw new Error('Il paziente deve essere dimesso dal PMA prima di creare il trasporto.');
   }
 
   if (paziente.pmaScheda?.dimissione_esito !== 'invio_ps') {

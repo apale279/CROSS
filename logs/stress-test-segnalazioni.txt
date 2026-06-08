@@ -1,0 +1,70 @@
+# CROSS — Stress test: riepilogo sessione (fix alla fine)
+# Data run 2.x–5.x: ~9.6 min | exit code 1 (fail attesi, suite completata)
+
+## Totale sessione completa (inclusi 1.1–1.3 già passati prima)
+
+| Stato | Test |
+|-------|------|
+| ✅ PASS | 1.1, 1.2, 1.3 |
+| ⏭ SKIP | 1.4 Noria (test.fixme) |
+| ✅ PASS | 2.2, 2.3, 3.2, 4.2, 4.5, 5.1, 5.2, 5.3, 5.4, 5.5 |
+| ❌ FAIL | 2.1, 3.1, 3.3, 4.1, 4.3, 4.4 |
+| ❌ FAIL (run precedente) | 1.4 Noria — timeout «Nuova missione» ciclo 2 |
+
+Run 2.x–5.x: **10 passed, 6 failed** (tutti i 16 test eseguiti, nessuno saltato per serial)
+
+---
+
+## Fallimenti da correggere
+
+### 1.4 — Noria (fixme, fallito anche prima)
+- **Errore:** timeout su pulsante «Nuova missione» al 2° ciclo
+- **Causa probabile:** dopo FINE MISSIONE evento → operativo terminato, UI nasconde nuova missione
+- **Alert:** `manifestationId is not defined` su FINE MISSIONE
+
+### 2.1 — Dirottamento
+- **Errore:** test fallito (30.9s) — verificare screenshot in test-results
+- **Nota run:** dirottamento eseguito ma dialog «Seleziona evento destinazione aperto»; assert finale su evento B
+
+### 3.1 — Auto-close → badge «Terminato»
+- **Errore:** `attendiBadgeEvento('Terminato')` timeout 90s
+- **Causa probabile:** auto-close non scatta o badge diverso / ritardo Firestore
+
+### 3.3 — Chiusura forzata evento
+- **Errore:** probabile timeout su «Chiudi evento» / conferma o conteggio missioni aperte
+
+### 4.1 — Missione ANNULLATA → mezzo disponibile
+- **Errore:** mezzo non torna in elenco selezionabile dopo ANNULLATA (20.8s)
+
+### 4.3 — Riapri evento, missioni intatte
+- **Errore:** `attendiBadgeEvento('Terminato')` timeout 90s (stesso pattern 3.1)
+
+### 4.4 — Salto stati → FINE MISSIONE
+- **Errore:** combobox missione resta **enabled** invece di disabled dopo FINE MISSIONE
+- **Fix test o app:** verificare se select resta editabile su missione chiusa
+
+---
+
+## Altri problemi segnalati (non bloccanti suite)
+
+- **Pulizia finale afterAll:** «Zona pericolosa» non visibile in /impostazioni (account test senza permesso?)
+- **Browser:** `google.maps.Map is not a constructor` — mock Maps incompleto (atteso in E2E)
+- **App:** `manifestationId is not defined` su chiusura missione (bug reale da fixare)
+- **Throttle log:** `Pausa NaNs` — STRESS_BETWEEN_TESTS_MS non letto correttamente in alcuni contesti
+
+---
+
+## Artefatti
+
+- Log: `logs/stress-test-from-2.log`
+- Report HTML: `npx playwright show-report playwright-report-stress` → http://127.0.0.1:9323
+- Screenshot/video: `test-results/`
+
+---
+
+## Prossimi passi (quando torni)
+
+1. Fix bug `manifestationId is not defined`
+2. Aggiornare test 1.4 noria (riapri evento / stessa missione in RIENTRO)
+3. Allineare assert badge «Terminato» e select disabled post-FINE MISSIONE
+4. Pulizia DB: `node scripts/wipe-ops-data.mjs` se serve reset mezzi/eventi

@@ -92,8 +92,9 @@ export function filterCatalogByNomePrefix(
   limit = 12,
 ): PmaFarmacoCatalogoEntry[] {
   const q = normalizeNome(query).toLowerCase()
-  if (!q) return catalog.slice(0, limit)
-  return catalog.filter((e) => e.nome.toLowerCase().includes(q)).slice(0, limit)
+  if (!q) return []
+  if (q.length < 2) return []
+  return catalog.filter((e) => e.nome.toLowerCase().startsWith(q)).slice(0, limit)
 }
 
 /** Aggiunge o aggiorna voce catalogo dopo somministrazione in scheda. */

@@ -17,8 +17,17 @@ import {
   buildStatoAdvanceKeyboard,
   formatMissioneStatoPanel,
 } from './telegramMissionStato.js';
-import { isStatoMissioneTerminale, nextStatoMissione } from './missionStati.js';
+import {
+  isMissioneModificabileSuTelegram,
+  nextStatoMissione,
+  shouldOfferTelegramStatoAdvanceButton,
+} from './missionStati.js';
 import { promptGpsAfterStatoAdvance } from './telegramGpsFlow.js';
+import {
+  callbackQueryMessageRef,
+  sealMissionTelegramMessages,
+  stripCallbackQueryKeyboard,
+} from './telegramMissionClose.js';
 
 function normalizeMezzoKey(sigla) {
   return String(sigla ?? '')
@@ -57,10 +66,13 @@ export async function handleStatoCommand(chatId, tenantId) {
     const m = missioni[0];
     const next = nextStatoMissione(m.stato ?? 'ALLERTARE', stati);
     await sendMessage(chatId, formatMissioneStatoPanel(m, stati), {
-      reply_markup:
-        next !== m.stato && !isStatoMissioneTerminale(m.stato)
-          ? buildStatoAdvanceKeyboard(m._docId, next)
-          : undefined,
+      reply_markup: shouldOfferTelegramStatoAdvanceButton({
+        stato: m.stato,
+        next,
+        aperta: m.aperta,
+      })
+        ? buildStatoAdvanceKeyboard(m._docId, next)
+        : undefined,
     });
     return;
   }
@@ -93,7 +105,23 @@ export async function handleStatoSelectCallback(callbackQuery, tenantId) {
     !normalizeMezzoKey(missione.mezzo) ||
     normalizeMezzoKey(missione.mezzo) !== normalizeMezzoKey(ctx.mezzo)
   ) {
-    await answerCallbackQuery(callbackQuery.id, 'Missione non valida');
+    await stripCallbackQueryKeyboard(callbackQuery);
+    await answerCallbackQuery(callbackQuery.id, 'Missione non disponibile', true);
+    if (!missione) {
+      await sendMessage(
+        chatId,
+        '🚫 <b>Missione non più disponibile</b>\n<i>Eliminata o chiusa dalla centrale. Non è modificabile su Telegram.</i>',
+      );
+    }
+    return true;
+  }
+  if (!isMissioneModificabileSuTelegram(missione)) {
+    await stripCallbackQueryKeyboard(callbackQuery);
+    await answerCallbackQuery(callbackQuery.id, 'Missione chiusa', true);
+    await sendMessage(
+      chatId,
+      `🚫 <b>${escapeHtml(missione.idMissione ?? '—')}</b> è chiusa (${escapeHtml(missione.stato ?? '—')}). Non è modificabile su Telegram.`,
+    );
     return true;
   }
 
@@ -102,10 +130,13 @@ export async function handleStatoSelectCallback(callbackQuery, tenantId) {
 
   await answerCallbackQuery(callbackQuery.id);
   await sendMessage(chatId, formatMissioneStatoPanel(missione, stati), {
-    reply_markup:
-      next !== missione.stato && missione.aperta !== false && !isStatoMissioneTerminale(missione.stato)
-        ? buildStatoAdvanceKeyboard(missionDocId, next)
-        : undefined,
+    reply_markup: shouldOfferTelegramStatoAdvanceButton({
+      stato: missione.stato,
+      next,
+      aperta: missione.aperta,
+    })
+      ? buildStatoAdvanceKeyboard(missionDocId, next)
+      : undefined,
   });
   return true;
 }
@@ -128,19 +159,29 @@ export async function handleStatoAdvanceCallback(callbackQuery, tenantId) {
   }
 
   const missioneCheck = await getMissioneById(tenantId, missionDocId);
-  if (
-    missioneCheck?.aperta === false ||
-    isStatoMissioneTerminale(missioneCheck?.stato)
-  ) {
+  if (!missioneCheck) {
+    await stripCallbackQueryKeyboard(callbackQuery);
+    await answerCallbackQuery(callbackQuery.id, 'Missione non disponibile', true);
+    await sendMessage(
+      chatId,
+      '🚫 <b>Missione non più disponibile</b>\n<i>Eliminata dalla centrale. Non è modificabile su Telegram.</i>',
+    );
+    return true;
+  }
+  if (!isMissioneModificabileSuTelegram(missioneCheck)) {
+    await stripCallbackQueryKeyboard(callbackQuery);
+    await sealMissionTelegramMessages(missioneCheck, [callbackQueryMessageRef(callbackQuery)].filter(Boolean));
     await answerCallbackQuery(callbackQuery.id, 'Missione chiusa', true);
     await sendMessage(
       chatId,
-      `🚫 <b>${escapeHtml(missioneCheck?.idMissione ?? '—')}</b> è chiusa (${escapeHtml(missioneCheck?.stato ?? '—')}). Non è possibile aggiornare lo stato da Telegram.`,
+      `🚫 <b>${escapeHtml(missioneCheck.idMissione ?? '—')}</b> è chiusa (${escapeHtml(missioneCheck.stato ?? '—')}). Non è modificabile su Telegram.`,
     );
     return true;
   }
 
-  const result = await advanceMissioneStato(tenantId, missionDocId, ctx.mezzo);
+  const result = await advanceMissioneStato(tenantId, missionDocId, ctx.mezzo, {
+    fromTelegram: true,
+  });
   if (!result.ok) {
     await answerCallbackQuery(callbackQuery.id, result.error ?? 'Errore', true);
     return true;
@@ -163,11 +204,18 @@ export async function handleStatoAdvanceCallback(callbackQuery, tenantId) {
   ].join('\n');
 
   await sendMessage(chatId, msg, {
-    reply_markup:
-      !result.terminal && next !== result.nuovo
-        ? buildStatoAdvanceKeyboard(missionDocId, next)
-        : undefined,
+    reply_markup: shouldOfferTelegramStatoAdvanceButton({
+      stato: result.nuovo,
+      next,
+      aperta: missione?.aperta,
+    })
+      ? buildStatoAdvanceKeyboard(missionDocId, next)
+      : undefined,
   });
+
+  if (result.terminal && missione) {
+    await sealMissionTelegramMessages(missione, [callbackQueryMessageRef(callbackQuery)].filter(Boolean));
+  }
 
   await promptGpsAfterStatoAdvance(chatId, tenantId);
   return true;

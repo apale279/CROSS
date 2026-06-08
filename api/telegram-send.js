@@ -9,7 +9,11 @@ import {
 import { getStatiMissione } from './_lib/missionAdmin.js';
 import { formatMissionTelegramHtml } from './_lib/telegramMissionMessage.js';
 import { buildStatoAdvanceKeyboard } from './_lib/telegramMissionStato.js';
-import { isStatoMissioneTerminale, nextStatoMissione } from './_lib/missionStati.js';
+import {
+  isStatoMissioneTerminale,
+  nextStatoMissione,
+  shouldOfferTelegramStatoAdvanceButton,
+} from './_lib/missionStati.js';
 import { appendMissionTelegramMessage } from './_lib/telegramMissionMessages.js';
 
 async function verifyFirebaseUser(req) {
@@ -74,7 +78,7 @@ export default async function handler(req, res) {
     if (missionDocId && aperta && !isStatoMissioneTerminale(stato)) {
       const stati = await getStatiMissione(tenantId);
       const next = nextStatoMissione(stato, stati);
-      if (next !== stato) {
+      if (shouldOfferTelegramStatoAdvanceButton({ stato, next, aperta })) {
         replyMarkup = buildStatoAdvanceKeyboard(missionDocId, next);
       }
     }

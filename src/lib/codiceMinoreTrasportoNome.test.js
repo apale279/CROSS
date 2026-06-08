@@ -13,14 +13,14 @@ describe('codiceMinoreTrasportoNome', () => {
     );
   });
 
-  it('display preferisce pettorale poi nome segnaposto', () => {
+  it('display preferisce anagrafica poi nome segnaposto', () => {
     expect(
       displayAnagraficaCodiceMinore({
         pettorale: 12,
         nome: 'Mario',
         cognome: 'Rossi',
       }),
-    ).toBe('Rossi Mario (Pett. 12)');
+    ).toBe('Rossi Mario');
 
     expect(
       displayAnagraficaCodiceMinore({

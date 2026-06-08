@@ -8,3 +8,9 @@ dist
 .firebase-sa.tmp.json
 .env*
 Datiexport_local/
+
+# Playwright
+playwright-report/
+test-results/
+tests/e2e/.auth-session.json
+.env.test

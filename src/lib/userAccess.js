@@ -1,5 +1,5 @@
 /** @typedef {'CENTRALE' | 'PMA'} AccessType */
-/** @typedef {'MEDICO' | 'INFERMIERE' | 'SOCCORRITORE'} PmaRankCode */
+/** @typedef {'MEDICO' | 'INFERMIERE' | 'SOCCORRITORE' | 'TRIAGE'} PmaRankCode */
 
 import { isPmaOperatorProfile, userHasFullCentraleAccess } from './pmaModule';
 
@@ -66,10 +66,10 @@ export function profileHasCentraleAccess(profile, isSuperAdmin) {
   return userHasFullCentraleAccess(profile, false);
 }
 
-/** Operatore PMA con rank Medico (pagina Account / firma dimissione). */
+/** Utente con rank Medico (pagina Account: firma + note personali dimissione). */
 export function isPmaMedicoAccount(profile) {
-  if (!isPmaOperatorProfile(profile)) return false;
-  return normalizePmaRank(profile?.pmaRank) === 'Medico';
+  if (!profile) return false;
+  return normalizePmaRank(profile.pmaRank) === 'Medico';
 }
 
 /**

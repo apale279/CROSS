@@ -7,6 +7,7 @@ export function PazienteTipoEventoFields({
   tipoEvento,
   dettaglioEvento,
   onChange,
+  onDettaglioBlur,
   readOnly = false,
   required = false,
 }) {
@@ -61,6 +62,7 @@ export function PazienteTipoEventoFields({
             value={dettaglioEvento ?? ''}
             disabled={readOnly}
             onChange={(e) => onChange?.({ dettaglioEvento: e.target.value })}
+            onBlur={(e) => onDettaglioBlur?.(e.target.value)}
           />
         )}
       </FormField>

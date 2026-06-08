@@ -301,64 +301,45 @@ async function uploadPmaFirmaPdfFirebaseStorage(tenantId, blob, pazienteDocId) {
   return getDownloadURL(storageRef);
 }
 
+function uploadPmaFirmaErrMessage(err) {
+  return err instanceof Error ? err.message : String(err);
+}
+
 /** Carica anteprima PDF dimissione per iPad (Cloudinary unsigned, Firebase Storage o API server). */
 export async function uploadPmaFirmaPdfPreview(tenantId, blob, pazienteDocId) {
   if (blob.size > 15 * 1024 * 1024) {
     throw new Error('PDF troppo grande (max 15 MB).');
   }
 
+  const attempts = [];
+  const skipRemoteApi =
+    import.meta.env.DEV && Boolean(import.meta.env.VITE_API_BASE_URL?.trim());
+
   try {
     return await uploadPmaFirmaPdfUnsigned(tenantId, blob, pazienteDocId);
-  } catch (clientErr) {
-    const msg = clientErr instanceof Error ? clientErr.message : String(clientErr);
-    const useServer =
-      msg === 'PRESET_CLIENT_SKIP' ||
-      /preset not found/i.test(msg) ||
-      /upload preset/i.test(msg) ||
-      /unknown upload preset/i.test(msg);
-
-    if (!useServer) {
-      try {
-        return await uploadPmaFirmaPdfFirebaseStorage(tenantId, blob, pazienteDocId);
-      } catch (storageErr) {
-        console.warn('[pma-firma] Upload Firebase Storage non riuscito:', storageErr);
-        throw clientErr;
-      }
-    }
-
-    if (import.meta.env.DEV && msg === 'PRESET_CLIENT_SKIP') {
-      try {
-        return await uploadPmaFirmaPdfFirebaseStorage(tenantId, blob, pazienteDocId);
-      } catch (storageErr) {
-        const hint = devCloudinaryClientHint();
-        throw new Error(
-          hint
-            ? `${hint} Upload Storage: ${storageErr instanceof Error ? storageErr.message : storageErr}`
-            : `Upload anteprima PDF non riuscito (${storageErr instanceof Error ? storageErr.message : storageErr}).`,
-        );
-      }
-    }
-
-    const viteProxiesApiToRemote =
-      import.meta.env.DEV && Boolean(import.meta.env.VITE_API_BASE_URL?.trim());
-
-    if (viteProxiesApiToRemote) {
-      try {
-        return await uploadPmaFirmaPdfFirebaseStorage(tenantId, blob, pazienteDocId);
-      } catch (storageErr) {
-        const hint = devCloudinaryClientHint();
-        throw new Error(
-          hint
-            ? `${hint} Dettaglio upload: ${msg}. Storage: ${storageErr instanceof Error ? storageErr.message : storageErr}`
-            : `Upload Cloudinary dal browser non riuscito (${msg}). ` +
-              'Configura VITE_CLOUDINARY_* in .env.local oppure verifica le regole Firebase Storage.',
-        );
-      }
-    }
-
-    console.warn('[pma-firma] Upload client Cloudinary non disponibile, uso API server:', msg);
-    return uploadPmaFirmaPdfViaApi(tenantId, blob, pazienteDocId);
+  } catch (err) {
+    attempts.push(`Cloudinary: ${uploadPmaFirmaErrMessage(err)}`);
   }
+
+  try {
+    return await uploadPmaFirmaPdfFirebaseStorage(tenantId, blob, pazienteDocId);
+  } catch (err) {
+    attempts.push(`Storage: ${uploadPmaFirmaErrMessage(err)}`);
+    console.warn('[pma-firma] Upload Firebase Storage non riuscito:', err);
+  }
+
+  if (!skipRemoteApi) {
+    try {
+      return await uploadPmaFirmaPdfViaApi(tenantId, blob, pazienteDocId);
+    } catch (err) {
+      attempts.push(`Server: ${uploadPmaFirmaErrMessage(err)}`);
+    }
+  } else {
+    const hint = devCloudinaryClientHint();
+    if (hint) attempts.push(hint);
+  }
+
+  throw new Error(`Upload anteprima PDF per iPad non riuscito. ${attempts.join(' · ')}`);
 }
 
 export async function pushPmaIpadFirmaRequest(tenantId, pmaId, payload) {

@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { Timestamp } from 'firebase/firestore';
 import { fromDatetimeLocalValue, toDatetimeLocalValue } from '../../lib/datetimeLocal';
 import {
@@ -16,9 +17,67 @@ const chipBtn = (active) =>
       : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
   }`;
 
+function normalizeNumeroDraft(raw) {
+  return String(raw ?? '')
+    .replace(/\D/g, '')
+    .slice(0, 16);
+}
+
+/**
+ * Campi SOREU: draft locale su testo/data; salvataggio tramite onPatch on blur (o click immediato su chip/codice).
+ */
 export function SoreuTrasportoFields({ values, onPatch, disabled = false }) {
-  const accompagnato = values.soreuAccompagnato ?? ['NO'];
-  const oraTs = values.soreuOraMissione ?? defaultSoreuOraMissione();
+  const [numeroDraft, setNumeroDraft] = useState(() =>
+    normalizeNumeroDraft(values.soreuNumeroMissione),
+  );
+  const [oraDraft, setOraDraft] = useState(() =>
+    toDatetimeLocalValue(values.soreuOraMissione ?? defaultSoreuOraMissione()),
+  );
+  const [numeroFocused, setNumeroFocused] = useState(false);
+  const [oraFocused, setOraFocused] = useState(false);
+  const [accompagnato, setAccompagnato] = useState(() => values.soreuAccompagnato ?? ['NO']);
+  const [codice, setCodice] = useState(() => normalizeSoreuCodice(values.soreuCodice) || '');
+
+  useEffect(() => {
+    if (!numeroFocused) {
+      setNumeroDraft(normalizeNumeroDraft(values.soreuNumeroMissione));
+    }
+  }, [values.soreuNumeroMissione, numeroFocused]);
+
+  useEffect(() => {
+    if (!oraFocused) {
+      setOraDraft(toDatetimeLocalValue(values.soreuOraMissione ?? defaultSoreuOraMissione()));
+    }
+  }, [values.soreuOraMissione, oraFocused]);
+
+  useEffect(() => {
+    setAccompagnato(values.soreuAccompagnato ?? ['NO']);
+  }, [values.soreuAccompagnato]);
+
+  useEffect(() => {
+    setCodice(normalizeSoreuCodice(values.soreuCodice) || '');
+  }, [values.soreuCodice]);
+
+  const commitNumero = () => {
+    setNumeroFocused(false);
+    const next = normalizeNumeroDraft(numeroDraft);
+    setNumeroDraft(next);
+    if (next !== normalizeNumeroDraft(values.soreuNumeroMissione)) {
+      onPatch({ soreuNumeroMissione: next });
+    }
+  };
+
+  const commitOra = () => {
+    setOraFocused(false);
+    const d = fromDatetimeLocalValue(oraDraft);
+    const nextTs = d ? Timestamp.fromDate(d) : null;
+    const cur = values.soreuOraMissione ?? null;
+    const changed =
+      (nextTs?.toMillis?.() ?? null) !== (cur?.toMillis?.() ?? null);
+    if (changed) {
+      onPatch({ soreuOraMissione: nextTs });
+    }
+  };
 
   return (
     <div className="space-y-3 rounded-lg border border-sky-200 bg-sky-50/50 p-3">
@@ -29,11 +88,10 @@ export function SoreuTrasportoFields({ values, onPatch, disabled = false }) {
           type="datetime-local"
           className={inputClass}
           disabled={disabled}
-          value={toDatetimeLocalValue(oraTs)}
-          onChange={(e) => {
-            const d = fromDatetimeLocalValue(e.target.value);
-            onPatch({ soreuOraMissione: d ? Timestamp.fromDate(d) : null });
-          }}
+          value={oraDraft}
+          onFocus={() => setOraFocused(true)}
+          onChange={(e) => setOraDraft(e.target.value)}
+          onBlur={commitOra}
         />
       </FormField>
 
@@ -44,10 +102,10 @@ export function SoreuTrasportoFields({ values, onPatch, disabled = false }) {
           className={inputClass}
           disabled={disabled}
           maxLength={16}
-          value={values.soreuNumeroMissione ?? ''}
-          onChange={(e) =>
-            onPatch({ soreuNumeroMissione: e.target.value.replace(/\D/g, '').slice(0, 16) })
-          }
+          value={numeroDraft}
+          onFocus={() => setNumeroFocused(true)}
+          onChange={(e) => setNumeroDraft(normalizeNumeroDraft(e.target.value))}
+          onBlur={commitNumero}
           placeholder="Es. 12345"
         />
       </FormField>
@@ -61,9 +119,11 @@ export function SoreuTrasportoFields({ values, onPatch, disabled = false }) {
               type="button"
               disabled={disabled}
               className={chipBtn(accompagnato.includes(opt))}
-              onClick={() =>
-                onPatch({ soreuAccompagnato: toggleSoreuAccompagnato(accompagnato, opt) })
-              }
+              onClick={() => {
+                const next = toggleSoreuAccompagnato(accompagnato, opt);
+                setAccompagnato(next);
+                onPatch({ soreuAccompagnato: next });
+              }}
             >
               {opt}
             </button>
@@ -73,9 +133,12 @@ export function SoreuTrasportoFields({ values, onPatch, disabled = false }) {
 
       <FormField label="Codice SOREU">
         <SoreuCodiceSelectButtons
-          value={normalizeSoreuCodice(values.soreuCodice) || ''}
+          value={codice}
           disabled={disabled}
-          onChange={(code) => onPatch({ soreuCodice: code })}
+          onChange={(code) => {
+            setCodice(code);
+            onPatch({ soreuCodice: code });
+          }}
         />
       </FormField>
     </div>

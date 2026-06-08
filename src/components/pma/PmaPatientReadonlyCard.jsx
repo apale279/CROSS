@@ -1,51 +1,55 @@
 import { isPazienteOriginePma, statoPzPmaLabel } from '../../lib/pmaModule';
 import { formatMissioneMezzoLabel } from '../../lib/missioneDisplay';
+import { pmaCodiceColoreCardClass } from '../../lib/pmaCodiceColoreUi';
+import { PmaDeskPatientSummary, startPmaPatientDrag } from './PmaDeskPatientSummary';
 
 /** Card compatta sidebar PMA (in arrivo / in attesa). */
-export function PmaPatientReadonlyCard({ paziente, highlight, onOpen, footer }) {
+export function PmaPatientReadonlyCard({
+  paziente,
+  evento = null,
+  missione = null,
+  showDirettoHArrow = false,
+  highlight,
+  footer,
+  draggable = false,
+  onDragStart,
+  dropTarget = false,
+  showStatoBadge = true,
+  showAvanzamento = true,
+}) {
   const isAutopresentato = isPazienteOriginePma(paziente);
   const statoPma = statoPzPmaLabel(paziente.statoPzPma) ?? '—';
+  const drag = onDragStart ?? startPmaPatientDrag;
+  const coloreClass = pmaCodiceColoreCardClass(paziente);
 
-  const inner = (
+  return (
     <article
-      className={`rounded-lg border bg-white p-3 text-sm shadow-sm ${
-        highlight ? 'border-sky-400 ring-2 ring-sky-200' : 'border-slate-200'
-      }`}
+      className={`pma-patient-card rounded-lg border-2 bg-white p-2 shadow-sm ${
+        highlight ? 'border-sky-400 ring-2 ring-sky-200' : coloreClass
+      } ${dropTarget ? 'border-dashed' : ''}`}
     >
-      <div className="mb-1.5 flex flex-wrap items-center gap-1.5">
-        <span className="font-mono text-xs font-bold text-teal-800">{paziente.idPaziente}</span>
-        {isAutopresentato ? (
-          <span className="rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-bold uppercase text-emerald-900">
-            Auto
+      {showStatoBadge ? (
+        <div className="mb-1">
+          <span className="pma-patient-card__badge rounded bg-sky-100 px-1.5 py-0.5 font-bold uppercase text-sky-900">
+            {statoPma}
           </span>
-        ) : (
-          <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold uppercase text-amber-900">
-            Centrale
-          </span>
-        )}
-        <span className="rounded bg-sky-100 px-1.5 py-0.5 text-[10px] font-bold uppercase text-sky-900">
-          {statoPma}
-        </span>
-      </div>
-      <p className="font-semibold leading-snug text-slate-900">
-        {[paziente.cognome, paziente.nome].filter(Boolean).join(' ') || 'Senza nome'}
-      </p>
-      {!isAutopresentato && (paziente.idMissione || paziente.mezzo) && (
-        <p className="mt-1 text-xs text-slate-500">
-          Missione {formatMissioneMezzoLabel(paziente.idMissione, paziente.mezzo)}
+        </div>
+      ) : null}
+      <PmaDeskPatientSummary
+        paziente={paziente}
+        evento={evento}
+        missione={missione}
+        showDirettoHArrow={showDirettoHArrow}
+        showAvanzamento={showAvanzamento}
+        draggable={draggable}
+        onDragStart={drag}
+      />
+      {!isAutopresentato && (paziente.idMissione || paziente.mezzo) ? (
+        <p className="pma-patient-card__meta mt-1 truncate text-slate-500">
+          {formatMissioneMezzoLabel(paziente.idMissione, paziente.mezzo)}
         </p>
-      )}
+      ) : null}
       {footer}
     </article>
   );
-
-  if (onOpen) {
-    return (
-      <button type="button" className="w-full text-left" onClick={onOpen}>
-        {inner}
-      </button>
-    );
-  }
-
-  return inner;
 }

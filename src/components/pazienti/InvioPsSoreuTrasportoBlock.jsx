@@ -5,8 +5,8 @@ import { COLLECTIONS } from '../../lib/firestorePaths';
 import { listaOspedaliDestinazione } from '../../lib/destinazioniOspedale';
 import { invioPsSoreuFieldsFromScheda } from '../../lib/invioPsSoreu';
 import { missionePmaInvioPsApertaPerPaziente } from '../../lib/pmaInvioPsMission';
+import { compareMezziDashboardSort } from '../../lib/mezzoStati';
 import {
-  filterMezziSelezionabiliPerNuovaMissione,
   isStatoMissioneRientroOLiberato,
   missioniAperteSuMezzo,
 } from '../../lib/mezzoMissione';
@@ -73,8 +73,11 @@ export function InvioPsSoreuTrasportoBlock({
   );
 
   const mezziDisponibili = useMemo(
-    () => filterMezziSelezionabiliPerNuovaMissione(mezzi, missioni),
-    [mezzi, missioni],
+    () =>
+      (mezzi ?? [])
+        .filter((m) => Boolean(String(m?.sigla ?? m?._docId ?? '').trim()))
+        .sort(compareMezziDashboardSort),
+    [mezzi],
   );
 
   const mezzoInRientroLabel = useMemo(() => {

@@ -27,11 +27,8 @@ export function shouldAutoNomeCodiceMinoreTrasporto(paziente) {
 /** Etichetta elenco centrale / missione per paziente codice minore. */
 export function displayAnagraficaCodiceMinore(paziente) {
   if (!paziente) return '—';
-  const pettorale = paziente.pettorale;
   const nomeCognome = [paziente.cognome, paziente.nome].filter(Boolean).join(' ').trim();
-  if (pettorale != null && pettorale !== '') {
-    return nomeCognome ? `${nomeCognome} (Pett. ${pettorale})` : `Pettorale ${pettorale}`;
-  }
+  if (nomeCognome) return nomeCognome;
   const nome = String(paziente.nome ?? '').trim();
   if (nome) return nome;
   return buildCodiceMinoreTrasportoNome(paziente) || paziente.idPaziente || '—';

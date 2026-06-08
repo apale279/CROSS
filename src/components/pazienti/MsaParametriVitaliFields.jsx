@@ -36,15 +36,15 @@ export function MsaParametriVitaliFields({ parametri, onPatch }) {
     <div className="space-y-3 rounded border border-violet-200 bg-violet-50/40 p-3">
       <p className="text-xs font-bold uppercase text-violet-900">Parametri vitali</p>
 
-      <FormField label="GCS (1–15)">
+      <FormField label="GCS (3–15)">
         <input
           type="number"
-          min={1}
+          min={3}
           max={15}
           className={inputClass}
           value={vitalInputValue(d.gcs)}
           placeholder="—"
-          onChange={(e) => patchVital(onPatch, 'gcs', e.target.value, { min: 1, max: 15, integer: true })}
+          onChange={(e) => patchVital(onPatch, 'gcs', e.target.value, { min: 3, max: 15, integer: true })}
         />
       </FormField>
 

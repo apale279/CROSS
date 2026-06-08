@@ -10,17 +10,35 @@ import {
   normalizeStatoPzPma,
   pazienteHaDestinazionePma,
   pazientePmaChiuso,
+  canConvertToCodiceMinore,
   STATO_PZ_PMA,
   statoPzPmaLabel,
 } from '../../../lib/pmaModule';
 import { chiusuraCentraleLabel, isChiusoCentrale, statoCentraleLabel } from '../../../lib/pazienteStati';
 import { invioPsSoreuPatchForScheda, invioPsSoreuFieldsFromScheda } from '../../../lib/invioPsSoreu';
+
+const SOREU_PARTIAL_TO_SCHEDA_PATH = {
+  soreuOraMissione: 'invio_ps_soreu_ora_missione',
+  soreuNumeroMissione: 'invio_ps_soreu_numero_missione',
+  soreuAccompagnato: 'invio_ps_soreu_accompagnato',
+  soreuCodice: 'invio_ps_soreu_codice',
+};
+
+function soreuSchedaPathValuesEqual(a, b) {
+  if (a === b) return true;
+  if (a == null && b == null) return true;
+  if (typeof a?.toMillis === 'function' && typeof b?.toMillis === 'function') {
+    return a.toMillis() === b.toMillis();
+  }
+  return JSON.stringify(a) === JSON.stringify(b);
+}
 import {
   isSchedaInSolaVisione,
   isSchedaModificaForzata,
   isSchedaModificabile,
 } from '../../../lib/schedaSolaVisione';
 import { patchPaziente } from '../../../services/pazientiService';
+import { convertPazienteToCodiceMinore } from '../../../services/pmaCodiceMinoreService';
 import { InvioPsSoreuTrasportoBlock } from '../InvioPsSoreuTrasportoBlock';
 import { SchedaUnlockBar } from '../SchedaUnlockBar';
 import { isVistaCentrale, isVistaPma, moduliSchedaPaziente, VISTA_SCHEDA } from '../../../lib/pazienteSchedaModuli';
@@ -30,6 +48,7 @@ import { usePmaClinicaListe } from '../../../pma/hooks/usePmaClinicaListe';
 import { PazienteAnagraficaPmaTab } from '../PazienteAnagraficaPmaTab';
 import { DettaglioPaziente } from '../../../pma/components/scheda-paziente/DettaglioPaziente';
 import { CartellaClinicaSection } from '../../../pma/components/scheda-paziente/CartellaClinicaSection';
+import { TriageSection } from '../../../pma/components/scheda-paziente/TriageSection';
 import { DimissioneSection } from '../../../pma/components/scheda-paziente/DimissioneSection';
 import {
   filterPmaShellTabsByRank,
@@ -41,7 +60,7 @@ import { schedaTabDimissioneAllows } from '../../../pma/lib/rankMatrix';
 import { PmaFieldPresenceProvider } from '../../../pma/context/PmaFieldPresenceContext';
 import { PazienteModuloCentrale } from './PazienteModuloCentrale';
 import { PmaPazientePanel } from '../PmaPazientePanel';
-import { effectivePmaUserRank, normalizePmaRank } from '../../../lib/userAccess';
+import { effectivePmaUserRank, isPmaMedicoAccount, normalizePmaRank } from '../../../lib/userAccess';
 import { IS_SUPERADMIN } from '../../../constants';
 import { findEvento } from '../../../lib/eventoLinks';
 import { COLLECTIONS } from '../../../lib/firestorePaths';
@@ -91,6 +110,7 @@ export function PazienteModuloPma({
   const [saveError, setSaveError] = useState(null);
   const [tipoEv, setTipoEv] = useState('');
   const [dettaglioEv, setDettaglioEv] = useState('');
+  const [rendiCodiceMinoreBusy, setRendiCodiceMinoreBusy] = useState(false);
 
   useEffect(() => {
     if (initialTab) setActiveTab(initialTab);
@@ -113,7 +133,8 @@ export function PazienteModuloPma({
     return crossDocToPazienteView(rawDoc, manifestationId, pmaId);
   }, [rawDoc, manifestationId, pmaId]);
 
-  const operativeRank = effectivePmaUserRank(profile, IS_SUPERADMIN);
+  const operativeRank =
+    effectivePmaUserRank(profile, IS_SUPERADMIN) ?? normalizePmaRank(profile?.pmaRank);
 
   const pmaUser = user
     ? {
@@ -124,6 +145,7 @@ export function PazienteModuloPma({
         firma_medico_base64: profile?.firma_medico_base64 ?? null,
         firma_medico_svg: profile?.firma_medico_svg ?? null,
         firmaUrl: profile?.firmaUrl ?? null,
+        note_personali: profile?.note_personali ?? null,
       }
     : null;
   const schedaReadonly = rawDoc ? isPmaSchedaReadonly(rawDoc) : false;
@@ -137,13 +159,40 @@ export function PazienteModuloPma({
     schedaEditAllowed &&
     (vistaPma || rawDoc?.schedaModificaForzata === true || canEditPmaCentraleInCarico);
   const isAutopresentato = rawDoc ? isPazienteOriginePma(rawDoc) : false;
+  const hasPmaScheda = Boolean(rawDoc?.pmaScheda);
   const shellTabs = useMemo(() => {
-    const base = clinicalOnly ? PMA_CLINICAL_SHELL_TABS : pmaShellTabsFor(isAutopresentato);
+    const base = clinicalOnly
+      ? PMA_CLINICAL_SHELL_TABS
+      : pmaShellTabsFor(isAutopresentato, { hasPmaScheda });
     if (!operativeRank) return base;
     return filterPmaShellTabsByRank(base, operativeRank);
-  }, [clinicalOnly, isAutopresentato, operativeRank]);
+  }, [clinicalOnly, isAutopresentato, operativeRank, hasPmaScheda]);
   const canEditStatoPma = vistaPma && isAutopresentato && !schedaReadonly;
   const canEditAnagraficaAutopresentato = vistaPma && isAutopresentato && !schedaReadonly;
+  const canEditColore = vistaPma && rawDoc && !pazientePmaChiuso(rawDoc);
+  const canConvertCm = Boolean(rawDoc && canConvertToCodiceMinore(rawDoc));
+  const statoPmaNorm = normalizeStatoPzPma(rawDoc?.statoPzPma);
+  const showRendiCodiceMinoreInAnagrafica =
+    vistaPma && canConvertCm && statoPmaNorm === STATO_PZ_PMA.IN_CARICO;
+
+  const handleRendiCodiceMinore = useCallback(async () => {
+    if (!rawDoc || !manifestationId || !patientDocId || !pmaId) return;
+    if (
+      !window.confirm(
+        'Trasformare questo paziente in codice minore (fast track astanteria)? I dati centrale e la scheda clinica restano archiviati.',
+      )
+    ) {
+      return;
+    }
+    setRendiCodiceMinoreBusy(true);
+    try {
+      await convertPazienteToCodiceMinore(manifestationId, patientDocId, pmaId, rawDoc);
+    } catch (err) {
+      alert(err?.message ?? 'Errore conversione');
+    } finally {
+      setRendiCodiceMinoreBusy(false);
+    }
+  }, [rawDoc, manifestationId, patientDocId, pmaId]);
 
   const write = useCallback(
     async (patch) => {
@@ -165,19 +214,19 @@ export function PazienteModuloPma({
     if (!p) return;
     setTipoEv(p.tipo_evento || eventoResolved?.tipoEvento || '');
     setDettaglioEv(p.dettaglio_evento || eventoResolved?.dettaglioEvento || '');
-  }, [p, eventoResolved?.tipoEvento, eventoResolved?.dettaglioEvento]);
-
-  useEffect(() => {
-    if (isAutopresentato && activeTab === 'dati_centrale') {
-      setActiveTab('anagrafica');
-    }
-  }, [isAutopresentato, activeTab]);
+  }, [p?.id, eventoResolved?.tipoEvento, eventoResolved?.dettaglioEvento]);
 
   useEffect(() => {
     if (clinicalOnly && activeTab !== 'cartella' && activeTab !== 'dimissione') {
       setActiveTab('cartella');
     }
   }, [clinicalOnly, activeTab]);
+
+  useEffect(() => {
+    if (clinicalOnly) return;
+    if (shellTabs.some((t) => t.id === activeTab)) return;
+    setActiveTab(shellTabs[0]?.id ?? 'cartella');
+  }, [clinicalOnly, shellTabs, activeTab]);
 
   useEffect(() => {
     if (!pmaUser || !rawDoc || !manifestationId || !patientDocId) return;
@@ -275,10 +324,26 @@ export function PazienteModuloPma({
       onFlushEvento={flushEvento}
       showEventoDettaglio={haDettaglioEvento}
       eventoEditable={isAutopresentato && canEditAnagraficaAutopresentato}
+      canEditColore={canEditColore}
+      showRendiCodiceMinore={showRendiCodiceMinoreInAnagrafica}
+      rendiCodiceMinoreAtTop
+      onRendiCodiceMinore={handleRendiCodiceMinore}
+      rendiCodiceMinoreBusy={rendiCodiceMinoreBusy}
+      pmaId={pmaId}
+      vistaPma={vistaPma}
     />
   );
 
-  const defaultDatiCentrale = moduli?.eventoCentrale ? (
+  const messaggioAutopresentatoDatiCentrale = (
+    <p className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
+      Paziente autopresentato al PMA: nessun dato operativo da centrale (evento, missione, esito
+      trasporto, valutazioni MSB/MSA).
+    </p>
+  );
+
+  const defaultDatiCentrale = isAutopresentato ? (
+    messaggioAutopresentatoDatiCentrale
+  ) : moduli?.eventoCentrale ? (
     <PazienteModuloCentrale
       manifestationId={manifestationId}
       patientDocId={patientDocId}
@@ -287,10 +352,7 @@ export function PazienteModuloPma({
       missioniEvento={missioniEvento}
     />
   ) : (
-    <p className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
-      Paziente autopresentato al PMA: nessun dato operativo da centrale (evento, missione, esito
-      trasporto, valutazioni MSB/MSA).
-    </p>
+    messaggioAutopresentatoDatiCentrale
   );
 
   const canEditDimissioneTab = Boolean(
@@ -312,6 +374,16 @@ export function PazienteModuloPma({
   const shellPanels = {
     anagrafica: anagraficaPanel ?? defaultAnagrafica,
     dati_centrale: datiCentralePanel ?? defaultDatiCentrale,
+    triage: hasPmaScheda ? (
+      <TriageSection
+        pazienteId={patientDocId}
+        p={p}
+        canEdit={canEditPma}
+        write={write}
+        user={pmaUser}
+        embedded
+      />
+    ) : null,
     cartella: (
       <CartellaClinicaSection
         pazienteId={patientDocId}
@@ -327,7 +399,7 @@ export function PazienteModuloPma({
         <DimissioneSection
           p={p}
           user={pmaUser}
-          isMedico={pmaUser?.rank === 'Medico'}
+          isMedico={isPmaMedicoAccount(profile) || pmaUser?.rank === 'Medico'}
           canEditDimissioneTab={canEditDimissioneTab}
           canEditScheda={canEditPma}
           write={write}
@@ -348,16 +420,31 @@ export function PazienteModuloPma({
           soreuReadOnly={!schedaModificabile}
           onWriteSoreu={async (partial) => {
             if (!schedaModificabile || !manifestationId || !patientDocId) return;
-            const merged = {
-              ...invioPsSoreuFieldsFromScheda(rawDoc.pmaScheda ?? {}),
-              ...partial,
-            };
-            await patchPazientePmaGranular(
-              manifestationId,
-              patientDocId,
-              invioPsSoreuPatchForScheda(merged),
-              { operatorUid: user?.uid ?? null },
-            );
+            if (!partial || Object.keys(partial).length === 0) return;
+
+            const current = invioPsSoreuFieldsFromScheda(rawDoc.pmaScheda ?? {});
+            const currentPaths = invioPsSoreuPatchForScheda(current);
+            const nextPaths = invioPsSoreuPatchForScheda({ ...current, ...partial });
+            const patch = {};
+
+            for (const [key, schedaPath] of Object.entries(SOREU_PARTIAL_TO_SCHEDA_PATH)) {
+              if (!(key in partial)) continue;
+              if (!soreuSchedaPathValuesEqual(nextPaths[schedaPath], currentPaths[schedaPath])) {
+                patch[schedaPath] = nextPaths[schedaPath];
+              }
+            }
+
+            if ('invio_ps_ospedale' in partial) {
+              const prev = String(rawDoc.pmaScheda?.invio_ps_ospedale ?? '').trim();
+              const next = String(partial.invio_ps_ospedale ?? '').trim();
+              if (next !== prev) patch.invio_ps_ospedale = next;
+            }
+
+            if (Object.keys(patch).length === 0) return;
+
+            await patchPazientePmaGranular(manifestationId, patientDocId, patch, {
+              operatorUid: user?.uid ?? null,
+            });
           }}
           onOpenEvento={(ev) => {
             const full = eventi.find((e) => e._docId === ev._docId) ?? ev;
@@ -384,7 +471,7 @@ export function PazienteModuloPma({
     rawDoc &&
     (isSchedaInSolaVisione(rawDoc) || isSchedaModificaForzata(rawDoc));
   const mobileDiarioVisible =
-    mobileVistaPma && noteDiario.some((n) => n.importante === true);
+    mobileVistaPma && (noteDiario?.some((n) => n.importante === true) ?? false);
   const mobileAlertSlot =
     mobileUnlockVisible || mobileDiarioVisible ? (
       <>
@@ -397,16 +484,18 @@ export function PazienteModuloPma({
           />
         ) : null}
         {mobileUnlockVisible ? (
-          <SchedaUnlockBar
-            compact
-            paziente={rawDoc}
-            onToggleModifica={async (forced) => {
-              if (!manifestationId || !patientDocId) return;
-              await patchPaziente(manifestationId, patientDocId, {
-                schedaModificaForzata: forced,
-              });
-            }}
-          />
+          <div className="mx-3 flex justify-end">
+            <SchedaUnlockBar
+              compact
+              paziente={rawDoc}
+              onToggleModifica={async (forced) => {
+                if (!manifestationId || !patientDocId) return;
+                await patchPaziente(manifestationId, patientDocId, {
+                  schedaModificaForzata: forced,
+                });
+              }}
+            />
+          </div>
         ) : null}
       </>
     ) : null;
@@ -434,47 +523,35 @@ export function PazienteModuloPma({
       )}
 
       {!mobileVistaPma ? (
-        <dl className="grid gap-2 text-sm sm:grid-cols-2">
-          <div>
-            <dt className="text-xs font-medium text-slate-500">Medico di riferimento</dt>
-            <dd className="font-semibold text-slate-800">{p.medico_rif?.trim() || '—'}</dd>
+        <div
+          className={
+            hideSchedaUnlockBar
+              ? 'grid shrink-0 gap-2 text-sm sm:grid-cols-2'
+              : 'grid shrink-0 grid-cols-[1fr_1fr_auto] items-end gap-x-3 px-3 text-sm sm:gap-x-4 sm:px-4'
+          }
+        >
+          <div className="min-w-0 text-left">
+            <p className="text-xs font-medium text-slate-500">Medico di riferimento</p>
+            <p className="truncate font-semibold text-slate-800">{p.medico_rif?.trim() || '—'}</p>
           </div>
-          <div>
-            <dt className="text-xs font-medium text-slate-500">Infermiere di riferimento</dt>
-            <dd className="font-semibold text-slate-800">{p.infermiere_rif?.trim() || '—'}</dd>
+          <div className={`min-w-0 ${hideSchedaUnlockBar ? '' : 'text-center'}`}>
+            <p className="text-xs font-medium text-slate-500">Infermiere di riferimento</p>
+            <p className="truncate font-semibold text-slate-800">{p.infermiere_rif?.trim() || '—'}</p>
           </div>
-        </dl>
-      ) : null}
-
-      {!mobileVistaPma &&
-        vistaPma &&
-        !isPazienteOriginePma(rawDoc) &&
-        pazienteHaDestinazionePma(rawDoc) &&
-        (normalizeStatoPzPma(rawDoc.statoPzPma) === STATO_PZ_PMA.IN_ARRIVO ||
-          normalizeStatoPzPma(rawDoc.statoPzPma) == null) && (
-          <p className="rounded-lg bg-sky-50 px-3 py-2 text-xs text-sky-900">
-            Paziente <strong>in arrivo</strong>: puoi consultare i dati centrale in sola lettura. Per
-            modificare la cartella PMA usa <strong>Prendi in carico</strong> dal desk.
-          </p>
-        )}
-
-      {!mobileVistaPma && schedaReadonly && (
-        <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900">
-          Scheda in sola visione. Usa <strong>Sblocca modifica</strong> in alto per modificare cartella
-          e dimissione.
-        </p>
-      )}
-
-      {!mobileVistaPma && !hideSchedaUnlockBar ? (
-        <SchedaUnlockBar
-          paziente={rawDoc}
-          onToggleModifica={async (forced) => {
-            if (!manifestationId || !patientDocId) return;
-            await patchPaziente(manifestationId, patientDocId, {
-              schedaModificaForzata: forced,
-            });
-          }}
-        />
+          {!hideSchedaUnlockBar ? (
+            <div className="flex shrink-0 items-end justify-end pb-px">
+              <SchedaUnlockBar
+                paziente={rawDoc}
+                onToggleModifica={async (forced) => {
+                  if (!manifestationId || !patientDocId) return;
+                  await patchPaziente(manifestationId, patientDocId, {
+                    schedaModificaForzata: forced,
+                  });
+                }}
+              />
+            </div>
+          ) : null}
+        </div>
       ) : null}
 
       {vistaCentrale && !canEditPma && rawDoc.statoPzPma === STATO_PZ_PMA.IN_CARICO && (

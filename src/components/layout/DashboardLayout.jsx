@@ -6,6 +6,7 @@ import { PmaOperatorBottomNav } from './PmaOperatorBottomNav';
 import { usePmaFieldUx } from '../../pma/hooks/usePmaFieldUx';
 import { ActivityRouteListener } from '../auth/ActivityRouteListener';
 import { PmaArrivoAlertListener } from '../pma/PmaArrivoAlertListener';
+import { PmaChiamaTriageAlertListener } from '../pma/PmaChiamaTriageAlertListener';
 import { PmaDiarioAlertListener } from '../pma/PmaDiarioAlertListener';
 import { SosAlertListener } from '../sos/SosAlertListener';
 
@@ -20,6 +21,7 @@ export function DashboardLayout() {
       <SosAlertListener />
       <PmaDiarioAlertListener />
       <PmaArrivoAlertListener />
+      <PmaChiamaTriageAlertListener />
       <div className="flex h-screen flex-col bg-slate-100">
         <AppHeader />
         <PmaOperatorBottomNav />

@@ -3,6 +3,7 @@ import { collection, onSnapshot } from 'firebase/firestore';
 import { db } from '../cross/firebase';
 import { pazienteValutazioniSoccorsoPathSegments } from '../../lib/firestorePaths';
 import { normalizeValutazioniSoccorso } from '../../lib/pazienteValutazioniSoccorso';
+import { etaDaDataNascita } from '../../lib/excelPartecipanti';
 import { formatTimestamp } from '../../utils/formatters';
 import { TIPO_PZ } from '../../lib/pmaModule';
 import { PazienteAnagraficaFields } from '../../components/pazienti/PazienteAnagraficaFields';
@@ -85,20 +86,45 @@ export function PmaSchedaRiepilogo({
     return () => unsub();
   }, [manifestationId, docId]);
 
-  const flushAnagrafica = async (draft: typeof anagDraft) => {
+  const flushAnagraficaField = async (key: string, draft: typeof anagDraft) => {
     if (!write) return;
-    await write({
-      nome: draft.nome.trim(),
-      cognome: draft.cognome.trim(),
-      pettorale: draft.pettorale === '' ? null : Number(draft.pettorale),
-      telefono: draft.telefono.trim(),
-      comune: draft.comune.trim(),
-      indirizzo: draft.indirizzo.trim(),
-      dataNascita: draft.dataNascita.trim(),
-      sesso: draft.sesso.trim(),
-      note_centrale: draft.notePaziente.trim(),
-      ...(draft.eta !== '' ? { eta: Number(draft.eta) } : { eta: null }),
-    });
+    switch (key) {
+      case 'nome':
+        await write({ nome: draft.nome.trim() });
+        break;
+      case 'cognome':
+        await write({ cognome: draft.cognome.trim() });
+        break;
+      case 'pettorale':
+        await write({ pettorale: draft.pettorale === '' ? null : Number(draft.pettorale) });
+        break;
+      case 'telefono':
+        await write({ telefono: draft.telefono.trim() });
+        break;
+      case 'comune':
+        await write({ comune: draft.comune.trim() });
+        break;
+      case 'indirizzo':
+        await write({ indirizzo: draft.indirizzo.trim() });
+        break;
+      case 'dataNascita':
+        await write({
+          dataNascita: draft.dataNascita.trim(),
+          eta: etaDaDataNascita(draft.dataNascita),
+        });
+        break;
+      case 'eta':
+        await write(draft.eta !== '' ? { eta: Number(draft.eta) } : { eta: null });
+        break;
+      case 'sesso':
+        await write({ sesso: draft.sesso.trim() });
+        break;
+      case 'notePaziente':
+        await write({ note_centrale: draft.notePaziente.trim() });
+        break;
+      default:
+        break;
+    }
   };
 
   const flushEvento = async (tipo: string, dettaglio: string) => {
@@ -128,7 +154,12 @@ export function PmaSchedaRiepilogo({
           <PazienteAnagraficaFields
             draft={anagDraft}
             onChange={(key, value) => setAnagDraft((d) => ({ ...d, [key]: value }))}
-            onBlurField={() => void flushAnagrafica(anagDraft)}
+            onBlurField={(key, value) =>
+              void flushAnagraficaField(
+                key,
+                value !== undefined ? { ...anagDraft, [key]: value } : anagDraft,
+              )
+            }
           />
         ) : (
           <dl className="grid gap-2 text-sm sm:grid-cols-2">

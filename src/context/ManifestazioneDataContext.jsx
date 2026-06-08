@@ -71,6 +71,12 @@ export function ManifestazioneDataProvider({ children }) {
       setLoading((prev) => ({ ...prev, [key]: false }));
     };
 
+    const onCollectionError = (key) => (err) => {
+      reportError(err);
+      setError(err?.message ?? 'Errore Firestore');
+      markLoaded(key);
+    };
+
     const unsubs = [
       subscribeNested(
         PATH_BY_KEY.eventi,
@@ -80,10 +86,7 @@ export function ManifestazioneDataProvider({ children }) {
           markLoaded('eventi');
         },
         reportSync,
-        (err) => {
-          setError(err.message);
-          markLoaded('eventi');
-        },
+        onCollectionError('eventi'),
       ),
       subscribeNested(
         PATH_BY_KEY.missioni,
@@ -93,10 +96,7 @@ export function ManifestazioneDataProvider({ children }) {
           markLoaded('missioni');
         },
         reportSync,
-        (err) => {
-          setError(err.message);
-          markLoaded('missioni');
-        },
+        onCollectionError('missioni'),
       ),
       subscribeNested(
         PATH_BY_KEY.mezzi,
@@ -106,10 +106,7 @@ export function ManifestazioneDataProvider({ children }) {
           markLoaded('mezzi');
         },
         reportSync,
-        (err) => {
-          setError(err.message);
-          markLoaded('mezzi');
-        },
+        onCollectionError('mezzi'),
       ),
       subscribeNested(
         PATH_BY_KEY.pazienti,
@@ -119,10 +116,7 @@ export function ManifestazioneDataProvider({ children }) {
           markLoaded('pazienti');
         },
         reportSync,
-        (err) => {
-          setError(err.message);
-          markLoaded('pazienti');
-        },
+        onCollectionError('pazienti'),
       ),
       subscribeNested(
         PATH_BY_KEY.note_diario,
@@ -132,10 +126,7 @@ export function ManifestazioneDataProvider({ children }) {
           markLoaded('noteDiario');
         },
         reportSync,
-        (err) => {
-          setError(err.message);
-          markLoaded('noteDiario');
-        },
+        onCollectionError('noteDiario'),
       ),
     ];
 

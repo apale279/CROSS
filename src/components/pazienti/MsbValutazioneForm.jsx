@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { DEFAULT_IMPOSTAZIONI } from '../../constants';
 import {
   CUTE_OPTIONS,
@@ -42,11 +43,18 @@ function isMeccanicaActive(d, opt) {
   return mr.includes(opt.key);
 }
 
-export function MsbValutazioneForm({ msbDetails, onPatch, mezziEventoSigle }) {
+export function MsbValutazioneForm({ valuationId, msbDetails, onPatch, mezziEventoSigle }) {
   const { impostazioni } = useImpostazioni();
   const catalogPresidi = listaMsbMsaPresidi(impostazioni);
   const catalogPrestazioniMsb = listaPrestazioniMsb(impostazioni);
   const d = normalizeMsbDetails(msbDetails);
+  const [appDraft, setAppDraft] = useState(() => d.app ?? '');
+  const [descrizioneDraft, setDescrizioneDraft] = useState(() => d.descrizione ?? '');
+
+  useEffect(() => {
+    setAppDraft(d.app ?? '');
+    setDescrizioneDraft(d.descrizione ?? '');
+  }, [valuationId]);
 
   return (
     <div className="space-y-3 border-l-2 border-teal-300 pl-3">
@@ -241,8 +249,9 @@ export function MsbValutazioneForm({ msbDetails, onPatch, mezziEventoSigle }) {
         <textarea
           className={inputClass}
           rows={2}
-          value={d.app ?? ''}
-          onChange={(e) => onPatch({ app: e.target.value })}
+          value={appDraft}
+          onChange={(e) => setAppDraft(e.target.value)}
+          onBlur={() => onPatch({ app: appDraft })}
         />
       </FormField>
 
@@ -250,8 +259,9 @@ export function MsbValutazioneForm({ msbDetails, onPatch, mezziEventoSigle }) {
         <textarea
           className={inputClass}
           rows={3}
-          value={d.descrizione ?? ''}
-          onChange={(e) => onPatch({ descrizione: e.target.value })}
+          value={descrizioneDraft}
+          onChange={(e) => setDescrizioneDraft(e.target.value)}
+          onBlur={() => onPatch({ descrizione: descrizioneDraft })}
         />
       </FormField>
 

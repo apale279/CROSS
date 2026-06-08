@@ -6,6 +6,7 @@
  *
  * Output → ./Dati esportati_local/YYYYMMDD-HHmmss/
  *   eventi.csv  missioni.csv  mezzi.csv  pazienti.csv  valutazioni.csv
+ *   json/*.json  (dump Firestore completo)
  *   viewer.html
  *   reports/evento_E1.html  reports/paziente_P1.html  …
  */
@@ -225,7 +226,135 @@ async function selectTenant() {
   return docs[idx].id;
 }
 
-// ─── CSV: appiattisce pmaScheda ───────────────────────────────────────────────
+// ─── Export completo: serializzazione Firestore → CSV / JSON ─────────────────
+const MISSION_STATI_ORDER = [
+  'ALLERTARE', 'ALLERTATO', 'PARTITO', 'IN POSTO', 'DIRETTO H',
+  'ARRIVATO H', 'RIENTRO', 'FINE MISSIONE', 'ANNULLATA',
+];
+
+function storicoColName(statoKey) {
+  return 'storico_' + String(statoKey).replace(/\s+/g, '_');
+}
+
+function serializeForExportNode(value, seen = new WeakSet()) {
+  if (value == null) return null;
+  if (typeof value !== 'object') return value;
+  if (seen.has(value)) return '[Circular]';
+  if (typeof value._seconds === 'number')
+    return new Date(value._seconds * 1000).toISOString();
+  if (typeof value.toDate === 'function') {
+    try { return value.toDate().toISOString(); } catch { return null; }
+  }
+  if (Array.isArray(value)) {
+    seen.add(value);
+    return value.map(v => serializeForExportNode(v, seen));
+  }
+  if (typeof value.latitude === 'number' && typeof value.longitude === 'number') {
+    return { latitude: value.latitude, longitude: value.longitude };
+  }
+  seen.add(value);
+  const out = {};
+  for (const [k, v] of Object.entries(value)) {
+    out[k] = serializeForExportNode(v, seen);
+  }
+  return out;
+}
+
+function cellSerializeNode(value) {
+  if (value == null) return '';
+  if (typeof value === 'object') return JSON.stringify(serializeForExportNode(value));
+  return String(value);
+}
+
+function expandStoricoStatiColumns(storico) {
+  const out = {};
+  if (!storico || typeof storico !== 'object') return out;
+  for (const k of MISSION_STATI_ORDER) {
+    if (storico[k] != null) out[storicoColName(k)] = tsStr(storico[k]);
+  }
+  for (const [k, v] of Object.entries(storico)) {
+    const col = storicoColName(k);
+    if (!out[col]) out[col] = tsStr(v);
+  }
+  return out;
+}
+
+function formatStoricoStatiInline(storico) {
+  if (!storico || typeof storico !== 'object') return '—';
+  const parts = [];
+  for (const k of MISSION_STATI_ORDER) {
+    if (storico[k] != null) parts.push(`${k}: ${tsStr(storico[k])}`);
+  }
+  for (const [k, v] of Object.entries(storico)) {
+    if (!MISSION_STATI_ORDER.includes(k)) parts.push(`${k}: ${tsStr(v)}`);
+  }
+  return parts.length ? parts.join(' · ') : '—';
+}
+
+function docToFullCsvRow(doc) {
+  const row = { _docId: doc._docId };
+  for (const [key, value] of Object.entries(doc)) {
+    if (key === '_docId') continue;
+    if (key === 'pmaScheda') {
+      row.pmaScheda_json = cellSerializeNode(value ?? {});
+      continue;
+    }
+    if (key === 'codiceMinore') {
+      row.codiceMinore_json = cellSerializeNode(value ?? {});
+      continue;
+    }
+    if (key === 'storicoStati') {
+      Object.assign(row, expandStoricoStatiColumns(value));
+      row.storicoStati_json = cellSerializeNode(value ?? {});
+      continue;
+    }
+    if (key === 'msbDetails') {
+      row.msbDetails_json = cellSerializeNode(value ?? null);
+      continue;
+    }
+    if (key === 'msaDetails') {
+      row.msaDetails_json = cellSerializeNode(value ?? null);
+      continue;
+    }
+    if (key === 'tratteMissione') {
+      row.tratteMissione_json = cellSerializeNode(value ?? []);
+      continue;
+    }
+    if (key === 'stazionamento') {
+      row.stazionamento_json = cellSerializeNode(value ?? {});
+      continue;
+    }
+    if (key === 'posizioneReale') {
+      row.posizioneReale_json = cellSerializeNode(value ?? null);
+      continue;
+    }
+    if (key === 'pazienteRiferimento') {
+      row.pazienteRiferimento_json = cellSerializeNode(value ?? null);
+      continue;
+    }
+    row[key] = flatVal(value);
+  }
+  return row;
+}
+
+function flattenMezzoFullCsv(m) {
+  const s = m.stazionamento ?? {};
+  const pr = m.posizioneReale?.coordinate ?? m.posizioneReale ?? {};
+  const row = docToFullCsvRow(m);
+  row.stazione_indirizzo = s.indirizzo ?? '';
+  row.stazione_luogo_fisico = s.luogo_fisico ?? '';
+  row.posizioneReale_lat = pr?.lat ?? pr?._lat ?? '';
+  row.posizioneReale_lng = pr?.lng ?? pr?._long ?? pr?.longitude ?? '';
+  return row;
+}
+
+function flattenPazienteFullCsv(p) {
+  const row = docToFullCsvRow(p);
+  row.codiceColoreSanitario_export = pazienteColoreExport(p);
+  return row;
+}
+
+// ─── CSV legacy: appiattisce pmaScheda (solo riepilogo) ───────────────────────
 function pazienteColoreExport(p) {
   const san = String(p?.codiceColoreSanitario ?? p?.codiceColore ?? '').trim();
   if (san) return san;
@@ -408,8 +537,10 @@ function buildPazienteHtml(pz, valutazioni, exportDate) {
         ${coloreBadge(colore)}
       </div>
       <div style="font-size:10pt;margin-top:1mm;color:#37474f">
-        Stato Centrale: <b>${esc(pz.stato||'—')}</b>
+        Tipo: <b>${esc(pz.tipoPz||'CENTRALE')}</b>
+        &nbsp;|&nbsp; Stato Centrale: <b>${esc(pz.stato||'—')}</b>
         ${pz.statoPzPma?` &nbsp;|&nbsp; PMA: <b>${esc(pz.statoPzPma)}</b>`:''}
+        ${pz.pmaId||pz.destinazionePmaId?` &nbsp;|&nbsp; PMA dest.: <b>${esc(pz.destinazionePmaId||pz.pmaId||'—')}</b>`:''}
       </div>
     </div>
     <div class="hright">
@@ -434,6 +565,26 @@ function buildPazienteHtml(pz, valutazioni, exportDate) {
     ${fld('Evento',pz.eventoCorrelato||'')} ${fld('Missione',pz.idMissione||'')} ${fld('Mezzo',pz.mezzo||'')}
     ${fld('Ospedale destinazione',pz.ospedaleDestinazione||'')} ${fld('Esito',pz.esito||'')} ${fld('Arrivato H',tsStr(pz.arrivatoHAt)||'')}
   </div>
+
+  ${(() => {
+    const cm = pz.codiceMinore || {};
+    const hasCm = pz.tipoPz === 'CODICE MINORE' || Object.keys(cm).some(k => cm[k] != null && cm[k] !== '');
+    if (!hasCm) return '';
+    const foto = Array.isArray(cm.foto) ? cm.foto : [];
+    return `
+  <h2>Codice minore (astanteria PMA)</h2>
+  <div class="g3">
+    ${fld('Motivo arrivo', cm.motivoArrivo || '')}
+    ${fld('Trattamento', cm.trattamento || '')}
+    ${fld('Da trasporto centrale', cm.daTrasportoCentrale ? 'SÌ' : 'NO')}
+    ${fld('Ora arrivo', tsStr(cm.oraArrivo) || '')}
+    ${fld('Ora fine', tsStr(cm.oraFine) || '')}
+    ${fld('Provenienza trasporto', cm.provenienzaTrasporto || '')}
+  </div>
+  ${foto.length ? `<h3>Foto (${foto.length})</h3><div class="g2">${foto.map((f, i) => `
+    <div class="field"><div class="lbl">Foto ${i + 1}</div><div class="val">${esc(f.nome || f.id || '—')}${f.url ? ` — ${esc(f.url)}` : ''}</div></div>
+  `).join('')}</div>` : ''}`;
+  })()}
 
   ${hasPma ? `
   <h2>Cartella clinica PMA</h2>
@@ -507,7 +658,10 @@ function buildEventoHtml(evento, missioni, pazienti, valutazioniPerPz, exportDat
         <td><b>${esc(m.idMissione||'—')}</b></td><td>${esc(m.mezzo||'—')}</td>
         <td><b>${esc(m.stato||'—')}</b></td><td>${coloreBadge(m.codiceColoreMissione||'')}</td>
         <td>${esc(m.ospedaleDestinazione||'—')}</td><td>${esc(m.esitoMissione||'—')}</td>
-        <td style="font-size:8.5pt">${esc(m.equipaggio||'—')}</td><td>${tsStr(m.apertura)||'—'}</td></tr>`).join('')
+        <td style="font-size:8.5pt">${esc(m.equipaggio||'—')}</td><td>${tsStr(m.apertura)||'—'}</td></tr>
+        <tr><td colspan="8" style="font-size:8pt;color:#555;background:#fafafa;padding:2mm 3mm">
+          <b>Storico stati:</b> ${esc(formatStoricoStatiInline(m.storicoStati))}
+        </td></tr>`).join('')
     : `<tr><td colspan="8" class="nd" style="text-align:center;padding:4mm">Nessuna missione collegata</td></tr>`;
 
   const pzRows = pzEvento.length
@@ -518,11 +672,15 @@ function buildEventoHtml(evento, missioni, pazienti, valutazioniPerPz, exportDat
         const pvStr = last ? `GCS:${last.gcs??'?'} FC:${last.fc??'?'} SpO₂:${last.spo2_aa??'?'}` : '—';
         const nVal = (valutazioniPerPz[p._docId]||[]).length;
         const dimLabel = {dimesso:'Dimesso',invio_ps:'PS',rifiuta_invio_ps:'Rifiuto',riaffidato:'Riaffid.',deceduto:'Deceduto',si_allontana:'Allont.'}[s.dimissione_esito]||s.dimissione_esito||'—';
+        const cm = p.codiceMinore || {};
+        const cmLabel = p.tipoPz === 'CODICE MINORE'
+          ? [cm.motivoArrivo, cm.trattamento].filter(Boolean).join(' — ') || 'CM'
+          : '';
         return `<tr>
           <td><b>${esc(String(p.pettorale??'—'))}</b></td>
-          <td><b>${esc([p.nome,p.cognome].filter(Boolean).join(' ')||'—')}</b></td>
+          <td><b>${esc([p.nome,p.cognome].filter(Boolean).join(' ')||'—')}</b> <span style="font-size:8pt;color:#666">${esc(p.tipoPz||'C')}</span></td>
           <td>${coloreBadge(pazienteColoreExport(p))}</td>
-          <td>${esc(p.stato||'—')}</td><td>${esc(p.statoPzPma||'—')}</td>
+          <td>${esc(p.stato||'—')}</td><td>${esc(p.statoPzPma||cmLabel||'—')}</td>
           <td>${esc(p.esito||'—')}</td><td>${esc(p.mezzo||'—')}</td>
           <td>${esc(p.ospedaleDestinazione||'—')}</td>
           <td style="font-size:8.5pt">${esc(pvStr)}</td>
@@ -628,18 +786,16 @@ function deepClean(val, key = '') {
 }
 
 /** Prepara un array di documenti Firestore per embedding sicuro nel viewer */
-function prepareRows(rows, extraFields = {}) {
+function prepareRows(rows, extraFn = null) {
   return rows.map(row => {
     const out = {};
     for (const [k, v] of Object.entries(row)) {
-      // Salta campi interni/inutili nel viewer
-      if (['pmaScheda','storicoStati','tratteMissione',
-           'firma_paziente_base64','dimissione_firma_medico_base64',
+      if (['pmaScheda', 'storicoStati', 'tratteMissione', 'codiceMinore',
+           'firma_paziente_base64', 'dimissione_firma_medico_base64',
            'manifestationId'].includes(k)) continue;
       out[k] = deepClean(v, k);
     }
-    // Aggiungi campi extra pre-calcolati
-    Object.assign(out, extraFields instanceof Function ? extraFields(row) : {});
+    if (typeof extraFn === 'function') Object.assign(out, extraFn(row));
     return out;
   });
 }
@@ -657,9 +813,13 @@ function buildViewer(tenantId, eventi, missioni, pazienti, valutazioni, exportDa
   // ── Pre-processa tutti i dati lato Node: Timestamp→stringa, base64 rimosso ──
   const PRIO = {
     eventi:     ['_report','idEvento','tipoEvento','luogo','colore','codiceColore','stato','apertura','createdAt','chiusuraIl'],
-    missioni:   ['idMissione','mezzo','stato','eventoCorrelato','codiceColoreMissione','ospedaleDestinazione','apertura','esitoMissione'],
-    pazienti:   ['_report','idPaziente','tipoPz','eventoCorrelato','pettorale','nome','cognome','codiceColoreSanitario','stato','statoPzPma','esito','mezzo','idMissione','ospedaleDestinazione','destinazionePmaId','apertura','arrivatoHAt','pma_codice_colore','pma_dimissione_esito','pma_parametri_n','pma_farmaci_n'],
-    valutazioni:['pazienteId','pettorale','nome','cognome','tipo','creatoIl','mezzo','testo'],
+    missioni:   ['idMissione','mezzo','stato','eventoCorrelato','codiceColoreMissione','ospedaleDestinazione','apertura','esitoMissione',
+      ...MISSION_STATI_ORDER.map(storicoColName)],
+    pazienti:   ['_report','idPaziente','tipoPz','eventoCorrelato','pettorale','nome','cognome','codiceColoreSanitario','stato','statoPzPma',
+      'codiceMinore_motivo','codiceMinore_trattamento','codiceMinore_oraArrivo','codiceMinore_oraFine','pmaScheda_presente',
+      'esito','mezzo','idMissione','ospedaleDestinazione','destinazionePmaId','apertura','arrivatoHAt',
+      'pma_parametri_n','pma_farmaci_n','pma_rivalutazioni_n','pma_codice_colore','pma_dimissione_esito'],
+    valutazioni:['pazienteId','pettorale','nome','cognome','tipo','creatoIl','mezzo','testo','msbDetails_summary','msaDetails_summary'],
   };
 
   // Helper: sanitizza ID per nome file (stesso algoritmo di main())
@@ -668,10 +828,20 @@ function buildViewer(tenantId, eventi, missioni, pazienti, valutazioni, exportDa
   // Pazienti: separa pmaScheda in campi flat leggibili + link report
   const pzView = prepareRows(pazienti, row => {
     const s = row.pmaScheda || {};
+    const cm = row.codiceMinore || {};
     const rid = sanId(row.idPaziente || row._docId);
+    const hasScheda = s && Object.keys(s).some(k =>
+      s[k] != null && s[k] !== '' && !(Array.isArray(s[k]) && s[k].length === 0));
     return {
       _report: rid ? `reports/paziente_${rid}.html` : '',
       codiceColoreSanitario: pazienteColoreExport(row),
+      pmaScheda_presente: hasScheda ? 'SÌ' : '',
+      codiceMinore_motivo: cm.motivoArrivo || '',
+      codiceMinore_trattamento: cm.trattamento || '',
+      codiceMinore_oraArrivo: tsStr(cm.oraArrivo) || '',
+      codiceMinore_oraFine: tsStr(cm.oraFine) || '',
+      codiceMinore_daTrasporto: cm.daTrasportoCentrale ? 'SÌ' : '',
+      codiceMinore_foto_n: Array.isArray(cm.foto) ? cm.foto.length : 0,
       pma_codice_colore:  s.codice_colore  || '',
       pma_dimissione_esito: s.dimissione_esito || '',
       pma_dimesso_at:     deepClean(s.dimesso_at, 'dimesso_at'),
@@ -697,8 +867,19 @@ function buildViewer(tenantId, eventi, missioni, pazienti, valutazioni, exportDa
     const rid = sanId(row.idEvento || row._docId);
     return { _report: rid ? `reports/evento_${rid}.html` : '' };
   });
-  const missioniView   = prepareRows(missioni);
-  const valutazioniView= prepareRows(valutazioni);
+  const missioniView   = prepareRows(missioni, row => expandStoricoStatiColumns(row.storicoStati));
+  const valutazioniView= prepareRows(valutazioni, row => {
+    const msb = row.msbDetails || {};
+    const msa = row.msaDetails || {};
+    return {
+      msbDetails_summary: row.tipo === 'MSB'
+        ? `AVPU:${msb.avpu||'?'} GCS:${msb.parametri?.gcs??'?'} col:${msb.codiceColore||''}`
+        : '',
+      msaDetails_summary: row.tipo === 'MSA'
+        ? `GCS:${msa.parametri?.gcs??'?'} col:${msa.codiceColore||''}${msa.acc?.dataOraAcc ? ' ACC' : ''}`
+        : '',
+    };
+  });
 
   const jsPRIO  = safeJsonEmbed(PRIO);
   const jsEv    = safeJsonEmbed(eventiView);
@@ -959,27 +1140,46 @@ async function main() {
   // Cartella output
   const now = new Date();
   const ts  = now.toISOString().replace(/[:.]/g,'-').slice(0,19);
-  const outDir = join(ROOT, 'Dati esportati_local', ts);
+  const customDir = process.argv.slice(2).join(' ').trim();
+  const folderName = customDir || ts;
+  const outDir = join(ROOT, 'Dati esportati_local', folderName);
   const repDir = join(outDir, 'reports');
+  const jsonDir = join(outDir, 'json');
   mkdirSync(repDir, { recursive: true });
+  mkdirSync(jsonDir, { recursive: true });
   const exportDate = now.toLocaleString('it-IT');
 
-  // CSV
-  console.log('\n📄  CSV…');
+  // CSV completo (tutti i campi Firestore + JSON nested + storico stati espanso)
+  console.log('\n📄  CSV (export completo)…');
+  const STORICO_COLS = MISSION_STATI_ORDER.map(storicoColName);
   const COLS_EV  = ['_docId','idEvento','chiamante','tipoEvento','dettaglioEvento','tipoLuogo','luogo','luogo_fisico','indirizzo','meteo','colore','noteEvento','stato','apertura','operativoTerminato','chiusuraIl','noteChiusura','tipoChiusuraEvento'];
-  const COLS_MIS = ['_docId','idMissione','eventoCorrelato','mezzo','stato','aperta','codiceColoreMissione','esitoMissione','ospedaleDestinazione','tipoTrasporto','equipaggio','noteMissione','apertura','statoDa'];
-  const COLS_MEZ = ['_docId','sigla','tipo','targa','radio','statoMezzo','operativo','noteOperativo','stazionamentoPredefinito','solamente_esterno','stazione_indirizzo','stazione_luogo_fisico','dettaglio_stazionamento','posizioneReale_lat','posizioneReale_lng','creatoIl'];
-  const COLS_VAL = ['pazienteDocId','pazienteId','pettorale','nome','cognome','tipo','creatoIl','mezzo','testo'];
-  const COLS_PZ  = ['_docId','idPaziente','idUnivoco','tipoPz','eventoCorrelato','eventoIdUnivoco','pettorale','nome','cognome','eta','sesso','dataNascita','codiceColoreSanitario','stato','statoPzPma','esito','esitoAltro','mezzo','idMissione','missioneIdUnivoco','ospedaleDestinazione','destinazionePmaId','pmaId','apertura','arrivatoHAt','aperta','notePaziente','soreuNumeroMissione','soreuCodice','pma_codice_colore','pma_dimissione_esito','pma_dimesso_at','pma_parametri_vitali_n','pma_farmaci_n','pma_rivalutazioni_n','pma_ultimi_parametri','pma_ultimi_parametri_ore','pma_farmaci_lista','pma_allergie','pma_apr','pma_app'];
+  const COLS_MIS = ['_docId','idMissione','eventoCorrelato','mezzo','stato','aperta','codiceColoreMissione','esitoMissione','ospedaleDestinazione','tipoTrasporto','equipaggio','noteMissione','apertura','statoDa', ...STORICO_COLS, 'storicoStati_json','tratteMissione_json','pazienteRiferimento_json'];
+  const COLS_MEZ = ['_docId','sigla','tipo','targa','radio','statoMezzo','operativo','noteOperativo','stazionamento_json','stazione_indirizzo','stazione_luogo_fisico','posizioneReale_json','posizioneReale_lat','posizioneReale_lng','creatoIl'];
+  const COLS_VAL = ['pazienteDocId','pazienteId','pettorale','nome','cognome','tipo','creatoIl','mezzo','testo','msbDetails_json','msaDetails_json'];
+  const COLS_PZ  = ['_docId','idPaziente','idUnivoco','tipoPz','eventoCorrelato','eventoIdUnivoco','pettorale','nome','cognome','eta','sesso','dataNascita','codiceColoreSanitario','codiceColoreSanitario_export','stato','statoPzPma','esito','esitoAltro','mezzo','idMissione','missioneIdUnivoco','ospedaleDestinazione','destinazionePmaId','pmaId','apertura','arrivatoHAt','aperta','notePaziente','pmaScheda_json','codiceMinore_json'];
 
-  const pzCsv = pazienti.map(flattenPazienteForCsv);
-  const mezziCsv = mezzi.map(flattenMezzoForCsv);
-  writeFileSync(join(outDir,'eventi.csv'),    toCsvOrdered(eventi,    COLS_EV),  'utf8');
-  writeFileSync(join(outDir,'missioni.csv'),  toCsvOrdered(missioni,  COLS_MIS), 'utf8');
+  const eventiCsv = eventi.map(docToFullCsvRow);
+  const missioniCsv = missioni.map(docToFullCsvRow);
+  const mezziCsv = mezzi.map(flattenMezzoFullCsv);
+  const pzCsv = pazienti.map(flattenPazienteFullCsv);
+  const valutazioniCsv = valutazioni.map(docToFullCsvRow);
+
+  writeFileSync(join(outDir,'eventi.csv'),    toCsvOrdered(eventiCsv,    COLS_EV),  'utf8');
+  writeFileSync(join(outDir,'missioni.csv'),  toCsvOrdered(missioniCsv,  COLS_MIS), 'utf8');
   writeFileSync(join(outDir,'mezzi.csv'),     toCsvOrdered(mezziCsv,  COLS_MEZ), 'utf8');
   writeFileSync(join(outDir,'pazienti.csv'),  toCsvOrdered(pzCsv,     COLS_PZ),  'utf8');
-  writeFileSync(join(outDir,'valutazioni.csv'),toCsvOrdered(valutazioni,COLS_VAL),'utf8');
-  console.log('   ✅  5 CSV generati');
+  writeFileSync(join(outDir,'valutazioni.csv'),toCsvOrdered(valutazioniCsv,COLS_VAL),'utf8');
+  console.log('   ✅  5 CSV generati (campi completi)');
+
+  // JSON dump integrale
+  console.log('📦  json/…');
+  const ser = (arr) => JSON.stringify(arr.map(d => serializeForExportNode(d)), null, 2);
+  writeFileSync(join(jsonDir, 'eventi.json'), ser(eventi), 'utf8');
+  writeFileSync(join(jsonDir, 'missioni.json'), ser(missioni), 'utf8');
+  writeFileSync(join(jsonDir, 'mezzi.json'), ser(mezzi), 'utf8');
+  writeFileSync(join(jsonDir, 'pazienti.json'), ser(pazienti), 'utf8');
+  writeFileSync(join(jsonDir, 'valutazioni.json'), ser(valutazioni), 'utf8');
+  console.log('   ✅  5 JSON dump Firestore');
 
   // Viewer
   console.log('🌐  viewer.html…');
@@ -1006,9 +1206,10 @@ async function main() {
 ╔══════════════════════════════════════════════╗
 ║  ✅  Export completato!                      ║
 ║                                              ║
-║  📁  Dati esportati_local/${ts.slice(0,10)}/║
+║  📁  Dati esportati_local/${folderName}/
 ║      eventi.csv  missioni.csv  mezzi.csv      ║
 ║      pazienti.csv  valutazioni.csv           ║
+║      json/ (dump Firestore completo)         ║
 ║      viewer.html                             ║
 ║      reports/ (${String(eventi.length+pazienti.length).padEnd(3)} file HTML)               ║
 ╚══════════════════════════════════════════════╝

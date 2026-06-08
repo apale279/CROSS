@@ -1,16 +1,15 @@
 import { CODICE_COLORE_LABEL } from '../../pma/types/paziente';
 import { formatTimestamp } from '../../utils/formatters';
-
-const COLORE_CLASS = {
-  bianco: 'bg-slate-100 border-slate-300',
-  verde: 'bg-emerald-50 border-emerald-400',
-  giallo: 'bg-amber-50 border-amber-400',
-  rosso: 'bg-red-50 border-red-500',
-};
+import { displayNomePazientePma } from '../../lib/pmaDisplayName';
+import { mostraPettoralePazientePma } from '../../lib/pmaDeskPatientInfo';
+import { pmaCodiceColoreCardClass } from '../../lib/pmaCodiceColoreUi';
+import { PmaAvanzamentoBadge } from './PmaAvanzamentoBadge';
+import { PmaOrigineEmoji } from './PmaOrigineEmoji';
+import { PmaPettoraleBadge } from './PmaPettoraleBadge';
 
 export function PmaInCaricoCard({ paziente, evento, onOpen }) {
   const colore = paziente.pmaScheda?.codice_colore ?? 'verde';
-  const coloreClass = COLORE_CLASS[colore] ?? COLORE_CLASS.verde;
+  const coloreClass = pmaCodiceColoreCardClass(paziente);
   const ingresso =
     paziente.pmaScheda?.ingresso_carico_at ??
     paziente.arrivatoHAt ??
@@ -23,41 +22,36 @@ export function PmaInCaricoCard({ paziente, evento, onOpen }) {
     paziente.pmaScheda?.dettaglio_evento ||
     evento?.dettaglioEvento ||
     '';
-
   return (
     <button
       type="button"
       onClick={onOpen}
-      className={`w-full rounded-lg border-2 p-4 text-left shadow-sm transition hover:shadow-md ${coloreClass}`}
+      className={`pma-patient-card w-full rounded-lg border-2 p-4 text-left shadow-sm transition hover:shadow-md ${coloreClass}`}
     >
       <div className="mb-2 flex flex-wrap items-center gap-2">
-        <span
-          className="inline-block h-3 w-3 rounded-full border border-black/20"
-          style={{
-            background:
-              colore === 'rosso'
-                ? '#dc2626'
-                : colore === 'giallo'
-                  ? '#eab308'
-                  : colore === 'verde'
-                    ? '#16a34a'
-                    : '#f8fafc',
-          }}
-          aria-hidden
-        />
-        <span className="text-xs font-bold uppercase text-slate-700">
+        <span className="pma-patient-card__label font-bold uppercase text-slate-700">
           {CODICE_COLORE_LABEL[colore] ?? colore}
         </span>
-        <span className="font-mono text-xs text-slate-500">{paziente.idPaziente}</span>
+        <span className="pma-patient-card__label font-mono text-slate-500">{paziente.idPaziente}</span>
+        <PmaOrigineEmoji paziente={paziente} />
+        <PmaAvanzamentoBadge paziente={paziente} />
       </div>
-      <p className="text-lg font-bold text-slate-900">
-        {[paziente.cognome, paziente.nome].filter(Boolean).join(' ') || 'Senza nome'}
+      <p className="flex min-w-0 items-center gap-2 font-bold text-slate-900">
+        {mostraPettoralePazientePma(paziente) ? (
+          <PmaPettoraleBadge
+            pettorale={paziente.pettorale}
+            className="pma-patient-card__name-lg shrink-0 px-1.5 py-0.5 font-bold normal-case tracking-normal"
+          />
+        ) : null}
+        <span className="pma-patient-card__name-lg min-w-0 truncate">
+          {displayNomePazientePma(paziente)}
+        </span>
       </p>
-      <p className="mt-1 text-sm text-slate-700">
+      <p className="pma-patient-card__name mt-1 text-slate-700">
         {tipoEv}
         {dettaglioEv ? ` — ${dettaglioEv}` : ''}
       </p>
-      <dl className="mt-3 grid gap-1 text-xs text-slate-600 sm:grid-cols-2">
+      <dl className="pma-patient-card__label mt-3 grid gap-1 text-slate-600 sm:grid-cols-2">
         <div>
           <span className="font-medium">Ingresso: </span>
           {formatTimestamp(ingresso)}
@@ -75,7 +69,7 @@ export function PmaInCaricoCard({ paziente, evento, onOpen }) {
           {paziente.pmaScheda?.infermiere_rif || '—'}
         </div>
       </dl>
-      <p className="mt-2 text-xs font-bold text-violet-800">Apri scheda PMA →</p>
+      <p className="pma-patient-card__label mt-2 font-bold text-violet-800">Apri scheda PMA →</p>
     </button>
   );
 }

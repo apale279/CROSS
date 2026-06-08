@@ -4,7 +4,7 @@ export function formatCommitDateTime(date = new Date()) {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
-/** @param {string} version es. v2.11 o v3 / v3.1 */
+/** @param {string} version es. v2.11, v3.1 o v4.5 */
 export function parseAppVersion(version) {
   const s = String(version ?? '').trim();
   const m2 = s.match(/^v2\.(\d+)$/i);
@@ -14,12 +14,20 @@ export function parseAppVersion(version) {
     const patch = m3[1] != null ? Number(m3[1]) : 0;
     return { major: 3, minor: patch, label: m3[1] != null ? `v3.${m3[1]}` : 'v3' };
   }
+  const m4 = s.match(/^v4(?:\.(\d+))?$/i);
+  if (m4) {
+    const patch = m4[1] != null ? Number(m4[1]) : 0;
+    return { major: 4, minor: patch, label: m4[1] != null ? `v4.${m4[1]}` : 'v4' };
+  }
   return null;
 }
 
 export function bumpAppVersion(current) {
   const parsed = parseAppVersion(current);
-  if (!parsed) return 'v3.1';
+  if (!parsed) return 'v4.1';
+  if (parsed.major === 4) {
+    return `v4.${parsed.minor + 1}`;
+  }
   if (parsed.major === 3) {
     return `v3.${parsed.minor + 1}`;
   }
@@ -40,7 +48,7 @@ export function formatVersionCommitMessage(version, description = '', date = new
 }
 
 const VERSION_FILE_RE =
-  /export const APP_VERSION = '(v(?:2\.\d+|3(?:\.\d+)?))';/;
+  /export const APP_VERSION = '(v(?:2\.\d+|3(?:\.\d+)?|4(?:\.\d+)?))';/;
 
 export function readAppVersionFromFile(versionFileText) {
   const m = versionFileText.match(VERSION_FILE_RE);

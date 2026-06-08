@@ -14,8 +14,12 @@ export function normalizeImpostazioni(data) {
     Array.isArray(merged.dettagliEvento) &&
     merged.dettagliEvento.length > 0
   ) {
+    const tipiPerMigrazione =
+      Array.isArray(merged.tipiEvento) && merged.tipiEvento.length > 0
+        ? merged.tipiEvento
+        : DEFAULT_IMPOSTAZIONI.tipiEvento;
     dettagliPerTipo = Object.fromEntries(
-      (merged.tipiEvento ?? []).map((tipo) => [tipo, [...merged.dettagliEvento]]),
+      tipiPerMigrazione.map((tipo) => [tipo, [...merged.dettagliEvento]]),
     );
   }
 
@@ -35,6 +39,18 @@ export function normalizeImpostazioni(data) {
     Array.isArray(merged.chiamantiEvento) && merged.chiamantiEvento.length > 0
       ? merged.chiamantiEvento
       : [...DEFAULT_IMPOSTAZIONI.chiamantiEvento];
+  const tipiEventoFiltered = Array.isArray(merged.tipiEvento)
+    ? merged.tipiEvento.filter((t) => typeof t === 'string' && String(t).trim())
+    : [];
+  const tipiEvento =
+    tipiEventoFiltered.length > 0 ? tipiEventoFiltered : [...DEFAULT_IMPOSTAZIONI.tipiEvento];
+  const statiMissioneFiltered = Array.isArray(merged.statiMissione)
+    ? merged.statiMissione.filter((t) => typeof t === 'string' && String(t).trim())
+    : [];
+  const statiMissione =
+    statiMissioneFiltered.length > 0
+      ? statiMissioneFiltered
+      : [...DEFAULT_IMPOSTAZIONI.statiMissione];
   if (Object.keys(dettagliPerTipoLuogo).length === 0) {
     dettagliPerTipoLuogo = { ...DEFAULT_DETTAGLI_PER_TIPO_LUOGO };
   }
@@ -81,6 +97,8 @@ export function normalizeImpostazioni(data) {
   return {
     ...merged,
     dettagliPerTipoEvento: dettagliPerTipo,
+    tipiEvento,
+    statiMissione,
     tipiLuogo,
     chiamantiEvento,
     dettagliPerTipoLuogo,

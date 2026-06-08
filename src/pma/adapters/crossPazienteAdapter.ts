@@ -1,4 +1,4 @@
-import { Timestamp } from 'firebase/firestore';
+import { Timestamp, deleteField } from 'firebase/firestore';
 import { TIPO_PZ, STATO_PZ_PMA } from '../../lib/pmaModule';
 import type { Paziente } from '@pma/types/paziente';
 import { normalizePmaScheda, EMPTY_PMA_SCHEDA } from '@pma/lib/pmaSchedaDefaults';
@@ -72,8 +72,11 @@ export function crossDocToPazienteView(doc, manifestationId, pmaIdRoute) {
     trasportato_da: doc.mezzo ?? null,
     ...scheda,
     parametri_vitali: parseParametriVitali(scheda.parametri_vitali),
+    triage_parametri_vitali: parseParametriVitali(scheda.triage_parametri_vitali),
+    triage_note: String(scheda.triage_note ?? ''),
     farmaci: parseFarmaci(scheda.farmaci),
     rivalutazioni: parseRivalutazioni(scheda.rivalutazioni),
+    prestazioni_sel: Array.isArray(scheda.prestazioni_sel) ? scheda.prestazioni_sel : [],
     lesioni: Array.isArray(scheda.lesioni) ? scheda.lesioni : [],
     external_source: tipoPz === TIPO_PZ.CENTRALE ? 'CROSS' : null,
     cross_dati_scheda: buildCrossDatiScheda(doc),
@@ -109,12 +112,17 @@ export function splitPazientePatch(patch) {
   const top = {};
   const scheda = {};
   for (const [k, v] of Object.entries(normalizePazientePatchInput(patch))) {
+    if (k.startsWith('_')) continue;
     if (k === 'aperto') {
       top.aperta = v;
     } else if (k === 'schedaModificaForzata') {
       top.schedaModificaForzata = v;
     } else if (k === 'statoPzPma' || k === 'stato_pz_pma') {
       top.statoPzPma = v;
+      if (v === STATO_PZ_PMA.DIMESSO) {
+        top.aperta = false;
+        top.pmaPostoLettoId = deleteField();
+      }
     } else if (CENTRALE_PATCH_KEYS.has(k)) {
       if (k === 'data_nascita') top.dataNascita = v;
       else if (k === 'note_centrale') top.notePaziente = v;
@@ -123,6 +131,7 @@ export function splitPazientePatch(patch) {
       scheda.dimesso_at = patch.dimesso_at ?? scheda.dimesso_at;
       top.statoPzPma = STATO_PZ_PMA.DIMESSO;
       top.aperta = false;
+      top.pmaPostoLettoId = deleteField();
     } else if (PMA_SCHEDA_KEYS.has(k) || k.startsWith('EO_') || k.startsWith('invio_ps_') || k.startsWith('dimissione_') || k.startsWith('affidatario_') || k.startsWith('firma_')) {
       scheda[k] = v;
     } else if (k === 'codice_colore' || k === 'breve_descrizione' || k === 'tipo_evento' || k === 'dettaglio_evento') {

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { X } from 'lucide-react';
 import { useManifestazioneId } from '../../context/ManifestazioneContext';
 import { enrichPmaEntryWithIpadCredentials } from '../../lib/pmaIpadCredentials';
+import { buildPostiLetto, normalizeGrigliaPostiLetto } from '../../lib/pmaPostiLetto';
 import { useImpostazioniField } from '../../hooks/useImpostazioniField';
 import {
   deleteImpostazioniArrayEntryById,
@@ -21,6 +22,8 @@ function newPma() {
     indirizzo: '',
     luogo_fisico: '',
     coordinate: null,
+    grigliaPostiLetto: { righe: 5, colonne: 2 },
+    postiLettoLabels: {},
   });
 }
 
@@ -178,6 +181,75 @@ export function PmaEditor() {
                 }))
               }
             />
+            <div className="rounded-lg border border-violet-200 bg-violet-50/40 p-3">
+              <p className="mb-2 text-xs font-bold uppercase text-violet-900">
+                Griglia posti letto (dashboard PMA)
+              </p>
+              <p className="mb-3 text-xs text-slate-600">
+                Es. 5 righe × 2 colonne = 2 colonne da 5 letti. Numerazione default: LETTO N°1, LETTO
+                N°2 in alto, poi a capo. I nomi si modificano dalla dashboard PMA.
+              </p>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <FormField label="Righe per colonna">
+                  <input
+                    type="number"
+                    min={1}
+                    max={20}
+                    className={inputClass}
+                    value={modal.draft.grigliaPostiLetto?.righe ?? ''}
+                    onChange={(e) => {
+                      const righe = Math.max(0, Math.trunc(Number(e.target.value) || 0));
+                      setModal((m) => ({
+                        ...m,
+                        draft: {
+                          ...m.draft,
+                          grigliaPostiLetto: {
+                            righe,
+                            colonne: m.draft.grigliaPostiLetto?.colonne ?? 2,
+                          },
+                        },
+                      }));
+                    }}
+                  />
+                </FormField>
+                <FormField label="Numero colonne">
+                  <input
+                    type="number"
+                    min={1}
+                    max={12}
+                    className={inputClass}
+                    value={modal.draft.grigliaPostiLetto?.colonne ?? ''}
+                    onChange={(e) => {
+                      const colonne = Math.max(0, Math.trunc(Number(e.target.value) || 0));
+                      setModal((m) => ({
+                        ...m,
+                        draft: {
+                          ...m.draft,
+                          grigliaPostiLetto: {
+                            righe: m.draft.grigliaPostiLetto?.righe ?? 5,
+                            colonne,
+                          },
+                        },
+                      }));
+                    }}
+                  />
+                </FormField>
+              </div>
+              {normalizeGrigliaPostiLetto(modal.draft.grigliaPostiLetto) ? (
+                <p className="mt-2 text-xs text-slate-600">
+                  {buildPostiLetto(modal.draft).length} posti:{' '}
+                  {buildPostiLetto(modal.draft)
+                    .slice(0, 8)
+                    .map((b) => b.label)
+                    .join(', ')}
+                  {buildPostiLetto(modal.draft).length > 8 ? '…' : ''}
+                </p>
+              ) : (
+                <p className="mt-2 text-xs text-amber-800">
+                  Imposta righe e colonne ≥ 1 per attivare la griglia in dashboard.
+                </p>
+              )}
+            </div>
             <div className="flex gap-2">
               <button type="button" className={btnPrimary} disabled={saving} onClick={saveDraft}>
                 {saving ? 'Salvataggio…' : 'Salva PMA'}

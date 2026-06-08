@@ -24,10 +24,11 @@ const LABEL_MOTIVO = {
 export function MissioneEccezioniPanel({
   manifestationId,
   missione,
-  eventi,
-  mezzi,
+  eventi = [],
+  mezzi = [],
+  pazienti = [],
   allMissioni,
-  existingEventi,
+  existingEventi = [],
 }) {
   const { impostazioni } = useImpostazioni();
   const { user, profile } = useAuth();
@@ -93,8 +94,8 @@ export function MissioneEccezioniPanel({
       return;
     }
     if (!window.confirm(`Annullare questa missione e assegnare il mezzo ${missione.mezzo} all’evento ${ev.idEvento}?`)) return;
-    return run(() =>
-      eseguiDirottamentoMissione({
+    return run(async () => {
+      await eseguiDirottamentoMissione({
         manifestationId,
         missione,
         eventoDestinazione: ev,
@@ -102,8 +103,8 @@ export function MissioneEccezioniPanel({
         mezzoRecord,
         note: noteDirott,
         ...audit,
-      }),
-    );
+      });
+    });
   };
 
   const onFlagDown = () => {
@@ -116,8 +117,8 @@ export function MissioneEccezioniPanel({
       return;
     }
     if (!window.confirm('Creare un nuovo evento (figlio), annullare la missione verso l’evento attuale e aprire missione IN POSTO sul nuovo intervento?')) return;
-    return run(() =>
-      eseguiFlagDownMissione({
+    return run(async () => {
+      await eseguiFlagDownMissione({
         manifestationId,
         missione,
         eventoPadre: eventoCorrente,
@@ -133,19 +134,19 @@ export function MissioneEccezioniPanel({
         allMissioni,
         mezzoRecord,
         noteAnnullamento: noteAnnullaFlag,
-      }),
-    );
+      });
+    });
   };
 
   const onAvaria = () => {
     if (!window.confirm('Annullare la missione, lasciare l’evento aperto e segnare il mezzo come non operativo (avaria/sinistro)?')) return;
-    return run(() =>
-      eseguiAvariaSinistroMissione({
+    return run(async () => {
+      await eseguiAvariaSinistroMissione({
         manifestationId,
         missione,
         note: noteAvaria,
-      }),
-    );
+      });
+    });
   };
 
   if (missione.stato === 'ANNULLATA' || missione.missioneEccezioneMotivo) {

@@ -72,6 +72,7 @@ export function KioskSchedaProvider({ children }) {
         <Modal title={modalTitle} onClose={closeModal} scheda>
           {modal.type === 'evento' && eventoLive && (
             <EventoScheda
+              key={eventoLive._docId}
               readOnly
               evento={eventoLive}
               missioni={missioni}
@@ -85,6 +86,7 @@ export function KioskSchedaProvider({ children }) {
           )}
           {modal.type === 'missione' && missioneLive && (
             <MissioneScheda
+              key={missioneLive._docId}
               readOnly
               missione={missioneLive}
               eventi={eventi}

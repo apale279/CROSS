@@ -28,13 +28,6 @@ import { Modal } from '../components/ui/Modal';
 import { PmaMapModal } from '../components/impostazioni/PmaMapModal';
 import { PmaCodiciMinoriPanel } from '../components/pma/PmaCodiciMinoriPanel';
 import { pazientiCodiceMinorePerPma } from '../lib/pmaModule';
-import {
-  createPazienteCodiceMinore,
-  deletePazienteCodiceMinore,
-  updatePazienteCodiceMinore,
-} from '../services/pmaCodiceMinoreService';
-import { BrandLockup } from '../components/brand/BrandLockup';
-import { useSandboxUi } from '../context/SandboxUiContext';
 import { DiarioImportantTicker } from '../components/diario/DiarioImportantTicker';
 import { DiarioNotaModal } from '../components/diario/DiarioNotaModal';
 import { useDiarioNotaActions } from '../hooks/useDiarioNotaActions';
@@ -50,7 +43,6 @@ import {
 
 export default function DashboardPage() {
   const navigate = useNavigate();
-  const { showSandboxBadge } = useSandboxUi();
   const manifestationId = useManifestazioneId();
   const { impostazioni } = useImpostazioni();
   const { fullCentrale } = usePmaAccess();
@@ -155,12 +147,16 @@ export default function DashboardPage() {
     e.stopPropagation();
     const nuovo = nextStatoMissione(mis.stato ?? 'ALLERTARE', stati);
     if (nuovo === mis.stato) return;
-    await patchMissione(
-      manifestationId,
-      mis._docId,
-      buildStatoChangeFields(mis, nuovo),
-      mis.mezzo,
-    );
+    try {
+      await patchMissione(
+        manifestationId,
+        mis._docId,
+        buildStatoChangeFields(mis, nuovo),
+        mis.mezzo,
+      );
+    } catch (err) {
+      alert('Errore: ' + (err instanceof Error ? err.message : String(err)));
+    }
   };
 
   const operativoTable = (
@@ -196,9 +192,6 @@ export default function DashboardPage() {
     <div className="relative flex h-full w-full flex-col overflow-hidden bg-slate-200">
       <header className="z-[30] flex shrink-0 flex-col border-b border-slate-300 bg-white shadow-sm">
         <div className="flex flex-wrap items-center gap-2 px-3 py-2">
-          {showSandboxBadge ? (
-            <BrandLockup logoClassName="h-8 w-auto" showTitle={false} />
-          ) : null}
           <nav className="flex gap-1 rounded-lg bg-slate-100 p-0.5">
             <button
               type="button"
@@ -237,7 +230,12 @@ export default function DashboardPage() {
 
       {dashboardView === 'tattica' ? (
         <div className="min-h-0 flex-1">
-          <MappaTatticaDashboard eventi={eventi} missioni={missioni} mezzi={mezzi} />
+          <MappaTatticaDashboard
+            eventi={eventi}
+            missioni={missioni}
+            mezzi={mezzi}
+            pazienti={pazienti}
+          />
         </div>
       ) : (
         <div className="relative min-h-0 flex-1 overflow-hidden">
@@ -375,52 +373,11 @@ export default function DashboardPage() {
             manifestationId={manifestationId}
             pmaId={codiciMinoriPma.id}
             impostazioni={impostazioni}
-            missioni={missioni}
-            eventi={eventi}
-            onOpenMissioneCorrelata={(mis) => setModal({ type: 'missione', data: mis })}
-            onCreate={async (payload) => {
-              setCodiciMinoriBusy(true);
-              try {
-                return await createPazienteCodiceMinore(
-                  manifestationId,
-                  codiciMinoriPma.id,
-                  codiciMinoriPma.nome,
-                  payload,
-                  pazienti,
-                );
-              } catch (err) {
-                alert(err?.message ?? 'Errore creazione');
-                throw err;
-              } finally {
-                setCodiciMinoriBusy(false);
-              }
-            }}
-            onUpdate={async (docId, payload, existingRow) => {
-              setCodiciMinoriBusy(true);
-              try {
-                await updatePazienteCodiceMinore(
-                  manifestationId,
-                  docId,
-                  payload,
-                  existingRow,
-                );
-              } catch (err) {
-                alert(err?.message ?? 'Errore aggiornamento');
-                throw err;
-              } finally {
-                setCodiciMinoriBusy(false);
-              }
-            }}
-            onDelete={async (docId, existingRow) => {
-              setCodiciMinoriBusy(true);
-              try {
-                await deletePazienteCodiceMinore(manifestationId, docId, existingRow);
-              } catch (err) {
-                alert(err?.message ?? 'Errore eliminazione');
-                throw err;
-              } finally {
-                setCodiciMinoriBusy(false);
-              }
+            onOpenRow={(row) => {
+              setCodiciMinoriPma(null);
+              navigate(
+                `/pma/${encodeURIComponent(codiciMinoriPma.id)}/paziente/${encodeURIComponent(row._docId)}?tab=anagrafica`,
+              );
             }}
           />
         </Modal>

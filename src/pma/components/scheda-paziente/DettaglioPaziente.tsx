@@ -3,6 +3,7 @@ import type { Paziente } from '@pma/types/paziente'
 import { CODICE_COLORE_LABEL, PAZIENTE_STATO_LABEL } from '@pma/types/paziente'
 import type { CodiceColorePaziente } from '@pma/types/paziente'
 import type { SchedaPazienteTabId } from './schedaPazienteTabs'
+import { PmaPettoraleBadge } from '../../../components/pma/PmaPettoraleBadge'
 
 const SDOT: Record<CodiceColorePaziente, string> = {
   bianco: 'pma-bar__sdot--bianco',
@@ -84,6 +85,7 @@ export function DettaglioPaziente({
               <code className="font-mono text-xl font-bold leading-none text-teal-800">
                 {p.id_paziente_visibile}
               </code>
+              <PmaPettoraleBadge pettorale={p.pettorale} />
               {chiusoCentrale ? (
                 <span className="ml-auto shrink-0 rounded bg-slate-200 px-1.5 py-0.5 text-[10px] font-semibold text-slate-700">
                   Chiuso C.
@@ -156,6 +158,7 @@ export function DettaglioPaziente({
               )}
             </div>
             <code className="font-mono text-sm font-medium text-slate-700">{p.id_paziente_visibile}</code>
+            <PmaPettoraleBadge pettorale={p.pettorale} className="px-2 py-0.5 text-[11px]" />
           </div>
         )}
       </div>

@@ -1,7 +1,6 @@
 import { useMemo } from 'react';
 import { Timestamp } from 'firebase/firestore';
 import { Trash2 } from 'lucide-react';
-import { defaultFarmaciConsumatiCatalog } from '@pma/lib/farmaciCatalogoSeed';
 import { usePmaClinicaListe } from '../../pma/hooks/usePmaClinicaListe';
 import { DEFAULT_IMPOSTAZIONI } from '../../constants';
 import { fromDatetimeLocalValue, toDatetimeLocalValue } from '../../lib/datetimeLocal';
@@ -30,11 +29,7 @@ export function MsaValutazioneForm({
 }) {
   const { impostazioni } = useImpostazioni();
   const { farmaciCatalogo: farmaciCatalogoRaw } = usePmaClinicaListe();
-  const farmaciCatalogo = useMemo(
-    () =>
-      farmaciCatalogoRaw.length > 0 ? farmaciCatalogoRaw : defaultFarmaciConsumatiCatalog(),
-    [farmaciCatalogoRaw],
-  );
+  const farmaciCatalogo = farmaciCatalogoRaw;
   const catalogPresidi = listaMsbMsaPresidi(impostazioni);
   const catalogPrestazioniMsa = listaPrestazioniMsa(impostazioni);
   const d = normalizeMsaDetails(msaDetails);

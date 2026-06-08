@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { PmaFarmacoCatalogoEntry } from '@pma/types/farmaciCatalogo'
 import {
   filterCatalogByNomePrefix,
@@ -6,6 +6,7 @@ import {
 } from '@pma/types/farmaciCatalogo'
 
 const CUSTOM_DOSE = '__custom__'
+const SUGGEST_DEBOUNCE_MS = 280
 
 type Props = {
   catalog: PmaFarmacoCatalogoEntry[]
@@ -18,7 +19,7 @@ type Props = {
 }
 
 /**
- * Nome con suggerimenti dal catalogo; dose a tendina se nota, altrimenti testo libero.
+ * Nome con suggerimenti dal catalogo; dose a tendina solo dopo conferma nome (blur o scelta elenco).
  */
 export function FarmacoNomeDoseFields({
   catalog,
@@ -30,16 +31,35 @@ export function FarmacoNomeDoseFields({
   nomePlaceholder = 'Farmaco…',
 }: Props) {
   const [nomeFocused, setNomeFocused] = useState(false)
+  const [nomeCommitted, setNomeCommitted] = useState(nome)
+  const [debouncedQuery, setDebouncedQuery] = useState(nome)
 
-  const matched = useMemo(() => findCatalogEntryByNome(catalog, nome), [catalog, nome])
+  useEffect(() => {
+    const timer = window.setTimeout(() => setDebouncedQuery(nome), SUGGEST_DEBOUNCE_MS)
+    return () => window.clearTimeout(timer)
+  }, [nome])
+
+  useEffect(() => {
+    setNomeCommitted(nome)
+  }, [nome])
+
+  const matched = useMemo(
+    () => (nomeFocused ? null : findCatalogEntryByNome(catalog, nomeCommitted)),
+    [catalog, nomeCommitted, nomeFocused],
+  )
   const suggestions = useMemo(
-    () => filterCatalogByNomePrefix(catalog, nome, 10),
-    [catalog, nome],
+    () => (nomeFocused ? filterCatalogByNomePrefix(catalog, debouncedQuery, 10) : []),
+    [catalog, debouncedQuery, nomeFocused],
   )
 
   const doseOptions = matched?.dosaggi ?? []
   const doseSelectValue =
     dose && doseOptions.includes(dose) ? dose : doseOptions.length > 0 ? CUSTOM_DOSE : CUSTOM_DOSE
+
+  const commitNome = () => {
+    setNomeFocused(false)
+    setNomeCommitted(nome.trim())
+  }
 
   return (
     <div className="min-w-0 space-y-3">
@@ -50,9 +70,11 @@ export function FarmacoNomeDoseFields({
           value={nome}
           onChange={(e) => onNomeChange(e.target.value)}
           onFocus={() => setNomeFocused(true)}
-          onBlur={() => window.setTimeout(() => setNomeFocused(false), 150)}
+          onBlur={() => {
+            window.setTimeout(commitNome, 150)
+          }}
           autoComplete="off"
-          className={`${inputClassName} mt-1 min-h-[2.75rem]`}
+          className={`${inputClassName} pma-mobile-input mt-1 min-h-[2.75rem]`}
           placeholder={nomePlaceholder}
         />
         {nomeFocused && suggestions.length > 0 ? (
@@ -68,6 +90,7 @@ export function FarmacoNomeDoseFields({
                   onMouseDown={(e) => {
                     e.preventDefault()
                     onNomeChange(entry.nome)
+                    setNomeCommitted(entry.nome)
                     if (entry.dosaggi.length === 1) onDoseChange(entry.dosaggi[0])
                     setNomeFocused(false)
                   }}

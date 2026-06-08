@@ -1,10 +1,11 @@
 import { Timestamp } from 'firebase/firestore'
+import { newLocalId } from '../../lib/ids'
 import type { ParametroVitaleRilevazione } from '../types/cartellaClinica'
 
 /** Nuova rilevazione PV senza valori precompilati (0 = misurato, null = non rilevato). */
 export function emptyParametroVitaleDraft(operatoreNome: string): ParametroVitaleRilevazione {
   return {
-    id: crypto.randomUUID(),
+    id: newLocalId(),
     registrato_at: Timestamp.now(),
     operatore_nome: operatoreNome.trim() || '—',
     gcs: null,

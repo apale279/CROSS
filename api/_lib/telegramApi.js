@@ -34,11 +34,19 @@ export function deleteMessage(chatId, messageId) {
   });
 }
 
-export function answerCallbackQuery(callbackQueryId, text) {
+export function answerCallbackQuery(callbackQueryId, text, showAlert = false) {
   return telegramApi('answerCallbackQuery', {
     callback_query_id: callbackQueryId,
     text: text?.slice(0, 200) ?? '',
-    show_alert: false,
+    show_alert: Boolean(showAlert),
+  });
+}
+
+export function editMessageReplyMarkup(chatId, messageId, replyMarkup) {
+  return telegramApi('editMessageReplyMarkup', {
+    chat_id: chatId,
+    message_id: messageId,
+    reply_markup: replyMarkup,
   });
 }
 

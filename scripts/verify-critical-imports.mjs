@@ -24,8 +24,30 @@ const checks = [
   },
   {
     file: 'src/services/missioniService.js',
-    mustInclude: ['missioniRientroAperteSuMezzo'],
-    mustNotInclude: ['export async function chiudiMissioniAperteSuMezzo'],
+    mustInclude: [
+      'missioniRientroAperteSuMezzo',
+      'scheduleNotifyTelegramStatoFromCentrale',
+      "from '../lib/telegramSideEffects'",
+    ],
+    mustNotInclude: [
+      'export async function chiudiMissioniAperteSuMezzo',
+      'notifyTelegramStatoFromCentrale(manifestationId',
+    ],
+  },
+  {
+    file: 'src/lib/telegramSideEffects.js',
+    mustInclude: [
+      'scheduleNotifyTelegramStatoFromCentrale',
+      "import('../services/telegramService.js')",
+    ],
+  },
+  {
+    file: 'src/services/missioniEccezioniService.js',
+    mustInclude: [
+      'scheduleNotifyTelegramStatoFromCentrale',
+      'skipTelegramNotify: true',
+    ],
+    mustNotInclude: ['notifyTelegramStatoFromCentrale(manifestationId'],
   },
   {
     file: 'src/services/mezzoDisponibileService.js',
@@ -49,16 +71,33 @@ const checks = [
   },
   {
     file: 'src/components/eventi/EventoScheda.jsx',
-    mustInclude: ['riapriEventoOperatore', 'patchEvento(manifestazioneId'],
-    mustNotInclude: ['patchEvento(manifestationId', 'riapriEventoOperatore(manifestationId'],
+    mustInclude: [
+      'riapriEventoOperatore',
+      'patchEvento(manifestazioneId',
+    ],
+    mustNotInclude: [
+      'patchEvento(manifestationId',
+      'riapriEventoOperatore(manifestationId',
+      'resolveMissionPmaPatientsBeforeClose',
+    ],
+  },
+  {
+    file: 'src/components/missioni/MissioneScheda.jsx',
+    mustInclude: ['resolveMissionPmaPatientsBeforeClose', 'handleEliminaMissione'],
+  },
+  {
+    file: 'src/pages/DashboardPage.jsx',
+    mustNotInclude: ['resolveMissionPmaPatientsBeforeClose'],
   },
   {
     file: 'src/components/mezzi/MezzoScheda.jsx',
     mustInclude: ['mezzoDisponibileService', 'confirmMezzoDisponibileLiberaMissioni'],
+    mustNotInclude: ['resolveMissionPmaPatientsBeforeClose'],
   },
   {
     file: 'src/pages/MezziPage.jsx',
     mustInclude: ['mezzoDisponibileService', 'patchStatoMezzo'],
+    mustNotInclude: ['resolveMissionPmaPatientsBeforeClose'],
   },
   {
     file: 'src/lib/pmaDashboardCentrale.js',

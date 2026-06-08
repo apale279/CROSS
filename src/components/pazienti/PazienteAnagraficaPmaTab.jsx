@@ -1,11 +1,23 @@
 import { useCallback, useEffect, useState } from 'react';
 import { etaDaDataNascita } from '../../lib/excelPartecipanti';
 import { patientDocToDraftFields } from '../../lib/pazienteDraftMerge';
-import { STATO_PZ_PMA, statoPzPmaLabel } from '../../lib/pmaModule';
+import {
+  findPmaRawEntry,
+  normalizeStatoPzPma,
+  STATO_PZ_PMA,
+  statoPzPmaLabel,
+} from '../../lib/pmaModule';
+import { pmaHaGrigliaPostiLetto } from '../../lib/pmaPostiLetto';
+import { notifyPmaDeskError, notifyPmaDeskSoftIssue } from '../../lib/pmaDeskFeedback';
 import { patchPaziente } from '../../services/pazientiService';
-import { setStatoPmaAutopresentato } from '../../services/pmaStatoService';
-import { FormField, selectClass } from '../ui/FormField';
+import { assegnaPostoLettoConPresaInCarico } from '../../services/pmaPostoLettoService';
+import { prendiInCaricoPma, setStatoPmaAutopresentato } from '../../services/pmaStatoService';
+import { patchPazientePmaGranular } from '../../pma/lib/pazientePmaPatch';
+import { PmaCodiceColoreField } from '../../pma/components/scheda-paziente/PmaCodiceColoreField';
+import { PmaRendiCodiceMinoreBlock } from '../pma/PmaRendiCodiceMinoreBlock';
+import { btnDanger, FormField, selectClass } from '../ui/FormField';
 import { PazienteAnagraficaFields } from './PazienteAnagraficaFields';
+import { dettagliPerTipoEvento } from '../../lib/impostazioniNormalize';
 import { PazienteTipoEventoFields } from './PazienteTipoEventoFields';
 
 function parseEtaDraft(s) {
@@ -39,14 +51,30 @@ export function PazienteAnagraficaPmaTab({
   onFlushEvento,
   showEventoDettaglio = false,
   eventoEditable = false,
+  canEditColore = false,
+  showRendiCodiceMinore = false,
+  rendiCodiceMinoreAtTop = false,
+  onRendiCodiceMinore,
+  rendiCodiceMinoreBusy = false,
+  pmaId = null,
+  vistaPma = false,
 }) {
   const [draft, setDraft] = useState(() => patientDocToDraftFields(rawDoc ?? {}));
   const [savingStato, setSavingStato] = useState(false);
+  const [prendiInCaricoBusy, setPrendiInCaricoBusy] = useState(false);
   const statoPma = rawDoc?.statoPzPma ?? STATO_PZ_PMA.IN_ATTESA;
+  const statoPzNormalizzato = normalizeStatoPzPma(rawDoc?.statoPzPma);
+  const usaGrigliaLetti = pmaHaGrigliaPostiLetto(
+    pmaId ? findPmaRawEntry(impostazioni, pmaId) : null,
+  );
+  const mostraPrendiInCarico =
+    vistaPma &&
+    statoPzNormalizzato !== STATO_PZ_PMA.IN_CARICO &&
+    statoPzNormalizzato !== STATO_PZ_PMA.DIMESSO;
 
   useEffect(() => {
     if (rawDoc) setDraft(patientDocToDraftFields(rawDoc));
-  }, [rawDoc?._docId, rawDoc?.nome, rawDoc?.cognome, rawDoc?.pettorale, rawDoc?.telefono]);
+  }, [rawDoc?._docId]);
 
   const patchAnagrafica = useCallback(
     async (fields) => {
@@ -57,31 +85,32 @@ export function PazienteAnagraficaPmaTab({
   );
 
   const onBlurField = useCallback(
-    (key) => {
+    (key, value) => {
       if (readOnly || !canEdit) return;
+      const fieldValue = value !== undefined ? value : draft[key];
       if (key === 'pettorale') {
         void patchAnagrafica({
           pettorale:
-            draft.pettorale !== '' && draft.pettorale != null ? Number(draft.pettorale) : null,
+            fieldValue !== '' && fieldValue != null ? Number(fieldValue) : null,
         });
         return;
       }
       if (key === 'dataNascita') {
         void patchAnagrafica({
-          dataNascita: draft.dataNascita,
-          eta: etaDaDataNascita(draft.dataNascita),
+          dataNascita: fieldValue,
+          eta: etaDaDataNascita(fieldValue),
         });
         return;
       }
       if (key === 'eta') {
-        void patchAnagrafica({ eta: parseEtaDraft(draft.eta) });
+        void patchAnagrafica({ eta: parseEtaDraft(fieldValue) });
         return;
       }
       if (key === 'sesso') {
-        void patchAnagrafica({ sesso: draft.sesso });
+        void patchAnagrafica({ sesso: fieldValue });
         return;
       }
-      void patchAnagrafica({ [key]: draft[key] ?? '' });
+      void patchAnagrafica({ [key]: fieldValue ?? '' });
     },
     [readOnly, canEdit, draft, patchAnagrafica],
   );
@@ -98,8 +127,55 @@ export function PazienteAnagraficaPmaTab({
     }
   };
 
+  const codiceColore = rawDoc?.pmaScheda?.codice_colore ?? '';
+
+  const patchColore = useCallback(
+    async (c) => {
+      if (!canEditColore || !manifestationId || !patientDocId) return;
+      await patchPazientePmaGranular(manifestationId, patientDocId, { codice_colore: c });
+    },
+    [canEditColore, manifestationId, patientDocId],
+  );
+
+  const onPrendiInCarico = async () => {
+    if (!mostraPrendiInCarico || !manifestationId || !patientDocId || prendiInCaricoBusy) return;
+    setPrendiInCaricoBusy(true);
+    try {
+      if (usaGrigliaLetti) {
+        const result = await assegnaPostoLettoConPresaInCarico(
+          manifestationId,
+          patientDocId,
+          null,
+          rawDoc,
+          [],
+        );
+        if (result.warning) {
+          notifyPmaDeskSoftIssue(
+            result.warning,
+            'Il paziente è in carico: continua la cartella clinica.',
+          );
+        }
+      } else {
+        await prendiInCaricoPma(manifestationId, patientDocId);
+      }
+    } catch (err) {
+      notifyPmaDeskError(err?.message ?? 'Errore presa in carico');
+    } finally {
+      setPrendiInCaricoBusy(false);
+    }
+  };
+
+  const rendiCodiceMinoreBlock = showRendiCodiceMinore ? (
+    <PmaRendiCodiceMinoreBlock
+      busy={rendiCodiceMinoreBusy}
+      onClick={() => void onRendiCodiceMinore?.()}
+    />
+  ) : null;
+
   return (
     <div className="space-y-4 text-sm">
+      {rendiCodiceMinoreAtTop ? rendiCodiceMinoreBlock : null}
+
       {readOnly && (
         <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900">
           Paziente inviato dalla centrale: anagrafica in sola lettura. La cartella clinica è
@@ -165,8 +241,16 @@ export function PazienteAnagraficaPmaTab({
                 const nextDet = partial.dettaglioEvento ?? dettaglioEv;
                 onTipoEvChange(nextTipo);
                 onDettaglioEvChange(nextDet);
-                void onFlushEvento(nextTipo, nextDet);
+                if (partial.tipoEvento !== undefined) {
+                  void onFlushEvento(nextTipo, nextDet);
+                  return;
+                }
+                const opzioni = dettagliPerTipoEvento(impostazioni, nextTipo);
+                if (opzioni.length > 0) {
+                  void onFlushEvento(nextTipo, nextDet);
+                }
               }}
+              onDettaglioBlur={(value) => void onFlushEvento(tipoEv, value)}
             />
           ) : (
             <dl className="grid gap-2 sm:grid-cols-2">
@@ -184,6 +268,30 @@ export function PazienteAnagraficaPmaTab({
           )}
         </div>
       )}
+
+      <div className="border-t border-slate-200 pt-3">
+        <PmaCodiceColoreField
+          value={codiceColore}
+          canEdit={canEditColore}
+          compact
+          onChange={(c) => void patchColore(c)}
+        />
+      </div>
+
+      {showRendiCodiceMinore && !rendiCodiceMinoreAtTop ? rendiCodiceMinoreBlock : null}
+
+      {mostraPrendiInCarico ? (
+        <div className="border-t border-slate-200 pt-3">
+          <button
+            type="button"
+            className={`${btnDanger} w-full font-bold disabled:opacity-50`}
+            disabled={prendiInCaricoBusy}
+            onClick={() => void onPrendiInCarico()}
+          >
+            {prendiInCaricoBusy ? '…' : 'Prendi in carico'}
+          </button>
+        </div>
+      ) : null}
     </div>
   );
 }

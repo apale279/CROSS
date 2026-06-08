@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { Timestamp, deleteField } from 'firebase/firestore';
 import { Clock } from 'lucide-react';
 import { DEFAULT_IMPOSTAZIONI } from '../../constants';
@@ -21,6 +21,8 @@ import {
   nuovaTrattaMissione,
   tratteMissioneToFirestore,
 } from '../../lib/missionTratte';
+import { MISSION_PMA_CLOSE_MOTIVO } from '../../lib/missionPmaPatientClose';
+import { resolveMissionPmaPatientsBeforeClose } from '../../services/missionPmaPatientCloseService';
 import { patchMissione, deleteMissione } from '../../services/missioniService';
 import { useElapsedSince } from '../../hooks/useElapsedSince';
 import { statoMissioneBadgeClass, formatTimestamp } from '../../utils/formatters';
@@ -46,7 +48,22 @@ import { findMezzoBySigla } from '../../lib/mezzoMissione';
 import { pazientiTrasportoPerMissione } from '../../lib/pazientiTrasportoQuery';
 import { confirmDelete } from '../../utils/confirmDelete';
 
-export function MissioneScheda({
+function notifyFirestoreError(err) {
+  alert('Errore: ' + (err instanceof Error ? err.message : String(err)));
+}
+
+export function MissioneScheda(props) {
+  if (!props.missione?._docId) {
+    return (
+      <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
+        Scheda missione non disponibile. Chiudi il dialog e riapri la missione dall&apos;elenco.
+      </div>
+    );
+  }
+  return <MissioneSchedaLoaded {...props} />;
+}
+
+function MissioneSchedaLoaded({
   missione,
   eventi,
   mezzi,
@@ -98,9 +115,25 @@ export function MissioneScheda({
   const missioneInvioPs = isMissionePmaInvioPs(missione);
   const esitoTerminaCopertura = esitoMissioneTerminaCopertura(missione.esitoMissione);
 
+  const gestisciPazientiPmaPrimaChiusura = async (motivoChiusura, titolo) => {
+    const { proceed } = await resolveMissionPmaPatientsBeforeClose({
+      manifestationId,
+      missioni: missione,
+      pazienti,
+      eventi,
+      motivoChiusura,
+      impostazioni,
+      titolo,
+    });
+    return proceed;
+  };
+
   const handleEliminaMissione = async () => {
-    if (pazientiTrasporto.length > 0) {
-      const n = pazientiTrasporto.length;
+    const altriTrasporti = pazientiTrasporto.filter(
+      (p) => !String(p.destinazionePmaId ?? '').trim(),
+    );
+    if (altriTrasporti.length > 0) {
+      const n = altriTrasporti.length;
       if (
         !window.confirm(
           `La missione ha ${n} paziente/i collegati: verranno scollegati dal mezzo ma resteranno sull'evento. Continuare?`,
@@ -111,22 +144,43 @@ export function MissioneScheda({
     }
     if (!confirmDelete(`missione ${missione.idMissione}`)) return;
     try {
+      const proceed = await gestisciPazientiPmaPrimaChiusura(
+        MISSION_PMA_CLOSE_MOTIVO.DELETE,
+        `Eliminazione missione ${missione.idMissione}`,
+      );
+      if (!proceed) return;
       await deleteMissione(manifestationId, missione._docId);
       onDeleted?.();
     } catch (err) {
-      alert('Errore: ' + (err instanceof Error ? err.message : String(err)));
+      notifyFirestoreError(err);
     }
   };
 
+  const tratteWriteChainRef = useRef(Promise.resolve());
+
+  useEffect(() => {
+    tratteWriteChainRef.current = Promise.resolve();
+  }, [missione._docId]);
+
   const persistTratte = useCallback(
-    async (next) => {
+    async (next, { removeIds = [] } = {}) => {
       const sorted = [...next].sort((a, b) => a.quando.getTime() - b.quando.getTime());
-      await patchMissione(
-        manifestationId,
-        missione._docId,
-        { tratteMissione: tratteMissioneToFirestore(sorted) },
-        missione.mezzo,
-      );
+      const write = tratteWriteChainRef.current
+        .then(() =>
+          patchMissione(
+            manifestationId,
+            missione._docId,
+            { tratteMissione: tratteMissioneToFirestore(sorted) },
+            missione.mezzo,
+            removeIds.length ? { tratteRemoveIds: removeIds } : {},
+          ),
+        )
+        .catch((err) => {
+          notifyFirestoreError(err);
+          throw err;
+        });
+      tratteWriteChainRef.current = write.catch(() => {});
+      await write;
     },
     [manifestationId, missione._docId, missione.mezzo],
   );
@@ -153,63 +207,87 @@ export function MissioneScheda({
   const rimuoviTratta = async (id) => {
     if (tratte.length === 0) return;
     if (!window.confirm('Rimuovere questa tratta dalla missione?')) return;
-    await persistTratte(tratte.filter((t) => t.id !== id));
+    await persistTratte(
+      tratte.filter((t) => t.id !== id),
+      { removeIds: [id] },
+    );
   };
 
   const patchColoreMissione = async (colore) => {
-    const valid = parseCodiceColoreOptional(colore);
-    await patchMissione(
-      manifestationId,
-      missione._docId,
-      valid
-        ? { codiceColoreMissione: valid }
-        : { codiceColoreMissione: deleteField() },
-      missione.mezzo,
-    );
+    try {
+      const valid = parseCodiceColoreOptional(colore);
+      await patchMissione(
+        manifestationId,
+        missione._docId,
+        valid
+          ? { codiceColoreMissione: valid }
+          : { codiceColoreMissione: deleteField() },
+        missione.mezzo,
+      );
+    } catch (err) {
+      notifyFirestoreError(err);
+    }
   };
 
   const patchColoreTrasporto = async (colore) => {
-    const valid = parseCodiceColoreOptional(colore);
-    await patchMissione(
-      manifestationId,
-      missione._docId,
-      valid
-        ? { codiceColoreTrasporto: valid }
-        : { codiceColoreTrasporto: deleteField() },
-      missione.mezzo,
-    );
+    try {
+      const valid = parseCodiceColoreOptional(colore);
+      await patchMissione(
+        manifestationId,
+        missione._docId,
+        valid
+          ? { codiceColoreTrasporto: valid }
+          : { codiceColoreTrasporto: deleteField() },
+        missione.mezzo,
+      );
+    } catch (err) {
+      notifyFirestoreError(err);
+    }
   };
 
   const patchEsitoMissione = async (esito, altro) => {
-    const fields = { esitoMissione: normalizeEsitoMissione(esito) };
-    if (fields.esitoMissione === 'ALTRO') {
-      fields.esitoMissioneAltro = (altro ?? '').trim();
-    } else {
-      fields.esitoMissioneAltro = '';
+    try {
+      const fields = { esitoMissione: normalizeEsitoMissione(esito) };
+      if (fields.esitoMissione === 'ALTRO') {
+        fields.esitoMissioneAltro = (altro ?? '').trim();
+      } else {
+        fields.esitoMissioneAltro = '';
+      }
+      await patchMissione(manifestationId, missione._docId, fields, missione.mezzo);
+    } catch (err) {
+      notifyFirestoreError(err);
     }
-    await patchMissione(manifestationId, missione._docId, fields, missione.mezzo);
   };
 
   const impostaStatoOra = async (nuovo) => {
+    if (nuovo === missione.stato) return;
     if (statoMissioneBloccato && nuovo !== missione.stato) return;
-    await patchMissione(
-      manifestationId,
-      missione._docId,
-      buildStatoChangeFields(missione, nuovo),
-      missione.mezzo,
-    );
+    try {
+      await patchMissione(
+        manifestationId,
+        missione._docId,
+        buildStatoChangeFields(missione, nuovo),
+        missione.mezzo,
+      );
+    } catch (err) {
+      notifyFirestoreError(err);
+    }
   };
 
   const onStoricoBlur = async (statoKey, localValue) => {
     const date = fromDatetimeLocalValue(localValue);
     const prev = toDatetimeLocalValue(storico[statoKey]);
     if (localValue === prev) return;
-    await patchMissione(
-      manifestationId,
-      missione._docId,
-      patchStoricoStatoAt(missione, statoKey, date),
-      missione.mezzo,
-    );
+    try {
+      await patchMissione(
+        manifestationId,
+        missione._docId,
+        patchStoricoStatoAt(missione, statoKey, date),
+        missione.mezzo,
+      );
+    } catch (err) {
+      notifyFirestoreError(err);
+    }
   };
 
   const onAperturaMissioneBlur = async (value) => {
@@ -230,7 +308,7 @@ export function MissioneScheda({
         missione.mezzo,
       );
     } catch (err) {
-      alert(err.message ?? 'Errore salvataggio apertura missione.');
+      notifyFirestoreError(err);
     }
   };
 
@@ -477,12 +555,16 @@ export function MissioneScheda({
           onBlur={async (e) => {
             const v = e.target.value;
             if (v === (missione.noteMissione ?? '')) return;
-            await patchMissione(
-              manifestationId,
-              missione._docId,
-              { noteMissione: v },
-              missione.mezzo,
-            );
+            try {
+              await patchMissione(
+                manifestationId,
+                missione._docId,
+                { noteMissione: v },
+                missione.mezzo,
+              );
+            } catch (err) {
+              notifyFirestoreError(err);
+            }
           }}
         />
       </FormField>
@@ -492,6 +574,7 @@ export function MissioneScheda({
         missione={missione}
         eventi={eventi}
         mezzi={mezzi}
+        pazienti={pazienti}
         allMissioni={allMissioni ?? []}
         existingEventi={existingEventi ?? eventi ?? []}
       />

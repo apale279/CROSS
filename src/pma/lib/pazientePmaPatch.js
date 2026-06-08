@@ -4,13 +4,11 @@ import { pazientiPath } from '../../lib/firestorePaths';
 import { normalizePazientePatchInput, splitPazientePatch } from '../adapters/crossPazienteAdapter';
 import { EMPTY_PMA_SCHEDA } from './pmaSchedaDefaults';
 import { isEoColumnMergePatchPayload } from './eoQuickSelection';
-import { assertPmaFieldLocksWritable } from '../services/pmaFieldPresenceService';
-import { pmaFieldLocksRef } from './pmaFieldPresencePaths';
 import { mergeSchedaArrayById } from './pmaSchedaArrayMerge';
 import {
   buildGranularUpdatesFromSnapshot,
   isFirestoreFieldValue,
-  lockKeysFromPlan,
+  valuesEqual,
 } from './pmaPatchSnapshot';
 import { assertDimissionePatchAllowed } from './dimissionePatchGuard';
 
@@ -21,6 +19,7 @@ const PMA_SCHEDA_PREFIX = 'pmaScheda.';
 /** Campi array in `pmaScheda`: merge transazionale per non sovrascrivere altri operatori. */
 const PMA_SCHEDA_ARRAY_FIELDS = new Set([
   'parametri_vitali',
+  'triage_parametri_vitali',
   'farmaci',
   'rivalutazioni',
   'lesioni',
@@ -96,12 +95,24 @@ export function flattenPazientePatchForFirestore(patch) {
   return fields;
 }
 
-function buildPatchPlan(flatFields) {
+function extractPmaArrayRemoves(patch) {
+  const raw = patch?._pmaArrayRemove;
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
+  const out = {};
+  for (const [field, ids] of Object.entries(raw)) {
+    if (!Array.isArray(ids) || !ids.length) continue;
+    out[field] = ids;
+  }
+  return out;
+}
+
+function buildPatchPlan(flatFields, arrayRemoves = {}) {
   const plan = {
     direct: {},
     eoMerges: [],
     arrayMerges: [],
   };
+  const arrayMergeFields = new Set();
 
   for (const [path, value] of Object.entries(flatFields)) {
     if (!path.startsWith(PMA_SCHEDA_PREFIX)) {
@@ -112,27 +123,33 @@ function buildPatchPlan(flatFields) {
     if (isEoColumnMergePatchPayload(value)) {
       plan.eoMerges.push({ field, payload: value });
     } else if (PMA_SCHEDA_ARRAY_FIELDS.has(field) && !isFirestoreFieldValue(value)) {
-      plan.arrayMerges.push({ field, value });
+      plan.arrayMerges.push({
+        field,
+        value,
+        removeIds: arrayRemoves[field] ?? [],
+      });
+      arrayMergeFields.add(field);
     } else {
       plan.direct[path] = value;
     }
   }
 
+  /** Rimozione esplicita anche senza array client (evita invio snapshot stale). */
+  for (const [field, removeIds] of Object.entries(arrayRemoves)) {
+    if (!Array.isArray(removeIds) || removeIds.length === 0) continue;
+    if (!PMA_SCHEDA_ARRAY_FIELDS.has(field) || arrayMergeFields.has(field)) continue;
+    plan.arrayMerges.push({ field, value: [], removeIds });
+  }
+
   return plan;
 }
 
-function lockRef(manifestationId, pazienteDocId) {
-  return doc(db, ...pmaFieldLocksRef(manifestationId, pazienteDocId));
-}
-
 /**
- * Una transazione: snapshot lock + paziente, verifica lock, merge array/EO, update solo campi cambiati.
+ * Una transazione: snapshot paziente, merge array/EO, update solo campi cambiati.
+ * Lock presenza: solo avviso UI, mai blocco scrittura (cartella multi-operatore).
  */
-async function commitPatchPlanWithSnapshot(manifestationId, docId, plan, operatorUid) {
+async function commitPatchPlanWithSnapshot(manifestationId, docId, plan) {
   const docRef = doc(db, ...pazientiPath(manifestationId), docId);
-  const lockKeys = lockKeysFromPlan(plan);
-  const checkLocks = Boolean(operatorUid && lockKeys.length > 0);
-  const locksDocRef = checkLocks ? lockRef(manifestationId, docId) : null;
 
   await runTransaction(db, async (transaction) => {
     const pazSnap = await transaction.get(docRef);
@@ -140,19 +157,40 @@ async function commitPatchPlanWithSnapshot(manifestationId, docId, plan, operato
       throw new Error('Paziente non trovato.');
     }
 
-    let lockFields = {};
-    if (checkLocks && locksDocRef) {
-      const lockSnap = await transaction.get(locksDocRef);
-      lockFields = lockSnap.exists() ? lockSnap.data()?.fields ?? {} : {};
-      assertPmaFieldLocksWritable(lockFields, lockKeys, operatorUid);
-    }
-
     assertDimissionePatchAllowed(pazSnap.data(), plan);
 
     const updates = buildGranularUpdatesFromSnapshot(pazSnap.data(), plan);
-    if (Object.keys(updates).length === 0) return;
+    if (Object.keys(updates).length === 0) {
+      return; // nessuna modifica da applicare — dati già allineati sul server, no-op silenzioso
+    }
 
     transaction.update(docRef, updates);
+  });
+}
+
+/**
+ * Aggiunge una riga a un array `pmaScheda` (append transazionale, multi-operatore).
+ */
+export async function appendPmaSchedaArrayRow(manifestationId, docId, field, row) {
+  if (!manifestationId || !docId || !row) return;
+  if (!PMA_SCHEDA_ARRAY_FIELDS.has(field)) {
+    throw new Error(`Campo array non supportato: ${field}`);
+  }
+  const rowId = String(row?.id ?? '').trim();
+  if (!rowId) throw new Error('Riga senza id.');
+
+  const docRef = doc(db, ...pazientiPath(manifestationId), docId);
+  await runTransaction(db, async (transaction) => {
+    const pazSnap = await transaction.get(docRef);
+    if (!pazSnap.exists()) throw new Error('Paziente non trovato.');
+    const scheda = pazSnap.data().pmaScheda ?? {};
+    const server = scheda[field];
+    const merged = mergeSchedaArrayById(server, [row]);
+    const prev = Array.isArray(server) ? server : [];
+    if (valuesEqual(prev, merged)) {
+      return; // riga già presente sul server — no-op silenzioso
+    }
+    transaction.update(docRef, { [`${PMA_SCHEDA_PREFIX}${field}`]: merged });
   });
 }
 
@@ -163,7 +201,11 @@ async function commitPatchPlanWithSnapshot(manifestationId, docId, plan, operato
 export async function patchPazientePmaGranular(manifestationId, docId, patch, options = {}) {
   if (!manifestationId || !docId || !patch) return;
 
-  const safePatch = normalizePazientePatchInput(patch);
+  const arrayRemoves = extractPmaArrayRemoves(patch);
+  const patchBody = { ...patch };
+  delete patchBody._pmaArrayRemove;
+
+  const safePatch = normalizePazientePatchInput(patchBody);
   if (safePatch.pmaScheda && typeof safePatch.pmaScheda === 'object') {
     throw new Error('Aggiornamento pmaScheda intero non consentito: usare campi singoli.');
   }
@@ -173,8 +215,7 @@ export async function patchPazientePmaGranular(manifestationId, docId, patch, op
     throw new Error('Aggiornamento documento PMA non granulare bloccato.');
   }
 
-  const plan = buildPatchPlan(fields);
-  const operatorUid = options.operatorUid ?? null;
+  const plan = buildPatchPlan(fields, arrayRemoves);
   const hasAnyWrite =
     Object.keys(plan.direct).length > 0 ||
     plan.eoMerges.length > 0 ||
@@ -182,5 +223,5 @@ export async function patchPazientePmaGranular(manifestationId, docId, patch, op
 
   if (!hasAnyWrite) return;
 
-  await commitPatchPlanWithSnapshot(manifestationId, docId, plan, operatorUid);
+  await commitPatchPlanWithSnapshot(manifestationId, docId, plan);
 }

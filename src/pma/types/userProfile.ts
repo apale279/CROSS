@@ -11,4 +11,6 @@ export type UserProfile = {
   /** Firma medico in SVG (data URL o markup). */
   firma_medico_svg?: string | null;
   firmaUrl?: string | null;
+  /** Promemoria privati del medico (Account); visibili in dimissione, mai nel PDF. */
+  note_personali?: string | null;
 };

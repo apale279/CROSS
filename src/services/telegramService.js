@@ -66,23 +66,53 @@ export async function sendMissionToTelegram(
   return { ok: true, sent, total: data.total };
 }
 
-/** Dopo cambio stato dalla centrale: nuovo messaggio Telegram con pulsante corretto. */
-export function notifyTelegramStatoFromCentrale(manifestationId, missionDocId) {
+/** Esegue effetti Telegram in background: errori solo in console, mai verso l'operatore. */
+export function runTelegramSideEffect(label, fn) {
+  void Promise.resolve()
+    .then(fn)
+    .catch((err) => {
+      console.warn(`[telegram ${label}]`, err);
+    });
+}
+
+async function postTelegramNotifyStato(manifestationId, missionDocId, extra = {}) {
   const id = (missionDocId ?? '').trim();
   if (!id) return;
 
-  void (async () => {
-    try {
-      const headers = await authHeaders();
-      await fetch(apiUrl('/api/telegram-notify-stato'), {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(tenantApiBody(manifestationId, { missionDocId: id })),
-      });
-    } catch (err) {
-      console.warn('[telegram notify stato]', err);
+  try {
+    const headers = await authHeaders();
+    const res = await fetch(apiUrl('/api/telegram-notify-stato'), {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(tenantApiBody(manifestationId, { missionDocId: id, ...extra })),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      console.warn('[telegram notify stato]', data.error ?? res.status);
     }
-  })();
+  } catch (err) {
+    console.warn('[telegram notify stato]', err);
+  }
+}
+
+/** Dopo cambio stato dalla centrale: notifica + disattiva pulsanti su missioni chiuse. */
+export function notifyTelegramStatoFromCentrale(manifestationId, missionDocId) {
+  runTelegramSideEffect('notify stato', () => postTelegramNotifyStato(manifestationId, missionDocId));
+}
+
+/** Chiude l'interazione Telegram su missione eliminata/chiusa dalla centrale (non bloccante). */
+export function notifyTelegramMissioneEliminataFromCentrale(manifestationId, missionDocId) {
+  runTelegramSideEffect('eliminata', () =>
+    postTelegramNotifyStato(manifestationId, missionDocId, { eliminata: true }),
+  );
+}
+
+/** Come sopra, ma attendibile prima di cancellare il documento missione. */
+export async function awaitNotifyTelegramMissioneEliminataFromCentrale(
+  manifestationId,
+  missionDocId,
+) {
+  await postTelegramNotifyStato(manifestationId, missionDocId, { eliminata: true });
 }
 
 export async function fetchTelegramLoggedUsers(manifestationId) {

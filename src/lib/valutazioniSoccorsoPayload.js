@@ -1,6 +1,18 @@
 import { Timestamp } from 'firebase/firestore';
+import { newLocalId } from './ids';
 import { normalizeMsbDetails } from './msbValutazione';
 import { normalizeMsaDetails } from './msaValutazione';
+import { lesioniToFirestoreRows } from './valutazioneLesioni';
+
+function msbDetailsForFirestore(raw) {
+  const msb = normalizeMsbDetails(raw);
+  return { ...msb, lesioni: lesioniToFirestoreRows(msb.lesioni) };
+}
+
+function msaDetailsForFirestore(raw) {
+  const msa = normalizeMsaDetails(raw);
+  return { ...msa, lesioni: lesioniToFirestoreRows(msa.lesioni) };
+}
 
 /** Documento completo per Firestore (valori predefiniti inclusi). */
 export function payloadValutazioneRow(v) {
@@ -12,12 +24,12 @@ export function payloadValutazioneRow(v) {
   if (base.tipo === 'MSB') {
     return {
       ...base,
-      msbDetails: normalizeMsbDetails(v.msbDetails),
+      msbDetails: msbDetailsForFirestore(v.msbDetails),
       msaDetails: null,
       mezzo: '',
     };
   }
-  const msa = normalizeMsaDetails(v.msaDetails);
+  const msa = msaDetailsForFirestore(v.msaDetails);
   return {
     ...base,
     msbDetails: null,
@@ -27,7 +39,7 @@ export function payloadValutazioneRow(v) {
 }
 
 export function newValutazioneSoccorsoItem(tipo) {
-  const id = crypto.randomUUID();
+  const id = newLocalId();
   if (tipo === 'MSA') {
     return {
       id,

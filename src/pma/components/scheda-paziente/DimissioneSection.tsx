@@ -10,6 +10,7 @@ import {
 import { SignatureCanvas } from './SignatureCanvas'
 import { PmaFieldGuard } from '../PmaFieldGuard'
 import { defaultPdfFilename } from '@pma/lib/pdf/pazientePdfHelpers'
+import { buildPazientePdfBlob } from '@pma/lib/pdf/pazientePdfReport'
 import { createPdfObjectUrl, printPdfBlob, revokePdfObjectUrl, tryOpenPdfInNewTab } from '@pma/lib/pdf/pdfBlobActions'
 import { resolveMedicoFirmaPngSrc, resolveMedicoFirmaSrc } from '@pma/lib/medicoFirma'
 import { rasterizeFirmaDataUrlToPng } from '@pma/lib/signatureSvg'
@@ -17,13 +18,13 @@ import { PdfPreviewModal } from './PdfPreviewModal'
 import type { PresetDimissioneVoce } from '@pma/types/manifestazioneImpostazioni'
 import { canChiudiDimissionePaziente, schedaTabDimissioneAllows } from '@pma/lib/rankMatrix'
 import { validateDimissioneBeforeClose } from '@pma/lib/dimissioneValidate'
+import { PmaAllergieSiAlert } from './PmaAllergieSiAlert'
 import { staffSoftRefFromUser } from '@pma/lib/staffSoftRef'
 import { btnDanger, btnPrimary, btnSecondary } from '@pma/cross/uiTokens'
 import {
   parsePmaIpadQueueRequest,
   pushPmaIpadFirmaRequest,
   subscribePmaIpadFirmaQueue,
-  uploadPmaFirmaPdfPreview,
 } from '../../../services/pmaIpadFirmaService'
 
 export type PmaIpadFirmaSender = {
@@ -61,7 +62,7 @@ type Props = {
 
 /**
  * Sezione 4 — Dimissione.
- * Modifica: Superadmin, Centrale, Medico. Infermiere e Soccorritore: sola lettura.
+ * Modifica: Superadmin, Centrale, Medico. Infermiere, Soccorritore e Triage: sola lettura.
  * Chiusura definitiva (**Dimetti**): solo Medico (e Superadmin) con scheda aperta.
  */
 export function DimissioneSection({
@@ -151,8 +152,7 @@ export function DimissioneSection({
     rifiutoInvioPsText: rifiutoInvioPs.trim() || undefined,
   }
 
-  const firmaMedicoProfilo =
-    isMedico && user ? resolveMedicoFirmaSrc(user) : null
+  const firmaMedicoProfilo = isMedico && user ? resolveMedicoFirmaSrc(user) : null
   const firmaMedicoPreview = p.dimissione_firma_medico_base64 ?? firmaMedicoProfilo
 
   async function handleSaveFirmaPaziente(dataUrl: string) {
@@ -169,16 +169,10 @@ export function DimissioneSection({
     setIpadErr(null)
     setIpadOk(false)
     try {
-      const blob = await buildCurrentPdfBlob()
-      const pdfPreviewUrl = await uploadPmaFirmaPdfPreview(
-        pmaIpadFirma.manifestationId,
-        blob,
-        pmaIpadFirma.pazienteDocId,
-      )
       await pushPmaIpadFirmaRequest(pmaIpadFirma.manifestationId, pmaIpadFirma.pmaId, {
         pazienteDocId: pmaIpadFirma.pazienteDocId,
-        idPaziente: p.id,
-        pdfPreviewUrl,
+        idPaziente: p.id_paziente_visibile || p.id,
+        pdfPreviewUrl: '',
         requestedByUid: pmaIpadFirma.operatorUid,
         requestedByNome: pmaIpadFirma.operatorNome,
       })
@@ -240,7 +234,6 @@ export function DimissioneSection({
   }
 
   async function buildCurrentPdfBlob() {
-    const { buildPazientePdfBlob } = await import('../../lib/pdf/pazientePdfReport')
     return buildPazientePdfBlob(p, {
       manifestazioneNome: reportManifestazioneNome,
       pmaNome: reportPmaNome,
@@ -302,6 +295,7 @@ export function DimissioneSection({
   }
 
   const firmaPaz = p.firma_paziente_base64
+  const notePersonaliMedico = String(user?.note_personali ?? '').trim()
 
   const showPresetDimissione = Boolean(dimissioneEdit && presetDimissione.length > 0)
   const [presetSel, setPresetSel] = useState<number[]>([])
@@ -339,6 +333,36 @@ export function DimissioneSection({
       </div>
 
       <div className="space-y-0">
+        <PmaAllergieSiAlert
+          allergieVerifica={p.allergie_verifica}
+          allergie={p.allergie}
+          className="mx-3 mt-3"
+        />
+        {isMedico ? (
+          <div className="border-b border-sky-100 bg-sky-50/90 px-3 py-3">
+            <p className="text-xs font-bold uppercase tracking-wide text-sky-900">
+              Note personali (promemoria)
+            </p>
+            <p className="mt-1 text-xs text-sky-800/90">
+              Solo lettura qui — promemoria privati, non sono firme e non compaiono nel PDF. Imposta
+              o modifica da{' '}
+              <a href="/account" className="font-semibold underline hover:text-sky-950">
+                Account
+              </a>
+              .
+            </p>
+            {notePersonaliMedico ? (
+              <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-slate-800">
+                {notePersonaliMedico}
+              </p>
+            ) : (
+              <p className="mt-2 text-sm italic text-slate-600">
+                Nessuna nota salvata. Apri Account per aggiungere promemoria da consultare in
+                dimissione.
+              </p>
+            )}
+          </div>
+        ) : null}
         <PmaFieldGuard fieldKey="dimissione_esito" className="pma-row block">
           <label className="pma-field max-w-xl">
             <span className="pma-field__label">Esito</span>
@@ -392,7 +416,7 @@ export function DimissioneSection({
               <label className="pma-field">
                 <span className="pma-field__label">Legame</span>
                 <input
-                  key={`afl-${p.id}-${p.affidatario_legame}`}
+                  key={`afl-${p.id}`}
                   type="text"
                   disabled={!dimissioneEdit}
                   defaultValue={p.affidatario_legame}
@@ -508,8 +532,9 @@ export function DimissioneSection({
             {dimissioneEdit && pmaIpadFirma ? (
               <div className="mb-3 space-y-2 rounded-lg border border-violet-200 bg-violet-50/80 px-3 py-2.5">
                 <p className="text-xs text-violet-950">
-                  <strong>iPad PMA:</strong> invia il PDF di dimissione all&apos;iPad accoppiato. Se un
-                  altro medico invia un documento, sull&apos;iPad resta solo l&apos;ultimo.
+                  <strong>iPad PMA:</strong> apre sul tablet lo spazio firma paziente (come in
+                  dimissione). Il paziente firma e la firma torna qui in scheda. Resta valida solo
+                  l&apos;ultima richiesta inviata.
                 </p>
                 <button
                   type="button"
@@ -517,11 +542,11 @@ export function DimissioneSection({
                   onClick={() => void handleInviaIpadFirma()}
                   className={`${btnPrimary} uppercase tracking-wide disabled:opacity-50`}
                 >
-                  {ipadBusy ? 'Invio…' : 'Invia documento a iPad per firma'}
+                  {ipadBusy ? 'Invio…' : 'Apri firma su iPad'}
                 </button>
                 {ipadOk ? (
                   <p className="text-xs font-medium text-emerald-800" role="status">
-                    Documento inviato all&apos;iPad. In attesa della firma del paziente…
+                    Firma aperta sull&apos;iPad — in attesa del paziente…
                   </p>
                 ) : null}
                 {ipadErr ? (
@@ -614,7 +639,7 @@ export function DimissioneSection({
               >
                 {isMedico
                   ? 'Firma non configurata — apri Account in alto a sinistra per caricarla.'
-                  : 'Firma medico non disponibile (nessuna copia su scheda e profilo non applicabile a questa vista).'}
+                  : 'Firma medico non ancora su scheda. Il medico che dimette la vede da Account fino alla chiusura.'}
               </div>
             )}
           </div>

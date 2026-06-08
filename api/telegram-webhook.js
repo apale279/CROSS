@@ -119,7 +119,10 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: true, ignored: true });
     }
 
-    const chatId = msg.chat.id;
+    const chatId = msg.chat?.id ?? msg.from?.id;
+    if (!chatId) {
+      return res.status(200).json({ ok: true, ignored: true });
+    }
     const text = msg.text?.trim() ?? '';
 
     const isStart = /^\/start(\s|$|@)/i.test(text);

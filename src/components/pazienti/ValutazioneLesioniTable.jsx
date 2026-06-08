@@ -98,6 +98,20 @@ export function ValutazioneLesioniTable({ lesioni, onPatchLesioni, disabled = fa
     onPatchLesioni(next);
   };
 
+  const patchRowLocal = (index, partialTuple) => {
+    setRows((prev) =>
+      prev.map((row, i) => {
+        if (i !== index) return [...row];
+        const r = [...row];
+        if (partialTuple.localizzazione !== undefined) r[0] = partialTuple.localizzazione;
+        if (partialTuple.lato !== undefined) r[1] = partialTuple.lato;
+        if (partialTuple.tipologia !== undefined) r[2] = partialTuple.tipologia;
+        if (partialTuple.vas !== undefined) r[3] = partialTuple.vas;
+        return r;
+      }),
+    );
+  };
+
   const removeRow = (index) => {
     const next = rows.filter((_, i) => i !== index);
     setRows(next);
@@ -190,7 +204,12 @@ export function ValutazioneLesioniTable({ lesioni, onPatchLesioni, disabled = fa
                         value={row[0]}
                         placeholder="Localizzazione"
                         className={CELL_IN}
-                        onChange={(e) => patchRow(idx, { localizzazione: e.target.value })}
+                        onChange={(e) =>
+                          patchRowLocal(idx, { localizzazione: e.target.value })
+                        }
+                        onBlur={(e) =>
+                          patchRow(idx, { localizzazione: e.target.value })
+                        }
                       />
                     )}
                   </td>
@@ -236,7 +255,8 @@ export function ValutazioneLesioniTable({ lesioni, onPatchLesioni, disabled = fa
                         value={row[2]}
                         placeholder="Tipologia"
                         className={CELL_IN}
-                        onChange={(e) => patchRow(idx, { tipologia: e.target.value })}
+                        onChange={(e) => patchRowLocal(idx, { tipologia: e.target.value })}
+                        onBlur={(e) => patchRow(idx, { tipologia: e.target.value })}
                       />
                     )}
                   </td>

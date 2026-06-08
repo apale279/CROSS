@@ -8,6 +8,7 @@ import {
   normalizeMsaParametri,
 } from './msaValutazione';
 import { emptyMsbDetails } from './msbValutazione';
+import { lesioniToFirestoreRows } from './valutazioneLesioni';
 
 function jsonEqual(a, b) {
   return JSON.stringify(a) === JSON.stringify(b);
@@ -15,12 +16,14 @@ function jsonEqual(a, b) {
 
 /** Normalizza un solo campo di msbDetails (coerente con normalizeMsbDetails). */
 export function normalizeMsbDetailField(key, value) {
+  if (key === 'lesioni') return lesioniToFirestoreRows(value);
   const merged = normalizeMsbDetails({ ...emptyMsbDetails(), [key]: value });
   return merged[key];
 }
 
 /** Normalizza un solo campo top-level di msaDetails. */
 export function normalizeMsaDetailField(key, value) {
+  if (key === 'lesioni') return lesioniToFirestoreRows(value);
   const merged = normalizeMsaDetails({ ...emptyMsaDetails(), [key]: value });
   return merged[key];
 }

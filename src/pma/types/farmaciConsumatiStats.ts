@@ -101,15 +101,16 @@ export function incrementFarmacoConsumato(
   stats: PmaFarmacoConsumatoStat[],
   params: { nome: string; dose?: string; via?: FarmacoVia },
 ): PmaFarmacoConsumatoStat[] {
+  const merged = dedupeConsumatiByNome(stats)
   const nome = normalizeNome(params.nome)
-  if (!nome) return stats
+  if (!nome) return merged
   const dose = String(params.dose ?? '').trim()
   const via = params.via && isFarmacoVia(params.via) ? params.via : 'EV'
   const key = nome.toLowerCase()
-  const existing = stats.find((s) => s.nome.trim().toLowerCase() === key)
+  const existing = merged.find((s) => s.nome.trim().toLowerCase() === key)
   if (!existing) {
     return dedupeConsumatiByNome([
-      ...stats,
+      ...merged,
       {
         id: stableConsumatoId(nome),
         nome,
@@ -122,7 +123,7 @@ export function incrementFarmacoConsumato(
   const dosaggi = [...existing.dosaggi]
   if (dose && !dosaggi.includes(dose)) dosaggi.push(dose)
   return dedupeConsumatiByNome(
-    stats.map((s) =>
+    merged.map((s) =>
       s.nome.trim().toLowerCase() === key
         ? { ...s, conteggio: s.conteggio + 1, dosaggi, via: s.via || via }
         : s,

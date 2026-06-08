@@ -345,7 +345,7 @@ export function UserAccountsEditor() {
               <option value={ACCESS_TYPE.CENTRALE}>Centrale — vede tutto (dashboard completa)</option>
             </select>
             <span className="mt-1 block text-[11px] font-normal text-slate-500">
-              Medico / Infermiere / Soccorritore in tenda: scegli <strong>PMA</strong> e assegna il PMA.
+              Medico / Infermiere / Soccorritore / Triage in tenda: scegli <strong>PMA</strong> e assegna il PMA.
             </span>
           </label>
           {form.accessType === ACCESS_TYPE.CENTRALE && (
