@@ -471,7 +471,8 @@ export function PazienteModuloPma({
     rawDoc &&
     (isSchedaInSolaVisione(rawDoc) || isSchedaModificaForzata(rawDoc));
   const mobileDiarioVisible =
-    mobileVistaPma && (noteDiario?.some((n) => n.importante === true) ?? false);
+    mobileVistaPma &&
+    (noteDiario?.some((n) => n.importante === true && n.aperta !== false) ?? false);
   const mobileAlertSlot =
     mobileUnlockVisible || mobileDiarioVisible ? (
       <>

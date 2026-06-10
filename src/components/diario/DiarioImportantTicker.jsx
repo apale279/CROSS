@@ -14,16 +14,12 @@ function tickerLabel(nota) {
 }
 
 export function DiarioImportantTicker({ note, loading, onOpenNota, hideWhenEmpty = false }) {
+  /** Solo note importanti ancora aperte: una nota chiusa sparisce dal ticker. */
   const importanti = useMemo(
     () =>
       note
-        .filter((n) => n.importante === true)
-        .sort((a, b) => {
-          const aOpen = a.aperta !== false ? 1 : 0;
-          const bOpen = b.aperta !== false ? 1 : 0;
-          if (bOpen !== aOpen) return bOpen - aOpen;
-          return noteTime(b) - noteTime(a);
-        }),
+        .filter((n) => n.importante === true && n.aperta !== false)
+        .sort((a, b) => noteTime(b) - noteTime(a)),
     [note],
   );
 
@@ -32,23 +28,18 @@ export function DiarioImportantTicker({ note, loading, onOpenNota, hideWhenEmpty
   }
 
   const renderTrack = (keySuffix = '') =>
-    importanti.map((nota) => {
-      const aperta = nota.aperta !== false;
-      return (
-        <button
-          key={`${nota._docId}${keySuffix}`}
-          type="button"
-          onClick={() => onOpenNota?.(nota)}
-          className={`mx-6 inline-flex shrink-0 items-center gap-1.5 text-sm font-bold uppercase tracking-wide ${
-            aperta ? 'text-amber-950 hover:text-amber-700' : 'text-slate-500 hover:text-slate-700'
-          }`}
-          title={nota.testo ? String(nota.testo).slice(0, 200) : nota.titolo}
-        >
-          <Star className="h-3.5 w-3.5 shrink-0 fill-amber-500 text-amber-500" aria-hidden />
-          {tickerLabel(nota)}
-        </button>
-      );
-    });
+    importanti.map((nota) => (
+      <button
+        key={`${nota._docId}${keySuffix}`}
+        type="button"
+        onClick={() => onOpenNota?.(nota)}
+        className="mx-6 inline-flex shrink-0 items-center gap-1.5 text-sm font-bold uppercase tracking-wide text-amber-950 hover:text-amber-700"
+        title={nota.testo ? String(nota.testo).slice(0, 200) : nota.titolo}
+      >
+        <Star className="h-3.5 w-3.5 shrink-0 fill-amber-500 text-amber-500" aria-hidden />
+        {tickerLabel(nota)}
+      </button>
+    ));
 
   return (
     <div className="w-full border-t border-amber-200/90 bg-amber-50">

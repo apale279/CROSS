@@ -13,6 +13,7 @@
  *    - in tenda `IN ARRIVO` fino a «Prendi in carico», poi `in carico` fino a dimissione PMA
  */
 
+import { ESITO_TRASPORTA } from '../constants';
 import {
   isPazienteOriginePma,
   isPazienteCodiceMinore,
@@ -24,11 +25,18 @@ import {
 } from './pmaModule';
 import { isPercorsoCodiceMinoreTrasporto } from './pmaDestinazioneTrasporto';
 
-/** Chiuso lato centrale (missione/trasporto concluso o flag esplicito). */
+/** Esito valorizzato e diverso da «Trasporta»: caso risolto senza trasporto → chiuso centrale. */
+export function esitoChiudeCentrale(esito) {
+  const e = String(esito ?? '').trim();
+  return Boolean(e) && e !== ESITO_TRASPORTA;
+}
+
+/** Chiuso lato centrale (missione/trasporto concluso, esito non-trasporto o flag esplicito). */
 export function isChiusoCentrale(paziente) {
   if (!paziente) return false;
   if (isPazienteOriginePma(paziente)) return false;
   if (paziente.aperta === false) return true;
+  if (esitoChiudeCentrale(paziente.esito)) return true;
   return paziente.stato === 'ARRIVATO H';
 }
 
@@ -89,6 +97,7 @@ export function chiusuraCentraleLabel(paziente) {
   if (!isChiusoCentrale(paziente)) return null;
   if (paziente.stato === 'ARRIVATO H') return 'Chiuso centrale (ARRIVATO H)';
   if (paziente.aperta === false) return 'Chiuso centrale';
+  if (esitoChiudeCentrale(paziente.esito)) return `Chiuso centrale (${paziente.esito})`;
   return null;
 }
 

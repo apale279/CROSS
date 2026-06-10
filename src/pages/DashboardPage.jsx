@@ -375,9 +375,7 @@ export default function DashboardPage() {
             impostazioni={impostazioni}
             onOpenRow={(row) => {
               setCodiciMinoriPma(null);
-              navigate(
-                `/pma/${encodeURIComponent(codiciMinoriPma.id)}/paziente/${encodeURIComponent(row._docId)}?tab=anagrafica`,
-              );
+              navigate(`/pazienti?open=${encodeURIComponent(row._docId)}`);
             }}
           />
         </Modal>

@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useManifestazioneCollection } from '../../hooks/useManifestazioneCollection';
+import { useManifestazioneData } from '../../hooks/useManifestazioneCollection';
 import { useImpostazioni } from '../../hooks/useImpostazioni';
-import { COLLECTIONS } from '../../lib/firestorePaths';
 import { listaOspedaliDestinazione } from '../../lib/destinazioniOspedale';
 import { invioPsSoreuFieldsFromScheda } from '../../lib/invioPsSoreu';
 import { missionePmaInvioPsApertaPerPaziente } from '../../lib/pmaInvioPsMission';
 import { compareMezziDashboardSort } from '../../lib/mezzoStati';
 import {
+  filterMezziSelezionabiliPerNuovaMissione,
   isStatoMissioneRientroOLiberato,
   missioniAperteSuMezzo,
 } from '../../lib/mezzoMissione';
@@ -33,9 +33,8 @@ export function InvioPsSoreuTrasportoBlock({
 }) {
   const { impostazioni } = useImpostazioni();
   const { user, profile } = useAuth();
-  const { data: mezzi } = useManifestazioneCollection(COLLECTIONS.mezzi);
-  const { data: eventi } = useManifestazioneCollection(COLLECTIONS.eventi);
-  const { data: missioni } = useManifestazioneCollection(COLLECTIONS.missioni);
+  /** Dati NON scoped per profilo PMA: flotta e missioni complete, come le vede centrale. */
+  const { mezzi, eventi, missioni } = useManifestazioneData();
 
   const ospedali = useMemo(() => listaOspedaliDestinazione(impostazioni), [impostazioni]);
 
@@ -72,12 +71,13 @@ export function InvioPsSoreuTrasportoBlock({
     [missioni, paziente?._docId],
   );
 
+  /** Stessa logica centrale (EventoScheda) per i mezzi selezionabili su nuova missione. */
   const mezziDisponibili = useMemo(
     () =>
-      (mezzi ?? [])
-        .filter((m) => Boolean(String(m?.sigla ?? m?._docId ?? '').trim()))
-        .sort(compareMezziDashboardSort),
-    [mezzi],
+      filterMezziSelezionabiliPerNuovaMissione(mezzi, missioni).sort(
+        compareMezziDashboardSort,
+      ),
+    [mezzi, missioni],
   );
 
   const mezzoInRientroLabel = useMemo(() => {

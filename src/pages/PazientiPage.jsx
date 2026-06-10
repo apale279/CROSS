@@ -6,17 +6,18 @@ import { findEvento, missioniPerEvento } from '../lib/eventoLinks';
 import { formatTimestamp } from '../utils/formatters';
 import { Modal } from '../components/ui/Modal';
 import { PazienteScheda } from '../components/pazienti/PazienteScheda';
-import { PazientePmaBadges } from '../components/pazienti/PazientePmaBadges';
 import {
   displayEventoPazienteInLista,
   isPazienteCodiceMinore,
+  isPazienteOriginePma,
   pazienteHaDestinazionePma,
   pazientePassatoDalPma,
   pmaIdPerPaziente,
+  statoPzPmaLabel,
 } from '../lib/pmaModule';
 import { displayAnagraficaCodiceMinore } from '../lib/codiceMinoreTrasportoNome';
 import {
-  displayStatoPazienteInLista,
+  isChiusoCentrale,
   pazienteChiusuraAt,
   pazienteInElencoAperti,
   pazienteInElencoChiusi,
@@ -36,6 +37,38 @@ function pazienteRowClass(paziente) {
   return 'cursor-pointer border-l-4 border-l-violet-500 bg-violet-50/60 hover:bg-violet-100/70';
 }
 
+/** Colonna «Stato»: solo stato trasporto centrale (lo stato tenda è nella colonna PMA). */
+function statoCentraleColonna(paziente) {
+  if (isPazienteOriginePma(paziente)) return 'Autopresentato';
+  return paziente.stato ?? '—';
+}
+
+/** Colonna «Centrale»: aperto/chiuso lato centrale; vuota se non c'è percorso centrale. */
+function centraleApertoChiusoLabel(paziente) {
+  if (isPazienteOriginePma(paziente)) return '';
+  if (isPazienteCodiceMinore(paziente) && !paziente.stato) return '';
+  return isChiusoCentrale(paziente) ? 'Chiuso' : 'Aperto';
+}
+
+/** Colonna «Ospedale»: destinazione se presente, altrimenti vuota. */
+function ospedaleColonna(paziente) {
+  return String(
+    paziente.ospedaleDestinazione ?? paziente.pmaScheda?.invio_ps_ospedale ?? '',
+  ).trim();
+}
+
+/** Colonna «PMA»: stato in tenda; vuota se il paziente non passa dal PMA. */
+function statoPmaColonna(paziente) {
+  if (isPazienteCodiceMinore(paziente)) {
+    return statoPzPmaLabel(paziente.statoPzPma) ?? 'Codice minore';
+  }
+  if (isPazienteOriginePma(paziente)) {
+    return statoPzPmaLabel(paziente.statoPzPma) ?? '—';
+  }
+  if (!pazienteHaDestinazionePma(paziente)) return '';
+  return statoPzPmaLabel(paziente.statoPzPma) ?? 'In attesa mezzo';
+}
+
 function PazientiTable({ rows, eventi, onRow, emptyLabel }) {
   return (
     <div className="overflow-hidden rounded border border-slate-300 bg-white">
@@ -46,8 +79,10 @@ function PazientiTable({ rows, eventi, onRow, emptyLabel }) {
             <th className={thClass}>Cognome / nome</th>
             <th className={thClass}>Evento</th>
             <th className={thClass}>Stato</th>
-            <th className={thClass}>PMA</th>
             <th className={thClass}>Esito</th>
+            <th className={thClass}>Centrale</th>
+            <th className={thClass}>Ospedale</th>
+            <th className={thClass}>PMA</th>
             <th className={thClass}>Apertura</th>
             <th className={thClass}>Chiusura</th>
           </tr>
@@ -55,7 +90,7 @@ function PazientiTable({ rows, eventi, onRow, emptyLabel }) {
         <tbody>
           {rows.length === 0 ? (
             <tr>
-              <td colSpan={8} className={`${tdClass} text-slate-500`}>
+              <td colSpan={10} className={`${tdClass} text-slate-500`}>
                 {emptyLabel}
               </td>
             </tr>
@@ -63,6 +98,7 @@ function PazientiTable({ rows, eventi, onRow, emptyLabel }) {
             rows.map((row) => {
               const ev = findEvento(eventi, row.eventoIdUnivoco ?? row.eventoCorrelato);
               const label = displayEventoPazienteInLista(row, ev);
+              const centrale = centraleApertoChiusoLabel(row);
               return (
                 <tr key={row._docId} onClick={() => onRow(row)} className={pazienteRowClass(row)}>
                   <td className={`${tdClass} font-mono font-bold`}>{row.idPaziente}</td>
@@ -72,11 +108,17 @@ function PazientiTable({ rows, eventi, onRow, emptyLabel }) {
                       : [row.cognome, row.nome].filter(Boolean).join(' ') || '—'}
                   </td>
                   <td className={`${tdClass} font-mono`}>{label}</td>
-                  <td className={tdClass}>{displayStatoPazienteInLista(row)}</td>
-                  <td className={tdClass}>
-                    <PazientePmaBadges paziente={row} />
-                  </td>
+                  <td className={tdClass}>{statoCentraleColonna(row)}</td>
                   <td className={`${tdClass} max-w-[140px] truncate`}>{row.esito || '—'}</td>
+                  <td
+                    className={`${tdClass} font-semibold ${
+                      centrale === 'Aperto' ? 'text-emerald-700' : 'text-slate-500'
+                    }`}
+                  >
+                    {centrale}
+                  </td>
+                  <td className={`${tdClass} max-w-[160px] truncate`}>{ospedaleColonna(row)}</td>
+                  <td className={tdClass}>{statoPmaColonna(row)}</td>
                   <td className={tdClass}>{formatTimestamp(row.apertura)}</td>
                   <td className={tdClass}>{formatTimestamp(pazienteChiusuraAt(row))}</td>
                 </tr>
@@ -102,7 +144,7 @@ export default function PazientiPage() {
     [pazienti],
   );
   const chiusi = useMemo(
-    () => [...pazienti].filter(pazienteInElencoChiusi).sort(sortByApertura),
+    () => [...pazienti].filter(pazienteInElencoChiusi).sort(sortByChiusura),
     [pazienti],
   );
 
@@ -210,5 +252,12 @@ export default function PazientiPage() {
 function sortByApertura(a, b) {
   const ta = a.apertura?.toMillis?.() ?? 0;
   const tb = b.apertura?.toMillis?.() ?? 0;
+  return tb - ta;
+}
+
+/** Chiusi: dalla chiusura più recente alla più remota (fallback apertura). */
+function sortByChiusura(a, b) {
+  const ta = pazienteChiusuraAt(a)?.toMillis?.() ?? a.apertura?.toMillis?.() ?? 0;
+  const tb = pazienteChiusuraAt(b)?.toMillis?.() ?? b.apertura?.toMillis?.() ?? 0;
   return tb - ta;
 }
